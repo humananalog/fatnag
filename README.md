@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 1.1.0  
+**Version:** 1.2.0  
 **Target device:** iPhone 15 (iOS 17+)  
 **Deployment target:** iOS 17.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -11,11 +11,13 @@ Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model
 ## What it does
 
 1. Scans for the scale’s BLE advertisements (`MIBFS` / service data `0x181B`)
-2. Opens a **full-screen live weigh-in sheet** as soon as a scale is selected; streams settling weight, then impedance when barefoot
-3. Reads recent **Apple Health** body-mass history (on-device) and colors the sheet by trend vs last weight: **green** loss, **yellow** stable (±0.2 kg), **red** gain
-4. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
-5. Lets you **edit** weight / impedance / composition **before** confirm
-6. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
+2. Opens a **full-screen live weigh-in sheet** as soon as a scale is selected; streams settling weight with a stable layout (no jump/clip on iPhone 15)
+3. Keeps **resistance (Ω)** visible during the live session and in edit-before-save; BIA is not hidden while weight streams
+4. Reads recent **Apple Health** body-mass history (on-device) and colors the sheet by trend vs last weight: **green** loss, **yellow** stable (±0.2 kg), **red** gain
+5. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
+6. Lets you **edit** weight / resistance / composition **before** confirm
+7. **Settings → Weight calibration**: single-point reference mass (default example **5 kg**), store scale factor (+ optional offset) on-device, apply to live + saved weights, with reset
+8. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
 
 No accounts, no backend, no analytics, no third-party cloud.
 
@@ -25,6 +27,7 @@ No accounts, no backend, no analytics, no third-party cloud.
 |------|----------------|
 | Weight / impedance from the scale | Parsed in memory on the iPhone |
 | Height / age / sex profile | `UserDefaults` on device only |
+| Weight calibration (factor / offset) | `UserDefaults` on device only |
 | Health **read** | Recent `bodyMass` samples for on-device trend only |
 | Health **writes** | Apple Health (HealthKit) on device, only after **Confirm to Health** |
 | Network | None by design |
@@ -132,13 +135,14 @@ BLE advertisements and HealthKit need a **physical iPhone**. The Simulator will 
 
 ### First weigh-in
 
-1. Enter height, age, and sex in the app (used only for local composition math).
-2. Tap **Find Scale**; look for `MIBFS` / Mi Scale.
-3. Select the scale: the **live weigh-in sheet** opens immediately and streams weight.
-4. Stand **barefoot** until impedance (ohms) appears. Allow Health read access when prompted so the sheet can color by trend.
-5. Tap **Edit** if any field needs correction. Only **Confirm to Health** writes.
-6. With impedance, Health gets weight + BMI + body fat % + lean mass. Weight-only saves weight + BMI only (confirm prompt).
-7. Open the Health app → Browse → Body Measurements and confirm values appeared.
+1. Open **Settings** (gear): set height, age, and sex (local composition math only).
+2. Optional calibration: set reference mass (default **5 kg**), place that known mass on the scale in a live session, tap **Capture reading & store correction**. Toggle / reset anytime. Single-point only (honest limits shown in Settings).
+3. Tap **Find Scale**; look for `MIBFS` / Mi Scale.
+4. Select the scale: the **live weigh-in sheet** opens immediately and streams weight. The **Resistance** panel stays visible (shows `- Ω` until BIA arrives).
+5. Stand **barefoot** until ohms appear in the Resistance panel. Allow Health read access when prompted so the sheet can color by trend.
+6. Tap **Edit** if any field needs correction (weight and resistance are both editable). Only **Confirm to Health** writes.
+7. With impedance, Health gets weight + BMI + body fat % + lean mass. Weight-only saves weight + BMI only (confirm prompt).
+8. Open the Health app → Browse → Body Measurements and confirm values appeared.
 
 ### Unit tests (Mac)
 
@@ -178,4 +182,4 @@ scripts/
 
 ## Version
 
-Marketing version **1.1.0** / build **4**. Bump both in the Xcode target when shipping changes.
+Marketing version **1.2.0** / build **5**. Bump both in the Xcode target when shipping changes.

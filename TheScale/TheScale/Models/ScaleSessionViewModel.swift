@@ -34,6 +34,7 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var discoveredScales: [DiscoveredScale] = []
     @Published private(set) var selectedScaleID: UUID?
     @Published private(set) var latestMeasurement: ScaleMeasurement?
+    /// Raw (uncalibrated) live streaming kg from BLE.
     @Published private(set) var liveWeightKg: Double?
     @Published private(set) var composition: BodyCompositionResult?
     @Published private(set) var liveHint: String = "Step on the scale when listening."
@@ -46,6 +47,9 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var profile: UserBodyProfile {
         didSet { UserProfileStore.save(profile) }
     }
+    @Published var calibration: ScaleCalibration {
+        didSet { ScaleCalibrationStore.save(calibration) }
+    }
 
     private let scanner: ScaleScanning
     private let healthStore: HealthWriting
@@ -55,11 +59,13 @@ final class ScaleSessionViewModel: ObservableObject {
     init(
         scanner: ScaleScanning,
         healthStore: HealthWriting,
-        profile: UserBodyProfile = UserProfileStore.load()
+        profile: UserBodyProfile = UserProfileStore.load(),
+        calibration: ScaleCalibration = ScaleCalibrationStore.load()
     ) {
         self.scanner = scanner
         self.healthStore = healthStore
         self.profile = profile
+        self.calibration = calibration
         self.scanner.delegate = self
     }
 
@@ -78,13 +84,27 @@ final class ScaleSessionViewModel: ObservableObject {
         return !measurement.hasImpedance
     }
 
-    /// Live display weight: streaming kg while settling, else stabilized / draft.
+    /// Latest raw kg (live stream or last stabilized), before calibration.
+    var rawDisplayWeightKg: Double? {
+        if let liveWeightKg { return liveWeightKg }
+        return latestMeasurement.map(\.weightKg)
+    }
+
+    /// Live display weight: calibrated streaming kg while settling, else draft / stabilized.
     var displayWeightKg: Double? {
         if let draft, isEditingDraft || phase == .reviewing {
             return draft.weightKg
         }
-        if let liveWeightKg { return liveWeightKg }
-        return latestMeasurement?.weightKg
+        guard let raw = rawDisplayWeightKg else { return nil }
+        return calibration.apply(toRawKg: raw)
+    }
+
+    /// Impedance for the live sheet (measurement or draft). Never calibrated.
+    var displayImpedanceOhms: Int? {
+        if let draft, isEditingDraft || phase == .reviewing || phase == .ready {
+            return draft.impedanceOhms
+        }
+        return latestMeasurement?.impedanceOhms ?? draft?.impedanceOhms
     }
 
     var currentTrend: WeightTrend {
@@ -153,8 +173,9 @@ final class ScaleSessionViewModel: ObservableObject {
 
     func beginReview() {
         guard let measurement = latestMeasurement else { return }
+        let calibrated = calibratedMeasurement(from: measurement)
         draft = EditableMeasurementDraft.from(
-            measurement: measurement,
+            measurement: calibrated,
             composition: composition,
             profile: profile
         )
@@ -179,8 +200,8 @@ final class ScaleSessionViewModel: ObservableObject {
     func updateDraftBodyFat(_ percent: Double?) {
         guard var draft else { return }
         draft.bodyFatPercent = percent
-        if let percent, let weight = Optional(draft.weightKg) {
-            draft.leanBodyMassKg = max(weight - (weight * percent / 100.0), 0)
+        if let percent {
+            draft.leanBodyMassKg = max(draft.weightKg - (draft.weightKg * percent / 100.0), 0)
         }
         self.draft = draft
     }
@@ -203,6 +224,46 @@ final class ScaleSessionViewModel: ObservableObject {
         self.draft = draft
     }
 
+    // MARK: - Calibration
+
+    func updateCalibrationReferenceMass(_ kg: Double) {
+        calibration.referenceMassKg = max(kg, 0.1)
+    }
+
+    func updateCalibrationOffset(_ kg: Double) {
+        calibration.offsetKg = kg
+        if abs(kg) > 0.000_01 || abs(calibration.scaleFactor - 1.0) > 0.000_01 {
+            calibration.isActive = true
+        }
+        // Re-apply to current draft / composition if we have a raw measurement.
+        reapplyCalibrationToLatest()
+    }
+
+    func setCalibrationActive(_ active: Bool) {
+        calibration.isActive = active
+        reapplyCalibrationToLatest()
+    }
+
+    @discardableResult
+    func captureCalibrationFromCurrentReading() -> Bool {
+        guard let raw = rawDisplayWeightKg else { return false }
+        var next = calibration
+        guard next.capture(rawKg: raw) else { return false }
+        calibration = next
+        reapplyCalibrationToLatest()
+        liveHint = String(
+            format: "Calibration stored from raw %.2f kg → %.2f kg reference.",
+            raw,
+            calibration.referenceMassKg
+        )
+        return true
+    }
+
+    func resetCalibration() {
+        calibration.reset()
+        reapplyCalibrationToLatest()
+    }
+
     func refreshHealthBaseline() async {
         guard healthKitAvailable else {
             recentHealthWeights = []
@@ -222,8 +283,9 @@ final class ScaleSessionViewModel: ObservableObject {
 
     func saveDraftToHealth() async {
         if draft == nil, let measurement = latestMeasurement {
+            let calibrated = calibratedMeasurement(from: measurement)
             draft = EditableMeasurementDraft.from(
-                measurement: measurement,
+                measurement: calibrated,
                 composition: composition,
                 profile: profile
             )
@@ -249,6 +311,41 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Legacy entry used by older UI paths; routes through draft confirm.
     func saveToHealth() async {
         await saveDraftToHealth()
+    }
+
+    private func calibratedMeasurement(from measurement: ScaleMeasurement) -> ScaleMeasurement {
+        ScaleMeasurement(
+            id: measurement.id,
+            weightKg: calibration.apply(toRawKg: measurement.weightKg),
+            impedanceOhms: measurement.impedanceOhms,
+            scaleDate: measurement.scaleDate,
+            hasImpedance: measurement.hasImpedance,
+            biaPending: measurement.biaPending,
+            displayUnit: measurement.displayUnit,
+            receivedAt: measurement.receivedAt,
+            isStabilized: measurement.isStabilized
+        )
+    }
+
+    private func reapplyCalibrationToLatest() {
+        guard let measurement = latestMeasurement else { return }
+        let calibrated = calibratedMeasurement(from: measurement)
+        if let ohms = calibrated.impedanceOhms {
+            composition = BodyCompositionCalculator.calculate(
+                weightKg: calibrated.weightKg,
+                impedanceOhms: ohms,
+                profile: profile
+            )
+        } else {
+            composition = nil
+        }
+        if !isEditingDraft {
+            draft = EditableMeasurementDraft.from(
+                measurement: calibrated,
+                composition: composition,
+                profile: profile
+            )
+        }
     }
 
     private func accept(_ measurement: ScaleMeasurement) {
@@ -282,18 +379,19 @@ final class ScaleSessionViewModel: ObservableObject {
 
         latestMeasurement = measurement
         liveWeightKg = measurement.weightKg
+        let calibrated = calibratedMeasurement(from: measurement)
 
         if let ohms = measurement.impedanceOhms {
             cancelImpedanceWait()
             composition = BodyCompositionCalculator.calculate(
-                weightKg: measurement.weightKg,
+                weightKg: calibrated.weightKg,
                 impedanceOhms: ohms,
                 profile: profile
             )
             impedanceMissingReason = nil
             liveHint = "Stabilized reading with impedance (\(ohms) Ω). Review before saving to Health."
             draft = EditableMeasurementDraft.from(
-                measurement: measurement,
+                measurement: calibrated,
                 composition: composition,
                 profile: profile
             )
@@ -303,7 +401,7 @@ final class ScaleSessionViewModel: ObservableObject {
 
         composition = nil
         draft = EditableMeasurementDraft.from(
-            measurement: measurement,
+            measurement: calibrated,
             composition: nil,
             profile: profile
         )
@@ -329,8 +427,9 @@ final class ScaleSessionViewModel: ObservableObject {
             self.impedanceMissingReason =
                 "Impedance missing. Socks, shoes, or stepping off early block body fat. Stand barefoot on the metal electrodes and wait a few seconds after weight stabilizes for the second (BIA) broadcast."
             self.liveHint = self.impedanceMissingReason ?? self.liveHint
+            let calibrated = self.calibratedMeasurement(from: measurement)
             self.draft = EditableMeasurementDraft.from(
-                measurement: measurement,
+                measurement: calibrated,
                 composition: nil,
                 profile: self.profile
             )

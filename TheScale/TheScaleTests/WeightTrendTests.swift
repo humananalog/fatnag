@@ -9,12 +9,18 @@ final class WeightTrendTests: XCTestCase {
 
     func testGainAboveThreshold() {
         let trend = WeightTrend.from(currentKg: 80.3, baselineKg: 80.0)
-        XCTAssertEqual(trend, .gain(deltaKg: 0.3))
+        guard case .gain(let delta) = trend else {
+            return XCTFail("expected gain, got \(trend)")
+        }
+        XCTAssertEqual(delta, 0.3, accuracy: 0.000_1)
     }
 
     func testStableWithinBand() {
         let trend = WeightTrend.from(currentKg: 80.1, baselineKg: 80.0)
-        XCTAssertEqual(trend, .stable(deltaKg: 0.1))
+        guard case .stable(let delta) = trend else {
+            return XCTFail("expected stable, got \(trend)")
+        }
+        XCTAssertEqual(delta, 0.1, accuracy: 0.000_1)
     }
 
     func testUnknownWithoutBaseline() {

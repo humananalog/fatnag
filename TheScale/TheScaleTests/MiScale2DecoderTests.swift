@@ -158,11 +158,13 @@ final class ScaleSessionImpedanceTests: XCTestCase {
     private final class FakeHealth: HealthWriting {
         var isHealthDataAvailable: Bool { false }
         func requestAuthorizationIfNeeded() async throws {}
+        func fetchRecentWeights(limit: Int) async throws -> [HealthWeightSample] { [] }
         func write(
             measurement: ScaleMeasurement,
             composition: BodyCompositionResult?,
             profile: UserBodyProfile
         ) async throws {}
+        func write(draft: EditableMeasurementDraft, profile: UserBodyProfile) async throws {}
     }
 
     private func waitUntil(

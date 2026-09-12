@@ -11,7 +11,7 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 22) {
                         brandHeader
                         privacyCard
-                        profileSection
+                        profileSummary
                         discoverySection
                         homeActions
                     }
@@ -19,6 +19,17 @@ struct ContentView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SettingsView()
+                            .environmentObject(session)
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
+                }
+            }
             .fullScreenCover(isPresented: Binding(
                 get: { session.isWeighInPresented },
                 set: { if !$0 { session.dismissWeighIn() } }
@@ -63,12 +74,17 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text("On-device BLE → Apple Health. Live weigh-in, trend colors, edit before you confirm.")
+            Text("On-device BLE → Apple Health. Live weigh-in, trend colors, resistance (Ω), edit before you confirm.")
                 .font(.system(size: 15, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
             if let baseline = session.healthBaselineKg {
                 Text(String(format: "Last Health weight: %.2f kg", baseline))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            if session.calibration.hasCorrection {
+                Text(session.calibration.summaryLine)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
             }
         }
@@ -78,7 +94,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Privacy", systemImage: "lock.shield")
                 .font(.headline)
-            Text("Measurements stay on this iPhone. The Scale reads recent Health weight only for on-device trend, and writes weight / BMI / body fat % / lean mass only after you confirm. No accounts, no cloud, no analytics.")
+            Text("Measurements stay on this iPhone. The Scale reads recent Health weight only for on-device trend, and writes weight / BMI / body fat % / lean mass only after you confirm. Calibration stays on-device. No accounts, no cloud, no analytics.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -87,52 +103,35 @@ struct ContentView: View {
         .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private var profileSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Your profile")
-                .font(.headline)
-            Text("Needed to estimate body composition from impedance. Stored only in this app’s UserDefaults.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
+    private var profileSummary: some View {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Height")
+                Text("Profile & calibration")
+                    .font(.headline)
                 Spacer()
-                TextField(
-                    "cm",
-                    value: $session.profile.heightCm,
-                    format: .number.precision(.fractionLength(0))
-                )
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 72)
-                Text("cm")
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack {
-                Text("Age")
-                Spacer()
-                TextField(
-                    "years",
-                    value: $session.profile.ageYears,
-                    format: .number.precision(.fractionLength(0))
-                )
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 72)
-                Text("yr")
-                    .foregroundStyle(.secondary)
-            }
-
-            Picker("Sex", selection: $session.profile.sex) {
-                ForEach(UserBodyProfile.Sex.allCases) { sex in
-                    Text(sex.title).tag(sex)
+                NavigationLink("Settings") {
+                    SettingsView()
+                        .environmentObject(session)
                 }
+                .font(.subheadline.weight(.semibold))
             }
-            .pickerStyle(.segmented)
+            Text(
+                String(
+                    format: "%.0f cm · %.0f yr · %@ · ref %.2f kg",
+                    session.profile.heightCm,
+                    session.profile.ageYears,
+                    session.profile.sex.title,
+                    session.calibration.referenceMassKg
+                )
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            Text("Open Settings to edit height/age/sex and run single-point weight calibration (default example 5 kg).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 

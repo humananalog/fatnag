@@ -21,6 +21,9 @@
 		A1B2C3D4E5F60718293A0002 /* EditableMeasurementDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1002 /* EditableMeasurementDraft.swift */; };
 		A1B2C3D4E5F60718293A0003 /* LiveWeighInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1003 /* LiveWeighInSheet.swift */; };
 		A1B2C3D4E5F60718293A0004 /* WeightTrendTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1004 /* WeightTrendTests.swift */; };
+		A1B2C3D4E5F60718293A0005 /* ScaleCalibration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1005 /* ScaleCalibration.swift */; };
+		A1B2C3D4E5F60718293A0006 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1006 /* SettingsView.swift */; };
+		A1B2C3D4E5F60718293A0007 /* ScaleCalibrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1007 /* ScaleCalibrationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,6 +55,9 @@
 		A1B2C3D4E5F60718293A1002 /* EditableMeasurementDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableMeasurementDraft.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1003 /* LiveWeighInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWeighInSheet.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1004 /* WeightTrendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightTrendTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1005 /* ScaleCalibration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleCalibration.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1006 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1007 /* ScaleCalibrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleCalibrationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -77,6 +83,7 @@
 			children = (
 				87EB1E9E2263405C8B1B48F0 /* ContentView.swift */,
 				A1B2C3D4E5F60718293A1003 /* LiveWeighInSheet.swift */,
+				A1B2C3D4E5F60718293A1006 /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -106,6 +113,7 @@
 				98B7D1B4269643799F3CE3B0 /* ScaleSessionViewModel.swift */,
 				A1B2C3D4E5F60718293A1001 /* WeightTrend.swift */,
 				A1B2C3D4E5F60718293A1002 /* EditableMeasurementDraft.swift */,
+				A1B2C3D4E5F60718293A1005 /* ScaleCalibration.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -156,6 +164,7 @@
 			children = (
 				E595CBE9B3604BDA974B7530 /* MiScale2DecoderTests.swift */,
 				A1B2C3D4E5F60718293A1004 /* WeightTrendTests.swift */,
+				A1B2C3D4E5F60718293A1007 /* ScaleCalibrationTests.swift */,
 			);
 			path = TheScaleTests;
 			sourceTree = "<group>";
@@ -269,6 +278,7 @@
 			files = (
 				B100683E83BB4960A142A289 /* MiScale2DecoderTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0004 /* WeightTrendTests.swift in Sources */,
+				A1B2C3D4E5F60718293A0007 /* ScaleCalibrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -287,6 +297,8 @@
 				A1B2C3D4E5F60718293A0001 /* WeightTrend.swift in Sources */,
 				A1B2C3D4E5F60718293A0002 /* EditableMeasurementDraft.swift in Sources */,
 				A1B2C3D4E5F60718293A0003 /* LiveWeighInSheet.swift in Sources */,
+				A1B2C3D4E5F60718293A0005 /* ScaleCalibration.swift in Sources */,
+				A1B2C3D4E5F60718293A0006 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -306,11 +318,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -346,7 +358,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -359,7 +371,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -378,11 +390,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -399,7 +411,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -412,7 +424,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.0;
+				MARKETING_VERSION = 1.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

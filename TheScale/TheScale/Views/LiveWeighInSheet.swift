@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Full-screen live weigh-in surface: trend atmosphere + live kg + edit-before-save.
+/// Full-screen live weigh-in: fixed zones so streaming kg / ohms do not jump or clip on iPhone 15.
 struct LiveWeighInSheet: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @State private var pulse = false
@@ -18,18 +18,28 @@ struct LiveWeighInSheet: View {
 
             VStack(spacing: 0) {
                 topBar
-                Spacer(minLength: 12)
-                brandAndWeight
-                Spacer(minLength: 12)
-                statusCluster
-                if session.phase == .ready || session.phase == .reviewing || session.isEditingDraft {
-                    editAndConfirm
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 16) {
+                        brandRow
+                        weightBlock
+                        resistancePanel
+                        statusLine
+                        if showsConfirmChrome {
+                            editAndConfirm
+                                .transition(.opacity)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 28)
+                    .frame(maxWidth: .infinity)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 28)
-            .padding(.top, 8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .preferredColorScheme(.light)
         .onAppear {
@@ -47,20 +57,37 @@ struct LiveWeighInSheet: View {
         }
     }
 
+    private var showsConfirmChrome: Bool {
+        session.phase == .ready
+            || session.phase == .reviewing
+            || session.isEditingDraft
+            || session.phase == .healthKitWriting
+            || session.phase == .healthKitSuccess
+            || {
+                if case .healthKitFailed = session.phase { return true }
+                return false
+            }()
+    }
+
     private var topBar: some View {
-        HStack {
+        HStack(alignment: .center) {
             Button {
                 session.dismissWeighIn()
             } label: {
                 Image(systemName: "xmark")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
-                    .padding(10)
+                    .frame(width: 40, height: 40)
                     .background(.white.opacity(0.35), in: Circle())
             }
-            Spacer()
+            .accessibilityLabel("Close weigh-in")
+
+            Spacer(minLength: 8)
+
             trendChip
+                .layoutPriority(1)
         }
+        .frame(minHeight: 44)
     }
 
     private var trendChip: some View {
@@ -69,6 +96,7 @@ struct LiveWeighInSheet: View {
             Image(systemName: trendSymbol(trend))
             Text(trend.title)
                 .font(.caption.weight(.semibold))
+                .lineLimit(1)
         }
         .foregroundStyle(atmosphere.accent)
         .padding(.horizontal, 12)
@@ -76,76 +104,123 @@ struct LiveWeighInSheet: View {
         .background(.white.opacity(0.4), in: Capsule())
     }
 
-    private var brandAndWeight: some View {
-        VStack(spacing: 18) {
-            HStack(spacing: 10) {
-                Image("BrandMark")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                Text("The Scale")
-                    .font(.system(size: 34, weight: .semibold, design: .serif))
-                    .foregroundStyle(atmosphere.accent)
-            }
-            .opacity(0.95)
-
-            VStack(spacing: 4) {
-                Text(weightText)
-                    .font(.system(size: 92, weight: .ultraLight, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(atmosphere.accent)
-                    .scaleEffect(isLiveMeasuring ? (pulse ? 1.018 : 0.992) : 1.0)
-                    .animation(
-                        isLiveMeasuring
-                            ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true)
-                            : .spring(response: 0.45, dampingFraction: 0.82),
-                        value: session.displayWeightKg
-                    )
-                    .contentTransition(.numericText())
-
-                Text("kg")
-                    .font(.system(size: 22, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.7))
-            }
-
-            Text(session.trendForDisplay.subtitle)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(atmosphere.accent.opacity(0.8))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 8)
+    private var brandRow: some View {
+        HStack(spacing: 10) {
+            Image("BrandMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 32, height: 32)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Text("The Scale")
+                .font(.system(size: 28, weight: .semibold, design: .serif))
+                .foregroundStyle(atmosphere.accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Spacer(minLength: 0)
         }
+        .opacity(0.95)
+        .frame(minHeight: 36)
     }
 
-    private var statusCluster: some View {
-        VStack(spacing: 10) {
+    private var weightBlock: some View {
+        VStack(spacing: 6) {
+            Text(weightText)
+                .font(.system(size: 72, weight: .ultraLight, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(atmosphere.accent)
+                .minimumScaleFactor(0.45)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .frame(height: 78, alignment: .center)
+                .scaleEffect(isLiveMeasuring ? (pulse ? 1.012 : 0.994) : 1.0)
+                .animation(
+                    isLiveMeasuring
+                        ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true)
+                        : .spring(response: 0.45, dampingFraction: 0.82),
+                    value: pulse
+                )
+                // Avoid animating layout on every kg tick (that caused jump/clip).
+                .contentTransition(.identity)
+
+            HStack(spacing: 8) {
+                Text("kg")
+                    .font(.system(size: 20, weight: .medium, design: .rounded))
+                    .foregroundStyle(atmosphere.accent.opacity(0.7))
+                if session.calibration.hasCorrection {
+                    Text("calibrated")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(atmosphere.accent.opacity(0.65))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(.white.opacity(0.35), in: Capsule())
+                }
+            }
+            .frame(height: 28)
+
+            Text(session.trendForDisplay.subtitle)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(atmosphere.accent.opacity(0.8))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+                .frame(minHeight: 36, alignment: .top)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Always-visible BIA / resistance zone (never collapses when weight is streaming).
+    private var resistancePanel: some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Resistance")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.accent.opacity(0.75))
+                Spacer()
+                Text(resistanceValueText)
+                    .font(.system(size: 28, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(atmosphere.accent)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+            }
+
+            Text(resistanceStatusText)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(atmosphere.accent.opacity(0.85))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(2)
+                .minimumScaleFactor(0.9)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 92, alignment: .top)
+        .background(.white.opacity(0.38), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Resistance \(resistanceValueText). \(resistanceStatusText)")
+    }
+
+    private var statusLine: some View {
+        VStack(spacing: 8) {
             Text(session.liveHint)
-                .font(.system(size: 15, weight: .regular, design: .rounded))
+                .font(.system(size: 14, weight: .regular, design: .rounded))
                 .foregroundStyle(atmosphere.accent.opacity(0.85))
                 .multilineTextAlignment(.center)
-
-            if let ohms = session.latestMeasurement?.impedanceOhms ?? session.draft?.impedanceOhms {
-                Text("Impedance \(ohms) Ω")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(atmosphere.accent)
-            } else if case .awaitingImpedance = session.phase {
-                Label("Waiting for barefoot impedance", systemImage: "waveform.path.ecg")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.9))
-            }
+                .lineLimit(4)
+                .minimumScaleFactor(0.9)
+                .frame(minHeight: 40, alignment: .top)
 
             if case .healthKitSuccess = session.phase {
                 Label("Saved to Apple Health", systemImage: "checkmark.seal.fill")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.32))
             }
             if case .healthKitFailed(let message) = session.phase {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(Color(red: 0.48, green: 0.12, blue: 0.12))
+                    .lineLimit(3)
             }
         }
-        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity)
     }
 
     private var editAndConfirm: some View {
@@ -174,6 +249,7 @@ struct LiveWeighInSheet: View {
                 Button {
                     if session.draft == nil {
                         session.beginReview()
+                        session.isEditingDraft = false
                     }
                     if session.isWeightOnlyReading || session.draft?.includeCompositionInHealth == false {
                         confirmWeightOnly = true
@@ -188,7 +264,7 @@ struct LiveWeighInSheet: View {
                 .disabled(session.phase == .healthKitWriting || session.displayWeightKg == nil)
             }
         }
-        .padding(18)
+        .padding(16)
         .background(.white.opacity(0.42), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
@@ -202,6 +278,7 @@ struct LiveWeighInSheet: View {
             )
         }) {
             VStack(spacing: 8) {
+                metricLine("Resistance", draft.impedanceOhms.map { "\($0) Ω" } ?? "- Ω")
                 metricLine("BMI", draft.bmi.map { String(format: "%.1f", $0) } ?? "-")
                 if let fat = draft.bodyFatPercent {
                     metricLine("Body fat", String(format: "%.1f%%", fat))
@@ -210,7 +287,7 @@ struct LiveWeighInSheet: View {
                     metricLine("Lean mass", String(format: "%.2f kg", lean))
                 }
                 if draft.impedanceOhms == nil {
-                    Text("Composition estimates need impedance. Edit weight freely; fat% stays off until ohms arrive.")
+                    Text("Composition needs ohms. Edit weight freely; fat% stays off until resistance arrives.")
                         .font(.caption)
                         .foregroundStyle(atmosphere.accent.opacity(0.75))
                 }
@@ -221,7 +298,7 @@ struct LiveWeighInSheet: View {
     private func draftEditor(_ draft: EditableMeasurementDraft) -> some View {
         VStack(spacing: 10) {
             editRow(title: "Weight (kg)", value: draft.weightKg) { session.updateDraftWeight($0) }
-            editIntRow(title: "Impedance (Ω)", value: draft.impedanceOhms) { session.updateDraftImpedance($0) }
+            editIntRow(title: "Resistance (Ω)", value: draft.impedanceOhms) { session.updateDraftImpedance($0) }
             if draft.bodyFatPercent != nil || draft.impedanceOhms != nil {
                 editOptionalRow(title: "Body fat %", value: draft.bodyFatPercent) {
                     session.updateDraftBodyFat($0)
@@ -329,6 +406,31 @@ struct LiveWeighInSheet: View {
         return String(format: "%.2f", kg)
     }
 
+    private var resistanceValueText: String {
+        if let ohms = session.displayImpedanceOhms {
+            return "\(ohms) Ω"
+        }
+        return "- Ω"
+    }
+
+    private var resistanceStatusText: String {
+        if session.displayImpedanceOhms != nil {
+            return "BIA impedance locked. Body fat math uses this resistance."
+        }
+        if session.isWeightOnlyReading,
+           session.phase == .ready || session.phase == .reviewing {
+            return "No ohms this session (socks/shoes or stepped off early)."
+        }
+        switch session.phase {
+        case .awaitingImpedance:
+            return "Waiting for barefoot impedance sweep. Stay on the electrodes."
+        case .measuring, .listening:
+            return "Weight streaming. Resistance appears after the scale finishes BIA."
+        default:
+            return "Resistance stays visible here once the scale reports ohms."
+        }
+    }
+
     private var isLiveMeasuring: Bool {
         switch session.phase {
         case .listening, .measuring, .awaitingImpedance:
@@ -358,7 +460,6 @@ struct TrendAtmosphereBackground: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            // Soft vignette / grain substitute: layered translucent ellipses
             Ellipse()
                 .fill(.white.opacity(0.22))
                 .frame(width: 420, height: 280)
