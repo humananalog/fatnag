@@ -1,6 +1,11 @@
 import SwiftUI
 
-/// Full-screen live weigh-in: one viewport, no ScrollView, adaptive type/spacing for iPhone 15.
+/// Full-screen live weigh-in: one viewport, system safe area, no ScrollView.
+///
+/// Layout contract (iPhone 15):
+/// - Background only ignores safe area (full-bleed trend atmosphere).
+/// - Content uses the system safe-area inset. Do not also pad by `safeAreaInsets`.
+/// - No GeometryReader metric hacks. Fixed, readable type that fits one screen.
 struct LiveWeighInSheet: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @State private var pulse = false
@@ -11,23 +16,32 @@ struct LiveWeighInSheet: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            let metrics = LiveSheetMetrics(size: geo.size, safe: geo.safeAreaInsets)
-            ZStack {
-                TrendAtmosphereBackground(atmosphere: atmosphere)
-                    .animation(.easeInOut(duration: 0.85), value: session.trendForDisplay)
+        ZStack {
+            TrendAtmosphereBackground(atmosphere: atmosphere)
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.85), value: session.trendForDisplay)
 
-                VStack(spacing: 0) {
-                    topBar(metrics: metrics)
-                    mainColumn(metrics: metrics)
+            VStack(spacing: 0) {
+                topBar
+
+                VStack(spacing: 12) {
+                    weightBlock
+                    resistancePanel
+                    if !session.isEditingDraft {
+                        statusLine
+                    }
+                    Spacer(minLength: 0)
+                    if showsConfirmChrome {
+                        editAndConfirm
+                            .transition(.opacity)
+                    }
                 }
-                .padding(.horizontal, metrics.horizontalPadding)
-                .padding(.top, metrics.topPadding)
-                .padding(.bottom, metrics.bottomPadding)
-                .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+                .padding(.top, 10)
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .ignoresSafeArea()
         .preferredColorScheme(.light)
         .onAppear {
             withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
@@ -56,86 +70,71 @@ struct LiveWeighInSheet: View {
             }()
     }
 
-    private func topBar(metrics: LiveSheetMetrics) -> some View {
-        HStack(alignment: .center, spacing: metrics.gapS) {
+    private var topBar: some View {
+        HStack(alignment: .center, spacing: 10) {
             Button {
                 session.dismissWeighIn()
             } label: {
                 Image(systemName: "xmark")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
-                    .frame(width: metrics.closeSize, height: metrics.closeSize)
+                    .frame(width: 36, height: 36)
                     .background(.white.opacity(0.35), in: Circle())
             }
             .accessibilityLabel("Close weigh-in")
 
-            brandMark(metrics: metrics)
+            brandMark
 
-            Spacer(minLength: metrics.gapS)
+            Spacer(minLength: 8)
 
-            trendChip(metrics: metrics)
+            trendChip
                 .layoutPriority(1)
         }
-        .frame(height: metrics.topBarHeight)
+        .frame(minHeight: 44)
     }
 
-    private func brandMark(metrics: LiveSheetMetrics) -> some View {
-        HStack(spacing: metrics.gapS) {
+    private var brandMark: some View {
+        HStack(spacing: 8) {
             Image("BrandMark")
                 .resizable()
                 .scaledToFit()
-                .frame(width: metrics.brandIcon, height: metrics.brandIcon)
+                .frame(width: 28, height: 28)
                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             Text("The Scale")
-                .font(.system(size: metrics.brandFont, weight: .semibold, design: .serif))
+                .font(.system(size: 22, weight: .semibold, design: .serif))
                 .foregroundStyle(atmosphere.accent)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.75)
         }
         .opacity(0.95)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("The Scale")
     }
 
-    private func trendChip(metrics: LiveSheetMetrics) -> some View {
+    private var trendChip: some View {
         let trend = session.trendForDisplay
         return HStack(spacing: 5) {
             Image(systemName: trendSymbol(trend))
             Text(trend.title)
-                .font(.system(size: metrics.chipFont, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .lineLimit(1)
         }
         .foregroundStyle(atmosphere.accent)
-        .padding(.horizontal, metrics.chipPadH)
-        .padding(.vertical, metrics.chipPadV)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 6)
         .background(.white.opacity(0.4), in: Capsule())
     }
 
-    private func mainColumn(metrics: LiveSheetMetrics) -> some View {
-        VStack(spacing: metrics.sectionGap) {
-            weightBlock(metrics: metrics)
-            resistancePanel(metrics: metrics)
-            statusLine(metrics: metrics)
-            Spacer(minLength: 0)
-            if showsConfirmChrome {
-                editAndConfirm(metrics: metrics)
-                    .transition(.opacity)
-                    .layoutPriority(1)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    }
-
-    private func weightBlock(metrics: LiveSheetMetrics) -> some View {
-        VStack(spacing: metrics.gapS) {
+    private var weightBlock: some View {
+        VStack(spacing: 4) {
             Text(weightText)
-                .font(.system(size: metrics.weightFont, weight: .ultraLight, design: .rounded))
+                .font(.system(size: session.isEditingDraft ? 48 : 68, weight: .ultraLight, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(atmosphere.accent)
                 .minimumScaleFactor(0.4)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
-                .frame(height: metrics.weightHeight, alignment: .center)
+                .frame(height: session.isEditingDraft ? 52 : 72, alignment: .center)
                 .scaleEffect(isLiveMeasuring ? (pulse ? 1.01 : 0.995) : 1.0)
                 .animation(
                     isLiveMeasuring
@@ -147,40 +146,38 @@ struct LiveWeighInSheet: View {
 
             HStack(spacing: 8) {
                 Text("kg")
-                    .font(.system(size: metrics.unitFont, weight: .medium, design: .rounded))
+                    .font(.system(size: 18, weight: .medium, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.7))
                 if session.calibration.hasCorrection {
                     Text("calibrated")
-                        .font(.system(size: metrics.captionFont, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(atmosphere.accent.opacity(0.65))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
                         .background(.white.opacity(0.35), in: Capsule())
                 }
             }
-            .frame(height: metrics.unitRowHeight)
 
             Text(session.trendForDisplay.subtitle)
-                .font(.system(size: metrics.subtitleFont, weight: .medium, design: .rounded))
+                .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(atmosphere.accent.opacity(0.8))
                 .multilineTextAlignment(.center)
-                .lineLimit(metrics.compact ? 1 : 2)
-                .minimumScaleFactor(0.8)
-                .frame(height: metrics.subtitleHeight, alignment: .top)
+                .lineLimit(session.isEditingDraft ? 1 : 2)
+                .minimumScaleFactor(0.85)
         }
         .frame(maxWidth: .infinity)
     }
 
     /// Always-visible BIA / resistance zone (never collapses when weight is streaming).
-    private func resistancePanel(metrics: LiveSheetMetrics) -> some View {
-        VStack(spacing: metrics.gapS) {
+    private var resistancePanel: some View {
+        VStack(spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Resistance")
-                    .font(.system(size: metrics.labelFont, weight: .semibold, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.75))
                 Spacer(minLength: 8)
                 Text(resistanceValueText)
-                    .font(.system(size: metrics.resistanceFont, weight: .medium, design: .rounded))
+                    .font(.system(size: 26, weight: .medium, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(atmosphere.accent)
                     .minimumScaleFactor(0.65)
@@ -188,38 +185,37 @@ struct LiveWeighInSheet: View {
             }
 
             Text(resistanceStatusText)
-                .font(.system(size: metrics.captionFont, weight: .medium, design: .rounded))
+                .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundStyle(atmosphere.accent.opacity(0.85))
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .lineLimit(metrics.compact ? 1 : 2)
+                .lineLimit(session.isEditingDraft ? 1 : 2)
                 .minimumScaleFactor(0.85)
         }
-        .padding(metrics.panelPad)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .top)
         .background(.white.opacity(0.38), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Resistance \(resistanceValueText). \(resistanceStatusText)")
     }
 
-    private func statusLine(metrics: LiveSheetMetrics) -> some View {
-        VStack(spacing: metrics.gapS) {
+    private var statusLine: some View {
+        VStack(spacing: 6) {
             Text(session.liveHint)
-                .font(.system(size: metrics.hintFont, weight: .regular, design: .rounded))
+                .font(.system(size: 13, weight: .regular, design: .rounded))
                 .foregroundStyle(atmosphere.accent.opacity(0.85))
                 .multilineTextAlignment(.center)
-                .lineLimit(metrics.compact ? 2 : 3)
+                .lineLimit(3)
                 .minimumScaleFactor(0.85)
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: metrics.hintMinHeight, alignment: .top)
 
             if case .healthKitSuccess = session.phase {
                 Label("Saved to Apple Health", systemImage: "checkmark.seal.fill")
-                    .font(.system(size: metrics.hintFont, weight: .semibold, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.32))
             }
             if case .healthKitFailed(let message) = session.phase {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: metrics.captionFont, weight: .medium, design: .rounded))
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(Color(red: 0.48, green: 0.12, blue: 0.12))
                     .lineLimit(2)
                     .minimumScaleFactor(0.85)
@@ -228,15 +224,15 @@ struct LiveWeighInSheet: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func editAndConfirm(metrics: LiveSheetMetrics) -> some View {
-        VStack(spacing: metrics.confirmGap) {
+    private var editAndConfirm: some View {
+        VStack(spacing: 10) {
             if session.isEditingDraft, let draft = session.draft {
-                draftEditor(draft, metrics: metrics)
+                draftEditor(draft)
             } else {
-                compositionSummary(metrics: metrics)
+                compositionSummary
             }
 
-            HStack(spacing: metrics.gapM) {
+            HStack(spacing: 10) {
                 Button {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                         if session.isEditingDraft {
@@ -249,7 +245,7 @@ struct LiveWeighInSheet: View {
                     Text(session.isEditingDraft ? "Done editing" : "Edit")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ScaleSecondaryButtonStyle(accent: atmosphere.accent, compact: metrics.compact))
+                .buttonStyle(ScaleSecondaryButtonStyle(accent: atmosphere.accent))
 
                 Button {
                     if session.draft == nil {
@@ -265,16 +261,16 @@ struct LiveWeighInSheet: View {
                     Text(session.phase == .healthKitWriting ? "Saving…" : "Confirm to Health")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ScalePrimaryButtonStyle(accent: atmosphere.accent, compact: metrics.compact))
+                .buttonStyle(ScalePrimaryButtonStyle(accent: atmosphere.accent))
                 .disabled(session.phase == .healthKitWriting || session.displayWeightKg == nil)
             }
         }
-        .padding(metrics.panelPad)
+        .padding(12)
         .background(.white.opacity(0.42), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     @ViewBuilder
-    private func compositionSummary(metrics: LiveSheetMetrics) -> some View {
+    private var compositionSummary: some View {
         if let draft = session.draft ?? (session.latestMeasurement.map {
             EditableMeasurementDraft.from(
                 measurement: $0,
@@ -282,18 +278,18 @@ struct LiveWeighInSheet: View {
                 profile: session.profile
             )
         }) {
-            VStack(spacing: metrics.metricGap) {
-                metricLine("Resistance", draft.impedanceOhms.map { "\($0) Ω" } ?? "- Ω", metrics: metrics)
-                metricLine("BMI", draft.bmi.map { String(format: "%.1f", $0) } ?? "-", metrics: metrics)
+            VStack(spacing: 6) {
+                metricLine("Resistance", draft.impedanceOhms.map { "\($0) Ω" } ?? "- Ω")
+                metricLine("BMI", draft.bmi.map { String(format: "%.1f", $0) } ?? "-")
                 if let fat = draft.bodyFatPercent {
-                    metricLine("Body fat", String(format: "%.1f%%", fat), metrics: metrics)
+                    metricLine("Body fat", String(format: "%.1f%%", fat))
                 }
                 if let lean = draft.leanBodyMassKg {
-                    metricLine("Lean mass", String(format: "%.2f kg", lean), metrics: metrics)
+                    metricLine("Lean mass", String(format: "%.2f kg", lean))
                 }
                 if draft.impedanceOhms == nil {
                     Text("Composition needs ohms. Edit weight freely; fat% stays off until resistance arrives.")
-                        .font(.system(size: metrics.captionFont, weight: .regular))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(atmosphere.accent.opacity(0.75))
                         .lineLimit(2)
                         .minimumScaleFactor(0.85)
@@ -302,34 +298,34 @@ struct LiveWeighInSheet: View {
         }
     }
 
-    private func draftEditor(_ draft: EditableMeasurementDraft, metrics: LiveSheetMetrics) -> some View {
-        VStack(spacing: metrics.metricGap) {
-            editRow(title: "Weight (kg)", value: draft.weightKg, metrics: metrics) {
+    private func draftEditor(_ draft: EditableMeasurementDraft) -> some View {
+        VStack(spacing: 6) {
+            editRow(title: "Weight (kg)", value: draft.weightKg) {
                 session.updateDraftWeight($0)
             }
-            editIntRow(title: "Resistance (Ω)", value: draft.impedanceOhms, metrics: metrics) {
+            editIntRow(title: "Resistance (Ω)", value: draft.impedanceOhms) {
                 session.updateDraftImpedance($0)
             }
             if draft.bodyFatPercent != nil || draft.impedanceOhms != nil {
-                editOptionalRow(title: "Body fat %", value: draft.bodyFatPercent, metrics: metrics) {
+                editOptionalRow(title: "Body fat %", value: draft.bodyFatPercent) {
                     session.updateDraftBodyFat($0)
                 }
-                editOptionalRow(title: "BMI", value: draft.bmi, metrics: metrics) {
+                editOptionalRow(title: "BMI", value: draft.bmi) {
                     session.updateDraftBMI($0)
                 }
-                editOptionalRow(title: "Lean mass kg", value: draft.leanBodyMassKg, metrics: metrics) {
+                editOptionalRow(title: "Lean mass kg", value: draft.leanBodyMassKg) {
                     session.updateDraftLeanMass($0)
                 }
                 Toggle("Write fat % + lean to Health", isOn: Binding(
                     get: { draft.includeCompositionInHealth },
                     set: { session.setIncludeCompositionInHealth($0) }
                 ))
-                .font(.system(size: metrics.captionFont, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(atmosphere.accent)
                 .tint(atmosphere.accent)
             }
             Text("Only Confirm writes to Apple Health. Mistakes stay local until then.")
-                .font(.system(size: metrics.microFont, weight: .regular))
+                .font(.system(size: 10, weight: .regular))
                 .foregroundStyle(atmosphere.accent.opacity(0.7))
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
@@ -339,7 +335,6 @@ struct LiveWeighInSheet: View {
     private func editRow(
         title: String,
         value: Double,
-        metrics: LiveSheetMetrics,
         onChange: @escaping (Double) -> Void
     ) -> some View {
         HStack {
@@ -359,13 +354,12 @@ struct LiveWeighInSheet: View {
             .frame(width: 88)
             .foregroundStyle(atmosphere.accent)
         }
-        .font(.system(size: metrics.rowFont, weight: .medium, design: .rounded))
+        .font(.system(size: 14, weight: .medium, design: .rounded))
     }
 
     private func editOptionalRow(
         title: String,
         value: Double?,
-        metrics: LiveSheetMetrics,
         onChange: @escaping (Double?) -> Void
     ) -> some View {
         HStack {
@@ -385,13 +379,12 @@ struct LiveWeighInSheet: View {
             .frame(width: 88)
             .foregroundStyle(atmosphere.accent)
         }
-        .font(.system(size: metrics.rowFont, weight: .medium, design: .rounded))
+        .font(.system(size: 14, weight: .medium, design: .rounded))
     }
 
     private func editIntRow(
         title: String,
         value: Int?,
-        metrics: LiveSheetMetrics,
         onChange: @escaping (Int?) -> Void
     ) -> some View {
         HStack {
@@ -411,16 +404,16 @@ struct LiveWeighInSheet: View {
             .frame(width: 88)
             .foregroundStyle(atmosphere.accent)
         }
-        .font(.system(size: metrics.rowFont, weight: .medium, design: .rounded))
+        .font(.system(size: 14, weight: .medium, design: .rounded))
     }
 
-    private func metricLine(_ title: String, _ value: String, metrics: LiveSheetMetrics) -> some View {
+    private func metricLine(_ title: String, _ value: String) -> some View {
         HStack {
             Text(title)
             Spacer(minLength: 8)
             Text(value).monospacedDigit()
         }
-        .font(.system(size: metrics.rowFont, weight: .medium, design: .rounded))
+        .font(.system(size: 14, weight: .medium, design: .rounded))
         .foregroundStyle(atmosphere.accent)
     }
 
@@ -473,56 +466,6 @@ struct LiveWeighInSheet: View {
     }
 }
 
-/// Scales type and spacing so weight, resistance, trend, edit, and confirm fit one iPhone 15 viewport.
-private struct LiveSheetMetrics {
-    let size: CGSize
-    let safe: EdgeInsets
-
-    /// iPhone 15 logical height is 852; treat sub-900 as compact.
-    var compact: Bool { size.height < 900 }
-
-    var horizontalPadding: CGFloat { compact ? 14 : 18 }
-    /// Real safe-area inset + small inner inset so chrome is never under Dynamic Island / home indicator.
-    var topPadding: CGFloat { max(safe.top, 47) + (compact ? 4 : 6) }
-    var bottomPadding: CGFloat { max(safe.bottom, 20) + (compact ? 6 : 8) }
-
-    /// Height left for the VStack after safe-area padding.
-    var contentHeight: CGFloat {
-        max(320, size.height - topPadding - bottomPadding)
-    }
-
-    var topBarHeight: CGFloat { compact ? 36 : 40 }
-    var closeSize: CGFloat { compact ? 34 : 38 }
-    var brandIcon: CGFloat { compact ? 24 : 28 }
-    var brandFont: CGFloat { compact ? 20 : 22 }
-
-    var chipFont: CGFloat { compact ? 11 : 12 }
-    var chipPadH: CGFloat { compact ? 9 : 11 }
-    var chipPadV: CGFloat { compact ? 5 : 6 }
-
-    var sectionGap: CGFloat { compact ? 8 : 12 }
-    var gapS: CGFloat { compact ? 4 : 6 }
-    var gapM: CGFloat { compact ? 8 : 10 }
-    var confirmGap: CGFloat { compact ? 8 : 10 }
-    var metricGap: CGFloat { compact ? 4 : 6 }
-    var panelPad: CGFloat { compact ? 10 : 12 }
-
-    var weightFont: CGFloat { compact ? 56 : 64 }
-    var weightHeight: CGFloat { compact ? 58 : 68 }
-    var unitFont: CGFloat { compact ? 16 : 18 }
-    var unitRowHeight: CGFloat { compact ? 22 : 24 }
-    var subtitleFont: CGFloat { compact ? 12 : 13 }
-    var subtitleHeight: CGFloat { compact ? 18 : 28 }
-
-    var labelFont: CGFloat { compact ? 12 : 13 }
-    var resistanceFont: CGFloat { compact ? 22 : 26 }
-    var captionFont: CGFloat { 12 }
-    var microFont: CGFloat { 10 }
-    var hintFont: CGFloat { compact ? 12 : 13 }
-    var hintMinHeight: CGFloat { compact ? 28 : 34 }
-    var rowFont: CGFloat { compact ? 13 : 14 }
-}
-
 struct TrendAtmosphereBackground: View {
     let atmosphere: TrendAtmosphere
 
@@ -549,13 +492,12 @@ struct TrendAtmosphereBackground: View {
 
 struct ScalePrimaryButtonStyle: ButtonStyle {
     let accent: Color
-    var compact: Bool = false
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: compact ? 14 : 15, weight: .semibold, design: .rounded))
+            .font(.system(size: 15, weight: .semibold, design: .rounded))
             .foregroundStyle(.white)
-            .padding(.vertical, compact ? 11 : 13)
+            .padding(.vertical, 13)
             .background(
                 accent.opacity(configuration.isPressed ? 0.75 : 1.0),
                 in: RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -565,13 +507,12 @@ struct ScalePrimaryButtonStyle: ButtonStyle {
 
 struct ScaleSecondaryButtonStyle: ButtonStyle {
     let accent: Color
-    var compact: Bool = false
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: compact ? 14 : 15, weight: .semibold, design: .rounded))
+            .font(.system(size: 15, weight: .semibold, design: .rounded))
             .foregroundStyle(accent)
-            .padding(.vertical, compact ? 11 : 13)
+            .padding(.vertical, 13)
             .background(
                 .white.opacity(configuration.isPressed ? 0.35 : 0.55),
                 in: RoundedRectangle(cornerRadius: 12, style: .continuous)
