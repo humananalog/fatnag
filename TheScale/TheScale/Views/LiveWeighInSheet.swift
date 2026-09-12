@@ -13,6 +13,8 @@ struct LiveWeighInSheet: View {
     @State private var confirmWeightOnly = false
     @State private var calibrationStoredMessage: String?
     @FocusState private var referenceFocused: Bool
+    @FocusState private var weightFieldFocused: Bool
+    @FocusState private var ohmsFieldFocused: Bool
 
     /// Outer inset so glass panels never sit flush against the screen edge.
     private let horizontalInset: CGFloat = 24
@@ -24,6 +26,10 @@ struct LiveWeighInSheet: View {
 
     private var isCalibration: Bool {
         session.weighInPurpose == .calibration
+    }
+
+    private var isEditing: Bool {
+        session.isEditingDraft && !isCalibration
     }
 
     var body: some View {
@@ -48,6 +54,27 @@ struct LiveWeighInSheet: View {
                 pulse = true
             }
         }
+        .onChange(of: session.isEditingDraft) { _, editing in
+            if editing {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    weightFieldFocused = true
+                }
+            } else {
+                weightFieldFocused = false
+                ohmsFieldFocused = false
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    weightFieldFocused = false
+                    ohmsFieldFocused = false
+                    referenceFocused = false
+                }
+                .fontWeight(.semibold)
+            }
+        }
         .alert("Save weight only?", isPresented: $confirmWeightOnly) {
             Button("Cancel", role: .cancel) {}
             Button("Save weight + BMI only") {
@@ -70,29 +97,31 @@ struct LiveWeighInSheet: View {
     }
 
     private var mainColumn: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             if isCalibration {
                 calibrationHeader
             }
 
-            weightBlock
+            weightHero
             resistancePanel
 
-            if !session.isEditingDraft {
+            if !isEditing {
                 statusLine
             }
 
-            Spacer(minLength: 0)
+            Spacer(minLength: 4)
 
             if isCalibration {
                 calibrationChrome
-                    .transition(.opacity)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             } else if showsConfirmChrome {
                 editAndConfirm
-                    .transition(.opacity)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.spring(response: 0.42, dampingFraction: 0.86), value: isEditing)
+        .animation(.spring(response: 0.42, dampingFraction: 0.86), value: showsConfirmChrome)
     }
 
     private var showsConfirmChrome: Bool {
@@ -112,13 +141,15 @@ struct LiveWeighInSheet: View {
     private var topBar: some View {
         HStack(alignment: .center, spacing: 12) {
             Button {
+                weightFieldFocused = false
+                ohmsFieldFocused = false
                 session.dismissWeighIn()
             } label: {
                 Image(systemName: "xmark")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
-                    .frame(width: 36, height: 36)
-                    .background(.white.opacity(0.35), in: Circle())
+                    .frame(width: 40, height: 40)
+                    .background(.ultraThinMaterial, in: Circle())
             }
             .accessibilityLabel("Close weigh-in")
 
@@ -136,7 +167,7 @@ struct LiveWeighInSheet: View {
         }
         .frame(maxWidth: .infinity)
         .frame(minHeight: 44)
-        .padding(.bottom, 4)
+        .padding(.bottom, 2)
     }
 
     private var trendChip: some View {
@@ -150,8 +181,8 @@ struct LiveWeighInSheet: View {
         }
         .foregroundStyle(atmosphere.accent)
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.white.opacity(0.4), in: Capsule())
+        .padding(.vertical, 7)
+        .background(.ultraThinMaterial, in: Capsule())
     }
 
     // MARK: - Calibration header / chrome
@@ -205,7 +236,7 @@ struct LiveWeighInSheet: View {
         }
         .padding(panelInnerPad)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.38), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var calibrationChrome: some View {
@@ -259,7 +290,7 @@ struct LiveWeighInSheet: View {
         }
         .padding(panelInnerPad)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.42), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private var canStoreCalibration: Bool {
@@ -273,92 +304,250 @@ struct LiveWeighInSheet: View {
         }
     }
 
-    // MARK: - Shared weigh-in blocks
+    // MARK: - Hero weight (primary glance target)
 
-    private var weightBlock: some View {
-        VStack(spacing: 4) {
-            Text(weightText)
-                .font(.system(size: session.isEditingDraft ? 48 : (isCalibration ? 56 : 68), weight: .ultraLight, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(atmosphere.accent)
-                .minimumScaleFactor(0.4)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity)
-                .frame(height: session.isEditingDraft || isCalibration ? 56 : 72, alignment: .center)
-                .scaleEffect(isLiveMeasuring ? (pulse ? 1.01 : 0.995) : 1.0)
-                .animation(
-                    isLiveMeasuring
-                        ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true)
-                        : .spring(response: 0.45, dampingFraction: 0.82),
-                    value: pulse
-                )
-                .contentTransition(.identity)
+    private var weightHero: some View {
+        VStack(spacing: 6) {
+            if isEditing, let draft = session.draft {
+                editableWeightHero(draft)
+            } else {
+                liveWeightHero
+            }
 
             HStack(spacing: 8) {
                 Text(isCalibration ? "kg raw" : "kg")
-                    .font(.system(size: 18, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.7))
+                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.accent.opacity(0.72))
                 if !isCalibration, session.calibration.hasCorrection {
-                    Text("calibrated")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(atmosphere.accent.opacity(0.65))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(.white.opacity(0.35), in: Capsule())
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.seal.fill")
+                        Text("calibrated")
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(atmosphere.accent.opacity(0.7))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(.white.opacity(0.38), in: Capsule())
+                }
+                if canBeginEdit, !isEditing {
+                    Button {
+                        beginEdit()
+                    } label: {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.system(size: 26, weight: .medium))
+                            .foregroundStyle(atmosphere.accent.opacity(0.85))
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                    .accessibilityLabel("Edit weight")
                 }
             }
 
-            if !isCalibration {
+            if !isCalibration, !isEditing {
                 Text(session.trendForDisplay.subtitle)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.8))
+                    .foregroundStyle(atmosphere.accent.opacity(0.82))
                     .multilineTextAlignment(.center)
-                    .lineLimit(session.isEditingDraft ? 1 : 2)
+                    .lineLimit(2)
                     .minimumScaleFactor(0.85)
             }
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(weightAccessibilityLabel)
+        .accessibilityAddTraits(canBeginEdit && !isEditing ? .isButton : [])
+        .accessibilityHint(canBeginEdit && !isEditing ? "Double tap to edit before saving to Health" : "")
+        .onTapGesture {
+            guard canBeginEdit, !isEditing else { return }
+            beginEdit()
+        }
     }
+
+    private var liveWeightHero: some View {
+        Text(weightText)
+            .font(.system(size: heroWeightSize, weight: .ultraLight, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(atmosphere.accent)
+            .minimumScaleFactor(0.35)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+            .frame(height: heroWeightHeight, alignment: .center)
+            .contentTransition(.numericText())
+            .scaleEffect(isLiveMeasuring ? (pulse ? 1.012 : 0.992) : 1.0)
+            .animation(
+                isLiveMeasuring
+                    ? .easeInOut(duration: 1.6).repeatForever(autoreverses: true)
+                    : .spring(response: 0.45, dampingFraction: 0.82),
+                value: pulse
+            )
+            .animation(.snappy(duration: 0.28), value: weightText)
+    }
+
+    private func editableWeightHero(_ draft: EditableMeasurementDraft) -> some View {
+        HStack(spacing: 10) {
+            nudgeButton(systemName: "minus", accessibility: "Decrease weight by 0.1 kg") {
+                session.updateDraftWeight(max(draft.weightKg - 0.1, 0.1))
+            }
+
+            TextField(
+                "Weight",
+                value: Binding(
+                    get: { draft.weightKg },
+                    set: { session.updateDraftWeight($0) }
+                ),
+                format: .number.precision(.fractionLength(2))
+            )
+            .keyboardType(.decimalPad)
+            .focused($weightFieldFocused)
+            .font(.system(size: 64, weight: .ultraLight, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(atmosphere.accent)
+            .multilineTextAlignment(.center)
+            .minimumScaleFactor(0.4)
+            .frame(maxWidth: .infinity)
+            .frame(height: 72, alignment: .center)
+            .contentTransition(.numericText())
+
+            nudgeButton(systemName: "plus", accessibility: "Increase weight by 0.1 kg") {
+                session.updateDraftWeight(draft.weightKg + 0.1)
+            }
+        }
+    }
+
+    private var heroWeightSize: CGFloat {
+        if isCalibration { return 64 }
+        return 92
+    }
+
+    private var heroWeightHeight: CGFloat {
+        if isCalibration { return 68 }
+        return 96
+    }
+
+    private var canBeginEdit: Bool {
+        !isCalibration && (
+            session.phase == .ready
+                || session.phase == .reviewing
+                || session.draft != nil
+                || session.latestMeasurement != nil
+        )
+    }
+
+    private func beginEdit() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+            if session.latestMeasurement != nil {
+                session.beginReview()
+            } else if session.draft != nil {
+                session.isEditingDraft = true
+            }
+        }
+    }
+
+    private var weightAccessibilityLabel: String {
+        if isCalibration {
+            return "Raw weight \(weightText) kilograms"
+        }
+        return "Weight \(weightText) kilograms"
+    }
+
+    // MARK: - Resistance (secondary reading)
 
     /// Always-visible BIA / resistance zone. Plain padded VStack (not List/Form).
     private var resistancePanel: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("Resistance")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.75))
-                    .lineLimit(1)
+        VStack(alignment: .leading, spacing: 8) {
+            if isEditing, let draft = session.draft {
+                editableResistance(draft)
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Resistance")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(atmosphere.accent.opacity(0.72))
+                            .lineLimit(1)
+                    }
                     .layoutPriority(1)
-                Spacer(minLength: 8)
-                Text(resistanceValueText)
-                    .font(.system(size: 26, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(atmosphere.accent)
-                    .minimumScaleFactor(0.65)
-                    .lineLimit(1)
+
+                    Spacer(minLength: 8)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(resistanceValueText)
+                            .font(.system(size: 40, weight: .medium, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(atmosphere.accent)
+                            .minimumScaleFactor(0.5)
+                            .lineLimit(1)
+                            .contentTransition(.numericText())
+                            .animation(.snappy(duration: 0.28), value: resistanceValueText)
+                        Text("Ω")
+                            .font(.system(size: 22, weight: .semibold, design: .rounded))
+                            .foregroundStyle(atmosphere.accent.opacity(0.7))
+                    }
+                }
             }
 
             Text(resistanceStatusText)
                 .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundStyle(atmosphere.accent.opacity(0.85))
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .lineLimit(session.isEditingDraft || isCalibration ? 1 : 2)
+                .lineLimit(isEditing || isCalibration ? 1 : 2)
                 .minimumScaleFactor(0.85)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(panelInnerPad)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.38), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Resistance \(resistanceValueText). \(resistanceStatusText)")
     }
+
+    private func editableResistance(_ draft: EditableMeasurementDraft) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Resistance")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(atmosphere.accent.opacity(0.72))
+
+            HStack(spacing: 10) {
+                nudgeButton(systemName: "minus", accessibility: "Decrease resistance by 1 ohm") {
+                    let next = max((draft.impedanceOhms ?? 0) - 1, 0)
+                    session.updateDraftImpedance(next == 0 ? nil : next)
+                }
+
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    TextField(
+                        "Ω",
+                        value: Binding(
+                            get: { draft.impedanceOhms ?? 0 },
+                            set: { session.updateDraftImpedance($0 == 0 ? nil : $0) }
+                        ),
+                        format: .number
+                    )
+                    .keyboardType(.numberPad)
+                    .focused($ohmsFieldFocused)
+                    .font(.system(size: 36, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(atmosphere.accent)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: .infinity)
+
+                    Text("Ω")
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(atmosphere.accent.opacity(0.7))
+                }
+
+                nudgeButton(systemName: "plus", accessibility: "Increase resistance by 1 ohm") {
+                    session.updateDraftImpedance((draft.impedanceOhms ?? 0) + 1)
+                }
+            }
+        }
+    }
+
+    // MARK: - Status
 
     /// Status / hint under resistance: simple padded VStack, no List.
     private var statusLine: some View {
         VStack(spacing: 6) {
             Text(session.liveHint)
-                .font(.system(size: 13, weight: .regular, design: .rounded))
-                .foregroundStyle(atmosphere.accent.opacity(0.85))
+                .font(.system(size: 14, weight: .regular, design: .rounded))
+                .foregroundStyle(atmosphere.accent.opacity(0.88))
                 .multilineTextAlignment(.center)
                 .lineLimit(isCalibration ? 2 : 3)
                 .minimumScaleFactor(0.85)
@@ -366,7 +555,7 @@ struct LiveWeighInSheet: View {
 
             if case .healthKitSuccess = session.phase, !isCalibration {
                 Label("Saved to Apple Health", systemImage: "checkmark.seal.fill")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.32))
             }
             if case .healthKitFailed(let message) = session.phase, !isCalibration {
@@ -382,9 +571,11 @@ struct LiveWeighInSheet: View {
         .frame(maxWidth: .infinity)
     }
 
+    // MARK: - Edit + confirm
+
     private var editAndConfirm: some View {
-        VStack(spacing: 10) {
-            if session.isEditingDraft, let draft = session.draft {
+        VStack(spacing: 12) {
+            if isEditing, let draft = session.draft {
                 draftEditor(draft)
             } else {
                 compositionSummary
@@ -394,18 +585,25 @@ struct LiveWeighInSheet: View {
                 Button {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                         if session.isEditingDraft {
+                            weightFieldFocused = false
+                            ohmsFieldFocused = false
                             session.isEditingDraft = false
                         } else {
-                            session.beginReview()
+                            beginEdit()
                         }
                     }
                 } label: {
-                    Text(session.isEditingDraft ? "Done editing" : "Edit")
-                        .frame(maxWidth: .infinity)
+                    Label(
+                        session.isEditingDraft ? "Done" : "Edit",
+                        systemImage: session.isEditingDraft ? "checkmark" : "pencil"
+                    )
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(ScaleSecondaryButtonStyle(accent: atmosphere.accent))
 
                 Button {
+                    weightFieldFocused = false
+                    ohmsFieldFocused = false
                     if session.draft == nil {
                         session.beginReview()
                         session.isEditingDraft = false
@@ -416,8 +614,13 @@ struct LiveWeighInSheet: View {
                         Task { await session.saveDraftToHealth() }
                     }
                 } label: {
-                    Text(session.phase == .healthKitWriting ? "Saving…" : "Confirm to Health")
-                        .frame(maxWidth: .infinity)
+                    Label(
+                        session.phase == .healthKitWriting ? "Saving…" : "Confirm to Health",
+                        systemImage: session.phase == .healthKitWriting ? "ellipsis" : "heart.fill"
+                    )
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(ScalePrimaryButtonStyle(accent: atmosphere.accent))
                 .disabled(session.phase == .healthKitWriting || session.displayWeightKg == nil)
@@ -425,7 +628,7 @@ struct LiveWeighInSheet: View {
         }
         .padding(panelInnerPad)
         .frame(maxWidth: .infinity)
-        .background(.white.opacity(0.42), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     @ViewBuilder
@@ -437,15 +640,19 @@ struct LiveWeighInSheet: View {
                 profile: session.profile
             )
         }) {
-            VStack(spacing: 6) {
-                metricLine("Resistance", draft.impedanceOhms.map { "\($0) Ω" } ?? "- Ω")
-                metricLine("BMI", draft.bmi.map { String(format: "%.1f", $0) } ?? "-")
-                if let fat = draft.bodyFatPercent {
-                    metricLine("Body fat", String(format: "%.1f%%", fat))
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    metricChip(title: "BMI", value: draft.bmi.map { String(format: "%.1f", $0) } ?? "-")
+                    metricChip(
+                        title: "Body fat",
+                        value: draft.bodyFatPercent.map { String(format: "%.1f%%", $0) } ?? "-"
+                    )
+                    metricChip(
+                        title: "Lean",
+                        value: draft.leanBodyMassKg.map { String(format: "%.1f", $0) } ?? "-"
+                    )
                 }
-                if let lean = draft.leanBodyMassKg {
-                    metricLine("Lean mass", String(format: "%.2f kg", lean))
-                }
+
                 if draft.impedanceOhms == nil {
                     Text("Composition needs ohms. Edit weight freely; fat% stays off until resistance arrives.")
                         .font(.system(size: 12, weight: .regular))
@@ -457,124 +664,116 @@ struct LiveWeighInSheet: View {
         }
     }
 
+    private func metricChip(title: String, value: String) -> some View {
+        VStack(spacing: 3) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(atmosphere.accent.opacity(0.65))
+            Text(value)
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(atmosphere.accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 6)
+        .background(.white.opacity(0.32), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
     private func draftEditor(_ draft: EditableMeasurementDraft) -> some View {
-        VStack(spacing: 6) {
-            editRow(title: "Weight (kg)", value: draft.weightKg) {
-                session.updateDraftWeight($0)
-            }
-            editIntRow(title: "Resistance (Ω)", value: draft.impedanceOhms) {
-                session.updateDraftImpedance($0)
-            }
+        VStack(spacing: 8) {
             if draft.bodyFatPercent != nil || draft.impedanceOhms != nil {
-                editOptionalRow(title: "Body fat %", value: draft.bodyFatPercent) {
-                    session.updateDraftBodyFat($0)
+                HStack(spacing: 8) {
+                    compactEditField(
+                        title: "Body fat %",
+                        value: draft.bodyFatPercent,
+                        fractionLength: 1
+                    ) { session.updateDraftBodyFat($0) }
+                    compactEditField(
+                        title: "BMI",
+                        value: draft.bmi,
+                        fractionLength: 1
+                    ) { session.updateDraftBMI($0) }
+                    compactEditField(
+                        title: "Lean kg",
+                        value: draft.leanBodyMassKg,
+                        fractionLength: 2
+                    ) { session.updateDraftLeanMass($0) }
                 }
-                editOptionalRow(title: "BMI", value: draft.bmi) {
-                    session.updateDraftBMI($0)
-                }
-                editOptionalRow(title: "Lean mass kg", value: draft.leanBodyMassKg) {
-                    session.updateDraftLeanMass($0)
-                }
-                Toggle("Write fat % + lean to Health", isOn: Binding(
+
+                Toggle(isOn: Binding(
                     get: { draft.includeCompositionInHealth },
                     set: { session.setIncludeCompositionInHealth($0) }
-                ))
-                .font(.system(size: 12, weight: .medium))
+                )) {
+                    Label("Write fat % + lean to Health", systemImage: "figure.arms.open")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                }
                 .foregroundStyle(atmosphere.accent)
                 .tint(atmosphere.accent)
+            } else {
+                Text("Weight-only. Adjust kg above; body fat stays off until ohms arrive.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(atmosphere.accent.opacity(0.75))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Text("Only Confirm writes to Apple Health. Mistakes stay local until then.")
-                .font(.system(size: 10, weight: .regular))
+
+            Text("Only Confirm writes to Apple Health. Mistakes stay on this iPhone until then.")
+                .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(atmosphere.accent.opacity(0.7))
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
         }
     }
 
-    private func editRow(
-        title: String,
-        value: Double,
-        onChange: @escaping (Double) -> Void
-    ) -> some View {
-        HStack {
-            Text(title)
-                .foregroundStyle(atmosphere.accent)
-            Spacer(minLength: 8)
-            TextField(
-                title,
-                value: Binding(
-                    get: { value },
-                    set: onChange
-                ),
-                format: .number.precision(.fractionLength(2))
-            )
-            .keyboardType(.decimalPad)
-            .multilineTextAlignment(.trailing)
-            .frame(width: 88)
-            .foregroundStyle(atmosphere.accent)
-        }
-        .font(.system(size: 14, weight: .medium, design: .rounded))
-    }
-
-    private func editOptionalRow(
+    private func compactEditField(
         title: String,
         value: Double?,
+        fractionLength: Int,
         onChange: @escaping (Double?) -> Void
     ) -> some View {
-        HStack {
+        VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .foregroundStyle(atmosphere.accent)
-            Spacer(minLength: 8)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(atmosphere.accent.opacity(0.65))
             TextField(
                 title,
                 value: Binding(
                     get: { value ?? 0 },
                     set: { onChange($0) }
                 ),
-                format: .number.precision(.fractionLength(2))
+                format: .number.precision(.fractionLength(fractionLength))
             )
             .keyboardType(.decimalPad)
-            .multilineTextAlignment(.trailing)
-            .frame(width: 88)
+            .font(.system(size: 18, weight: .semibold, design: .rounded))
+            .monospacedDigit()
             .foregroundStyle(atmosphere.accent)
+            .multilineTextAlignment(.leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(.white.opacity(0.4), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
-        .font(.system(size: 14, weight: .medium, design: .rounded))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func editIntRow(
-        title: String,
-        value: Int?,
-        onChange: @escaping (Int?) -> Void
+    private func nudgeButton(
+        systemName: String,
+        accessibility: String,
+        action: @escaping () -> Void
     ) -> some View {
-        HStack {
-            Text(title)
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(atmosphere.accent)
-            Spacer(minLength: 8)
-            TextField(
-                title,
-                value: Binding(
-                    get: { value ?? 0 },
-                    set: { onChange($0 == 0 ? nil : $0) }
-                ),
-                format: .number
-            )
-            .keyboardType(.numberPad)
-            .multilineTextAlignment(.trailing)
-            .frame(width: 88)
-            .foregroundStyle(atmosphere.accent)
+                .frame(width: 40, height: 40)
+                .background(.white.opacity(0.42), in: Circle())
         }
-        .font(.system(size: 14, weight: .medium, design: .rounded))
+        .accessibilityLabel(accessibility)
+        .buttonStyle(.plain)
     }
 
-    private func metricLine(_ title: String, _ value: String) -> some View {
-        HStack {
-            Text(title)
-            Spacer(minLength: 8)
-            Text(value).monospacedDigit()
-        }
-        .font(.system(size: 14, weight: .medium, design: .rounded))
-        .foregroundStyle(atmosphere.accent)
-    }
+    // MARK: - Derived text
 
     private var weightText: String {
         if isCalibration {
@@ -587,9 +786,9 @@ struct LiveWeighInSheet: View {
 
     private var resistanceValueText: String {
         if let ohms = session.displayImpedanceOhms {
-            return "\(ohms) Ω"
+            return "\(ohms)"
         }
-        return "- Ω"
+        return "-"
     }
 
     private var resistanceStatusText: String {
@@ -666,13 +865,15 @@ struct ScalePrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 15, weight: .semibold, design: .rounded))
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
             .foregroundStyle(.white)
-            .padding(.vertical, 13)
+            .padding(.vertical, 14)
             .background(
                 accent.opacity(configuration.isPressed ? 0.75 : 1.0),
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
             )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -681,13 +882,15 @@ struct ScaleSecondaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 15, weight: .semibold, design: .rounded))
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
             .foregroundStyle(accent)
-            .padding(.vertical, 13)
+            .padding(.vertical, 14)
             .background(
                 .white.opacity(configuration.isPressed ? 0.35 : 0.55),
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
             )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
