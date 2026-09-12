@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 1.2.1  
+**Version:** 1.2.2  
 **Target device:** iPhone 15 (iOS 17+)  
 **Deployment target:** iOS 17.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -11,7 +11,7 @@ Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model
 ## What it does
 
 1. Scans for the scale’s BLE advertisements (`MIBFS` / service data `0x181B`)
-2. Opens a **full-screen live weigh-in sheet** as soon as a scale is selected; streams settling weight with a stable layout (no jump/clip on iPhone 15)
+2. Opens a **full-screen live weigh-in sheet** as soon as a scale is selected; one viewport (no ScrollView), adaptive type/spacing, safe-area padding so nothing clips on iPhone 15
 3. Keeps **resistance (Ω)** visible during the live session and in edit-before-save; BIA is not hidden while weight streams
 4. Reads recent **Apple Health** body-mass history (on-device) and colors the sheet by trend vs last weight: **green** loss, **yellow** stable (±0.2 kg), **red** gain
 5. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
@@ -182,4 +182,4 @@ scripts/
 
 ## Version
 
-Marketing version **1.2.1** / build **6**. Bump both in the Xcode target when shipping changes.
+Marketing version **1.2.2** / build **7**. Bump both in the Xcode target when shipping changes.
