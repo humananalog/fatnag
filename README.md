@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 1.3.1  
+**Version:** 1.5.0  
 **Target device:** iPhone 15 (iOS 17+)  
 **Deployment target:** iOS 17.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -11,13 +11,14 @@ Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model
 ## What it does
 
 1. Scans for the scale’s BLE advertisements (`MIBFS` / service data `0x181B`)
-2. Opens a **full-screen live weigh-in sheet** as soon as a scale is selected; one viewport (no ScrollView); content-first layout (atmosphere is background only so decorative blurs cannot widen the sheet); system safe-area + 24pt horizontal inset; weight dominant with resistance, trend, edit/confirm on one screen
-3. Keeps **resistance (Ω)** visible during the live session and in edit-before-save; BIA is not hidden while weight streams
+2. Opens a **full-screen live weigh-in sheet** as soon as a scale is selected; one viewport (no ScrollView); content-first layout (atmosphere is background only so decorative blurs cannot widen the sheet); system safe-area + 24pt horizontal inset; weight dominant with body fat % / lean %, trend, edit/confirm on one screen
+3. Keeps **body fat %** and **lean %** visible during the live session and in edit-before-save (impedance stays internal for BIA)
 4. Reads recent **Apple Health** body-mass history (on-device) and colors the sheet by trend vs last weight: **green** loss, **yellow** stable (±0.2 kg), **red** gain
 5. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
-6. Lets you **edit** weight / resistance / composition **before** confirm
+6. Lets you **edit** weight / fat % / lean % **before** confirm
 7. **Calibration uses the same live sheet**: enter reference mass (default example **5 kg**), open live sheet, weigh that mass, store offset/factor on-device. Settings holds reference mass + reset; not a separate capture-only flow
 8. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
+9. After a successful Health save, opens a **History** screen with two animated Swift Charts (weight kg + body fat %) over selectable ranges (default **Last 2 weeks**). Ideal weight from Settings floors the weight chart Y-axis and draws the Ideal reference line.
 
 No accounts, no backend, no analytics, no third-party cloud.
 
@@ -26,20 +27,24 @@ No accounts, no backend, no analytics, no third-party cloud.
 | Data | Where it goes |
 |------|----------------|
 | Weight / impedance from the scale | Parsed in memory on the iPhone |
-| Height / age / sex profile | `UserDefaults` on device only |
+| Height / age / sex / ideal weight / ideal fat % | `UserDefaults` on device only |
 | Weight calibration (factor / offset) | `UserDefaults` on device only |
-| Health **read** | Recent `bodyMass` samples for on-device trend only |
+| Health **read** | Recent `bodyMass` for trend; `bodyMass` + `bodyFatPercentage` for history charts |
 | Health **writes** | Apple Health (HealthKit) on device, only after **Confirm to Health** |
 | Network | None by design |
 
 HealthKit types:
 
-- Read: `bodyMass`
+- Read: `bodyMass`, `bodyFatPercentage`
 - Write: `bodyMass`, `bodyMassIndex`, `bodyFatPercentage`, `leanBodyMass`
 
 Muscle mass, bone mass, water %, visceral fat, and raw ohms are **shown in-app only**. HealthKit has no first-class quantities for those.
 
 **Trend threshold:** ±0.2 kg vs the most recent Health weight counts as stable.
+
+### Weight chart Y-axis (ideal)
+
+Ideal weight from Settings is the **axis floor** (lower bound of the plot domain) and a dotted **Ideal** reference line. The top bound is `max(dataMax, ideal) + padding`. Body fat chart: when ideal body fat % is set, same floor + Ideal line; otherwise auto-scale with labeled highest / lowest.
 
 ## Protocol (honest notes)
 
@@ -100,7 +105,7 @@ Smoke-build without a phone attached:
 ```bash
 cd /Users/alexclaw/Projects/project-zero/TheScale
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-xcodebuild build -scheme TheScale -sdk iphoneos -configuration Debug
+xcodebuild build -scheme TheScale -sdk iphoneos -configuration Debug -destination 'generic/platform=iOS'
 ```
 
 ## Run on iPhone 15 (required)
@@ -130,19 +135,20 @@ BLE advertisements and HealthKit need a **physical iPhone**. The Simulator will 
 ### Permissions on the phone
 
 1. When The Scale asks for **Bluetooth**: Allow.
-2. When you tap **Save to Apple Health**, allow write access for weight / BMI / body fat / lean body mass.
+2. When you tap **Confirm to Health**, allow write access for weight / BMI / body fat / lean body mass, and read for weight + body fat history charts.
 3. If denied earlier: Settings → The Scale → enable Bluetooth; Settings → Health → Data Access → The Scale.
 
 ### First weigh-in
 
-1. Open **Settings** (gear): set height, age, and sex (local composition math only).
+1. Open **Settings** (gear): set height, age, sex, **ideal weight** (floors the history weight chart), optional ideal body fat %.
 2. Optional calibration: set reference mass (default **5 kg** or Alex’s **7.926 kg**), tap **Weigh reference on live sheet** (or home **Calibrate with live sheet**). Place that mass on the scale, wait for raw kg, tap **Store calibration**. Same live sheet as a normal weigh-in; does not write to Health.
 3. Tap **Find Scale**; look for `MIBFS` / Mi Scale.
-4. Select the scale: the **live weigh-in sheet** opens immediately and streams weight. The **Resistance** panel stays visible (shows `- Ω` until BIA arrives). Text must have left/right padding (not flush to the bezel).
-5. Stand **barefoot** until ohms appear in the Resistance panel. Allow Health read access when prompted so the sheet can color by trend.
-6. Tap **Edit** if any field needs correction (weight and resistance are both editable). Only **Confirm to Health** writes.
+4. Select the scale: the **live weigh-in sheet** opens immediately and streams weight. Body fat % and lean % appear after the barefoot scan. Text must have left/right padding (not flush to the bezel).
+5. Stand **barefoot** until fat % appears. Allow Health read access when prompted so the sheet can color by trend.
+6. Tap **Edit** if any field needs correction. Only **Confirm to Health** writes.
 7. With impedance, Health gets weight + BMI + body fat % + lean mass. Weight-only saves weight + BMI only (confirm prompt).
-8. Open the Health app → Browse → Body Measurements and confirm values appeared.
+8. After a successful save, the **History** screen opens with animated weight and body fat charts (default **2W**). Ranges: 1W, 2W, 1M, 3M, 1Y. Highest / lowest points are labeled; thin dotted trend line + Ideal reference.
+9. Open the Health app → Browse → Body Measurements and confirm values appeared.
 
 ### Unit tests (Mac)
 
@@ -152,7 +158,7 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 xcodebuild test -scheme TheScale -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
-Decoder / composition math are unit-tested; they do **not** replace on-device BLE + HealthKit verification.
+Decoder / composition / chart math are unit-tested; they do **not** replace on-device BLE + HealthKit verification.
 
 Optional Linux/Mac reference check of the same frame math:
 
@@ -175,11 +181,11 @@ python3 scripts/validate_decode.py
 TheScale/
   TheScale.xcodeproj/
   TheScale/           # SwiftUI app (BLE, HealthKit, UI)
-  TheScaleTests/      # Decoder + composition unit tests
+  TheScaleTests/      # Decoder + composition + chart unit tests
 scripts/
   validate_decode.py  # Cross-check frame decode without Xcode
 ```
 
 ## Version
 
-Marketing version **1.3.1** / build **10**. Bump both in the Xcode target when shipping changes.
+Marketing version **1.5.0** / build **13**. Bump both in the Xcode target when shipping changes.

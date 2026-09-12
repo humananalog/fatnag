@@ -87,6 +87,40 @@ struct SettingsView: View {
                 Text("yr").foregroundStyle(.secondary)
             }
 
+            HStack {
+                Text("Ideal weight")
+                Spacer()
+                TextField(
+                    "kg",
+                    value: $session.profile.idealWeightKg,
+                    format: .number.precision(.fractionLength(1))
+                )
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 72)
+                Text("kg").foregroundStyle(.secondary)
+            }
+
+            HStack {
+                Text("Ideal body fat")
+                Spacer()
+                TextField(
+                    "%",
+                    value: Binding(
+                        get: { session.profile.idealBodyFatPercent ?? 0 },
+                        set: { session.profile.idealBodyFatPercent = $0 > 0.05 ? $0 : nil }
+                    ),
+                    format: .number.precision(.fractionLength(1))
+                )
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 72)
+                Text("%").foregroundStyle(.secondary)
+            }
+            Text("Ideal weight floors the history weight chart and draws the Ideal line. Ideal body fat is optional: when set, the fat chart uses it the same way.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
             Picker("Sex", selection: $session.profile.sex) {
                 ForEach(UserBodyProfile.Sex.allCases) { sex in
                     Text(sex.title).tag(sex)

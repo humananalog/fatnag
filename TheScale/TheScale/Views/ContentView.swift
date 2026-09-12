@@ -37,6 +37,13 @@ struct ContentView: View {
                 LiveWeighInSheet()
                     .environmentObject(session)
             }
+            .fullScreenCover(isPresented: Binding(
+                get: { session.isResultsPresented },
+                set: { if !$0 { session.dismissResults() } }
+            )) {
+                WeighInResultsView()
+                    .environmentObject(session)
+            }
             .task {
                 await session.refreshHealthBaseline()
             }
@@ -74,7 +81,7 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text("On-device BLE → Apple Health. Live weigh-in, trend colors, body fat % and lean %, edit before you confirm.")
+            Text("On-device BLE → Apple Health. Live weigh-in, trend colors, body fat % and lean %, edit before you confirm. After save, weight and fat history charts open.")
                 .font(.system(size: 15, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
             if let baseline = session.healthBaselineKg {
@@ -183,6 +190,13 @@ struct ContentView: View {
             if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
                 Label("Last confirm saved to Apple Health", systemImage: "checkmark.seal.fill")
                     .foregroundStyle(.green)
+                Button {
+                    session.reopenResults()
+                } label: {
+                    Label("Open history charts", systemImage: "chart.xyaxis.line")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
             }
         }
         .padding(16)

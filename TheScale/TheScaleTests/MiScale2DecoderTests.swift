@@ -177,6 +177,8 @@ final class ScaleSessionImpedanceTests: XCTestCase {
         var isHealthDataAvailable: Bool { false }
         func requestAuthorizationIfNeeded() async throws {}
         func fetchRecentWeights(limit: Int) async throws -> [HealthWeightSample] { [] }
+        func fetchWeights(from start: Date, to end: Date) async throws -> [HealthMetricSample] { [] }
+        func fetchBodyFatPercents(from start: Date, to end: Date) async throws -> [HealthMetricSample] { [] }
         func write(
             measurement: ScaleMeasurement,
             composition: BodyCompositionResult?,

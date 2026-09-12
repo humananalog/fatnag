@@ -24,6 +24,9 @@
 		A1B2C3D4E5F60718293A0005 /* ScaleCalibration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1005 /* ScaleCalibration.swift */; };
 		A1B2C3D4E5F60718293A0006 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1006 /* SettingsView.swift */; };
 		A1B2C3D4E5F60718293A0007 /* ScaleCalibrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1007 /* ScaleCalibrationTests.swift */; };
+		A1B2C3D4E5F60718293A0008 /* HealthHistoryRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1008 /* HealthHistoryRange.swift */; };
+		A1B2C3D4E5F60718293A0009 /* WeighInResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1009 /* WeighInResultsView.swift */; };
+		A1B2C3D4E5F60718293A000A /* HealthHistoryChartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100A /* HealthHistoryChartTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +61,9 @@
 		A1B2C3D4E5F60718293A1005 /* ScaleCalibration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleCalibration.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1006 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1007 /* ScaleCalibrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleCalibrationTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1008 /* HealthHistoryRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthHistoryRange.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1009 /* WeighInResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeighInResultsView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A100A /* HealthHistoryChartTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthHistoryChartTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +89,7 @@
 			children = (
 				87EB1E9E2263405C8B1B48F0 /* ContentView.swift */,
 				A1B2C3D4E5F60718293A1003 /* LiveWeighInSheet.swift */,
+				A1B2C3D4E5F60718293A1009 /* WeighInResultsView.swift */,
 				A1B2C3D4E5F60718293A1006 /* SettingsView.swift */,
 			);
 			path = Views;
@@ -114,6 +121,7 @@
 				A1B2C3D4E5F60718293A1001 /* WeightTrend.swift */,
 				A1B2C3D4E5F60718293A1002 /* EditableMeasurementDraft.swift */,
 				A1B2C3D4E5F60718293A1005 /* ScaleCalibration.swift */,
+				A1B2C3D4E5F60718293A1008 /* HealthHistoryRange.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -165,6 +173,7 @@
 				E595CBE9B3604BDA974B7530 /* MiScale2DecoderTests.swift */,
 				A1B2C3D4E5F60718293A1004 /* WeightTrendTests.swift */,
 				A1B2C3D4E5F60718293A1007 /* ScaleCalibrationTests.swift */,
+				A1B2C3D4E5F60718293A100A /* HealthHistoryChartTests.swift */,
 			);
 			path = TheScaleTests;
 			sourceTree = "<group>";
@@ -279,6 +288,7 @@
 				B100683E83BB4960A142A289 /* MiScale2DecoderTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0004 /* WeightTrendTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0007 /* ScaleCalibrationTests.swift in Sources */,
+				A1B2C3D4E5F60718293A000A /* HealthHistoryChartTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -299,6 +309,8 @@
 				A1B2C3D4E5F60718293A0003 /* LiveWeighInSheet.swift in Sources */,
 				A1B2C3D4E5F60718293A0005 /* ScaleCalibration.swift in Sources */,
 				A1B2C3D4E5F60718293A0006 /* SettingsView.swift in Sources */,
+				A1B2C3D4E5F60718293A0008 /* HealthHistoryRange.swift in Sources */,
+				A1B2C3D4E5F60718293A0009 /* WeighInResultsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

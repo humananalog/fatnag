@@ -46,10 +46,16 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var liveHint: String = "Step on the scale when listening."
     @Published private(set) var impedanceMissingReason: String?
     @Published private(set) var isWeighInPresented = false
+    /// Shown after a successful Confirm → Health save (weight + fat charts).
+    @Published private(set) var isResultsPresented = false
     /// Normal weigh-in vs on-sheet calibration (same live sheet).
     @Published private(set) var weighInPurpose: WeighInPurpose = .normal
     @Published private(set) var recentHealthWeights: [HealthWeightSample] = []
     @Published private(set) var healthBaselineKg: Double?
+    /// Chart series for the post-save history screen (oldest → newest).
+    @Published private(set) var historyWeights: [HealthMetricSample] = []
+    @Published private(set) var historyBodyFatPercents: [HealthMetricSample] = []
+    @Published private(set) var historyRange: HealthHistoryRange = .default
     @Published var draft: EditableMeasurementDraft?
     @Published var isEditingDraft = false
     @Published var profile: UserBodyProfile {
@@ -247,10 +253,38 @@ final class ScaleSessionViewModel: ObservableObject {
         isEditingDraft = false
         weighInPurpose = .normal
         if case .healthKitSuccess = phase {
-            // Keep success state on home.
+            // Keep success state on home / results.
         } else if case .reviewing = phase {
             phase = .ready
         }
+    }
+
+    func dismissResults() {
+        isResultsPresented = false
+    }
+
+    func reopenResults() {
+        isResultsPresented = true
+        Task {
+            try? await loadHistory(for: historyRange)
+        }
+    }
+
+    /// Load Apple Health weight + body fat samples for the results charts.
+    func loadHistory(for range: HealthHistoryRange = .default) async throws {
+        historyRange = range
+        guard healthKitAvailable else {
+            historyWeights = []
+            historyBodyFatPercents = []
+            return
+        }
+        let end = Date()
+        let start = range.startDate(relativeTo: end)
+        try await healthStore.requestAuthorizationIfNeeded()
+        async let weights = healthStore.fetchWeights(from: start, to: end)
+        async let fats = healthStore.fetchBodyFatPercents(from: start, to: end)
+        historyWeights = try await weights
+        historyBodyFatPercents = try await fats
     }
 
     /// Store correction from the live sheet using the current raw BLE kg and Settings reference mass.
@@ -461,6 +495,16 @@ final class ScaleSessionViewModel: ObservableObject {
                 liveHint = "Saved confirmed weight and BMI only. Body fat was not written."
             }
             await refreshHealthBaseline()
+            // Present the dual-chart history screen after a successful Health write.
+            do {
+                try await loadHistory(for: .default)
+            } catch {
+                // Soft-fail: still show the empty results screen with the error inline.
+                historyWeights = []
+                historyBodyFatPercents = []
+            }
+            isWeighInPresented = false
+            isResultsPresented = true
         } catch {
             phase = .healthKitFailed(error.localizedDescription)
         }

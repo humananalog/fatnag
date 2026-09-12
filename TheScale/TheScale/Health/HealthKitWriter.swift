@@ -7,6 +7,10 @@ protocol HealthWriting: AnyObject {
     func requestAuthorizationIfNeeded() async throws
     /// Recent body-mass samples from Apple Health (most recent first).
     func fetchRecentWeights(limit: Int) async throws -> [HealthWeightSample]
+    /// Body mass samples in `[start, end]` (oldest first).
+    func fetchWeights(from start: Date, to end: Date) async throws -> [HealthMetricSample]
+    /// Body fat % samples in `[start, end]` (oldest first). Values are percent (e.g. 18.5).
+    func fetchBodyFatPercents(from start: Date, to end: Date) async throws -> [HealthMetricSample]
     func write(
         measurement: ScaleMeasurement,
         composition: BodyCompositionResult?,
@@ -35,10 +39,10 @@ enum HealthKitWriterError: LocalizedError {
     }
 }
 
-/// Reads recent weight history and writes confirmed scale readings to HealthKit.
+/// Reads recent weight / body-fat history and writes confirmed scale readings to HealthKit.
 ///
 /// Authorized:
-/// - Read: bodyMass (trend baseline)
+/// - Read: bodyMass (trend + charts), bodyFatPercentage (charts)
 /// - Write: bodyMass, bodyMassIndex, bodyFatPercentage, leanBodyMass
 ///
 /// Shown in-app only (no first-class HealthKit quantity): muscle mass, bone mass,
@@ -62,6 +66,7 @@ final class HealthKitWriter: HealthWriting {
     private var readTypes: Set<HKObjectType> {
         var types = Set<HKObjectType>()
         if let mass = HKObjectType.quantityType(forIdentifier: .bodyMass) { types.insert(mass) }
+        if let fat = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) { types.insert(fat) }
         return types
     }
 
@@ -96,6 +101,66 @@ final class HealthKitWriter: HealthWriting {
                     HealthWeightSample(
                         id: sample.uuid,
                         weightKg: sample.quantity.doubleValue(for: unit),
+                        date: sample.endDate
+                    )
+                }
+                continuation.resume(returning: mapped)
+            }
+            store.execute(query)
+        }
+    }
+
+    func fetchWeights(from start: Date, to end: Date) async throws -> [HealthMetricSample] {
+        try await fetchQuantitySamples(
+            identifier: .bodyMass,
+            unit: .gramUnit(with: .kilo),
+            from: start,
+            to: end,
+            scale: 1
+        )
+    }
+
+    func fetchBodyFatPercents(from start: Date, to end: Date) async throws -> [HealthMetricSample] {
+        // HealthKit stores body fat as a fraction (0.185); charts use percent (18.5).
+        try await fetchQuantitySamples(
+            identifier: .bodyFatPercentage,
+            unit: .percent(),
+            from: start,
+            to: end,
+            scale: 100
+        )
+    }
+
+    private func fetchQuantitySamples(
+        identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        from start: Date,
+        to end: Date,
+        scale: Double
+    ) async throws -> [HealthMetricSample] {
+        guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
+        try await requestAuthorizationIfNeeded()
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else {
+            throw HealthKitWriterError.missingType(identifier.rawValue)
+        }
+
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: true)
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sort]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
+                    return
+                }
+                let mapped: [HealthMetricSample] = (samples as? [HKQuantitySample] ?? []).map { sample in
+                    HealthMetricSample(
+                        id: sample.uuid,
+                        value: sample.quantity.doubleValue(for: unit) * scale,
                         date: sample.endDate
                     )
                 }
