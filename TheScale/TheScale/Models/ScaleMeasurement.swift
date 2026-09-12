@@ -16,6 +16,8 @@ struct ScaleMeasurement: Equatable, Identifiable, Sendable {
     /// Unit the scale was configured to display (weight is always stored as kg).
     let displayUnit: ScaleWeightUnit
     let receivedAt: Date
+    /// False for live settling frames shown while the scale is still locking weight.
+    let isStabilized: Bool
 
     init(
         id: UUID = UUID(),
@@ -25,7 +27,8 @@ struct ScaleMeasurement: Equatable, Identifiable, Sendable {
         hasImpedance: Bool,
         biaPending: Bool = false,
         displayUnit: ScaleWeightUnit,
-        receivedAt: Date = Date()
+        receivedAt: Date = Date(),
+        isStabilized: Bool = true
     ) {
         self.id = id
         self.weightKg = weightKg
@@ -35,6 +38,7 @@ struct ScaleMeasurement: Equatable, Identifiable, Sendable {
         self.biaPending = biaPending
         self.displayUnit = displayUnit
         self.receivedAt = receivedAt
+        self.isStabilized = isStabilized
     }
 }
 

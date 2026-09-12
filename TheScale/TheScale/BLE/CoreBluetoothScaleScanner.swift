@@ -95,17 +95,18 @@ final class CoreBluetoothScaleScanner: NSObject, ScaleScanning {
         guard let serviceData else { return }
         for (uuid, data) in serviceData {
             guard uuid.uuidString.uppercased().hasSuffix("181B") else { continue }
-            switch MiScale2FrameDecoder.decode(data) {
+            // Prefer live decode so unstabilized kg streams into the weigh-in sheet.
+            switch MiScale2FrameDecoder.decodeLive(data) {
             case .success(let measurement):
-                if measurement.biaPending {
+                if !measurement.isStabilized {
+                    delegate?.scaleScanner(self, transientStatus: "Live weight… keep standing still.")
+                } else if measurement.biaPending {
                     delegate?.scaleScanner(
                         self,
                         transientStatus: "Weight locked. Waiting for impedance sweep (stay barefoot)…"
                     )
                 }
                 delegate?.scaleScanner(self, didDecode: measurement)
-            case .failure(.notStabilized):
-                delegate?.scaleScanner(self, transientStatus: "Scale settling… keep standing still.")
             case .failure(.weightRemoved):
                 delegate?.scaleScanner(self, transientStatus: "Weight removed. Step back on barefoot for body fat.")
             case .failure:

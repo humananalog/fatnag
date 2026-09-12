@@ -2,42 +2,75 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
-    @State private var confirmWeightOnlySave = false
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    header
-                    privacyCard
-                    profileSection
-                    statusSection
-                    discoverySection
-                    readingSection
-                    actions
+            ZStack {
+                homeAtmosphere
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        brandHeader
+                        privacyCard
+                        profileSection
+                        discoverySection
+                        homeActions
+                    }
+                    .padding(20)
                 }
-                .padding(20)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("The Scale")
-            .alert("Save weight only?", isPresented: $confirmWeightOnlySave) {
-                Button("Cancel", role: .cancel) {}
-                Button("Save weight + BMI only") {
-                    Task { await session.saveToHealth() }
-                }
-            } message: {
-                Text("No impedance was captured, so body fat % will not be written. Stand barefoot and wait for the second measurement if you want composition.")
+            .navigationBarTitleDisplayMode(.inline)
+            .fullScreenCover(isPresented: Binding(
+                get: { session.isWeighInPresented },
+                set: { if !$0 { session.dismissWeighIn() } }
+            )) {
+                LiveWeighInSheet()
+                    .environmentObject(session)
+            }
+            .task {
+                await session.refreshHealthBaseline()
             }
         }
+        .preferredColorScheme(.light)
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Mi Body Composition Scale 2")
-                .font(.title2.weight(.semibold))
-            Text("On-device BLE → Apple Health. No accounts, no cloud, no analytics.")
-                .font(.subheadline)
+    private var homeAtmosphere: some View {
+        LinearGradient(
+            colors: [
+                Color(red: 0.94, green: 0.96, blue: 0.98),
+                Color(red: 0.88, green: 0.91, blue: 0.94),
+                Color(red: 0.96, green: 0.95, blue: 0.92)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+    }
+
+    private var brandHeader: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 14) {
+                Image("BrandMark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 56, height: 56)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("The Scale")
+                        .font(.system(size: 36, weight: .semibold, design: .serif))
+                    Text("Mi Body Composition Scale 2")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Text("On-device BLE → Apple Health. Live weigh-in, trend colors, edit before you confirm.")
+                .font(.system(size: 15, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
+            if let baseline = session.healthBaselineKg {
+                Text(String(format: "Last Health weight: %.2f kg", baseline))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -45,14 +78,13 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Privacy", systemImage: "lock.shield")
                 .font(.headline)
-            Text("Measurements stay on this iPhone. The Scale writes only weight, BMI, body fat %, and lean body mass to Apple Health when you confirm. Muscle, bone, water, and impedance stay in the app. Body fat is never invented without ohms.")
+            Text("Measurements stay on this iPhone. The Scale reads recent Health weight only for on-device trend, and writes weight / BMI / body fat % / lean mass only after you confirm. No accounts, no cloud, no analytics.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var profileSection: some View {
@@ -101,29 +133,7 @@ struct ContentView: View {
             .pickerStyle(.segmented)
         }
         .padding(16)
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
-    private var statusSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Status")
-                .font(.headline)
-            Text(statusText)
-                .font(.body)
-            Text(session.liveHint)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            if let reason = session.impedanceMissingReason {
-                Text(reason)
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var discoverySection: some View {
@@ -135,7 +145,7 @@ struct ContentView: View {
             case .scanning where session.discoveredScales.isEmpty:
                 ProgressView("Scanning for MIBFS…")
             case .idle where session.discoveredScales.isEmpty:
-                Text("Tap Find Scale, then step near the Mi Scale 2.")
+                Text("Tap Find Scale, then step near the Mi Scale 2. Selecting a scale opens the live weigh-in sheet.")
                     .foregroundStyle(.secondary)
             default:
                 if session.discoveredScales.isEmpty {
@@ -165,69 +175,23 @@ struct ContentView: View {
                     }
                 }
             }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
 
-    @ViewBuilder
-    private var readingSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Latest reading")
-                .font(.headline)
-
-            if let measurement = session.latestMeasurement {
-                metricRow("Weight", String(format: "%.2f kg", measurement.weightKg))
-                if let ohms = measurement.impedanceOhms {
-                    metricRow("Impedance", "\(ohms) Ω")
-                } else {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label("Impedance missing", systemImage: "exclamationmark.triangle")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.orange)
-                        Text(impedanceHelpCopy(for: measurement))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if let composition = session.composition, measurement.hasImpedance {
-                    Divider()
-                    metricRow("BMI", String(format: "%.1f", composition.bmi))
-                    metricRow("Body fat", String(format: "%.1f%%", composition.bodyFatPercent))
-                    metricRow("Water", String(format: "%.1f%%", composition.waterPercent))
-                    metricRow("Muscle", String(format: "%.2f kg", composition.muscleMassKg))
-                    metricRow("Bone", String(format: "%.2f kg", composition.boneMassKg))
-                    metricRow("Lean mass", String(format: "%.2f kg", composition.leanBodyMassKg))
-                    metricRow("Visceral fat", String(format: "%.1f", composition.visceralFat))
-                } else if measurement.hasImpedance == false {
-                    Text("Body fat % is not estimated without impedance. No fake composition.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                Text("No measurement yet.")
-                    .foregroundStyle(.secondary)
-            }
-
-            if case .healthKitSuccess = session.phase {
-                Label("Saved to Apple Health", systemImage: "checkmark.seal.fill")
-                    .foregroundStyle(.green)
-            }
-            if case .healthKitFailed(let message) = session.phase {
-                Label(message, systemImage: "exclamationmark.triangle.fill")
+            if case .bluetoothUnavailable(let message) = session.phase {
+                Text(message)
+                    .font(.footnote)
                     .foregroundStyle(.red)
             }
+            if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
+                Label("Last confirm saved to Apple Health", systemImage: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+            }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private var actions: some View {
+    private var homeActions: some View {
         VStack(spacing: 12) {
             Button {
                 session.startScanning()
@@ -241,95 +205,21 @@ struct ContentView: View {
             .buttonStyle(.borderedProminent)
             .disabled(session.phase == .scanning || session.phase == .healthKitWriting)
 
-            Button {
-                if session.isWeightOnlyReading {
-                    confirmWeightOnlySave = true
-                } else {
-                    Task { await session.saveToHealth() }
+            if session.selectedScaleID != nil {
+                Button {
+                    session.reopenWeighIn()
+                } label: {
+                    Label("Open live weigh-in", systemImage: "scalemass")
+                        .frame(maxWidth: .infinity)
                 }
-            } label: {
-                Label(saveButtonTitle, systemImage: "heart")
-                    .frame(maxWidth: .infinity)
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
-            .disabled(!canSave || session.phase == .healthKitWriting)
 
             if !session.healthKitAvailable {
                 Text("HealthKit unavailable in this environment (expected on Simulator without Health).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-        }
-    }
-
-    private var canSave: Bool {
-        guard session.latestMeasurement != nil else { return false }
-        switch session.phase {
-        case .ready, .healthKitSuccess, .healthKitFailed, .awaitingImpedance:
-            // Awaiting impedance: Save is still available (confirm alert) if user
-            // wants weight-only, but primary path is to wait for ohms.
-            return true
-        default:
-            return false
-        }
-    }
-
-    private var saveButtonTitle: String {
-        if session.phase == .healthKitWriting {
-            return "Writing…"
-        }
-        if session.isWeightOnlyReading {
-            return "Save weight only (no body fat)"
-        }
-        return "Save to Apple Health"
-    }
-
-    private func impedanceHelpCopy(for measurement: ScaleMeasurement) -> String {
-        if case .awaitingImpedance = session.phase {
-            if measurement.biaPending {
-                return "Stay still barefoot. The scale is finishing the electrical resistance sweep."
-            }
-            return "Keep standing barefoot. Mi Scale 2 sends weight first, then impedance in a second 0x181B frame."
-        }
-        return "To get impedance: remove socks/shoes, stand barefoot on both electrodes, wait a few seconds after weight locks, then re-weigh if needed."
-    }
-
-    private func metricRow(_ title: String, _ value: String) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Text(value)
-                .fontWeight(.medium)
-                .monospacedDigit()
-        }
-    }
-
-    private var statusText: String {
-        switch session.phase {
-        case .idle:
-            return "Ready"
-        case .scanning:
-            return "Scanning for scale"
-        case .listening(let name):
-            return "Listening to \(name)"
-        case .measuring:
-            return "Receiving measurement"
-        case .awaitingImpedance:
-            return "Waiting for impedance (body fat)"
-        case .ready:
-            return session.isWeightOnlyReading
-                ? "Weight ready (no impedance)"
-                : "Measurement ready (weight + impedance)"
-        case .healthKitWriting:
-            return "Writing to Apple Health…"
-        case .healthKitSuccess:
-            return "Apple Health write succeeded"
-        case .healthKitFailed:
-            return "Apple Health write failed"
-        case .bluetoothUnavailable(let message):
-            return message
-        case .error(let message):
-            return message
         }
     }
 }

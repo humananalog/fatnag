@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 1.0.2  
+**Version:** 1.1.0  
 **Target device:** iPhone 15 (iOS 17+)  
 **Deployment target:** iOS 17.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -11,9 +11,11 @@ Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model
 ## What it does
 
 1. Scans for the scale’s BLE advertisements (`MIBFS` / service data `0x181B`)
-2. Decodes stabilized weight + impedance from the public 13-byte Mi Scale 2 frame
-3. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
-4. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
+2. Opens a **full-screen live weigh-in sheet** as soon as a scale is selected; streams settling weight, then impedance when barefoot
+3. Reads recent **Apple Health** body-mass history (on-device) and colors the sheet by trend vs last weight: **green** loss, **yellow** stable (±0.2 kg), **red** gain
+4. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
+5. Lets you **edit** weight / impedance / composition **before** confirm
+6. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
 
 No accounts, no backend, no analytics, no third-party cloud.
 
@@ -23,17 +25,18 @@ No accounts, no backend, no analytics, no third-party cloud.
 |------|----------------|
 | Weight / impedance from the scale | Parsed in memory on the iPhone |
 | Height / age / sex profile | `UserDefaults` on device only |
-| Health writes | Apple Health (HealthKit) on device, only after you tap **Save to Apple Health** |
+| Health **read** | Recent `bodyMass` samples for on-device trend only |
+| Health **writes** | Apple Health (HealthKit) on device, only after **Confirm to Health** |
 | Network | None by design |
 
-HealthKit share types requested (write-only; no read types):
+HealthKit types:
 
-- `bodyMass`
-- `bodyMassIndex`
-- `bodyFatPercentage`
-- `leanBodyMass`
+- Read: `bodyMass`
+- Write: `bodyMass`, `bodyMassIndex`, `bodyFatPercentage`, `leanBodyMass`
 
 Muscle mass, bone mass, water %, visceral fat, and raw ohms are **shown in-app only**. HealthKit has no first-class quantities for those.
+
+**Trend threshold:** ±0.2 kg vs the most recent Health weight counts as stable.
 
 ## Protocol (honest notes)
 
@@ -131,11 +134,11 @@ BLE advertisements and HealthKit need a **physical iPhone**. The Simulator will 
 
 1. Enter height, age, and sex in the app (used only for local composition math).
 2. Tap **Find Scale**; look for `MIBFS` / Mi Scale.
-3. Select the scale, then step on **barefoot** and stand still.
-4. Wait until weight **and** impedance (ohms) appear. The scale usually sends weight first, then a second `0x181B` frame with impedance after the barefoot BIA sweep.
-5. If impedance is missing: remove socks/shoes, stay barefoot on both electrodes, wait ~5-15s after weight locks (or re-weigh). The app will not invent body fat without ohms.
-6. Tap **Save to Apple Health**. With impedance, Health gets weight + BMI + body fat % + lean mass. Weight-only saves weight + BMI only (confirm prompt).
-7. Open the Health app → Browse → Body Measurements and confirm **Body Fat Percentage** (and lean mass) appeared.
+3. Select the scale: the **live weigh-in sheet** opens immediately and streams weight.
+4. Stand **barefoot** until impedance (ohms) appears. Allow Health read access when prompted so the sheet can color by trend.
+5. Tap **Edit** if any field needs correction. Only **Confirm to Health** writes.
+6. With impedance, Health gets weight + BMI + body fat % + lean mass. Weight-only saves weight + BMI only (confirm prompt).
+7. Open the Health app → Browse → Body Measurements and confirm values appeared.
 
 ### Unit tests (Mac)
 
@@ -175,4 +178,4 @@ scripts/
 
 ## Version
 
-Marketing version **1.0.2** / build **3**. Bump both in the Xcode target when shipping changes.
+Marketing version **1.1.0** / build **4**. Bump both in the Xcode target when shipping changes.

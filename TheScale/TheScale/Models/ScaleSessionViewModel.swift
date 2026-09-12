@@ -17,6 +17,7 @@ enum ScaleSessionPhase: Equatable, Sendable {
     /// Stabilized weight received; still listening for the impedance / BIA frame.
     case awaitingImpedance
     case ready
+    case reviewing
     case healthKitWriting
     case healthKitSuccess
     case healthKitFailed(String)
@@ -33,9 +34,15 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var discoveredScales: [DiscoveredScale] = []
     @Published private(set) var selectedScaleID: UUID?
     @Published private(set) var latestMeasurement: ScaleMeasurement?
+    @Published private(set) var liveWeightKg: Double?
     @Published private(set) var composition: BodyCompositionResult?
     @Published private(set) var liveHint: String = "Step on the scale when listening."
     @Published private(set) var impedanceMissingReason: String?
+    @Published private(set) var isWeighInPresented = false
+    @Published private(set) var recentHealthWeights: [HealthWeightSample] = []
+    @Published private(set) var healthBaselineKg: Double?
+    @Published var draft: EditableMeasurementDraft?
+    @Published var isEditingDraft = false
     @Published var profile: UserBodyProfile {
         didSet { UserProfileStore.save(profile) }
     }
@@ -71,17 +78,40 @@ final class ScaleSessionViewModel: ObservableObject {
         return !measurement.hasImpedance
     }
 
+    /// Live display weight: streaming kg while settling, else stabilized / draft.
+    var displayWeightKg: Double? {
+        if let draft, isEditingDraft || phase == .reviewing {
+            return draft.weightKg
+        }
+        if let liveWeightKg { return liveWeightKg }
+        return latestMeasurement?.weightKg
+    }
+
+    var currentTrend: WeightTrend {
+        WeightTrend.from(currentKg: displayWeightKg ?? 0, baselineKg: healthBaselineKg)
+    }
+
+    var trendForDisplay: WeightTrend {
+        guard displayWeightKg != nil else { return .unknown }
+        return currentTrend
+    }
+
     func startScanning() {
         cancelImpedanceWait()
         discoveredScales = []
         selectedScaleID = nil
         latestMeasurement = nil
+        liveWeightKg = nil
         composition = nil
+        draft = nil
+        isEditingDraft = false
         impedanceMissingReason = nil
         lastAcceptedSignature = nil
+        isWeighInPresented = false
         phase = .scanning
         liveHint = "Looking for MIBFS / Mi Body Composition Scale 2…"
         scanner.startScanning()
+        Task { await refreshHealthBaseline() }
     }
 
     func stop() {
@@ -102,30 +132,135 @@ final class ScaleSessionViewModel: ObservableObject {
         phase = .listening(scaleName: scale.name)
         impedanceMissingReason = nil
         liveHint = "Listening for broadcasts from \(scale.name). Step on barefoot for body composition."
+        isWeighInPresented = true
+        Task { await refreshHealthBaseline() }
     }
 
-    func saveToHealth() async {
+    func reopenWeighIn() {
+        guard selectedScaleID != nil else { return }
+        isWeighInPresented = true
+    }
+
+    func dismissWeighIn() {
+        isWeighInPresented = false
+        isEditingDraft = false
+        if case .healthKitSuccess = phase {
+            // Keep success state on home.
+        } else if case .reviewing = phase {
+            phase = .ready
+        }
+    }
+
+    func beginReview() {
         guard let measurement = latestMeasurement else { return }
-        phase = .healthKitWriting
+        draft = EditableMeasurementDraft.from(
+            measurement: measurement,
+            composition: composition,
+            profile: profile
+        )
+        isEditingDraft = true
+        phase = .reviewing
+    }
+
+    func updateDraftWeight(_ kg: Double) {
+        guard var draft else { return }
+        draft.weightKg = kg
+        draft.recalculate(using: profile)
+        self.draft = draft
+    }
+
+    func updateDraftImpedance(_ ohms: Int?) {
+        guard var draft else { return }
+        draft.impedanceOhms = ohms
+        draft.recalculate(using: profile)
+        self.draft = draft
+    }
+
+    func updateDraftBodyFat(_ percent: Double?) {
+        guard var draft else { return }
+        draft.bodyFatPercent = percent
+        if let percent, let weight = Optional(draft.weightKg) {
+            draft.leanBodyMassKg = max(weight - (weight * percent / 100.0), 0)
+        }
+        self.draft = draft
+    }
+
+    func updateDraftBMI(_ value: Double?) {
+        guard var draft else { return }
+        draft.bmi = value
+        self.draft = draft
+    }
+
+    func updateDraftLeanMass(_ kg: Double?) {
+        guard var draft else { return }
+        draft.leanBodyMassKg = kg
+        self.draft = draft
+    }
+
+    func setIncludeCompositionInHealth(_ include: Bool) {
+        guard var draft else { return }
+        draft.includeCompositionInHealth = include
+        self.draft = draft
+    }
+
+    func refreshHealthBaseline() async {
+        guard healthKitAvailable else {
+            recentHealthWeights = []
+            healthBaselineKg = nil
+            return
+        }
         do {
             try await healthStore.requestAuthorizationIfNeeded()
-            try await healthStore.write(
+            let samples = try await healthStore.fetchRecentWeights(limit: 14)
+            recentHealthWeights = samples
+            healthBaselineKg = samples.first?.weightKg
+        } catch {
+            // Soft-fail: trend stays unknown; weigh-in still works.
+            liveHint = "Health history unavailable: \(error.localizedDescription)"
+        }
+    }
+
+    func saveDraftToHealth() async {
+        if draft == nil, let measurement = latestMeasurement {
+            draft = EditableMeasurementDraft.from(
                 measurement: measurement,
                 composition: composition,
                 profile: profile
             )
+        }
+        guard let draft else { return }
+        phase = .healthKitWriting
+        do {
+            try await healthStore.requestAuthorizationIfNeeded()
+            try await healthStore.write(draft: draft, profile: profile)
             phase = .healthKitSuccess
-            if measurement.hasImpedance {
-                liveHint = "Saved weight, BMI, body fat %, and lean mass to Apple Health."
+            isEditingDraft = false
+            if draft.includeCompositionInHealth {
+                liveHint = "Saved confirmed weight, BMI, body fat %, and lean mass to Apple Health."
             } else {
-                liveHint = "Saved weight and BMI only. Body fat was not written (no impedance)."
+                liveHint = "Saved confirmed weight and BMI only. Body fat was not written."
             }
+            await refreshHealthBaseline()
         } catch {
             phase = .healthKitFailed(error.localizedDescription)
         }
     }
 
+    /// Legacy entry used by older UI paths; routes through draft confirm.
+    func saveToHealth() async {
+        await saveDraftToHealth()
+    }
+
     private func accept(_ measurement: ScaleMeasurement) {
+        if !measurement.isStabilized {
+            liveWeightKg = measurement.weightKg
+            if case .listening = phase {
+                phase = .measuring
+            }
+            liveHint = "Live weight updating…"
+            return
+        }
+
         // Never replace a good impedance reading with a later weight-only frame
         // for essentially the same weigh-in (ESPHome clear_impedance defaults false).
         if let existing = latestMeasurement,
@@ -146,6 +281,7 @@ final class ScaleSessionViewModel: ObservableObject {
         lastAcceptedSignature = signature
 
         latestMeasurement = measurement
+        liveWeightKg = measurement.weightKg
 
         if let ohms = measurement.impedanceOhms {
             cancelImpedanceWait()
@@ -155,12 +291,22 @@ final class ScaleSessionViewModel: ObservableObject {
                 profile: profile
             )
             impedanceMissingReason = nil
-            liveHint = "Stabilized reading with impedance (\(ohms) Ω). Ready to save body fat to Apple Health."
+            liveHint = "Stabilized reading with impedance (\(ohms) Ω). Review before saving to Health."
+            draft = EditableMeasurementDraft.from(
+                measurement: measurement,
+                composition: composition,
+                profile: profile
+            )
             phase = .ready
             return
         }
 
         composition = nil
+        draft = EditableMeasurementDraft.from(
+            measurement: measurement,
+            composition: nil,
+            profile: profile
+        )
         phase = .awaitingImpedance
         if measurement.biaPending {
             liveHint = "Weight locked. Impedance sweep in progress: stay barefoot on the electrodes."
@@ -183,6 +329,11 @@ final class ScaleSessionViewModel: ObservableObject {
             self.impedanceMissingReason =
                 "Impedance missing. Socks, shoes, or stepping off early block body fat. Stand barefoot on the metal electrodes and wait a few seconds after weight stabilizes for the second (BIA) broadcast."
             self.liveHint = self.impedanceMissingReason ?? self.liveHint
+            self.draft = EditableMeasurementDraft.from(
+                measurement: measurement,
+                composition: nil,
+                profile: self.profile
+            )
         }
     }
 
@@ -230,6 +381,7 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
         if let message {
             cancelImpedanceWait()
             phase = .bluetoothUnavailable(message)
+            isWeighInPresented = false
         } else if case .bluetoothUnavailable = phase {
             phase = .idle
         }
@@ -247,6 +399,12 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
     private func handleDecode(_ measurement: ScaleMeasurement) {
         if case .listening = phase {
             phase = .measuring
+        }
+        // Do not clobber an in-progress manual edit with new BLE frames.
+        if isEditingDraft, case .reviewing = phase {
+            if measurement.isStabilized == false {
+                return
+            }
         }
         accept(measurement)
     }

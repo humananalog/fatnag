@@ -27,9 +27,9 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>The Scale listens for your Mi Body Composition Scale 2 Bluetooth broadcasts to read weight and impedance on this iPhone only.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>The Scale writes your weight and body-composition estimates into Apple Health on this iPhone. Nothing is uploaded.</string>
+	<string>The Scale reads your recent weight from Apple Health on this iPhone only, to show a local trend during weigh-in. Nothing is uploaded.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>The Scale saves weight, BMI, body fat percentage, and lean body mass to Apple Health when you confirm a reading.</string>
+	<string>The Scale saves confirmed weight, BMI, body fat percentage, and lean body mass to Apple Health when you tap Confirm. Nothing is uploaded.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -5,17 +5,21 @@ import HealthKit
 protocol HealthWriting: AnyObject {
     var isHealthDataAvailable: Bool { get }
     func requestAuthorizationIfNeeded() async throws
+    /// Recent body-mass samples from Apple Health (most recent first).
+    func fetchRecentWeights(limit: Int) async throws -> [HealthWeightSample]
     func write(
         measurement: ScaleMeasurement,
         composition: BodyCompositionResult?,
         profile: UserBodyProfile
     ) async throws
+    func write(draft: EditableMeasurementDraft, profile: UserBodyProfile) async throws
 }
 
 enum HealthKitWriterError: LocalizedError {
     case unavailable
     case missingType(String)
     case saveFailed(String)
+    case readFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -25,17 +29,17 @@ enum HealthKitWriterError: LocalizedError {
             return "Missing HealthKit type: \(name)."
         case .saveFailed(let message):
             return message
+        case .readFailed(let message):
+            return message
         }
     }
 }
 
-/// Writes only the quantity types HealthKit supports for scale readings.
+/// Reads recent weight history and writes confirmed scale readings to HealthKit.
 ///
-/// Authorized / written:
-/// - bodyMass (kg)
-/// - bodyMassIndex
-/// - bodyFatPercentage
-/// - leanBodyMass (kg)
+/// Authorized:
+/// - Read: bodyMass (trend baseline)
+/// - Write: bodyMass, bodyMassIndex, bodyFatPercentage, leanBodyMass
 ///
 /// Shown in-app only (no first-class HealthKit quantity): muscle mass, bone mass,
 /// body water %, visceral fat index, raw impedance.
@@ -55,11 +59,50 @@ final class HealthKitWriter: HealthWriting {
         return types
     }
 
+    private var readTypes: Set<HKObjectType> {
+        var types = Set<HKObjectType>()
+        if let mass = HKObjectType.quantityType(forIdentifier: .bodyMass) { types.insert(mass) }
+        return types
+    }
+
     func requestAuthorizationIfNeeded() async throws {
         guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
         if didAuthorize { return }
-        try await store.requestAuthorization(toShare: shareTypes, read: [])
+        try await store.requestAuthorization(toShare: shareTypes, read: readTypes)
         didAuthorize = true
+    }
+
+    func fetchRecentWeights(limit: Int = 14) async throws -> [HealthWeightSample] {
+        guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
+        try await requestAuthorizationIfNeeded()
+        guard let massType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else {
+            throw HealthKitWriterError.missingType("bodyMass")
+        }
+
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: massType,
+                predicate: nil,
+                limit: max(limit, 1),
+                sortDescriptors: [sort]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
+                    return
+                }
+                let unit = HKUnit.gramUnit(with: .kilo)
+                let mapped: [HealthWeightSample] = (samples as? [HKQuantitySample] ?? []).map { sample in
+                    HealthWeightSample(
+                        id: sample.uuid,
+                        weightKg: sample.quantity.doubleValue(for: unit),
+                        date: sample.endDate
+                    )
+                }
+                continuation.resume(returning: mapped)
+            }
+            store.execute(query)
+        }
     }
 
     func write(
@@ -67,9 +110,18 @@ final class HealthKitWriter: HealthWriting {
         composition: BodyCompositionResult?,
         profile: UserBodyProfile
     ) async throws {
+        let draft = EditableMeasurementDraft.from(
+            measurement: measurement,
+            composition: composition,
+            profile: profile
+        )
+        try await write(draft: draft, profile: profile)
+    }
+
+    func write(draft: EditableMeasurementDraft, profile: UserBodyProfile) async throws {
         guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
 
-        let date = measurement.scaleDate ?? measurement.receivedAt
+        let date = draft.scaleDate ?? draft.receivedAt
         var samples: [HKQuantitySample] = []
 
         guard let massType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else {
@@ -78,23 +130,18 @@ final class HealthKitWriter: HealthWriting {
         samples.append(
             HKQuantitySample(
                 type: massType,
-                quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: measurement.weightKg),
+                quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: draft.weightKg),
                 start: date,
                 end: date,
-                metadata: metadata(for: measurement)
+                metadata: metadata(for: draft)
             )
         )
 
-        // Always write BMI from profile height. Never invent body fat / lean without ohms.
-        let bmiValue: Double
-        if let composition {
-            bmiValue = composition.bmi
-        } else {
-            bmiValue = BodyCompositionCalculator.bodyMassIndex(
-                weightKg: measurement.weightKg,
+        let bmiValue = draft.bmi
+            ?? BodyCompositionCalculator.bodyMassIndex(
+                weightKg: draft.weightKg,
                 heightCm: profile.heightCm
             )
-        }
 
         if let bmiType = HKQuantityType.quantityType(forIdentifier: .bodyMassIndex) {
             samples.append(
@@ -107,28 +154,24 @@ final class HealthKitWriter: HealthWriting {
             )
         }
 
-        if measurement.hasImpedance, let composition {
-            if let fatType = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage) {
+        if draft.includeCompositionInHealth {
+            if let fat = draft.bodyFatPercent,
+               let fatType = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage) {
                 samples.append(
                     HKQuantitySample(
                         type: fatType,
-                        quantity: HKQuantity(
-                            unit: .percent(),
-                            doubleValue: composition.bodyFatPercent / 100.0
-                        ),
+                        quantity: HKQuantity(unit: .percent(), doubleValue: fat / 100.0),
                         start: date,
                         end: date
                     )
                 )
             }
-            if let leanType = HKQuantityType.quantityType(forIdentifier: .leanBodyMass) {
+            if let lean = draft.leanBodyMassKg,
+               let leanType = HKQuantityType.quantityType(forIdentifier: .leanBodyMass) {
                 samples.append(
                     HKQuantitySample(
                         type: leanType,
-                        quantity: HKQuantity(
-                            unit: .gramUnit(with: .kilo),
-                            doubleValue: composition.leanBodyMassKg
-                        ),
+                        quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: lean),
                         start: date,
                         end: date
                     )
@@ -149,13 +192,13 @@ final class HealthKitWriter: HealthWriting {
         }
     }
 
-    private func metadata(for measurement: ScaleMeasurement) -> [String: Any] {
+    private func metadata(for draft: EditableMeasurementDraft) -> [String: Any] {
         var meta: [String: Any] = [
             HKMetadataKeyWasUserEntered: false,
             "SourceDevice": "Xiaomi Mi Body Composition Scale 2 (XMTZC05HM)",
             "App": "The Scale"
         ]
-        if let ohms = measurement.impedanceOhms {
+        if let ohms = draft.impedanceOhms {
             meta["ImpedanceOhms"] = ohms
         }
         return meta

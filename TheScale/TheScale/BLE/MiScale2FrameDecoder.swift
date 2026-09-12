@@ -40,12 +40,26 @@ enum MiScale2FrameDecoder {
         case unsupportedUnit
     }
 
-    /// Decode a complete stabilized measurement, or return an error explaining why the frame was ignored.
+    /// Decode a frame for live UI and/or stabilized capture.
     ///
-    /// When the impedance flag is set but ohms are `0` or `≥ 3000` (BIA still running),
-    /// returns a weight-only measurement with `biaPending == true` so the UI can keep waiting
-    /// instead of dropping the frame entirely.
+    /// - Stabilized frames become saveable measurements.
+    /// - Unstabilized frames (weight still settling) return `isStabilized == false`
+    ///   so the weigh-in sheet can stream live kg without treating them as final.
+    /// - When the impedance flag is set but ohms are `0` or `≥ 3000` (BIA still running),
+    ///   returns a weight-only measurement with `biaPending == true`.
     static func decode(_ data: Data) -> Result<ScaleMeasurement, DecodeError> {
+        decode(data, allowLiveUnstabilized: false)
+    }
+
+    /// Like `decode`, but also accepts unstabilized weight frames for live streaming.
+    static func decodeLive(_ data: Data) -> Result<ScaleMeasurement, DecodeError> {
+        decode(data, allowLiveUnstabilized: true)
+    }
+
+    private static func decode(
+        _ data: Data,
+        allowLiveUnstabilized: Bool
+    ) -> Result<ScaleMeasurement, DecodeError> {
         guard data.count == 13 else {
             return .failure(.wrongLength(data.count))
         }
@@ -60,8 +74,10 @@ enum MiScale2FrameDecoder {
         let isCatty = (control1 & 0x40) != 0
         let weightRemoved = (control1 & 0x80) != 0
 
-        guard isStabilized else { return .failure(.notStabilized) }
         guard !weightRemoved else { return .failure(.weightRemoved) }
+        if !isStabilized && !allowLiveUnstabilized {
+            return .failure(.notStabilized)
+        }
 
         let weightRaw = UInt16(bytes[11]) | (UInt16(bytes[12]) << 8)
         let displayUnit: ScaleWeightUnit
@@ -79,6 +95,21 @@ enum MiScale2FrameDecoder {
             weightKg = Double(weightRaw) / 200.0
         } else {
             return .failure(.unsupportedUnit)
+        }
+
+        // Live settling frames: weight only, never treat as impedance-ready.
+        if !isStabilized {
+            return .success(
+                ScaleMeasurement(
+                    weightKg: weightKg,
+                    impedanceOhms: nil,
+                    scaleDate: nil,
+                    hasImpedance: false,
+                    biaPending: false,
+                    displayUnit: displayUnit,
+                    isStabilized: false
+                )
+            )
         }
 
         var impedance: Int?
@@ -113,7 +144,8 @@ enum MiScale2FrameDecoder {
                 scaleDate: scaleDate,
                 hasImpedance: impedance != nil,
                 biaPending: biaPending,
-                displayUnit: displayUnit
+                displayUnit: displayUnit,
+                isStabilized: true
             )
         )
     }
