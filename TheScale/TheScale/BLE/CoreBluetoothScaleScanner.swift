@@ -103,7 +103,7 @@ final class CoreBluetoothScaleScanner: NSObject, ScaleScanning {
                 } else if measurement.biaPending {
                     delegate?.scaleScanner(
                         self,
-                        transientStatus: "Weight locked. Waiting for impedance sweep (stay barefoot)…"
+                        transientStatus: "Weight locked. Waiting for body composition (stay barefoot)…"
                     )
                 }
                 delegate?.scaleScanner(self, didDecode: measurement)

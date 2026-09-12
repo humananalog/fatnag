@@ -130,6 +130,24 @@ final class BodyCompositionCalculatorTests: XCTestCase {
             70 - (70 * result.bodyFatPercent / 100),
             accuracy: 0.01
         )
+
+        let draft = EditableMeasurementDraft.from(
+            measurement: ScaleMeasurement(
+                weightKg: 70,
+                impedanceOhms: 500,
+                scaleDate: Date(),
+                hasImpedance: true,
+                biaPending: false,
+                displayUnit: .kilogram,
+                receivedAt: Date(),
+                isStabilized: true
+            ),
+            composition: result,
+            profile: profile
+        )
+        let leanPercent = try XCTUnwrap(draft.leanPercent)
+        XCTAssertEqual(leanPercent, 100 - result.bodyFatPercent, accuracy: 0.05)
+        XCTAssertEqual(leanPercent + result.bodyFatPercent, 100, accuracy: 0.05)
     }
 
     func testRejectsInvalidInputs() {

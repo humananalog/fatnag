@@ -74,7 +74,7 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Text("On-device BLE → Apple Health. Live weigh-in, trend colors, resistance (Ω), edit before you confirm.")
+            Text("On-device BLE → Apple Health. Live weigh-in, trend colors, body fat % and lean %, edit before you confirm.")
                 .font(.system(size: 15, weight: .regular, design: .rounded))
                 .foregroundStyle(.secondary)
             if let baseline = session.healthBaselineKg {

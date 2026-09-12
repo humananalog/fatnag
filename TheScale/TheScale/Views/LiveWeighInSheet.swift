@@ -14,7 +14,8 @@ struct LiveWeighInSheet: View {
     @State private var calibrationStoredMessage: String?
     @FocusState private var referenceFocused: Bool
     @FocusState private var weightFieldFocused: Bool
-    @FocusState private var ohmsFieldFocused: Bool
+    @FocusState private var bodyFatFieldFocused: Bool
+    @FocusState private var leanFieldFocused: Bool
 
     /// Outer inset so glass panels never sit flush against the screen edge.
     private let horizontalInset: CGFloat = 24
@@ -34,7 +35,7 @@ struct LiveWeighInSheet: View {
 
     var body: some View {
         // Content-first: never put wide decorative views in a sibling ZStack (they inflate width
-        // past the screen and clip "Resistance" → "stance", status → "nt streaming", chip → "No bas").
+        // past the screen and clip mid-word labels / status / trend chip).
         VStack(spacing: 0) {
             topBar
             mainColumn
@@ -61,7 +62,8 @@ struct LiveWeighInSheet: View {
                 }
             } else {
                 weightFieldFocused = false
-                ohmsFieldFocused = false
+                bodyFatFieldFocused = false
+                leanFieldFocused = false
             }
         }
         .toolbar {
@@ -69,7 +71,8 @@ struct LiveWeighInSheet: View {
                 Spacer()
                 Button("Done") {
                     weightFieldFocused = false
-                    ohmsFieldFocused = false
+                    bodyFatFieldFocused = false
+                    leanFieldFocused = false
                     referenceFocused = false
                 }
                 .fontWeight(.semibold)
@@ -81,7 +84,7 @@ struct LiveWeighInSheet: View {
                 Task { await session.saveDraftToHealth() }
             }
         } message: {
-            Text("No impedance was captured, so body fat % will not be written. You can still edit weight before confirming.")
+            Text("No body composition was captured, so body fat % will not be written. You can still edit weight before confirming.")
         }
         .alert("Calibration saved", isPresented: Binding(
             get: { calibrationStoredMessage != nil },
@@ -103,7 +106,7 @@ struct LiveWeighInSheet: View {
             }
 
             weightHero
-            resistancePanel
+            compositionPanel
 
             if !isEditing {
                 statusLine
@@ -142,7 +145,8 @@ struct LiveWeighInSheet: View {
         HStack(alignment: .center, spacing: 12) {
             Button {
                 weightFieldFocused = false
-                ohmsFieldFocused = false
+                bodyFatFieldFocused = false
+                leanFieldFocused = false
                 session.dismissWeighIn()
             } label: {
                 Image(systemName: "xmark")
@@ -282,7 +286,7 @@ struct LiveWeighInSheet: View {
             .buttonStyle(ScalePrimaryButtonStyle(accent: atmosphere.accent))
             .disabled(!canStoreCalibration)
 
-            Text("Does not write to Apple Health. Resistance is informational only during calibration.")
+            Text("Does not write to Apple Health. Body fat % is informational only during calibration.")
                 .font(.system(size: 10, weight: .regular))
                 .foregroundStyle(atmosphere.accent.opacity(0.7))
                 .lineLimit(2)
@@ -449,42 +453,30 @@ struct LiveWeighInSheet: View {
         return "Weight \(weightText) kilograms"
     }
 
-    // MARK: - Resistance (secondary reading)
+    // MARK: - Body composition (secondary reading: fat % + lean %)
 
-    /// Always-visible BIA / resistance zone. Plain padded VStack (not List/Form).
-    private var resistancePanel: some View {
+    /// Always-visible body fat / lean zone. Plain padded VStack (not List/Form).
+    /// Impedance stays internal for BIA; ohms never appear in chrome.
+    private var compositionPanel: some View {
         VStack(alignment: .leading, spacing: 8) {
             if isEditing, let draft = session.draft {
-                editableResistance(draft)
+                editableComposition(draft)
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Resistance")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundStyle(atmosphere.accent.opacity(0.72))
-                            .lineLimit(1)
-                    }
-                    .layoutPriority(1)
-
-                    Spacer(minLength: 8)
-
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(resistanceValueText)
-                            .font(.system(size: 40, weight: .medium, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent)
-                            .minimumScaleFactor(0.5)
-                            .lineLimit(1)
-                            .contentTransition(.numericText())
-                            .animation(.snappy(duration: 0.28), value: resistanceValueText)
-                        Text("Ω")
-                            .font(.system(size: 22, weight: .semibold, design: .rounded))
-                            .foregroundStyle(atmosphere.accent.opacity(0.7))
-                    }
+                HStack(spacing: 12) {
+                    compositionMetric(
+                        title: "Body fat",
+                        valueText: bodyFatValueText,
+                        unit: "%"
+                    )
+                    compositionMetric(
+                        title: "Lean",
+                        valueText: leanValueText,
+                        unit: "%"
+                    )
                 }
             }
 
-            Text(resistanceStatusText)
+            Text(compositionStatusText)
                 .font(.system(size: 12, weight: .medium, design: .rounded))
                 .foregroundStyle(atmosphere.accent.opacity(0.85))
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -496,53 +488,101 @@ struct LiveWeighInSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Resistance \(resistanceValueText). \(resistanceStatusText)")
+        .accessibilityLabel("Body fat \(bodyFatValueText) percent. Lean \(leanValueText) percent. \(compositionStatusText)")
     }
 
-    private func editableResistance(_ draft: EditableMeasurementDraft) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Resistance")
+    private func compositionMetric(title: String, valueText: String, unit: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundStyle(atmosphere.accent.opacity(0.72))
-
-            HStack(spacing: 10) {
-                nudgeButton(systemName: "minus", accessibility: "Decrease resistance by 1 ohm") {
-                    let next = max((draft.impedanceOhms ?? 0) - 1, 0)
-                    session.updateDraftImpedance(next == 0 ? nil : next)
-                }
-
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    TextField(
-                        "Ω",
-                        value: Binding(
-                            get: { draft.impedanceOhms ?? 0 },
-                            set: { session.updateDraftImpedance($0 == 0 ? nil : $0) }
-                        ),
-                        format: .number
-                    )
-                    .keyboardType(.numberPad)
-                    .focused($ohmsFieldFocused)
-                    .font(.system(size: 36, weight: .medium, design: .rounded))
+                .lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(valueText)
+                    .font(.system(size: 40, weight: .medium, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(atmosphere.accent)
-                    .multilineTextAlignment(.trailing)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .contentTransition(.numericText())
+                    .animation(.snappy(duration: 0.28), value: valueText)
+                Text(unit)
+                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.accent.opacity(0.7))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func editableComposition(_ draft: EditableMeasurementDraft) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Body fat %")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.accent.opacity(0.72))
+                HStack(spacing: 8) {
+                    nudgeButton(systemName: "minus", accessibility: "Decrease body fat by 0.1 percent") {
+                        let next = max((draft.bodyFatPercent ?? 0) - 0.1, 0)
+                        session.updateDraftBodyFat(next)
+                    }
+                    TextField(
+                        "Fat",
+                        value: Binding(
+                            get: { draft.bodyFatPercent ?? 0 },
+                            set: { session.updateDraftBodyFat($0) }
+                        ),
+                        format: .number.precision(.fractionLength(1))
+                    )
+                    .keyboardType(.decimalPad)
+                    .focused($bodyFatFieldFocused)
+                    .font(.system(size: 28, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(atmosphere.accent)
+                    .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
-
-                    Text("Ω")
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundStyle(atmosphere.accent.opacity(0.7))
-                }
-
-                nudgeButton(systemName: "plus", accessibility: "Increase resistance by 1 ohm") {
-                    session.updateDraftImpedance((draft.impedanceOhms ?? 0) + 1)
+                    nudgeButton(systemName: "plus", accessibility: "Increase body fat by 0.1 percent") {
+                        session.updateDraftBodyFat((draft.bodyFatPercent ?? 0) + 0.1)
+                    }
                 }
             }
+            .frame(maxWidth: .infinity)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Lean %")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.accent.opacity(0.72))
+                HStack(spacing: 8) {
+                    nudgeButton(systemName: "minus", accessibility: "Decrease lean by 0.1 percent") {
+                        let next = max((draft.leanPercent ?? 0) - 0.1, 0)
+                        session.updateDraftLeanPercent(next)
+                    }
+                    TextField(
+                        "Lean",
+                        value: Binding(
+                            get: { draft.leanPercent ?? 0 },
+                            set: { session.updateDraftLeanPercent($0) }
+                        ),
+                        format: .number.precision(.fractionLength(1))
+                    )
+                    .keyboardType(.decimalPad)
+                    .focused($leanFieldFocused)
+                    .font(.system(size: 28, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(atmosphere.accent)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    nudgeButton(systemName: "plus", accessibility: "Increase lean by 0.1 percent") {
+                        session.updateDraftLeanPercent((draft.leanPercent ?? 0) + 0.1)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
         }
     }
 
     // MARK: - Status
 
-    /// Status / hint under resistance: simple padded VStack, no List.
+    /// Status / hint under composition: simple padded VStack, no List.
     private var statusLine: some View {
         VStack(spacing: 6) {
             Text(session.liveHint)
@@ -586,7 +626,8 @@ struct LiveWeighInSheet: View {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                         if session.isEditingDraft {
                             weightFieldFocused = false
-                            ohmsFieldFocused = false
+                            bodyFatFieldFocused = false
+                            leanFieldFocused = false
                             session.isEditingDraft = false
                         } else {
                             beginEdit()
@@ -603,7 +644,8 @@ struct LiveWeighInSheet: View {
 
                 Button {
                     weightFieldFocused = false
-                    ohmsFieldFocused = false
+                    bodyFatFieldFocused = false
+                    leanFieldFocused = false
                     if session.draft == nil {
                         session.beginReview()
                         session.isEditingDraft = false
@@ -649,12 +691,12 @@ struct LiveWeighInSheet: View {
                     )
                     metricChip(
                         title: "Lean",
-                        value: draft.leanBodyMassKg.map { String(format: "%.1f", $0) } ?? "-"
+                        value: draft.leanPercent.map { String(format: "%.1f%%", $0) } ?? "-"
                     )
                 }
 
-                if draft.impedanceOhms == nil {
-                    Text("Composition needs ohms. Edit weight freely; fat% stays off until resistance arrives.")
+                if draft.bodyFatPercent == nil {
+                    Text("Composition needs a barefoot scan. Edit weight freely; fat % stays off until it arrives.")
                         .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(atmosphere.accent.opacity(0.75))
                         .lineLimit(2)
@@ -684,7 +726,7 @@ struct LiveWeighInSheet: View {
 
     private func draftEditor(_ draft: EditableMeasurementDraft) -> some View {
         VStack(spacing: 8) {
-            if draft.bodyFatPercent != nil || draft.impedanceOhms != nil {
+            if draft.bodyFatPercent != nil || draft.sourceHasImpedance {
                 HStack(spacing: 8) {
                     compactEditField(
                         title: "Body fat %",
@@ -697,10 +739,10 @@ struct LiveWeighInSheet: View {
                         fractionLength: 1
                     ) { session.updateDraftBMI($0) }
                     compactEditField(
-                        title: "Lean kg",
-                        value: draft.leanBodyMassKg,
-                        fractionLength: 2
-                    ) { session.updateDraftLeanMass($0) }
+                        title: "Lean %",
+                        value: draft.leanPercent,
+                        fractionLength: 1
+                    ) { session.updateDraftLeanPercent($0) }
                 }
 
                 Toggle(isOn: Binding(
@@ -713,7 +755,7 @@ struct LiveWeighInSheet: View {
                 .foregroundStyle(atmosphere.accent)
                 .tint(atmosphere.accent)
             } else {
-                Text("Weight-only. Adjust kg above; body fat stays off until ohms arrive.")
+                Text("Weight-only. Adjust kg above; body fat stays off until the barefoot scan finishes.")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.75))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -784,31 +826,38 @@ struct LiveWeighInSheet: View {
         return String(format: "%.2f", kg)
     }
 
-    private var resistanceValueText: String {
-        if let ohms = session.displayImpedanceOhms {
-            return "\(ohms)"
+    private var bodyFatValueText: String {
+        if let percent = session.displayBodyFatPercent {
+            return String(format: "%.1f", percent)
         }
         return "-"
     }
 
-    private var resistanceStatusText: String {
-        if isCalibration {
-            return "Ohms stay visible; calibration only corrects weight kg."
+    private var leanValueText: String {
+        if let percent = session.displayLeanPercent {
+            return String(format: "%.1f", percent)
         }
-        if session.displayImpedanceOhms != nil {
-            return "BIA impedance locked. Body fat math uses this resistance."
+        return "-"
+    }
+
+    private var compositionStatusText: String {
+        if isCalibration {
+            return "Calibration corrects weight kg only. Body fat stays informational."
+        }
+        if session.displayBodyFatPercent != nil {
+            return "Body composition locked from the barefoot scan."
         }
         if session.isWeightOnlyReading,
            session.phase == .ready || session.phase == .reviewing {
-            return "No ohms this session (socks/shoes or stepped off early)."
+            return "No body fat this session (socks/shoes or stepped off early)."
         }
         switch session.phase {
         case .awaitingImpedance:
-            return "Waiting for barefoot impedance sweep. Stay on the electrodes."
+            return "Waiting for barefoot body composition. Stay on the electrodes."
         case .measuring, .listening:
-            return "Weight streaming. Resistance appears after the scale finishes BIA."
+            return "Weight streaming. Body fat % appears after the scale finishes scanning."
         default:
-            return "Resistance stays visible here once the scale reports ohms."
+            return "Body fat % and lean % appear here once the scan finishes."
         }
     }
 

@@ -120,12 +120,31 @@ final class ScaleSessionViewModel: ObservableObject {
         return calibration.apply(toRawKg: raw)
     }
 
-    /// Impedance for the live sheet (measurement or draft). Never calibrated.
+    /// Impedance for BIA math only. Never shown in the live sheet chrome.
     var displayImpedanceOhms: Int? {
         if let draft, isEditingDraft || phase == .reviewing || phase == .ready {
             return draft.impedanceOhms
         }
         return latestMeasurement?.impedanceOhms ?? draft?.impedanceOhms
+    }
+
+    /// Body fat % for the live sheet (draft, composition, or nil while waiting).
+    var displayBodyFatPercent: Double? {
+        if let draft, isEditingDraft || phase == .reviewing || phase == .ready {
+            return draft.bodyFatPercent
+        }
+        return composition?.bodyFatPercent ?? draft?.bodyFatPercent
+    }
+
+    /// Lean mass % of body weight for the live sheet.
+    var displayLeanPercent: Double? {
+        if let draft, isEditingDraft || phase == .reviewing || phase == .ready {
+            return draft.leanPercent
+        }
+        if let composition, let kg = displayWeightKg, kg > 0.05 {
+            return (composition.leanBodyMassKg / kg) * 100.0
+        }
+        return draft?.leanPercent
     }
 
     var currentTrend: WeightTrend {
@@ -292,6 +311,22 @@ final class ScaleSessionViewModel: ObservableObject {
     func updateDraftLeanMass(_ kg: Double?) {
         guard var draft else { return }
         draft.leanBodyMassKg = kg
+        if let kg, draft.weightKg > 0.05 {
+            draft.bodyFatPercent = max(100.0 - ((kg / draft.weightKg) * 100.0), 0)
+        }
+        self.draft = draft
+    }
+
+    /// Edit lean as % of body weight; keeps lean kg and body fat % in a two-compartment model.
+    func updateDraftLeanPercent(_ percent: Double?) {
+        guard var draft else { return }
+        if let percent {
+            let clamped = min(max(percent, 0), 100)
+            draft.leanBodyMassKg = draft.weightKg * clamped / 100.0
+            draft.bodyFatPercent = max(100.0 - clamped, 0)
+        } else {
+            draft.leanBodyMassKg = nil
+        }
         self.draft = draft
     }
 
@@ -513,7 +548,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 profile: profile
             )
             impedanceMissingReason = nil
-            liveHint = "Stabilized reading with impedance (\(ohms) Ω). Review before saving to Health."
+            liveHint = "Body composition ready. Review body fat % and lean % before saving to Health."
             draft = EditableMeasurementDraft.from(
                 measurement: calibrated,
                 composition: composition,
@@ -531,9 +566,9 @@ final class ScaleSessionViewModel: ObservableObject {
         )
         phase = .awaitingImpedance
         if measurement.biaPending {
-            liveHint = "Weight locked. Impedance sweep in progress: stay barefoot on the electrodes."
+            liveHint = "Weight locked. Body composition scan in progress: stay barefoot on the electrodes."
         } else {
-            liveHint = "Weight only so far. Stay barefoot until the scale finishes a second measurement with impedance."
+            liveHint = "Weight only so far. Stay barefoot until body fat % finishes calculating."
         }
         impedanceMissingReason = nil
         scheduleImpedanceWait()
@@ -549,7 +584,7 @@ final class ScaleSessionViewModel: ObservableObject {
             guard let measurement = self.latestMeasurement, !measurement.hasImpedance else { return }
             self.phase = .ready
             self.impedanceMissingReason =
-                "Impedance missing. Socks, shoes, or stepping off early block body fat. Stand barefoot on the metal electrodes and wait a few seconds after weight stabilizes for the second (BIA) broadcast."
+                "Body fat unavailable. Socks, shoes, or stepping off early block composition. Stand barefoot on the metal electrodes and wait a few seconds after weight stabilizes."
             self.liveHint = self.impedanceMissingReason ?? self.liveHint
             let calibrated = self.calibratedMeasurement(from: measurement)
             self.draft = EditableMeasurementDraft.from(

@@ -55,7 +55,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Your profile")
                 .font(.headline)
-            Text("Used only for on-device body composition math from impedance.")
+            Text("Used only for on-device body fat % and lean % math.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -231,7 +231,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.bordered)
 
-            Text("Limits: single-point only. Offset mode assumes a nearly constant bias; factor mode assumes proportional error. Neither is a multi-point fit. Impedance (ohms) is never altered.")
+            Text("Limits: single-point only. Offset mode assumes a nearly constant bias; factor mode assumes proportional error. Neither is a multi-point fit. Body composition inputs from the scale are never altered by calibration.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }

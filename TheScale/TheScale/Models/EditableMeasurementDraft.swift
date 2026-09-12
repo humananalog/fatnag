@@ -17,6 +17,17 @@ struct EditableMeasurementDraft: Equatable, Sendable {
     var receivedAt: Date
     var sourceHasImpedance: Bool
 
+    /// Lean mass as percent of body weight (companion to body fat %).
+    var leanPercent: Double? {
+        if let leanBodyMassKg, weightKg > 0.05 {
+            return (leanBodyMassKg / weightKg) * 100.0
+        }
+        if let bodyFatPercent {
+            return max(100.0 - bodyFatPercent, 0)
+        }
+        return nil
+    }
+
     static func from(
         measurement: ScaleMeasurement,
         composition: BodyCompositionResult?,
