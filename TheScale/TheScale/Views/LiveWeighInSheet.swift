@@ -3,9 +3,9 @@ import SwiftUI
 /// Full-screen live weigh-in / calibration: one viewport, system safe area, no ScrollView.
 ///
 /// Layout contract (iPhone 15):
-/// - Background only ignores safe area (full-bleed trend atmosphere).
-/// - Content uses system safe area + explicit horizontal inset (never edge-flush glass text).
-/// - No GeometryReader width hacks. No whole-view `ignoresSafeArea` on the content stack.
+/// - Content owns the layout size. Atmosphere is `.background` only (never a ZStack sibling).
+/// - Oversized decorative ellipses must not inflate the layout width (that caused L/R mid-word clip).
+/// - System safe area + explicit horizontal inset. No GeometryReader. No content `ignoresSafeArea`.
 /// - Calibration reuses this same sheet (`weighInPurpose == .calibration`).
 struct LiveWeighInSheet: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
@@ -15,7 +15,7 @@ struct LiveWeighInSheet: View {
     @FocusState private var referenceFocused: Bool
 
     /// Outer inset so glass panels never sit flush against the screen edge.
-    private let horizontalInset: CGFloat = 20
+    private let horizontalInset: CGFloat = 24
     private let panelInnerPad: CGFloat = 16
 
     private var atmosphere: TrendAtmosphere {
@@ -27,22 +27,21 @@ struct LiveWeighInSheet: View {
     }
 
     var body: some View {
-        ZStack {
+        // Content-first: never put wide decorative views in a sibling ZStack (they inflate width
+        // past the screen and clip "Resistance" → "stance", status → "nt streaming", chip → "No bas").
+        VStack(spacing: 0) {
+            topBar
+            mainColumn
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.horizontal, horizontalInset)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .background {
             TrendAtmosphereBackground(atmosphere: atmosphere)
                 .ignoresSafeArea()
                 .animation(.easeInOut(duration: 0.85), value: session.trendForDisplay)
-
-            VStack(spacing: 0) {
-                topBar
-                mainColumn
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.horizontal, horizontalInset)
-            .padding(.top, 8)
-            .padding(.bottom, 12)
         }
-        // Extra belt: never let content paint into the horizontal safe-area / bezel.
-        .safeAreaPadding(.horizontal, 0)
         .preferredColorScheme(.light)
         .onAppear {
             withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
@@ -321,7 +320,7 @@ struct LiveWeighInSheet: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// Always-visible BIA / resistance zone (never collapses when weight is streaming).
+    /// Always-visible BIA / resistance zone. Plain padded VStack (not List/Form).
     private var resistancePanel: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -329,6 +328,7 @@ struct LiveWeighInSheet: View {
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.75))
                     .lineLimit(1)
+                    .layoutPriority(1)
                 Spacer(minLength: 8)
                 Text(resistanceValueText)
                     .font(.system(size: 26, weight: .medium, design: .rounded))
@@ -353,6 +353,7 @@ struct LiveWeighInSheet: View {
         .accessibilityLabel("Resistance \(resistanceValueText). \(resistanceStatusText)")
     }
 
+    /// Status / hint under resistance: simple padded VStack, no List.
     private var statusLine: some View {
         VStack(spacing: 6) {
             Text(session.liveHint)
@@ -376,8 +377,9 @@ struct LiveWeighInSheet: View {
                     .minimumScaleFactor(0.85)
             }
         }
+        .padding(.horizontal, panelInnerPad)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 4)
     }
 
     private var editAndConfirm: some View {
@@ -634,24 +636,27 @@ struct TrendAtmosphereBackground: View {
     let atmosphere: TrendAtmosphere
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [atmosphere.top, atmosphere.mid, atmosphere.bottom],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            Ellipse()
-                .fill(.white.opacity(0.22))
-                .frame(width: 420, height: 280)
-                .blur(radius: 40)
-                .offset(x: -80, y: -220)
-            Ellipse()
-                .fill(atmosphere.accent.opacity(0.12))
-                .frame(width: 520, height: 360)
-                .blur(radius: 50)
-                .offset(x: 90, y: 260)
+        // Gradient defines layout size. Ellipses live in overlay so they cannot widen the sheet.
+        LinearGradient(
+            colors: [atmosphere.top, atmosphere.mid, atmosphere.bottom],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .overlay {
+            ZStack {
+                Ellipse()
+                    .fill(.white.opacity(0.22))
+                    .frame(width: 420, height: 280)
+                    .blur(radius: 40)
+                    .offset(x: -80, y: -220)
+                Ellipse()
+                    .fill(atmosphere.accent.opacity(0.12))
+                    .frame(width: 520, height: 360)
+                    .blur(radius: 50)
+                    .offset(x: 90, y: 260)
+            }
+            .allowsHitTesting(false)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
     }
 }

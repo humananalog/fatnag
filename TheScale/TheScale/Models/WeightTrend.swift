@@ -44,7 +44,7 @@ enum WeightTrend: Equatable, Sendable {
         case .gain:
             return "Up"
         case .unknown:
-            return "No base"
+            return "None"
         }
     }
 

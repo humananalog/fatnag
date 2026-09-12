@@ -54,7 +54,7 @@ final class ScaleCalibrationTests: XCTestCase {
     }
 
     func testShortTrendTitleFitsChip() {
-        XCTAssertEqual(WeightTrend.unknown.shortTitle, "No base")
+        XCTAssertEqual(WeightTrend.unknown.shortTitle, "None")
         XCTAssertLessThanOrEqual(WeightTrend.unknown.shortTitle.count, 8)
     }
 }
