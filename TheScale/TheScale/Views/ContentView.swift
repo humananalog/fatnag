@@ -169,7 +169,7 @@ struct ContentView: View {
                 if let ohms = measurement.impedanceOhms {
                     metricRow("Impedance", "\(ohms) Ω")
                 } else {
-                    Text("No impedance yet — stand barefoot until the scale finishes BIA.")
+                    Text("No impedance yet: stand barefoot until the scale finishes BIA.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

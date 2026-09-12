@@ -1,6 +1,7 @@
 import Foundation
 import HealthKit
 
+@MainActor
 protocol HealthWriting: AnyObject {
     var isHealthDataAvailable: Bool { get }
     func requestAuthorizationIfNeeded() async throws
@@ -38,6 +39,7 @@ enum HealthKitWriterError: LocalizedError {
 ///
 /// Shown in-app only (no first-class HealthKit quantity): muscle mass, bone mass,
 /// body water %, visceral fat index, raw impedance.
+@MainActor
 final class HealthKitWriter: HealthWriting {
     private let store = HKHealthStore()
     private var didAuthorize = false

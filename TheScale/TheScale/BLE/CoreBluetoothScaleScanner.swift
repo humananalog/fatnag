@@ -57,7 +57,7 @@ final class CoreBluetoothScaleScanner: NSObject, ScaleScanning {
     private func beginScanIfPossible() {
         guard wantsScan else { return }
         guard central.state == .poweredOn else { return }
-        // Do not filter by service UUID in the scan options — some iOS versions
+        // Do not filter by service UUID in the scan options: some iOS versions
         // only surface 0x181B inside the advertisement manufacturer/service-data
         // payload after an unfiltered scan.
         central.scanForPeripherals(withServices: nil, options: [

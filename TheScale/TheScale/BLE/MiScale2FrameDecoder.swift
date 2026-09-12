@@ -4,8 +4,8 @@ import Foundation
 ///
 /// Frame layout (service data UUID `0x181B`, device name typically `MIBFS`):
 /// ```
-/// [0]     control0 — bit0 = lbs; otherwise kg (catty via control1 bit6)
-/// [1]     control1 — bit1 = impedance present, bit5 = stabilized,
+/// [0]     control0: bit0 = lbs; otherwise kg (catty via control1 bit6)
+/// [1]     control1: bit1 = impedance present, bit5 = stabilized,
 ///                    bit6 = catty/jin, bit7 = weight removed
 /// [2-3]   year (uint16 LE)
 /// [4]     month
@@ -23,7 +23,7 @@ import Foundation
 /// - openScale / ble-scale-sync Mi Scale 2 adapters
 ///
 /// Limitations: the scale only *broadcasts* weight and impedance. Fat %, muscle,
-/// bone, and water are **not** sent by the hardware — they are estimated locally
+/// bone, and water are **not** sent by the hardware; they are estimated locally
 /// from reverse-engineered Xiaomi formulas (see `BodyCompositionCalculator`).
 enum MiScale2FrameDecoder {
     static let bodyCompositionServiceUUID = "181B"

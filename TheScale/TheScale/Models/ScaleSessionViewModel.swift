@@ -121,7 +121,7 @@ final class ScaleSessionViewModel: ObservableObject {
             liveHint = "Stabilized reading with impedance."
         } else {
             composition = nil
-            liveHint = "Weight only — stay on the scale barefoot until impedance finishes."
+            liveHint = "Weight only: stay on the scale barefoot until impedance finishes."
         }
         phase = .ready
     }
