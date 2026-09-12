@@ -85,66 +85,54 @@ final class HealthKitWriter: HealthWriting {
             )
         )
 
-        let compositionResult: BodyCompositionResult?
+        // Always write BMI from profile height. Never invent body fat / lean without ohms.
+        let bmiValue: Double
         if let composition {
-            compositionResult = composition
-        } else if measurement.impedanceOhms == nil {
-            // Weight-only: still derive BMI from the on-device profile height.
-            compositionResult = BodyCompositionResult(
-                bmi: BodyCompositionCalculator.bodyMassIndex(
-                    weightKg: measurement.weightKg,
-                    heightCm: profile.heightCm
-                ),
-                bodyFatPercent: 0,
-                waterPercent: 0,
-                boneMassKg: 0,
-                muscleMassKg: 0,
-                leanBodyMassKg: 0,
-                visceralFat: 0
-            )
+            bmiValue = composition.bmi
         } else {
-            compositionResult = nil
+            bmiValue = BodyCompositionCalculator.bodyMassIndex(
+                weightKg: measurement.weightKg,
+                heightCm: profile.heightCm
+            )
         }
 
-        if let compositionResult {
-            if let bmiType = HKQuantityType.quantityType(forIdentifier: .bodyMassIndex) {
+        if let bmiType = HKQuantityType.quantityType(forIdentifier: .bodyMassIndex) {
+            samples.append(
+                HKQuantitySample(
+                    type: bmiType,
+                    quantity: HKQuantity(unit: .count(), doubleValue: bmiValue),
+                    start: date,
+                    end: date
+                )
+            )
+        }
+
+        if measurement.hasImpedance, let composition {
+            if let fatType = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage) {
                 samples.append(
                     HKQuantitySample(
-                        type: bmiType,
-                        quantity: HKQuantity(unit: .count(), doubleValue: compositionResult.bmi),
+                        type: fatType,
+                        quantity: HKQuantity(
+                            unit: .percent(),
+                            doubleValue: composition.bodyFatPercent / 100.0
+                        ),
                         start: date,
                         end: date
                     )
                 )
             }
-
-            if measurement.hasImpedance {
-                if let fatType = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage) {
-                    samples.append(
-                        HKQuantitySample(
-                            type: fatType,
-                            quantity: HKQuantity(
-                                unit: .percent(),
-                                doubleValue: compositionResult.bodyFatPercent / 100.0
-                            ),
-                            start: date,
-                            end: date
-                        )
+            if let leanType = HKQuantityType.quantityType(forIdentifier: .leanBodyMass) {
+                samples.append(
+                    HKQuantitySample(
+                        type: leanType,
+                        quantity: HKQuantity(
+                            unit: .gramUnit(with: .kilo),
+                            doubleValue: composition.leanBodyMassKg
+                        ),
+                        start: date,
+                        end: date
                     )
-                }
-                if let leanType = HKQuantityType.quantityType(forIdentifier: .leanBodyMass) {
-                    samples.append(
-                        HKQuantitySample(
-                            type: leanType,
-                            quantity: HKQuantity(
-                                unit: .gramUnit(with: .kilo),
-                                doubleValue: compositionResult.leanBodyMassKg
-                            ),
-                            start: date,
-                            end: date
-                        )
-                    )
-                }
+                )
             }
         }
 

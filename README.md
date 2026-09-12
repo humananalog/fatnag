@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 1.0.1  
+**Version:** 1.0.2  
 **Target device:** iPhone 15 (iOS 17+)  
 **Deployment target:** iOS 17.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -132,9 +132,10 @@ BLE advertisements and HealthKit need a **physical iPhone**. The Simulator will 
 1. Enter height, age, and sex in the app (used only for local composition math).
 2. Tap **Find Scale**; look for `MIBFS` / Mi Scale.
 3. Select the scale, then step on **barefoot** and stand still.
-4. Wait until weight **and** impedance appear (impedance needs skin contact on the electrodes).
-5. Tap **Save to Apple Health** and confirm the success state.
-6. Open the Health app → Browse → Body Measurements to verify samples.
+4. Wait until weight **and** impedance (ohms) appear. The scale usually sends weight first, then a second `0x181B` frame with impedance after the barefoot BIA sweep.
+5. If impedance is missing: remove socks/shoes, stay barefoot on both electrodes, wait ~5-15s after weight locks (or re-weigh). The app will not invent body fat without ohms.
+6. Tap **Save to Apple Health**. With impedance, Health gets weight + BMI + body fat % + lean mass. Weight-only saves weight + BMI only (confirm prompt).
+7. Open the Health app → Browse → Body Measurements and confirm **Body Fat Percentage** (and lean mass) appeared.
 
 ### Unit tests (Mac)
 
@@ -174,4 +175,4 @@ scripts/
 
 ## Version
 
-Marketing version **1.0.1** / build **2**. Bump both in the Xcode target when shipping changes.
+Marketing version **1.0.2** / build **3**. Bump both in the Xcode target when shipping changes.

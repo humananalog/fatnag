@@ -11,6 +11,8 @@ struct ScaleMeasurement: Equatable, Identifiable, Sendable {
     let scaleDate: Date?
     /// Whether the frame included a valid impedance reading.
     let hasImpedance: Bool
+    /// True when the scale set the impedance flag but ohms were not yet valid (BIA still running).
+    let biaPending: Bool
     /// Unit the scale was configured to display (weight is always stored as kg).
     let displayUnit: ScaleWeightUnit
     let receivedAt: Date
@@ -21,6 +23,7 @@ struct ScaleMeasurement: Equatable, Identifiable, Sendable {
         impedanceOhms: Int?,
         scaleDate: Date?,
         hasImpedance: Bool,
+        biaPending: Bool = false,
         displayUnit: ScaleWeightUnit,
         receivedAt: Date = Date()
     ) {
@@ -29,6 +32,7 @@ struct ScaleMeasurement: Equatable, Identifiable, Sendable {
         self.impedanceOhms = impedanceOhms
         self.scaleDate = scaleDate
         self.hasImpedance = hasImpedance
+        self.biaPending = biaPending
         self.displayUnit = displayUnit
         self.receivedAt = receivedAt
     }

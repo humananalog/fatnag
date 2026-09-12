@@ -17,6 +17,7 @@ final class MiScale2FrameDecoderTests: XCTestCase {
         XCTAssertEqual(measurement.weightKg, 70.0, accuracy: 0.001)
         XCTAssertEqual(measurement.impedanceOhms, 500)
         XCTAssertTrue(measurement.hasImpedance)
+        XCTAssertFalse(measurement.biaPending)
         XCTAssertEqual(measurement.displayUnit, .kilogram)
     }
 
@@ -38,6 +39,46 @@ final class MiScale2FrameDecoderTests: XCTestCase {
 
         let result = MiScale2FrameDecoder.decode(Data(bytes))
         XCTAssertEqual(result, .failure(.weightRemoved))
+    }
+
+    /// Impedance flag set with 0 Ω means BIA still running: keep weight, mark pending.
+    func testImpedanceFlagWithZeroOhmsIsPendingNotRejected() throws {
+        var bytes = [UInt8](repeating: 0, count: 13)
+        bytes[0] = 0x02
+        bytes[1] = 0x22 // stable + impedance flag
+        bytes[9] = 0; bytes[10] = 0 // 0 Ω
+        bytes[11] = 0xB0; bytes[12] = 0x36
+
+        let measurement = try XCTUnwrap(MiScale2FrameDecoder.decodeMeasurement(Data(bytes)))
+        XCTAssertEqual(measurement.weightKg, 70.0, accuracy: 0.001)
+        XCTAssertNil(measurement.impedanceOhms)
+        XCTAssertFalse(measurement.hasImpedance)
+        XCTAssertTrue(measurement.biaPending)
+    }
+
+    func testImpedanceFlagWithTooHighOhmsIsPending() throws {
+        var bytes = [UInt8](repeating: 0, count: 13)
+        bytes[0] = 0x02
+        bytes[1] = 0x22
+        bytes[9] = 0xB8; bytes[10] = 0x0B // 3000
+        bytes[11] = 0xB0; bytes[12] = 0x36
+
+        let measurement = try XCTUnwrap(MiScale2FrameDecoder.decodeMeasurement(Data(bytes)))
+        XCTAssertNil(measurement.impedanceOhms)
+        XCTAssertTrue(measurement.biaPending)
+    }
+
+    func testDecodeStabilizedWeightOnly() throws {
+        var bytes = [UInt8](repeating: 0, count: 13)
+        bytes[0] = 0x02
+        bytes[1] = 0x20 // stabilized, no impedance bit
+        bytes[11] = 0xB0; bytes[12] = 0x36
+
+        let measurement = try XCTUnwrap(MiScale2FrameDecoder.decodeMeasurement(Data(bytes)))
+        XCTAssertEqual(measurement.weightKg, 70.0, accuracy: 0.001)
+        XCTAssertNil(measurement.impedanceOhms)
+        XCTAssertFalse(measurement.hasImpedance)
+        XCTAssertFalse(measurement.biaPending)
     }
 
     func testDecodeLbs() throws {
@@ -98,3 +139,142 @@ final class BodyCompositionCalculatorTests: XCTestCase {
         XCTAssertNil(BodyCompositionCalculator.calculate(weightKg: 70, impedanceOhms: 3500, profile: profile))
     }
 }
+
+@MainActor
+final class ScaleSessionImpedanceTests: XCTestCase {
+    private final class FakeScanner: ScaleScanning {
+        weak var delegate: ScaleScannerDelegate?
+        func startScanning() {}
+        func stop() {}
+        func focus(on peripheralID: UUID) {}
+        func emit(_ measurement: ScaleMeasurement) {
+            delegate?.scaleScanner(self, didDecode: measurement)
+        }
+        func emitStatus(_ text: String) {
+            delegate?.scaleScanner(self, transientStatus: text)
+        }
+    }
+
+    private final class FakeHealth: HealthWriting {
+        var isHealthDataAvailable: Bool { false }
+        func requestAuthorizationIfNeeded() async throws {}
+        func write(
+            measurement: ScaleMeasurement,
+            composition: BodyCompositionResult?,
+            profile: UserBodyProfile
+        ) async throws {}
+    }
+
+    private func waitUntil(
+        _ predicate: @escaping @MainActor () -> Bool,
+        timeoutSeconds: Double = 1.0
+    ) async {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while Date() < deadline {
+            if predicate() { return }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+    }
+
+    func testUpgradesWeightOnlyToImpedance() async {
+        let scanner = FakeScanner()
+        let session = ScaleSessionViewModel(
+            scanner: scanner,
+            healthStore: FakeHealth(),
+            profile: UserBodyProfile(heightCm: 175, ageYears: 35, sex: .male)
+        )
+        session.selectScale(
+            DiscoveredScale(id: UUID(), name: "MIBFS", rssi: -40, lastSeen: Date())
+        )
+
+        let weightOnly = ScaleMeasurement(
+            weightKg: 70,
+            impedanceOhms: nil,
+            scaleDate: nil,
+            hasImpedance: false,
+            biaPending: false,
+            displayUnit: .kilogram
+        )
+        scanner.emit(weightOnly)
+        await waitUntil { session.phase == .awaitingImpedance }
+        XCTAssertEqual(session.phase, .awaitingImpedance)
+        XCTAssertNil(session.composition)
+
+        let withImpedance = ScaleMeasurement(
+            weightKg: 70,
+            impedanceOhms: 500,
+            scaleDate: nil,
+            hasImpedance: true,
+            biaPending: false,
+            displayUnit: .kilogram
+        )
+        scanner.emit(withImpedance)
+        await waitUntil { session.latestMeasurement?.impedanceOhms == 500 }
+        XCTAssertEqual(session.phase, .ready)
+        XCTAssertEqual(session.latestMeasurement?.impedanceOhms, 500)
+        XCTAssertNotNil(session.composition)
+        XCTAssertGreaterThan(session.composition?.bodyFatPercent ?? 0, 5)
+    }
+
+    func testDoesNotDowngradeImpedanceToWeightOnly() async {
+        let scanner = FakeScanner()
+        let session = ScaleSessionViewModel(
+            scanner: scanner,
+            healthStore: FakeHealth(),
+            profile: .default
+        )
+        session.selectScale(
+            DiscoveredScale(id: UUID(), name: "MIBFS", rssi: -40, lastSeen: Date())
+        )
+
+        scanner.emit(
+            ScaleMeasurement(
+                weightKg: 70,
+                impedanceOhms: 500,
+                scaleDate: nil,
+                hasImpedance: true,
+                displayUnit: .kilogram
+            )
+        )
+        await waitUntil { session.latestMeasurement?.impedanceOhms == 500 }
+        scanner.emit(
+            ScaleMeasurement(
+                weightKg: 70.05,
+                impedanceOhms: nil,
+                scaleDate: nil,
+                hasImpedance: false,
+                displayUnit: .kilogram
+            )
+        )
+        // Give the async hop a chance; value must remain impedance.
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(session.latestMeasurement?.impedanceOhms, 500)
+        XCTAssertNotNil(session.composition)
+    }
+
+    func testTransientHintsWhileAwaitingImpedance() async {
+        let scanner = FakeScanner()
+        let session = ScaleSessionViewModel(
+            scanner: scanner,
+            healthStore: FakeHealth(),
+            profile: .default
+        )
+        session.selectScale(
+            DiscoveredScale(id: UUID(), name: "MIBFS", rssi: -40, lastSeen: Date())
+        )
+        scanner.emit(
+            ScaleMeasurement(
+                weightKg: 70,
+                impedanceOhms: nil,
+                scaleDate: nil,
+                hasImpedance: false,
+                displayUnit: .kilogram
+            )
+        )
+        await waitUntil { session.phase == .awaitingImpedance }
+        scanner.emitStatus("Waiting for impedance sweep…")
+        await waitUntil { session.liveHint == "Waiting for impedance sweep…" }
+        XCTAssertEqual(session.liveHint, "Waiting for impedance sweep…")
+    }
+}
+

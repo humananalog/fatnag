@@ -97,13 +97,17 @@ final class CoreBluetoothScaleScanner: NSObject, ScaleScanning {
             guard uuid.uuidString.uppercased().hasSuffix("181B") else { continue }
             switch MiScale2FrameDecoder.decode(data) {
             case .success(let measurement):
+                if measurement.biaPending {
+                    delegate?.scaleScanner(
+                        self,
+                        transientStatus: "Weight locked. Waiting for impedance sweep (stay barefoot)…"
+                    )
+                }
                 delegate?.scaleScanner(self, didDecode: measurement)
             case .failure(.notStabilized):
                 delegate?.scaleScanner(self, transientStatus: "Scale settling… keep standing still.")
             case .failure(.weightRemoved):
-                delegate?.scaleScanner(self, transientStatus: "Weight removed.")
-            case .failure(.invalidImpedance):
-                delegate?.scaleScanner(self, transientStatus: "Waiting for impedance sweep…")
+                delegate?.scaleScanner(self, transientStatus: "Weight removed. Step back on barefoot for body fat.")
             case .failure:
                 break
             }

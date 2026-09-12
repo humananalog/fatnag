@@ -32,11 +32,15 @@ def decode(data: bytes):
         weight_kg = weight_raw / 200.0
         unit = "kilogram"
     impedance = None
+    bia_pending = False
     if has_imp:
-        impedance = data[9] | (data[10] << 8)
-        if impedance == 0 or impedance >= 3000:
-            raise ValueError(f"invalid impedance {impedance}")
-    return weight_kg, impedance, unit
+        raw = data[9] | (data[10] << 8)
+        if raw == 0 or raw >= 3000:
+            bia_pending = True
+            impedance = None
+        else:
+            impedance = raw
+    return weight_kg, impedance, unit, bia_pending
 
 
 def main() -> None:
@@ -47,10 +51,29 @@ def main() -> None:
     frame[2], frame[3] = 0xE8, 0x07  # 2024
     frame[9], frame[10] = 0xF4, 0x01  # 500
     frame[11], frame[12] = 0xB0, 0x36  # 14000
-    kg, ohms, unit = decode(bytes(frame))
+    kg, ohms, unit, pending = decode(bytes(frame))
     assert abs(kg - 70.0) < 0.001, kg
     assert ohms == 500, ohms
     assert unit == "kilogram", unit
+    assert pending is False
+
+    # Impedance flag with 0 Ω → weight kept, BIA pending
+    pending_frame = bytearray(frame)
+    pending_frame[9], pending_frame[10] = 0, 0
+    kg2, ohms2, _, pending2 = decode(bytes(pending_frame))
+    assert abs(kg2 - 70.0) < 0.001
+    assert ohms2 is None
+    assert pending2 is True
+
+    # Weight-only stabilized (no impedance bit)
+    weight_only = bytearray(13)
+    weight_only[0] = 0x02
+    weight_only[1] = 0x20
+    weight_only[11], weight_only[12] = 0xB0, 0x36
+    kg3, ohms3, _, pending3 = decode(bytes(weight_only))
+    assert abs(kg3 - 70.0) < 0.001
+    assert ohms3 is None
+    assert pending3 is False
 
     bad = bytearray(frame)
     bad[1] = 0x02  # not stable

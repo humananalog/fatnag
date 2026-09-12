@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
+    @State private var confirmWeightOnlySave = false
 
     var body: some View {
         NavigationStack {
@@ -19,6 +20,14 @@ struct ContentView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("The Scale")
+            .alert("Save weight only?", isPresented: $confirmWeightOnlySave) {
+                Button("Cancel", role: .cancel) {}
+                Button("Save weight + BMI only") {
+                    Task { await session.saveToHealth() }
+                }
+            } message: {
+                Text("No impedance was captured, so body fat % will not be written. Stand barefoot and wait for the second measurement if you want composition.")
+            }
         }
     }
 
@@ -36,7 +45,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Privacy", systemImage: "lock.shield")
                 .font(.headline)
-            Text("Measurements stay on this iPhone. The Scale writes only weight, BMI, body fat %, and lean body mass to Apple Health when you confirm. Muscle, bone, water, and impedance stay in the app.")
+            Text("Measurements stay on this iPhone. The Scale writes only weight, BMI, body fat %, and lean body mass to Apple Health when you confirm. Muscle, bone, water, and impedance stay in the app. Body fat is never invented without ohms.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -105,6 +114,11 @@ struct ContentView: View {
             Text(session.liveHint)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+            if let reason = session.impedanceMissingReason {
+                Text(reason)
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -169,12 +183,17 @@ struct ContentView: View {
                 if let ohms = measurement.impedanceOhms {
                     metricRow("Impedance", "\(ohms) Ω")
                 } else {
-                    Text("No impedance yet: stand barefoot until the scale finishes BIA.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Impedance missing", systemImage: "exclamationmark.triangle")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.orange)
+                        Text(impedanceHelpCopy(for: measurement))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                if let composition = session.composition {
+                if let composition = session.composition, measurement.hasImpedance {
                     Divider()
                     metricRow("BMI", String(format: "%.1f", composition.bmi))
                     metricRow("Body fat", String(format: "%.1f%%", composition.bodyFatPercent))
@@ -183,6 +202,10 @@ struct ContentView: View {
                     metricRow("Bone", String(format: "%.2f kg", composition.boneMassKg))
                     metricRow("Lean mass", String(format: "%.2f kg", composition.leanBodyMassKg))
                     metricRow("Visceral fat", String(format: "%.1f", composition.visceralFat))
+                } else if measurement.hasImpedance == false {
+                    Text("Body fat % is not estimated without impedance. No fake composition.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             } else {
                 Text("No measurement yet.")
@@ -219,16 +242,17 @@ struct ContentView: View {
             .disabled(session.phase == .scanning || session.phase == .healthKitWriting)
 
             Button {
-                Task { await session.saveToHealth() }
+                if session.isWeightOnlyReading {
+                    confirmWeightOnlySave = true
+                } else {
+                    Task { await session.saveToHealth() }
+                }
             } label: {
-                Label(
-                    session.phase == .healthKitWriting ? "Writing…" : "Save to Apple Health",
-                    systemImage: "heart"
-                )
-                .frame(maxWidth: .infinity)
+                Label(saveButtonTitle, systemImage: "heart")
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-            .disabled(session.latestMeasurement == nil || session.phase == .healthKitWriting)
+            .disabled(!canSave || session.phase == .healthKitWriting)
 
             if !session.healthKitAvailable {
                 Text("HealthKit unavailable in this environment (expected on Simulator without Health).")
@@ -236,6 +260,38 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var canSave: Bool {
+        guard session.latestMeasurement != nil else { return false }
+        switch session.phase {
+        case .ready, .healthKitSuccess, .healthKitFailed, .awaitingImpedance:
+            // Awaiting impedance: Save is still available (confirm alert) if user
+            // wants weight-only, but primary path is to wait for ohms.
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var saveButtonTitle: String {
+        if session.phase == .healthKitWriting {
+            return "Writing…"
+        }
+        if session.isWeightOnlyReading {
+            return "Save weight only (no body fat)"
+        }
+        return "Save to Apple Health"
+    }
+
+    private func impedanceHelpCopy(for measurement: ScaleMeasurement) -> String {
+        if case .awaitingImpedance = session.phase {
+            if measurement.biaPending {
+                return "Stay still barefoot. The scale is finishing the electrical resistance sweep."
+            }
+            return "Keep standing barefoot. Mi Scale 2 sends weight first, then impedance in a second 0x181B frame."
+        }
+        return "To get impedance: remove socks/shoes, stand barefoot on both electrodes, wait a few seconds after weight locks, then re-weigh if needed."
     }
 
     private func metricRow(_ title: String, _ value: String) -> some View {
@@ -258,8 +314,12 @@ struct ContentView: View {
             return "Listening to \(name)"
         case .measuring:
             return "Receiving measurement"
+        case .awaitingImpedance:
+            return "Waiting for impedance (body fat)"
         case .ready:
-            return "Measurement ready"
+            return session.isWeightOnlyReading
+                ? "Weight ready (no impedance)"
+                : "Measurement ready (weight + impedance)"
         case .healthKitWriting:
             return "Writing to Apple Health…"
         case .healthKitSuccess:

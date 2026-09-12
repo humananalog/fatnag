@@ -22,6 +22,10 @@ import Foundation
 /// - Theengs Decoder XMTZC05HM / MIBFS
 /// - openScale / ble-scale-sync Mi Scale 2 adapters
 ///
+/// Sequence on a real weigh-in: the scale usually broadcasts a stabilized
+/// **weight-only** frame first, then a second stabilized frame with the
+/// impedance bit set once the foot-to-foot BIA sweep finishes (barefoot).
+///
 /// Limitations: the scale only *broadcasts* weight and impedance. Fat %, muscle,
 /// bone, and water are **not** sent by the hardware; they are estimated locally
 /// from reverse-engineered Xiaomi formulas (see `BodyCompositionCalculator`).
@@ -33,11 +37,14 @@ enum MiScale2FrameDecoder {
         case wrongLength(Int)
         case notStabilized
         case weightRemoved
-        case invalidImpedance(Int)
         case unsupportedUnit
     }
 
     /// Decode a complete stabilized measurement, or return an error explaining why the frame was ignored.
+    ///
+    /// When the impedance flag is set but ohms are `0` or `≥ 3000` (BIA still running),
+    /// returns a weight-only measurement with `biaPending == true` so the UI can keep waiting
+    /// instead of dropping the frame entirely.
     static func decode(_ data: Data) -> Result<ScaleMeasurement, DecodeError> {
         guard data.count == 13 else {
             return .failure(.wrongLength(data.count))
@@ -48,7 +55,7 @@ enum MiScale2FrameDecoder {
         let control1 = bytes[1]
 
         let isLbs = (control0 & 0x01) != 0
-        let hasImpedance = (control1 & 0x02) != 0
+        let impedanceFlag = (control1 & 0x02) != 0
         let isStabilized = (control1 & 0x20) != 0
         let isCatty = (control1 & 0x40) != 0
         let weightRemoved = (control1 & 0x80) != 0
@@ -75,13 +82,17 @@ enum MiScale2FrameDecoder {
         }
 
         var impedance: Int?
-        if hasImpedance {
+        var biaPending = false
+        if impedanceFlag {
             let rawImp = Int(UInt16(bytes[9]) | (UInt16(bytes[10]) << 8))
             // ESPHome rejects 0 and ≥ 3000 as incomplete / invalid BIA sweeps.
+            // Publish weight anyway and mark BIA pending so the session can wait.
             if rawImp == 0 || rawImp >= 3000 {
-                return .failure(.invalidImpedance(rawImp))
+                biaPending = true
+                impedance = nil
+            } else {
+                impedance = rawImp
             }
-            impedance = rawImp
         }
 
         let year = Int(UInt16(bytes[2]) | (UInt16(bytes[3]) << 8))
@@ -101,6 +112,7 @@ enum MiScale2FrameDecoder {
                 impedanceOhms: impedance,
                 scaleDate: scaleDate,
                 hasImpedance: impedance != nil,
+                biaPending: biaPending,
                 displayUnit: displayUnit
             )
         )
