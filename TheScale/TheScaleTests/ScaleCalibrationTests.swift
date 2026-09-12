@@ -8,15 +8,25 @@ final class ScaleCalibrationTests: XCTestCase {
         XCTAssertFalse(cal.hasCorrection)
     }
 
-    func testSinglePointCaptureSetsFactor() {
+    func testOffsetCaptureMatchesAlexMass() {
+        var cal = ScaleCalibration.default
+        cal.referenceMassKg = 7.926
+        cal.captureMode = .offset
+        XCTAssertTrue(cal.capture(rawKg: 7.90))
+        XCTAssertTrue(cal.isActive)
+        XCTAssertEqual(cal.scaleFactor, 1.0, accuracy: 0.00001)
+        XCTAssertEqual(cal.offsetKg, 0.026, accuracy: 0.0001)
+        XCTAssertEqual(cal.apply(toRawKg: 7.90), 7.926, accuracy: 0.0001)
+    }
+
+    func testFactorCaptureSetsMultiplier() {
         var cal = ScaleCalibration.default
         cal.referenceMassKg = 5.0
+        cal.captureMode = .factor
         XCTAssertTrue(cal.capture(rawKg: 5.1))
-        XCTAssertTrue(cal.isActive)
         XCTAssertEqual(cal.scaleFactor, 5.0 / 5.1, accuracy: 0.00001)
         XCTAssertEqual(cal.offsetKg, 0, accuracy: 0.00001)
-        let corrected = cal.apply(toRawKg: 5.1)
-        XCTAssertEqual(corrected, 5.0, accuracy: 0.001)
+        XCTAssertEqual(cal.apply(toRawKg: 5.1), 5.0, accuracy: 0.001)
     }
 
     func testOffsetAppliesAfterFactor() {
@@ -29,10 +39,10 @@ final class ScaleCalibrationTests: XCTestCase {
 
     func testResetKeepsReferenceMass() {
         var cal = ScaleCalibration.default
-        cal.referenceMassKg = 5.0
-        _ = cal.capture(rawKg: 4.9)
+        cal.referenceMassKg = 7.926
+        _ = cal.captureAsOffset(rawKg: 7.90)
         cal.reset()
-        XCTAssertEqual(cal.referenceMassKg, 5.0, accuracy: 0.0001)
+        XCTAssertEqual(cal.referenceMassKg, 7.926, accuracy: 0.0001)
         XCTAssertFalse(cal.hasCorrection)
         XCTAssertEqual(cal.apply(toRawKg: 70.0), 70.0, accuracy: 0.0001)
     }

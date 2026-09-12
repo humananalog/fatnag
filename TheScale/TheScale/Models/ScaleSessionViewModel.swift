@@ -50,6 +50,10 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var calibration: ScaleCalibration {
         didSet { ScaleCalibrationStore.save(calibration) }
     }
+    /// Last raw kg seen from BLE (kept after the live sheet closes so Settings can capture).
+    @Published private(set) var lastRawWeightKg: Double?
+    /// Optional manual raw kg typed in Settings when BLE reading is unavailable.
+    @Published var manualCalibrationRawKg: Double?
 
     private let scanner: ScaleScanning
     private let healthStore: HealthWriting
@@ -84,10 +88,19 @@ final class ScaleSessionViewModel: ObservableObject {
         return !measurement.hasImpedance
     }
 
-    /// Latest raw kg (live stream or last stabilized), before calibration.
+    /// Latest raw kg (live stream, last stabilized, or last remembered), before calibration.
     var rawDisplayWeightKg: Double? {
         if let liveWeightKg { return liveWeightKg }
-        return latestMeasurement.map(\.weightKg)
+        if let latestMeasurement { return latestMeasurement.weightKg }
+        return lastRawWeightKg
+    }
+
+    /// Raw kg used for calibration capture: manual entry wins, else live/last BLE.
+    var calibrationSourceRawKg: Double? {
+        if let manualCalibrationRawKg, manualCalibrationRawKg > 0.05 {
+            return manualCalibrationRawKg
+        }
+        return rawDisplayWeightKg
     }
 
     /// Live display weight: calibrated streaming kg while settling, else draft / stabilized.
@@ -227,41 +240,87 @@ final class ScaleSessionViewModel: ObservableObject {
     // MARK: - Calibration
 
     func updateCalibrationReferenceMass(_ kg: Double) {
-        calibration.referenceMassKg = max(kg, 0.1)
+        var next = calibration
+        next.referenceMassKg = max(kg, 0.1)
+        calibration = next
     }
 
     func updateCalibrationOffset(_ kg: Double) {
-        calibration.offsetKg = kg
-        if abs(kg) > 0.000_01 || abs(calibration.scaleFactor - 1.0) > 0.000_01 {
-            calibration.isActive = true
+        var next = calibration
+        next.offsetKg = kg
+        if abs(kg) > 0.000_01 || abs(next.scaleFactor - 1.0) > 0.000_01 {
+            next.isActive = true
         }
-        // Re-apply to current draft / composition if we have a raw measurement.
+        calibration = next
         reapplyCalibrationToLatest()
+    }
+
+    func setCalibrationCaptureMode(_ mode: ScaleCalibration.CaptureMode) {
+        var next = calibration
+        next.captureMode = mode
+        calibration = next
     }
 
     func setCalibrationActive(_ active: Bool) {
-        calibration.isActive = active
+        var next = calibration
+        next.isActive = active
+        calibration = next
         reapplyCalibrationToLatest()
     }
 
+    /// Prefer manual raw if set; else last/live BLE raw. Default mode is offset.
     @discardableResult
     func captureCalibrationFromCurrentReading() -> Bool {
-        guard let raw = rawDisplayWeightKg else { return false }
+        guard let raw = calibrationSourceRawKg else { return false }
         var next = calibration
         guard next.capture(rawKg: raw) else { return false }
         calibration = next
+        lastRawWeightKg = raw
         reapplyCalibrationToLatest()
         liveHint = String(
-            format: "Calibration stored from raw %.2f kg → %.2f kg reference.",
+            format: "Calibration stored: raw %.3f kg → reference %.3f kg (%@).",
             raw,
-            calibration.referenceMassKg
+            calibration.referenceMassKg,
+            calibration.captureMode.title
+        )
+        return true
+    }
+
+    /// Record a known pair even when BLE is unavailable (Alex: 7.926 kg true, 7.90 kg raw).
+    @discardableResult
+    func recordCalibration(referenceKg: Double, rawKg: Double, mode: ScaleCalibration.CaptureMode? = nil) -> Bool {
+        var next = calibration
+        next.referenceMassKg = max(referenceKg, 0.1)
+        if let mode {
+            next.captureMode = mode
+        }
+        guard next.capture(rawKg: rawKg) else { return false }
+        calibration = next
+        lastRawWeightKg = rawKg
+        manualCalibrationRawKg = rawKg
+        reapplyCalibrationToLatest()
+        liveHint = String(
+            format: "Calibration recorded: raw %.3f kg → reference %.3f kg (offset %+.3f kg).",
+            rawKg,
+            next.referenceMassKg,
+            next.offsetKg
         )
         return true
     }
 
     func resetCalibration() {
-        calibration.reset()
+        var next = calibration
+        next.reset()
+        calibration = next
         reapplyCalibrationToLatest()
+    }
+
+    private func rememberRawWeight(_ kg: Double) {
+        lastRawWeightKg = kg
+        // Keep Settings field in sync when the user has not typed a manual override.
+        if manualCalibrationRawKg == nil {
+            // no-op; UI can bind to lastRawWeightKg via calibrationSourceRawKg
+        }
     }
 
     func refreshHealthBaseline() async {
@@ -349,6 +408,7 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     private func accept(_ measurement: ScaleMeasurement) {
+        rememberRawWeight(measurement.weightKg)
         if !measurement.isStabilized {
             liveWeightKg = measurement.weightKg
             if case .listening = phase {

@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 1.2.0  
+**Version:** 1.2.1  
 **Target device:** iPhone 15 (iOS 17+)  
 **Deployment target:** iOS 17.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -182,4 +182,4 @@ scripts/
 
 ## Version
 
-Marketing version **1.2.0** / build **5**. Bump both in the Xcode target when shipping changes.
+Marketing version **1.2.1** / build **6**. Bump both in the Xcode target when shipping changes.
