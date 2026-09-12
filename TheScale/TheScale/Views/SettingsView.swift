@@ -1,18 +1,14 @@
 import SwiftUI
 
-/// Profile + single-point scale calibration. All values stay on-device.
+/// Profile + calibration setup. Live capture uses the same weigh-in sheet.
 struct SettingsView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @FocusState private var focusedField: Field?
-    @State private var captureMessage: String?
-    @State private var showCaptureAlert = false
-    @State private var captureAlertTitle = ""
-    @State private var captureAlertBody = ""
     @State private var confirmReset = false
+    @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable {
         case reference
-        case raw
         case offset
     }
 
@@ -45,25 +41,13 @@ struct SettingsView: View {
                 Button("Done") { focusedField = nil }
             }
         }
-        .alert(captureAlertTitle, isPresented: $showCaptureAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(captureAlertBody)
-        }
         .alert("Reset calibration?", isPresented: $confirmReset) {
             Button("Cancel", role: .cancel) {}
             Button("Reset", role: .destructive) {
                 session.resetCalibration()
-                captureMessage = "Correction cleared. Raw scale kg will be used."
             }
         } message: {
             Text("Removes the stored scale factor and offset. Your reference mass value is kept.")
-        }
-        .onAppear {
-            // Prefill raw field from last BLE reading so Capture works after leaving the live sheet.
-            if session.manualCalibrationRawKg == nil, let last = session.lastRawWeightKg {
-                session.manualCalibrationRawKg = last
-            }
         }
     }
 
@@ -120,7 +104,7 @@ struct SettingsView: View {
             Label("Weight calibration", systemImage: "slider.horizontal.3")
                 .font(.headline)
 
-            Text("Enter the true mass and what the scale / app read, then capture. Default mode stores an offset (true − raw). You can also use a scale factor. Correction stays on this iPhone.")
+            Text("Enter the true mass first, then open the live sheet and weigh that mass. Store the correction there. Same screen as a normal weigh-in.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -144,38 +128,13 @@ struct SettingsView: View {
                     .frame(width: 96)
                     Text("kg").foregroundStyle(.secondary)
                 }
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("2. Scale reading (raw)")
-                    .font(.subheadline.weight(.semibold))
-                Text(rawStatusLine)
-                    .font(.system(.body, design: .rounded).weight(.medium))
-                    .monospacedDigit()
-                HStack {
-                    Text("Raw reading")
-                    Spacer()
-                    TextField(
-                        "kg",
-                        value: Binding(
-                            get: { session.manualCalibrationRawKg ?? session.lastRawWeightKg ?? 0 },
-                            set: { session.manualCalibrationRawKg = $0 }
-                        ),
-                        format: .number.precision(.fractionLength(3))
-                    )
-                    .keyboardType(.decimalPad)
-                    .focused($focusedField, equals: .raw)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 96)
-                    Text("kg").foregroundStyle(.secondary)
-                }
-                Text("Type the kg the scale showed if Capture had nothing to work with (common when Settings was open without a live BLE reading).")
+                Text("Examples: 5.000 kg plate, or Alex’s 7.926 kg known mass.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("3. Capture mode")
+                Text("2. Capture mode")
                     .font(.subheadline.weight(.semibold))
                 Picker(
                     "Mode",
@@ -196,11 +155,10 @@ struct SettingsView: View {
 
             Button {
                 focusedField = nil
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    runCapture()
-                }
+                session.beginCalibrationWeighIn()
+                dismiss()
             } label: {
-                Label("Capture reading & store correction", systemImage: "plus.viewfinder")
+                Label("Weigh reference on live sheet", systemImage: "scalemass")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -208,18 +166,10 @@ struct SettingsView: View {
             Button {
                 focusedField = nil
                 // Alex: true 7.926 kg, scale showed 7.90 kg → offset +0.026 kg
-                let ok = session.recordCalibration(
+                _ = session.recordCalibration(
                     referenceKg: 7.926,
                     rawKg: 7.90,
                     mode: .offset
-                )
-                presentCaptureResult(
-                    ok: ok,
-                    successBody: String(
-                        format: "Stored offset %+.3f kg (raw 7.900 → true 7.926). Live and saved weights use this.",
-                        7.926 - 7.90
-                    ),
-                    failureBody: "Could not store that pair. Check the numbers and try again."
                 )
             } label: {
                 Label("Store Alex’s 7.926 / 7.90 offset", systemImage: "checkmark.seal")
@@ -228,7 +178,7 @@ struct SettingsView: View {
             .buttonStyle(.bordered)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("4. Current correction")
+                Text("3. Current correction")
                     .font(.subheadline.weight(.semibold))
                 Text(session.calibration.summaryLine)
                     .font(.footnote.weight(.medium))
@@ -281,12 +231,6 @@ struct SettingsView: View {
             }
             .buttonStyle(.bordered)
 
-            if let captureMessage {
-                Text(captureMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
             Text("Limits: single-point only. Offset mode assumes a nearly constant bias; factor mode assumes proportional error. Neither is a multi-point fit. Impedance (ohms) is never altered.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -309,61 +253,13 @@ struct SettingsView: View {
         .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private var rawStatusLine: String {
-        if let raw = session.calibrationSourceRawKg {
-            let corrected = session.calibration.apply(toRawKg: raw)
-            if session.calibration.hasCorrection {
-                return String(format: "Using raw %.3f kg → corrected %.3f kg", raw, corrected)
-            }
-            return String(format: "Using raw %.3f kg (no correction yet)", raw)
-        }
-        return "No raw kg yet. Type what the scale showed, or open live weigh-in first."
-    }
-
     private var modeHelpText: String {
         switch session.calibration.captureMode {
         case .offset:
-            return "Offset: corrected = raw + (true − raw). Good for a small constant bias (e.g. 7.90 vs 7.926)."
+            return "Offset: corrected = raw + (true - raw). Good for a small constant bias (e.g. 7.90 vs 7.926)."
         case .factor:
             return "Factor: corrected = raw × (true / raw). Better when error grows with mass."
         }
-    }
-
-    private func runCapture() {
-        let ok = session.captureCalibrationFromCurrentReading()
-        let raw = session.calibrationSourceRawKg
-        let ref = session.calibration.referenceMassKg
-        presentCaptureResult(
-            ok: ok,
-            successBody: {
-                if let raw {
-                    let offset = session.calibration.offsetKg
-                    let factor = session.calibration.scaleFactor
-                    return String(
-                        format: "Stored from raw %.3f kg → true %.3f kg. Factor ×%.5f, offset %+.3f kg. Apply is on.",
-                        raw,
-                        ref,
-                        factor,
-                        offset
-                    )
-                }
-                return "Correction stored and active."
-            }(),
-            failureBody: "Need a positive raw reading. Type the kg the scale showed in “Raw reading”, or open live weigh-in with the mass on the platform, then try again."
-        )
-    }
-
-    private func presentCaptureResult(ok: Bool, successBody: String, failureBody: String) {
-        if ok {
-            captureAlertTitle = "Calibration saved"
-            captureAlertBody = successBody
-            captureMessage = successBody
-        } else {
-            captureAlertTitle = "Nothing captured"
-            captureAlertBody = failureBody
-            captureMessage = failureBody
-        }
-        showCaptureAlert = true
     }
 }
 

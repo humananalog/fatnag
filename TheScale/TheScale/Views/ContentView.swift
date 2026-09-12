@@ -126,7 +126,7 @@ struct ContentView: View {
             )
             .font(.footnote)
             .foregroundStyle(.secondary)
-            Text("Open Settings to edit height/age/sex and run single-point weight calibration (default example 5 kg).")
+            Text("Open Settings for height/age/sex. Calibrate by entering a known mass, then weighing it on the live sheet (same screen as a normal weigh-in).")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -213,6 +213,14 @@ struct ContentView: View {
                 }
                 .buttonStyle(.bordered)
             }
+
+            Button {
+                session.beginCalibrationWeighIn()
+            } label: {
+                Label("Calibrate with live sheet", systemImage: "slider.horizontal.3")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
 
             if !session.healthKitAvailable {
                 Text("HealthKit unavailable in this environment (expected on Simulator without Health).")

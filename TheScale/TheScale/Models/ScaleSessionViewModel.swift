@@ -25,6 +25,12 @@ enum ScaleSessionPhase: Equatable, Sendable {
     case error(String)
 }
 
+/// Why the live sheet is open. Calibration reuses the same UI as weigh-in.
+enum WeighInPurpose: Equatable, Sendable {
+    case normal
+    case calibration
+}
+
 @MainActor
 final class ScaleSessionViewModel: ObservableObject {
     /// How long to keep waiting for a valid impedance frame after weight stabilizes.
@@ -40,6 +46,8 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var liveHint: String = "Step on the scale when listening."
     @Published private(set) var impedanceMissingReason: String?
     @Published private(set) var isWeighInPresented = false
+    /// Normal weigh-in vs on-sheet calibration (same live sheet).
+    @Published private(set) var weighInPurpose: WeighInPurpose = .normal
     @Published private(set) var recentHealthWeights: [HealthWeightSample] = []
     @Published private(set) var healthBaselineKg: Double?
     @Published var draft: EditableMeasurementDraft?
@@ -140,9 +148,14 @@ final class ScaleSessionViewModel: ObservableObject {
         isEditingDraft = false
         impedanceMissingReason = nil
         lastAcceptedSignature = nil
-        isWeighInPresented = false
+        if weighInPurpose != .calibration {
+            isWeighInPresented = false
+            weighInPurpose = .normal
+        }
         phase = .scanning
-        liveHint = "Looking for MIBFS / Mi Body Composition Scale 2…"
+        liveHint = weighInPurpose == .calibration
+            ? "Find the scale, then place your reference mass on the platform."
+            : "Looking for MIBFS / Mi Body Composition Scale 2…"
         scanner.startScanning()
         Task { await refreshHealthBaseline() }
     }
@@ -164,24 +177,75 @@ final class ScaleSessionViewModel: ObservableObject {
         scanner.focus(on: scale.id)
         phase = .listening(scaleName: scale.name)
         impedanceMissingReason = nil
-        liveHint = "Listening for broadcasts from \(scale.name). Step on barefoot for body composition."
+        if weighInPurpose == .calibration {
+            liveHint = "Listening to \(scale.name). Place \(String(format: "%.3f", calibration.referenceMassKg)) kg on the scale."
+        } else {
+            liveHint = "Listening for broadcasts from \(scale.name). Step on barefoot for body composition."
+        }
         isWeighInPresented = true
         Task { await refreshHealthBaseline() }
     }
 
     func reopenWeighIn() {
         guard selectedScaleID != nil else { return }
+        weighInPurpose = .normal
         isWeighInPresented = true
+    }
+
+    /// Primary calibration path: same live sheet as weigh-in, after the user sets reference mass.
+    func beginCalibrationWeighIn() {
+        weighInPurpose = .calibration
+        isEditingDraft = false
+        draft = nil
+        liveHint = String(
+            format: "Calibration: place %.3f kg on the scale. Store when the raw kg settles.",
+            calibration.referenceMassKg
+        )
+        isWeighInPresented = true
+        if selectedScaleID == nil {
+            // Keep calibration purpose while scanning for a scale.
+            startScanning()
+            weighInPurpose = .calibration
+            isWeighInPresented = true
+            liveHint = String(
+                format: "Find the scale, then place %.3f kg on the platform.",
+                calibration.referenceMassKg
+            )
+        } else {
+            let name = discoveredScales.first(where: { $0.id == selectedScaleID })?.name ?? "scale"
+            phase = .listening(scaleName: name)
+            liveHint = String(
+                format: "Listening to %@. Place %.3f kg on the scale.",
+                name,
+                calibration.referenceMassKg
+            )
+        }
+        Task { await refreshHealthBaseline() }
     }
 
     func dismissWeighIn() {
         isWeighInPresented = false
         isEditingDraft = false
+        weighInPurpose = .normal
         if case .healthKitSuccess = phase {
             // Keep success state on home.
         } else if case .reviewing = phase {
             phase = .ready
         }
+    }
+
+    /// Store correction from the live sheet using the current raw BLE kg and Settings reference mass.
+    @discardableResult
+    func confirmCalibrationFromLiveReading() -> Bool {
+        guard let raw = rawDisplayWeightKg, raw > 0.05 else {
+            liveHint = "Need a positive raw kg from the scale before storing calibration."
+            return false
+        }
+        return recordCalibration(
+            referenceKg: calibration.referenceMassKg,
+            rawKg: raw,
+            mode: calibration.captureMode
+        )
     }
 
     func beginReview() {

@@ -34,6 +34,20 @@ enum WeightTrend: Equatable, Sendable {
         }
     }
 
+    /// Compact chip label so the top-right pill never truncates mid-word on iPhone 15.
+    var shortTitle: String {
+        switch self {
+        case .loss:
+            return "Down"
+        case .stable:
+            return "Stable"
+        case .gain:
+            return "Up"
+        case .unknown:
+            return "No base"
+        }
+    }
+
     var subtitle: String {
         switch self {
         case .loss(let d):
