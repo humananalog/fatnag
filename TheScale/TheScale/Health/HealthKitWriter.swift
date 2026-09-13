@@ -259,8 +259,10 @@ final class HealthKitWriter: HealthWriting {
 
     private func metadata(for draft: EditableMeasurementDraft) -> [String: Any] {
         var meta: [String: Any] = [
-            HKMetadataKeyWasUserEntered: false,
-            "SourceDevice": "Xiaomi Mi Body Composition Scale 2 (XMTZC05HM)",
+            HKMetadataKeyWasUserEntered: draft.isManualEntry,
+            "SourceDevice": draft.isManualEntry
+                ? "Manual entry"
+                : "Xiaomi Mi Body Composition Scale 2 (XMTZC05HM)",
             "App": "The Scale"
         ]
         if let ohms = draft.impedanceOhms {

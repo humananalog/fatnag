@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 1.6.0  
+**Version:** 1.7.0  
 **Target device:** iPhone 15 (iOS 17+)  
 **Deployment target:** iOS 17.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -11,15 +11,15 @@ Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model
 ## What it does
 
 1. Scans for the scale’s BLE advertisements (`MIBFS` / service data `0x181B`)
-2. Opens a **full-screen live weigh-in sheet** as soon as a scale is selected; one viewport (no ScrollView); content-first layout (atmosphere is background only so decorative blurs cannot widen the sheet); system safe-area + 24pt horizontal inset; weight dominant with body fat % / lean %, trend, edit/confirm on one screen
+2. Opens a **full-screen live weigh-in sheet** as soon as a scale is selected; one viewport (no ScrollView); content-first layout (atmosphere is background only so decorative washes cannot widen the sheet); system safe-area + 24pt horizontal inset; weight dominant with body fat % / lean %, trend, edit/confirm on one screen
 3. Keeps **body fat %** and **lean %** visible during the live session and in edit-before-save (impedance stays internal for BIA)
 4. Reads recent **Apple Health** body-mass history (on-device) and colors the sheet by trend vs last weight: **green** loss, **yellow** stable (±0.2 kg), **red** gain
 5. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
 6. Lets you **edit** weight / fat % / lean % **before** confirm
-7. **Home** is sparse: brand, **Find Scale**, **History**, optional **Weigh in**. Profile, ideal weight, calibration, and Health permissions copy live under the gear (**Settings**)
+7. **Home** is sparse: brand, **Find Scale**, **History**, **Manual**, optional **Weigh in**. Profile, ideal weight, calibration, and Health permissions copy live under the gear (**Settings**)
 8. **Calibration uses the same live sheet** (from Settings): enter reference mass, open live sheet, weigh that mass, store offset/factor on-device
 9. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
-10. After a successful Health save (and anytime via home **History**), opens charts for weight kg + body fat % (default **Last 2 weeks**). Ideal weight from Settings floors the weight chart Y-axis and draws the Ideal reference line.
+10. After a successful Health save (and anytime via home **History**), opens charts for weight kg + body fat % from HealthKit (default **Last 2 weeks**). Ideal line from Settings; domain includes all Health samples. Optional **Trend** projects weight to ideal from the last 2 weeks (OLS). Tap a point for its value. **Manual** logs mass-only while travelling.
 
 No accounts, no backend, no analytics, no third-party cloud.
 
@@ -31,7 +31,7 @@ No accounts, no backend, no analytics, no third-party cloud.
 | Height / age / sex / ideal weight / ideal fat % | `UserDefaults` on device only |
 | Weight calibration (factor / offset) | `UserDefaults` on device only |
 | Health **read** | Recent `bodyMass` for trend; `bodyMass` + `bodyFatPercentage` for history charts |
-| Health **writes** | Apple Health (HealthKit) on device, only after **Confirm to Health** |
+| Health **writes** | Apple Health (HealthKit) on device, after **Confirm to Health** or **Manual → Save** |
 | Network | None by design |
 
 HealthKit types:
@@ -41,11 +41,19 @@ HealthKit types:
 
 Muscle mass, bone mass, water %, visceral fat, and raw ohms are **shown in-app only**. HealthKit has no first-class quantities for those.
 
-**Trend threshold:** ±0.2 kg vs the most recent Health weight counts as stable.
+**Trend threshold (live sheet):** ±0.2 kg vs the most recent Health weight counts as stable.
+
+### History charts
+
+- Series are **Apple Health** `bodyMass` / `bodyFatPercentage` for the selected range (never a local-only fake series).
+- Ideal weight draws as a dotted Ideal line; Y domain includes every Health sample (no clipping below ideal).
+- **Trend** toggle: OLS linear regression on the last **14 days** of Health weights; projects forward until the line crosses ideal; labels the crossing date + kg. Fat chart stays Health-only (no projection).
+- Tap a sample for a selection callout.
+- **Manual** (home or History): mass/kg only, optional when (default now), writes weight + BMI with `HKMetadataKeyWasUserEntered`, then opens History.
 
 ### Weight chart Y-axis (ideal)
 
-Ideal weight from Settings is the **axis floor** (lower bound of the plot domain) and a dotted **Ideal** reference line. The top bound is `max(dataMax, ideal) + padding`. Body fat chart: when ideal body fat % is set, same floor + Ideal line; otherwise auto-scale with labeled highest / lowest.
+Ideal weight from Settings is a dotted **Ideal** reference line. The plot domain is `min(dataMin, ideal)…max(dataMax, ideal, projection) + padding` so real Health points are never clipped. Body fat chart: when ideal body fat % is set, same Ideal line pattern; otherwise auto-scale with labeled highest / lowest.
 
 ## Protocol (honest notes)
 

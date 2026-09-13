@@ -27,6 +27,7 @@
 		A1B2C3D4E5F60718293A0008 /* HealthHistoryRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1008 /* HealthHistoryRange.swift */; };
 		A1B2C3D4E5F60718293A0009 /* WeighInResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1009 /* WeighInResultsView.swift */; };
 		A1B2C3D4E5F60718293A000A /* HealthHistoryChartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100A /* HealthHistoryChartTests.swift */; };
+		A1B2C3D4E5F60718293A000B /* ManualWeighInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100B /* ManualWeighInView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +65,7 @@
 		A1B2C3D4E5F60718293A1008 /* HealthHistoryRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthHistoryRange.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1009 /* WeighInResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeighInResultsView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A100A /* HealthHistoryChartTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthHistoryChartTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A100B /* ManualWeighInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualWeighInView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,6 +92,7 @@
 				87EB1E9E2263405C8B1B48F0 /* ContentView.swift */,
 				A1B2C3D4E5F60718293A1003 /* LiveWeighInSheet.swift */,
 				A1B2C3D4E5F60718293A1009 /* WeighInResultsView.swift */,
+				A1B2C3D4E5F60718293A100B /* ManualWeighInView.swift */,
 				A1B2C3D4E5F60718293A1006 /* SettingsView.swift */,
 			);
 			path = Views;
@@ -311,6 +314,7 @@
 				A1B2C3D4E5F60718293A0006 /* SettingsView.swift in Sources */,
 				A1B2C3D4E5F60718293A0008 /* HealthHistoryRange.swift in Sources */,
 				A1B2C3D4E5F60718293A0009 /* WeighInResultsView.swift in Sources */,
+				A1B2C3D4E5F60718293A000B /* ManualWeighInView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

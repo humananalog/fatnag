@@ -884,7 +884,8 @@ struct TrendAtmosphereBackground: View {
     let atmosphere: TrendAtmosphere
 
     var body: some View {
-        // Gradient defines layout size. Ellipses live in overlay so they cannot widen the sheet.
+        // Soft radial washes (no `.blur` / `.drawingGroup`): those force Metal
+        // shader-cache fopen on first launch ("fopen failed for data file: errno = 2").
         LinearGradient(
             colors: [atmosphere.top, atmosphere.mid, atmosphere.bottom],
             startPoint: .topLeading,
@@ -892,16 +893,28 @@ struct TrendAtmosphereBackground: View {
         )
         .overlay {
             ZStack {
-                Ellipse()
-                    .fill(.white.opacity(0.22))
-                    .frame(width: 420, height: 280)
-                    .blur(radius: 40)
-                    .offset(x: -80, y: -220)
-                Ellipse()
-                    .fill(atmosphere.accent.opacity(0.12))
-                    .frame(width: 520, height: 360)
-                    .blur(radius: 50)
-                    .offset(x: 90, y: 260)
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [.white.opacity(0.28), .white.opacity(0)],
+                            center: .center,
+                            startRadius: 10,
+                            endRadius: 180
+                        )
+                    )
+                    .frame(width: 360, height: 360)
+                    .offset(x: -90, y: -200)
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [atmosphere.accent.opacity(0.16), atmosphere.accent.opacity(0)],
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 220
+                        )
+                    )
+                    .frame(width: 440, height: 440)
+                    .offset(x: 100, y: 240)
             }
             .allowsHitTesting(false)
         }

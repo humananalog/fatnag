@@ -17,15 +17,22 @@ final class HealthHistoryChartTests: XCTestCase {
         XCTAssertEqual(days, 14)
     }
 
-    func testWeightDomainFloorsAtIdeal() {
+    func testWeightDomainIncludesIdealAndDataBelowIdeal() {
+        let domain = HealthChartMath.weightDomain(values: [70, 71], idealKg: 72)
+        XCTAssertLessThanOrEqual(domain.lowerBound, 70)
+        XCTAssertGreaterThanOrEqual(domain.upperBound, 72)
+    }
+
+    func testWeightDomainIncludesDataAboveIdeal() {
         let domain = HealthChartMath.weightDomain(values: [78, 80, 79.2], idealKg: 72)
-        XCTAssertEqual(domain.lowerBound, 72, accuracy: 0.001)
+        XCTAssertLessThanOrEqual(domain.lowerBound, 72)
         XCTAssertGreaterThan(domain.upperBound, 80)
     }
 
-    func testWeightDomainKeepsIdealFloorEvenIfDataIsHigher() {
+    func testWeightDomainKeepsIdealVisibleWhenDataIsHigher() {
         let domain = HealthChartMath.weightDomain(values: [90, 91], idealKg: 75)
-        XCTAssertEqual(domain.lowerBound, 75, accuracy: 0.001)
+        XCTAssertLessThanOrEqual(domain.lowerBound, 75)
+        XCTAssertGreaterThan(domain.upperBound, 91)
     }
 
     func testBodyFatDomainUsesIdealWhenPresent() {
@@ -62,6 +69,72 @@ final class HealthHistoryChartTests: XCTestCase {
         let trend = try XCTUnwrap(HealthChartMath.linearTrendEndpoints(samples: two))
         XCTAssertEqual(trend.start.value, 80, accuracy: 0.01)
         XCTAssertEqual(trend.end.value, 78, accuracy: 0.01)
+    }
+
+    func testProjectWeightToIdealCrossesOnLosingTrend() throws {
+        let day: TimeInterval = 86_400
+        let samples = [
+            HealthMetricSample(value: 80, date: Date(timeIntervalSince1970: 0)),
+            HealthMetricSample(value: 79, date: Date(timeIntervalSince1970: day * 7)),
+            HealthMetricSample(value: 78, date: Date(timeIntervalSince1970: day * 14))
+        ]
+        let projection = try XCTUnwrap(
+            HealthChartMath.projectWeightToIdeal(
+                windowSamples: samples,
+                idealKg: 75,
+                now: Date(timeIntervalSince1970: day * 14),
+                maxHorizonDays: 365
+            )
+        )
+        let crossing = try XCTUnwrap(projection.crossing)
+        XCTAssertEqual(crossing.value, 75, accuracy: 0.01)
+        XCTAssertGreaterThan(crossing.date.timeIntervalSince1970, day * 14)
+        XCTAssertLessThan(projection.slopeKgPerDay, 0)
+    }
+
+    func testProjectWeightAwayFromIdealHasNoCrossing() throws {
+        let day: TimeInterval = 86_400
+        let samples = [
+            HealthMetricSample(value: 78, date: Date(timeIntervalSince1970: 0)),
+            HealthMetricSample(value: 79, date: Date(timeIntervalSince1970: day * 7)),
+            HealthMetricSample(value: 80, date: Date(timeIntervalSince1970: day * 14))
+        ]
+        let projection = try XCTUnwrap(
+            HealthChartMath.projectWeightToIdeal(
+                windowSamples: samples,
+                idealKg: 75,
+                now: Date(timeIntervalSince1970: day * 14)
+            )
+        )
+        XCTAssertNil(projection.crossing)
+        XCTAssertGreaterThan(projection.slopeKgPerDay, 0)
+    }
+
+    func testNearestSampleSelection() throws {
+        let samples = [
+            HealthMetricSample(value: 80, date: Date(timeIntervalSince1970: 100)),
+            HealthMetricSample(value: 79, date: Date(timeIntervalSince1970: 200)),
+            HealthMetricSample(value: 78, date: Date(timeIntervalSince1970: 300))
+        ]
+        let nearest = try XCTUnwrap(
+            HealthChartMath.nearestSample(in: samples, to: Date(timeIntervalSince1970: 210))
+        )
+        XCTAssertEqual(nearest.value, 79, accuracy: 0.001)
+    }
+
+    func testManualDraftIsMassOnly() {
+        let draft = EditableMeasurementDraft.manual(
+            weightKg: 77.4,
+            at: Date(timeIntervalSince1970: 1_700_000_000),
+            profile: .default
+        )
+        XCTAssertTrue(draft.isManualEntry)
+        XCTAssertFalse(draft.includeCompositionInHealth)
+        XCTAssertNil(draft.bodyFatPercent)
+        XCTAssertNil(draft.leanBodyMassKg)
+        XCTAssertNil(draft.impedanceOhms)
+        XCTAssertEqual(draft.weightKg, 77.4, accuracy: 0.001)
+        XCTAssertNotNil(draft.bmi)
     }
 
     func testProfileIdealWeightMigratesFromLegacyDecode() throws {

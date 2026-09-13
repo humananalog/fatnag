@@ -50,6 +50,13 @@ struct ContentView: View {
                 WeighInResultsView()
                     .environmentObject(session)
             }
+            .fullScreenCover(isPresented: Binding(
+                get: { session.isManualEntryPresented && !session.isResultsPresented },
+                set: { if !$0 { session.dismissManualEntry() } }
+            )) {
+                ManualWeighInView()
+                    .environmentObject(session)
+            }
             .task {
                 await session.refreshHealthBaseline()
             }
@@ -132,6 +139,18 @@ struct ContentView: View {
             }
             .buttonStyle(.bordered)
             .tint(ink)
+
+            Button {
+                session.presentManualEntry()
+            } label: {
+                Label("Manual", systemImage: "pencil.line")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 2)
+            }
+            .buttonStyle(.bordered)
+            .tint(ink)
+            .accessibilityHint("Log weight without the scale")
 
             if session.selectedScaleID != nil {
                 Button {

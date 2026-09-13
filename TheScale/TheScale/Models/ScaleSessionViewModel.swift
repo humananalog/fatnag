@@ -55,7 +55,10 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Chart series for the post-save history screen (oldest → newest).
     @Published private(set) var historyWeights: [HealthMetricSample] = []
     @Published private(set) var historyBodyFatPercents: [HealthMetricSample] = []
+    /// Last 14 days of Health weight (always), used by Trend projection regardless of chart range.
+    @Published private(set) var historyTrendWindowWeights: [HealthMetricSample] = []
     @Published private(set) var historyRange: HealthHistoryRange = .default
+    @Published private(set) var isManualEntryPresented = false
     @Published var draft: EditableMeasurementDraft?
     @Published var isEditingDraft = false
     @Published var profile: UserBodyProfile {
@@ -266,25 +269,57 @@ final class ScaleSessionViewModel: ObservableObject {
     func reopenResults() {
         isResultsPresented = true
         Task {
-            try? await loadHistory(for: historyRange)
+            do {
+                try await loadHistory(for: historyRange)
+            } catch {
+                // Soft-fail: results screen shows the load error inline via reload.
+            }
         }
     }
 
+    func presentManualEntry() {
+        isManualEntryPresented = true
+    }
+
+    func dismissManualEntry() {
+        isManualEntryPresented = false
+    }
+
     /// Load Apple Health weight + body fat samples for the results charts.
+    /// Always also loads the last 2 weeks for Trend projection (independent of picker range).
     func loadHistory(for range: HealthHistoryRange = .default) async throws {
         historyRange = range
         guard healthKitAvailable else {
             historyWeights = []
             historyBodyFatPercents = []
+            historyTrendWindowWeights = []
             return
         }
         let end = Date()
         let start = range.startDate(relativeTo: end)
+        let trendStart = HealthHistoryRange.lastTwoWeeks.startDate(relativeTo: end)
         try await healthStore.requestAuthorizationIfNeeded()
-        async let weights = healthStore.fetchWeights(from: start, to: end)
-        async let fats = healthStore.fetchBodyFatPercents(from: start, to: end)
-        historyWeights = try await weights
-        historyBodyFatPercents = try await fats
+        // Sequential HealthKit reads (same MainActor store; avoids async-let Sendable noise).
+        historyWeights = try await healthStore.fetchWeights(from: start, to: end)
+        historyBodyFatPercents = try await healthStore.fetchBodyFatPercents(from: start, to: end)
+        if range == .lastTwoWeeks {
+            historyTrendWindowWeights = historyWeights
+        } else {
+            historyTrendWindowWeights = try await healthStore.fetchWeights(from: trendStart, to: end)
+        }
+    }
+
+    /// Mass-only Manual entry → Apple Health (weight + BMI). No fat/lean invented.
+    func saveManualWeight(kg: Double, at date: Date) async throws {
+        let draft = EditableMeasurementDraft.manual(weightKg: kg, at: date, profile: profile)
+        try await healthStore.requestAuthorizationIfNeeded()
+        try await healthStore.write(draft: draft, profile: profile)
+        phase = .healthKitSuccess
+        await refreshHealthBaseline()
+        try await loadHistory(for: historyRange)
+        isManualEntryPresented = false
+        isWeighInPresented = false
+        isResultsPresented = true
     }
 
     /// Store correction from the live sheet using the current raw BLE kg and Settings reference mass.
@@ -502,6 +537,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 // Soft-fail: still show the empty results screen with the error inline.
                 historyWeights = []
                 historyBodyFatPercents = []
+                historyTrendWindowWeights = []
             }
             isWeighInPresented = false
             isResultsPresented = true

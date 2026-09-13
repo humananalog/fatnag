@@ -16,6 +16,8 @@ struct EditableMeasurementDraft: Equatable, Sendable {
     var scaleDate: Date?
     var receivedAt: Date
     var sourceHasImpedance: Bool
+    /// True for travel / hotel mass-only logs (no BIA, no fake fat/lean).
+    var isManualEntry: Bool
 
     /// Lean mass as percent of body weight (companion to body fat %).
     var leanPercent: Double? {
@@ -51,7 +53,29 @@ struct EditableMeasurementDraft: Equatable, Sendable {
             includeCompositionInHealth: measurement.hasImpedance && composition != nil,
             scaleDate: measurement.scaleDate,
             receivedAt: measurement.receivedAt,
-            sourceHasImpedance: measurement.hasImpedance
+            sourceHasImpedance: measurement.hasImpedance,
+            isManualEntry: false
+        )
+    }
+
+    /// Mass-only draft for Manual entry (airports/hotels). Never invents fat/lean.
+    static func manual(weightKg: Double, at date: Date, profile: UserBodyProfile) -> EditableMeasurementDraft {
+        let kg = max(weightKg, 0.1)
+        return EditableMeasurementDraft(
+            weightKg: kg,
+            impedanceOhms: nil,
+            bodyFatPercent: nil,
+            waterPercent: nil,
+            muscleMassKg: nil,
+            boneMassKg: nil,
+            leanBodyMassKg: nil,
+            visceralFat: nil,
+            bmi: BodyCompositionCalculator.bodyMassIndex(weightKg: kg, heightCm: profile.heightCm),
+            includeCompositionInHealth: false,
+            scaleDate: date,
+            receivedAt: date,
+            sourceHasImpedance: false,
+            isManualEntry: true
         )
     }
 

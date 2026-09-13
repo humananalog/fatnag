@@ -66,32 +66,47 @@ struct HealthMetricSample: Equatable, Identifiable, Sendable {
     }
 }
 
-/// Pure helpers for chart domain, extrema labels, and a thin linear trend.
+/// Forward weight projection toward ideal (Trend mode).
+struct WeightTrendProjection: Equatable, Sendable {
+    /// Health samples from the last 2 weeks that drove the fit.
+    let windowSamples: [HealthMetricSample]
+    /// kg per day (negative = losing).
+    let slopeKgPerDay: Double
+    /// Polyline from last observed sample through the crossing (or horizon).
+    let path: [HealthMetricSample]
+    /// Where the projected line meets ideal weight (date + ideal kg).
+    let crossing: HealthMetricSample?
+    /// True when the fit is moving toward ideal and crosses within the horizon.
+    var reachesTarget: Bool { crossing != nil }
+}
+
+/// Pure helpers for chart domain, extrema labels, and Trend projection.
 enum HealthChartMath {
     /// Y-axis / domain for the weight chart.
     ///
-    /// **Choice (documented):** ideal weight from Settings is the **axis floor**
-    /// (lower bound of the plot domain) and also draws as a clear ideal reference
-    /// line. The top bound is `max(dataMax, ideal) + padding`. If any sample sits
-    /// below ideal, the floor still stays at ideal so the chart never paints
-    /// below the goal line (those points clamp visually against the floor edge
-    /// via domain; labels still report true min/max from data).
+    /// Ideal weight from Settings draws as the Ideal reference line. The plot
+    /// domain always includes **all Health samples** (`min(dataMin, ideal)` floor)
+    /// so History never clips real HealthKit points below the goal. Upper bound
+    /// is `max(dataMax, ideal, projectionMax) + padding`.
     static func weightDomain(
         values: [Double],
         idealKg: Double,
-        paddingFraction: Double = 0.08
+        paddingFraction: Double = 0.08,
+        extraValues: [Double] = []
     ) -> ClosedRange<Double> {
         let ideal = max(idealKg, 1)
-        guard let dataMin = values.min(), let dataMax = values.max() else {
+        let combined = values + extraValues
+        guard let dataMin = combined.min(), let dataMax = combined.max() else {
             return ideal...(ideal + 5)
         }
+        let floor = min(dataMin, ideal)
         let top = max(dataMax, ideal)
-        let span = max(top - ideal, 0.5)
+        let span = max(top - floor, 0.5)
         let pad = max(span * paddingFraction, 0.15)
-        return ideal...(top + pad)
+        return (floor - pad * 0.25)...(top + pad)
     }
 
-    /// Y-axis for body fat %. Prefer ideal as floor when set; else auto with pad.
+    /// Y-axis for body fat %. Prefer ideal as soft floor when set; always include data.
     static func bodyFatDomain(
         values: [Double],
         idealPercent: Double?,
@@ -129,14 +144,156 @@ enum HealthChartMath {
         return (highest, lowest)
     }
 
-    /// Simple least-squares line through (time, value). Returns two endpoints for plotting.
+    /// Nearest Health sample to a chart selection date (for tap callouts).
+    static func nearestSample(in samples: [HealthMetricSample], to date: Date) -> HealthMetricSample? {
+        guard !samples.isEmpty else { return nil }
+        return samples.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }
+    }
+
+    /// Simple least-squares line through (time, value) over the given samples.
+    /// Returns endpoints spanning the sample window (historical fit only).
     static func linearTrendEndpoints(
         samples: [HealthMetricSample]
     ) -> (start: HealthMetricSample, end: HealthMetricSample)? {
+        guard let fit = ordinaryLeastSquares(samples: samples) else { return nil }
+        let ordered = samples.sorted { $0.date < $1.date }
+        let yStart = fit.value(at: ordered.first!.date)
+        let yEnd = fit.value(at: ordered.last!.date)
+        return (
+            HealthMetricSample(id: UUID(), value: yStart, date: ordered.first!.date),
+            HealthMetricSample(id: UUID(), value: yEnd, date: ordered.last!.date)
+        )
+    }
+
+    /// Trend projection toward ideal weight.
+    ///
+    /// **Method (documented):** ordinary least-squares linear regression on the
+    /// last **14 calendar days** of Apple Health `bodyMass` samples (sparse daily
+    /// weighs). LOESS is unnecessary for ~2-14 points; a centered moving average
+    /// would lag and understate slope on sparse data. OLS on the recent window is
+    /// the practical clinical shorthand for "recent rate of change" and stays
+    /// stable with uneven weigh-in days.
+    ///
+    /// The projected ray starts at the last observed Health sample and extends
+    /// forward until it crosses `idealKg` (or `maxHorizonDays` if the slope does
+    /// not move toward ideal). Crossing label uses ideal kg at the crossing date.
+    static func projectWeightToIdeal(
+        windowSamples: [HealthMetricSample],
+        idealKg: Double,
+        now: Date = Date(),
+        maxHorizonDays: Int = 730,
+        calendar: Calendar = .current
+    ) -> WeightTrendProjection? {
+        let ordered = windowSamples.sorted { $0.date < $1.date }
+        guard ordered.count >= 2, let fit = ordinaryLeastSquares(samples: ordered) else {
+            return nil
+        }
+
+        let ideal = max(idealKg, 1)
+        let last = ordered.last!
+        let slopePerDay = fit.slopeKgPerSecond * 86_400
+        let startDate = max(last.date, now)
+        let startValue = fit.value(at: startDate)
+
+        var path: [HealthMetricSample] = [
+            HealthMetricSample(id: last.id, value: last.value, date: last.date)
+        ]
+        if abs(startDate.timeIntervalSince(last.date)) > 1 {
+            path.append(HealthMetricSample(value: startValue, date: startDate))
+        }
+
+        let movingTowardIdeal: Bool = {
+            if abs(startValue - ideal) < 0.05 { return true }
+            if startValue > ideal { return slopePerDay < -0.001 }
+            return slopePerDay > 0.001
+        }()
+
+        guard movingTowardIdeal else {
+            // Still return a short dashed stub so the control feedback is visible.
+            let stubEnd = calendar.date(byAdding: .day, value: 7, to: startDate) ?? startDate.addingTimeInterval(7 * 86_400)
+            path.append(HealthMetricSample(value: fit.value(at: stubEnd), date: stubEnd))
+            return WeightTrendProjection(
+                windowSamples: ordered,
+                slopeKgPerDay: slopePerDay,
+                path: path,
+                crossing: nil
+            )
+        }
+
+        if abs(startValue - ideal) < 0.05 {
+            let crossing = HealthMetricSample(value: ideal, date: startDate)
+            path.append(crossing)
+            return WeightTrendProjection(
+                windowSamples: ordered,
+                slopeKgPerDay: slopePerDay,
+                path: path,
+                crossing: crossing
+            )
+        }
+
+        // Solve ideal = intercept + slope * (t - t0)  →  t = t0 + (ideal - intercept) / slope
+        let deltaSeconds = (ideal - fit.interceptKg) / fit.slopeKgPerSecond
+        let crossingDate = Date(timeIntervalSinceReferenceDate: fit.t0.timeIntervalSinceReferenceDate + deltaSeconds)
+        let horizon = calendar.date(byAdding: .day, value: maxHorizonDays, to: startDate)
+            ?? startDate.addingTimeInterval(TimeInterval(maxHorizonDays) * 86_400)
+
+        if crossingDate > startDate, crossingDate <= horizon {
+            // Dense-enough polyline for a smooth Chart animation (daily steps, capped).
+            let totalDays = max(Int(ceil(crossingDate.timeIntervalSince(startDate) / 86_400)), 1)
+            let stepDays = max(totalDays / 24, 1)
+            var cursor = startDate
+            while cursor < crossingDate {
+                cursor = calendar.date(byAdding: .day, value: stepDays, to: cursor)
+                    ?? cursor.addingTimeInterval(TimeInterval(stepDays) * 86_400)
+                if cursor >= crossingDate { break }
+                path.append(HealthMetricSample(value: fit.value(at: cursor), date: cursor))
+            }
+            let crossing = HealthMetricSample(value: ideal, date: crossingDate)
+            path.append(crossing)
+            return WeightTrendProjection(
+                windowSamples: ordered,
+                slopeKgPerDay: slopePerDay,
+                path: path,
+                crossing: crossing
+            )
+        }
+
+        let endValue = fit.value(at: horizon)
+        path.append(HealthMetricSample(value: endValue, date: horizon))
+        return WeightTrendProjection(
+            windowSamples: ordered,
+            slopeKgPerDay: slopePerDay,
+            path: path,
+            crossing: nil
+        )
+    }
+
+    static func filter(_ samples: [HealthMetricSample], range: HealthHistoryRange, now: Date = Date()) -> [HealthMetricSample] {
+        let start = range.startDate(relativeTo: now)
+        return samples
+            .filter { $0.date >= start && $0.date <= now.addingTimeInterval(60) }
+            .sorted { $0.date < $1.date }
+    }
+
+    // MARK: - OLS
+
+    fileprivate struct LinearFit {
+        let t0: Date
+        /// kg per second since `t0`.
+        let slopeKgPerSecond: Double
+        let interceptKg: Double
+
+        func value(at date: Date) -> Double {
+            let x = date.timeIntervalSinceReferenceDate - t0.timeIntervalSinceReferenceDate
+            return interceptKg + slopeKgPerSecond * x
+        }
+    }
+
+    fileprivate static func ordinaryLeastSquares(samples: [HealthMetricSample]) -> LinearFit? {
         guard samples.count >= 2 else { return nil }
         let ordered = samples.sorted { $0.date < $1.date }
-        let t0 = ordered[0].date.timeIntervalSinceReferenceDate
-        let xs = ordered.map { $0.date.timeIntervalSinceReferenceDate - t0 }
+        let t0 = ordered[0].date
+        let xs = ordered.map { $0.date.timeIntervalSinceReferenceDate - t0.timeIntervalSinceReferenceDate }
         let ys = ordered.map(\.value)
         let n = Double(xs.count)
         let sumX = xs.reduce(0, +)
@@ -147,18 +304,6 @@ enum HealthChartMath {
         guard abs(denom) > 1e-9 else { return nil }
         let slope = (n * sumXY - sumX * sumY) / denom
         let intercept = (sumY - slope * sumX) / n
-        let yStart = intercept
-        let yEnd = intercept + slope * (xs.last ?? 0)
-        return (
-            HealthMetricSample(id: UUID(), value: yStart, date: ordered.first!.date),
-            HealthMetricSample(id: UUID(), value: yEnd, date: ordered.last!.date)
-        )
-    }
-
-    static func filter(_ samples: [HealthMetricSample], range: HealthHistoryRange, now: Date = Date()) -> [HealthMetricSample] {
-        let start = range.startDate(relativeTo: now)
-        return samples
-            .filter { $0.date >= start && $0.date <= now.addingTimeInterval(60) }
-            .sorted { $0.date < $1.date }
+        return LinearFit(t0: t0, slopeKgPerSecond: slope, interceptKg: intercept)
     }
 }
