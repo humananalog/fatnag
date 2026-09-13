@@ -1,22 +1,26 @@
 import SwiftUI
 
+/// Home: sparse brand + scan + History. Profile, calibration, and Health copy live in Settings.
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
+
+    private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
+    private let steel = Color(red: 0.42, green: 0.45, blue: 0.50)
 
     var body: some View {
         NavigationStack {
             ZStack {
                 homeAtmosphere
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        brandHeader
-                        privacyCard
-                        profileSummary
-                        discoverySection
-                        homeActions
-                    }
-                    .padding(20)
+                VStack(spacing: 0) {
+                    Spacer(minLength: 12)
+                    brandBlock
+                    Spacer(minLength: 28)
+                    primaryActions
+                    discoveryBlock
+                    Spacer(minLength: 8)
                 }
+                .padding(.horizontal, 28)
+                .padding(.bottom, 20)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -26,6 +30,8 @@ struct ContentView: View {
                             .environmentObject(session)
                     } label: {
                         Image(systemName: "gearshape")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(ink.opacity(0.85))
                     }
                     .accessibilityLabel("Settings")
                 }
@@ -54,110 +60,124 @@ struct ContentView: View {
     private var homeAtmosphere: some View {
         LinearGradient(
             colors: [
-                Color(red: 0.94, green: 0.96, blue: 0.98),
-                Color(red: 0.88, green: 0.91, blue: 0.94),
-                Color(red: 0.96, green: 0.95, blue: 0.92)
+                Color(red: 0.96, green: 0.97, blue: 0.98),
+                Color(red: 0.90, green: 0.92, blue: 0.94),
+                Color(red: 0.86, green: 0.88, blue: 0.90)
             ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            startPoint: .top,
+            endPoint: .bottom
         )
         .ignoresSafeArea()
     }
 
-    private var brandHeader: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 14) {
-                Image("BrandMark")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 56, height: 56)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("The Scale")
-                        .font(.system(size: 36, weight: .semibold, design: .serif))
-                    Text("Mi Body Composition Scale 2")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Text("On-device BLE → Apple Health. Live weigh-in, trend colors, body fat % and lean %, edit before you confirm. After save, weight and fat history charts open.")
-                .font(.system(size: 15, weight: .regular, design: .rounded))
-                .foregroundStyle(.secondary)
+    private var brandBlock: some View {
+        VStack(spacing: 18) {
+            Image("BrandMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 72, height: 72)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .shadow(color: ink.opacity(0.14), radius: 16, y: 6)
+
+            Text("The Scale")
+                .font(.system(size: 42, weight: .semibold, design: .serif))
+                .foregroundStyle(ink)
+                .tracking(-0.6)
+
+            Text("Mi Scale 2 → Apple Health")
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(steel)
+
             if let baseline = session.healthBaselineKg {
-                Text(String(format: "Last Health weight: %.2f kg", baseline))
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            if session.calibration.hasCorrection {
-                Text(session.calibration.summaryLine)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
+                Text(String(format: "%.1f kg", baseline))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(steel.opacity(0.9))
+                    .padding(.top, 2)
             }
         }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(brandAccessibilityLabel)
     }
 
-    private var privacyCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Privacy", systemImage: "lock.shield")
-                .font(.headline)
-            Text("Measurements stay on this iPhone. The Scale reads recent Health weight only for on-device trend, and writes weight / BMI / body fat % / lean mass only after you confirm. Calibration stays on-device. No accounts, no cloud, no analytics.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+    private var brandAccessibilityLabel: String {
+        if let baseline = session.healthBaselineKg {
+            return String(format: "The Scale. Last Health weight %.1f kilograms.", baseline)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        return "The Scale"
     }
 
-    private var profileSummary: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Profile & calibration")
-                    .font(.headline)
-                Spacer()
-                NavigationLink("Settings") {
-                    SettingsView()
-                        .environmentObject(session)
+    private var primaryActions: some View {
+        VStack(spacing: 12) {
+            Button {
+                session.startScanning()
+            } label: {
+                Text(session.phase == .scanning ? "Scanning…" : "Find Scale")
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(ink)
+            .disabled(session.phase == .scanning || session.phase == .healthKitWriting)
+
+            Button {
+                session.reopenResults()
+            } label: {
+                Label("History", systemImage: "chart.xyaxis.line")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 2)
+            }
+            .buttonStyle(.bordered)
+            .tint(ink)
+
+            if session.selectedScaleID != nil {
+                Button {
+                    session.reopenWeighIn()
+                } label: {
+                    Text("Weigh in")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .frame(maxWidth: .infinity)
                 }
-                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.plain)
+                .foregroundStyle(steel)
+                .padding(.top, 4)
             }
-            Text(
-                String(
-                    format: "%.0f cm · %.0f yr · %@ · ref %.2f kg",
-                    session.profile.heightCm,
-                    session.profile.ageYears,
-                    session.profile.sex.title,
-                    session.calibration.referenceMassKg
-                )
-            )
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            Text("Open Settings for height/age/sex. Calibrate by entering a known mass, then weighing it on the live sheet (same screen as a normal weigh-in).")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+
+            if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
+                Text("Saved to Health")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color(red: 0.18, green: 0.48, blue: 0.34))
+            }
+
+            if !session.healthKitAvailable {
+                Text("Health unavailable on this device.")
+                    .font(.caption)
+                    .foregroundStyle(steel)
+            }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private var discoverySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Nearby scales")
-                .font(.headline)
-
-            switch session.phase {
-            case .scanning where session.discoveredScales.isEmpty:
-                ProgressView("Scanning for MIBFS…")
-            case .idle where session.discoveredScales.isEmpty:
-                Text("Tap Find Scale, then step near the Mi Scale 2. Selecting a scale opens the live weigh-in sheet.")
-                    .foregroundStyle(.secondary)
-            default:
-                if session.discoveredScales.isEmpty {
-                    Text("No scales yet.")
-                        .foregroundStyle(.secondary)
-                } else {
+    @ViewBuilder
+    private var discoveryBlock: some View {
+        switch session.phase {
+        case .scanning where session.discoveredScales.isEmpty:
+            ProgressView()
+                .padding(.top, 28)
+                .tint(ink)
+        case .bluetoothUnavailable(let message):
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(Color(red: 0.55, green: 0.12, blue: 0.12))
+                .multilineTextAlignment(.center)
+                .padding(.top, 24)
+        default:
+            if session.discoveredScales.isEmpty {
+                EmptyView()
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(session.discoveredScales) { scale in
                         Button {
                             session.selectScale(scale)
@@ -165,81 +185,26 @@ struct ContentView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(scale.name)
-                                        .foregroundStyle(.primary)
+                                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(ink)
                                     Text("RSSI \(scale.rssi) dBm")
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(steel)
                                 }
                                 Spacer()
                                 if session.selectedScaleID == scale.id {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.tint)
+                                        .foregroundStyle(ink)
                                 }
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, 14)
+                        }
+                        if scale.id != session.discoveredScales.last?.id {
+                            Divider().opacity(0.35)
                         }
                     }
                 }
-            }
-
-            if case .bluetoothUnavailable(let message) = session.phase {
-                Text(message)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-            if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
-                Label("Last confirm saved to Apple Health", systemImage: "checkmark.seal.fill")
-                    .foregroundStyle(.green)
-                Button {
-                    session.reopenResults()
-                } label: {
-                    Label("Open history charts", systemImage: "chart.xyaxis.line")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    private var homeActions: some View {
-        VStack(spacing: 12) {
-            Button {
-                session.startScanning()
-            } label: {
-                Label(
-                    session.phase == .scanning ? "Scanning…" : "Find Scale",
-                    systemImage: "dot.radiowaves.left.and.right"
-                )
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(session.phase == .scanning || session.phase == .healthKitWriting)
-
-            if session.selectedScaleID != nil {
-                Button {
-                    session.reopenWeighIn()
-                } label: {
-                    Label("Open live weigh-in", systemImage: "scalemass")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Button {
-                session.beginCalibrationWeighIn()
-            } label: {
-                Label("Calibrate with live sheet", systemImage: "slider.horizontal.3")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-
-            if !session.healthKitAvailable {
-                Text("HealthKit unavailable in this environment (expected on Simulator without Health).")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .padding(.top, 28)
             }
         }
     }

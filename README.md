@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 1.5.0  
+**Version:** 1.6.0  
 **Target device:** iPhone 15 (iOS 17+)  
 **Deployment target:** iOS 17.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -16,9 +16,10 @@ Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model
 4. Reads recent **Apple Health** body-mass history (on-device) and colors the sheet by trend vs last weight: **green** loss, **yellow** stable (±0.2 kg), **red** gain
 5. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
 6. Lets you **edit** weight / fat % / lean % **before** confirm
-7. **Calibration uses the same live sheet**: enter reference mass (default example **5 kg**), open live sheet, weigh that mass, store offset/factor on-device. Settings holds reference mass + reset; not a separate capture-only flow
-8. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
-9. After a successful Health save, opens a **History** screen with two animated Swift Charts (weight kg + body fat %) over selectable ranges (default **Last 2 weeks**). Ideal weight from Settings floors the weight chart Y-axis and draws the Ideal reference line.
+7. **Home** is sparse: brand, **Find Scale**, **History**, optional **Weigh in**. Profile, ideal weight, calibration, and Health permissions copy live under the gear (**Settings**)
+8. **Calibration uses the same live sheet** (from Settings): enter reference mass, open live sheet, weigh that mass, store offset/factor on-device
+9. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
+10. After a successful Health save (and anytime via home **History**), opens charts for weight kg + body fat % (default **Last 2 weeks**). Ideal weight from Settings floors the weight chart Y-axis and draws the Ideal reference line.
 
 No accounts, no backend, no analytics, no third-party cloud.
 
@@ -140,15 +141,13 @@ BLE advertisements and HealthKit need a **physical iPhone**. The Simulator will 
 
 ### First weigh-in
 
-1. Open **Settings** (gear): set height, age, sex, **ideal weight** (floors the history weight chart), optional ideal body fat %.
-2. Optional calibration: set reference mass (default **5 kg** or Alex’s **7.926 kg**), tap **Weigh reference on live sheet** (or home **Calibrate with live sheet**). Place that mass on the scale, wait for raw kg, tap **Store calibration**. Same live sheet as a normal weigh-in; does not write to Health.
-3. Tap **Find Scale**; look for `MIBFS` / Mi Scale.
-4. Select the scale: the **live weigh-in sheet** opens immediately and streams weight. Body fat % and lean % appear after the barefoot scan. Text must have left/right padding (not flush to the bezel).
-5. Stand **barefoot** until fat % appears. Allow Health read access when prompted so the sheet can color by trend.
-6. Tap **Edit** if any field needs correction. Only **Confirm to Health** writes.
-7. With impedance, Health gets weight + BMI + body fat % + lean mass. Weight-only saves weight + BMI only (confirm prompt).
-8. After a successful save, the **History** screen opens with animated weight and body fat charts (default **2W**). Ranges: 1W, 2W, 1M, 3M, 1Y. Highest / lowest points are labeled; thin dotted trend line + Ideal reference.
-9. Open the Health app → Browse → Body Measurements and confirm values appeared.
+1. Gear → **Settings**: height, age, sex, **ideal weight** (floors the history weight chart), optional ideal body fat %.
+2. Optional calibration (Settings only): set reference mass (default **5 kg** or Alex’s **7.926 kg**), tap **Weigh reference on live sheet**. Place that mass, wait for raw kg, tap **Store calibration**. Same live sheet as a normal weigh-in; does not write to Health.
+3. Home → **Find Scale**; select `MIBFS` / Mi Scale → live weigh-in opens.
+4. Stand **barefoot** until fat % / lean % appear. Allow Health read when prompted for trend colors.
+5. **Edit** if needed; only **Confirm to Health** writes.
+6. After save, **History** opens (also reachable anytime from home **History**). Ranges: 1W, 2W (default), 1M, 3M, 1Y.
+7. Health app → Browse → Body Measurements to verify.
 
 ### Unit tests (Mac)
 
@@ -188,4 +187,4 @@ scripts/
 
 ## Version
 
-Marketing version **1.5.0** / build **13**. Bump both in the Xcode target when shipping changes.
+Marketing version **1.6.0** / build **14**. Bump both in the Xcode target when shipping changes.

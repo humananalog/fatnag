@@ -138,7 +138,7 @@ struct SettingsView: View {
             Label("Weight calibration", systemImage: "slider.horizontal.3")
                 .font(.headline)
 
-            Text("Enter the true mass first, then open the live sheet and weigh that mass. Store the correction there. Same screen as a normal weigh-in.")
+            Text("Enter the true mass, open the live sheet, weigh it, then store. Same screen as a normal weigh-in.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -276,10 +276,13 @@ struct SettingsView: View {
 
     private var privacyCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Privacy", systemImage: "lock.shield")
+            Label("Privacy & Health", systemImage: "lock.shield")
                 .font(.headline)
-            Text("Calibration, profile, and measurements stay on this iPhone. HealthKit is the only destination after you confirm a weigh-in. No accounts, no cloud, no analytics.")
+            Text("Profile, calibration, and readings stay on this iPhone. Health is read for trend and history charts, and written only after you confirm. No accounts, no cloud, no analytics.")
                 .font(.footnote)
+                .foregroundStyle(.secondary)
+            Text("If permissions were denied: Settings → Health → Data Access → The Scale.")
+                .font(.caption2)
                 .foregroundStyle(.secondary)
         }
         .padding(16)
