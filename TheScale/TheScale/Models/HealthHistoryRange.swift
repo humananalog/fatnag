@@ -99,6 +99,28 @@ struct WeightTrendProjection: Equatable, Sendable {
     var reachesTarget: Bool { crossing != nil }
 }
 
+/// Medically tempered projection toward the user's target weight.
+///
+/// Combines OLS on recent Health mass samples with a capped safe rate
+/// (about 0.5–1% body weight per week, max 1 kg/week loss) and soft
+/// confidence from optional fitness digests (resting HR, steps, sleep).
+struct ScientificWeightProjection: Equatable, Sendable {
+    let windowSamples: [HealthMetricSample]
+    /// Raw OLS slope from History (kg/day).
+    let observedSlopeKgPerDay: Double
+    /// Slope used for the tempered path to target (kg/day).
+    let temperedSlopeKgPerDay: Double
+    /// Short forward stub of the *observed* rate (may miss the target).
+    let observedPath: [HealthMetricSample]
+    /// Path toward target at the medically tempered rate.
+    let temperedPath: [HealthMetricSample]
+    let crossing: HealthMetricSample?
+    /// 0...1 qualitative confidence from sample count + fitness signals.
+    let confidence: Double
+    let methodSummary: String
+    let notes: [String]
+}
+
 /// Pure helpers for chart domain, extrema labels, and Trend projection.
 enum HealthChartMath {
     /// Sort ascending and collapse near-duplicate timestamps so AreaMark / LineMark
@@ -321,6 +343,188 @@ enum HealthChartMath {
             path: path,
             crossing: nil
         )
+    }
+
+    /// Scientific, medically tempered projection to `idealKg`.
+    ///
+    /// **Algorithm:**
+    /// 1. Adaptive window: prefer last 42 days if ≥4 samples, else last 14, else all (≥2).
+    /// 2. OLS slope on that window (observed rate).
+    /// 3. Safe rate toward target: ≤ `TargetFeasibility.maxSafeLoss/GainKgPerWeek`.
+    /// 4. If observed rate aims at target and is within the safe band, use it; else temper.
+    /// 5. Soft modulators from `FitnessDigest` (elevated resting HR / very low steps
+    ///    reduce confidence and slightly slow the tempered rate).
+    /// 6. Build a polyline to the target (or horizon) at the tempered slope.
+    static func scientificProjectWeight(
+        samples: [HealthMetricSample],
+        idealKg: Double,
+        currentKg: Double?,
+        heightCm: Double,
+        sex: UserBodyProfile.Sex,
+        digest: FitnessDigest? = nil,
+        now: Date = Date(),
+        maxHorizonDays: Int = 730,
+        calendar: Calendar = .current
+    ) -> ScientificWeightProjection? {
+        let series = chartSeries(samples)
+        let window = adaptiveProjectionWindow(series, now: now, calendar: calendar)
+        guard window.count >= 2, let fit = ordinaryLeastSquares(samples: window) else {
+            return nil
+        }
+
+        let ideal = max(idealKg, 1)
+        let last = window.last!
+        let startKg = currentKg ?? last.value
+        let observedSlopePerDay = fit.slopeKgPerSecond * 86_400
+        let startDate = max(last.date, now)
+
+        var notes: [String] = []
+        var confidence = min(1.0, 0.35 + 0.08 * Double(window.count))
+        var rateScale = 1.0
+
+        if let digest {
+            if let rhr = digest.restingHeartRateBpm, rhr >= 85 {
+                confidence *= 0.85
+                rateScale *= 0.9
+                notes.append("Resting HR elevated; tempered pace slowed slightly.")
+            }
+            if let steps = digest.stepsToday, steps < 3_000 {
+                confidence *= 0.9
+                rateScale *= 0.92
+                notes.append("Low step count today; sustainable deficit may be harder.")
+            }
+            if let hours = digest.sleepHoursLastNight, hours < 5.5 {
+                confidence *= 0.88
+                rateScale *= 0.9
+                notes.append("Short sleep; recovery-limited pace.")
+            }
+        }
+
+        let towardLower = startKg > ideal + 0.05
+        let towardHigher = startKg < ideal - 0.05
+        let safeLossPerDay = TargetFeasibility.maxSafeLossKgPerWeek(currentKg: startKg) / 7.0 * rateScale
+        let safeGainPerDay = TargetFeasibility.maxSafeGainKgPerWeek(currentKg: startKg) / 7.0 * rateScale
+
+        let temperedSlopePerDay: Double = {
+            if abs(startKg - ideal) < 0.05 { return 0 }
+            if towardLower {
+                // Need negative slope. Cap magnitude at safe loss.
+                let desired = -safeLossPerDay
+                if observedSlopePerDay < 0 {
+                    // Observed already losing: use the gentler of observed vs safe (less aggressive).
+                    return max(observedSlopePerDay, desired)
+                }
+                return desired
+            }
+            if towardHigher {
+                let desired = safeGainPerDay
+                if observedSlopePerDay > 0 {
+                    return min(observedSlopePerDay, desired)
+                }
+                return desired
+            }
+            return 0
+        }()
+
+        if towardLower, observedSlopePerDay < -safeLossPerDay - 0.001 {
+            notes.append(
+                String(format: "Observed loss faster than ~%.1f kg/wk safe band; projection tempered.", safeLossPerDay * 7)
+            )
+        }
+        if towardLower, observedSlopePerDay >= -0.0005 {
+            notes.append("Recent trend is flat or up; projection uses a safe loss rate toward target.")
+        }
+        if towardHigher, observedSlopePerDay <= 0.0005 {
+            notes.append("Recent trend is flat or down; projection uses a modest gain rate toward target.")
+        }
+
+        // Observed stub (7–21 days of raw OLS)
+        var observedPath: [HealthMetricSample] = [
+            HealthMetricSample(id: last.id, value: last.value, date: last.date)
+        ]
+        let obsEnd = calendar.date(byAdding: .day, value: 14, to: startDate)
+            ?? startDate.addingTimeInterval(14 * 86_400)
+        observedPath.append(HealthMetricSample(value: fit.value(at: startDate), date: startDate))
+        observedPath.append(HealthMetricSample(value: fit.value(at: obsEnd), date: obsEnd))
+
+        // Tempered path to target
+        var temperedPath: [HealthMetricSample] = [
+            HealthMetricSample(id: last.id, value: last.value, date: last.date)
+        ]
+        if abs(startDate.timeIntervalSince(last.date)) > 1 {
+            temperedPath.append(HealthMetricSample(value: startKg, date: startDate))
+        }
+
+        var crossing: HealthMetricSample?
+        if abs(startKg - ideal) < 0.05 {
+            crossing = HealthMetricSample(value: ideal, date: startDate)
+            temperedPath.append(crossing!)
+        } else if abs(temperedSlopePerDay) > 1e-6 {
+            let daysNeeded = (ideal - startKg) / temperedSlopePerDay
+            let horizon = calendar.date(byAdding: .day, value: maxHorizonDays, to: startDate)
+                ?? startDate.addingTimeInterval(TimeInterval(maxHorizonDays) * 86_400)
+            if daysNeeded > 0 {
+                let crossDate = startDate.addingTimeInterval(daysNeeded * 86_400)
+                if crossDate <= horizon {
+                    let totalDays = max(Int(ceil(daysNeeded)), 1)
+                    let stepDays = max(totalDays / 24, 1)
+                    var cursor = startDate
+                    while cursor < crossDate {
+                        cursor = calendar.date(byAdding: .day, value: stepDays, to: cursor)
+                            ?? cursor.addingTimeInterval(TimeInterval(stepDays) * 86_400)
+                        if cursor >= crossDate { break }
+                        let y = startKg + temperedSlopePerDay * cursor.timeIntervalSince(startDate) / 86_400
+                        temperedPath.append(HealthMetricSample(value: y, date: cursor))
+                    }
+                    crossing = HealthMetricSample(value: ideal, date: crossDate)
+                    temperedPath.append(crossing!)
+                } else {
+                    let y = startKg + temperedSlopePerDay * horizon.timeIntervalSince(startDate) / 86_400
+                    temperedPath.append(HealthMetricSample(value: y, date: horizon))
+                    notes.append("Target beyond \(maxHorizonDays)-day horizon at a safe pace.")
+                }
+            }
+        }
+
+        let method = String(
+            format: "OLS on %d Health weights (adaptive window) + safe rate ≤ %.2f kg/wk; confidence %.0f%%.",
+            window.count,
+            towardLower ? safeLossPerDay * 7 : safeGainPerDay * 7,
+            confidence * 100
+        )
+
+        // Silence unused sex for now (reserved for future lean-mass-aware models).
+        _ = sex
+        _ = heightCm
+
+        return ScientificWeightProjection(
+            windowSamples: window,
+            observedSlopeKgPerDay: observedSlopePerDay,
+            temperedSlopeKgPerDay: temperedSlopePerDay,
+            observedPath: observedPath,
+            temperedPath: temperedPath,
+            crossing: crossing,
+            confidence: confidence,
+            methodSummary: method,
+            notes: notes
+        )
+    }
+
+    /// Prefer 42-day window with enough points; fall back to 14 days; else all samples.
+    static func adaptiveProjectionWindow(
+        _ samples: [HealthMetricSample],
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [HealthMetricSample] {
+        let ordered = chartSeries(samples)
+        guard !ordered.isEmpty else { return [] }
+        let day42 = calendar.date(byAdding: .day, value: -42, to: now) ?? now.addingTimeInterval(-42 * 86_400)
+        let day14 = calendar.date(byAdding: .day, value: -14, to: now) ?? now.addingTimeInterval(-14 * 86_400)
+        let w42 = ordered.filter { $0.date >= day42 }
+        if w42.count >= 4 { return w42 }
+        let w14 = ordered.filter { $0.date >= day14 }
+        if w14.count >= 2 { return w14 }
+        return ordered
     }
 
     static func filter(_ samples: [HealthMetricSample], range: HealthHistoryRange, now: Date = Date()) -> [HealthMetricSample] {

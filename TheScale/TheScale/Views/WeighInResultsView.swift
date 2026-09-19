@@ -29,6 +29,10 @@ struct WeighInResultsView: View {
         )
     }
 
+    private var scientificProjection: ScientificWeightProjection? {
+        session.scientificWeightProjection()
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             topBar
@@ -143,23 +147,29 @@ struct WeighInResultsView: View {
 
             HStack(spacing: 10) {
                 Toggle(isOn: $showTrend.animation(.spring(response: 0.7, dampingFraction: 0.84))) {
-                    Text("Trend")
+                    Text("Observed")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(atmosphere.accent.opacity(0.85))
                 }
                 .toggleStyle(.switch)
                 .labelsHidden()
-                .accessibilityLabel("Trend projection to ideal weight")
+                .accessibilityLabel("Show observed OLS trend stub")
                 .onChange(of: showTrend) { _, _ in
                     selectedWeightDate = nil
                     selectedFatDate = nil
                 }
 
-                Text("Trend")
+                Text("Observed")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
 
-                if showTrend, let projection = weightProjection {
+                if let sci = scientificProjection {
+                    Text(trendCaptionScientific(sci))
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(atmosphere.accent.opacity(0.65))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                } else if showTrend, let projection = weightProjection {
                     Text(trendCaption(projection))
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(atmosphere.accent.opacity(0.65))
@@ -175,11 +185,25 @@ struct WeighInResultsView: View {
 
     private var chartsColumn: some View {
         let projection = weightProjection
-        let projectedValues = projection?.path.map(\.value) ?? []
+        let scientific = scientificProjection
+        let projectedValues =
+            (scientific?.temperedPath.map(\.value) ?? [])
+            + (scientific?.observedPath.map(\.value) ?? [])
+            + (projection?.path.map(\.value) ?? [])
 
         return VStack(spacing: 12) {
-            weightChartCard(projection: projection, projectedValues: projectedValues)
+            weightChartCard(
+                projection: projection,
+                scientific: scientific,
+                projectedValues: projectedValues
+            )
             bodyFatChartCard
+            if let scientific, !scientific.notes.isEmpty {
+                Text(scientific.methodSummary)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(atmosphere.accent.opacity(0.5))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .opacity(chartReveal ? 1 : 0.2)
@@ -191,6 +215,7 @@ struct WeighInResultsView: View {
 
     private func weightChartCard(
         projection: WeightTrendProjection?,
+        scientific: ScientificWeightProjection?,
         projectedValues: [Double]
     ) -> some View {
         let samples = HealthChartMath.chartSeries(session.historyWeights)
@@ -200,11 +225,16 @@ struct WeighInResultsView: View {
             idealKg: session.profile.idealWeightKg,
             extraValues: projectedValues
         )
-        let xDomain = weightXDomain(samples: samples, projection: projection)
+        let xDomain = weightXDomain(
+            samples: samples,
+            projection: projection,
+            scientific: scientific
+        )
         let selected = selectedWeightDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
         let floorY = domain.lowerBound
+        let targetKg = session.profile.idealWeightKg
 
         return metricScaffold(
             title: "Weight",
@@ -215,13 +245,13 @@ struct WeighInResultsView: View {
             emptyCopy: "No weight samples in this range."
         ) {
             Chart {
-                RuleMark(y: .value("Ideal", session.profile.idealWeightKg))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    .foregroundStyle(atmosphere.accent.opacity(0.45))
+                RuleMark(y: .value("Target", targetKg))
+                    .lineStyle(StrokeStyle(lineWidth: 1.4, dash: [5, 4]))
+                    .foregroundStyle(atmosphere.accent.opacity(0.55))
                     .annotation(position: .top, alignment: .trailing) {
-                        Text("Ideal")
+                        Text(String(format: "Target %.1f", targetKg))
                             .font(.system(size: 9, weight: .semibold, design: .rounded))
-                            .foregroundStyle(atmosphere.accent.opacity(0.55))
+                            .foregroundStyle(atmosphere.accent.opacity(0.65))
                             .padding(.trailing, 2)
                     }
 
@@ -263,7 +293,54 @@ struct WeighInResultsView: View {
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
                 }
 
-                if let projection, showTrend {
+                // Always-on medically tempered projection to Target.
+                if let scientific {
+                    ForEach(Array(scientific.temperedPath.enumerated()), id: \.offset) { _, point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value("Weight", point.value),
+                            series: .value("Series", "Projected")
+                        )
+                        .lineStyle(StrokeStyle(lineWidth: 2.2, dash: [6, 4]))
+                        .foregroundStyle(atmosphere.accent.opacity(0.7))
+                        .interpolationMethod(.linear)
+                    }
+
+                    if let crossing = scientific.crossing {
+                        PointMark(
+                            x: .value("Date", crossing.date),
+                            y: .value("Weight", crossing.value)
+                        )
+                        .symbolSize(64)
+                        .foregroundStyle(atmosphere.accent)
+                        .annotation(position: .top, spacing: 6) {
+                            VStack(spacing: 2) {
+                                Text("Projected")
+                                Text(crossing.date, format: .dateTime.month(.abbreviated).day().year())
+                                Text(String(format: "%.1f kg", crossing.value))
+                            }
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(atmosphere.accent)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                    }
+                }
+
+                if showTrend, let scientific {
+                    ForEach(Array(scientific.observedPath.enumerated()), id: \.offset) { _, point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value("Weight", point.value),
+                            series: .value("Series", "Observed")
+                        )
+                        .lineStyle(StrokeStyle(lineWidth: 1.6, dash: [2, 3]))
+                        .foregroundStyle(atmosphere.accent.opacity(0.4))
+                        .interpolationMethod(.linear)
+                    }
+                } else if let projection, showTrend {
                     ForEach(Array(projection.path.enumerated()), id: \.offset) { _, point in
                         LineMark(
                             x: .value("Date", point.date),
@@ -356,7 +433,7 @@ struct WeighInResultsView: View {
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                         .foregroundStyle(atmosphere.accent.opacity(0.45))
                         .annotation(position: .top, alignment: .trailing) {
-                            Text("Ideal")
+                            Text("Target")
                                 .font(.system(size: 9, weight: .semibold, design: .rounded))
                                 .foregroundStyle(atmosphere.accent.opacity(0.55))
                                 .padding(.trailing, 2)
@@ -545,11 +622,15 @@ struct WeighInResultsView: View {
 
     private func weightXDomain(
         samples: [HealthMetricSample],
-        projection: WeightTrendProjection?
+        projection: WeightTrendProjection?,
+        scientific: ScientificWeightProjection?
     ) -> ClosedRange<Date> {
         let sampleDates = samples.map(\.date)
         let projectionDates = (showTrend ? projection?.path.map(\.date) : nil) ?? []
-        let all = sampleDates + projectionDates
+        let scientificDates =
+            (scientific?.temperedPath.map(\.date) ?? [])
+            + (showTrend ? (scientific?.observedPath.map(\.date) ?? []) : [])
+        let all = sampleDates + projectionDates + scientificDates
         guard let lo = all.min(), let hi = all.max() else {
             let now = Date()
             return now.addingTimeInterval(-7 * 86_400)...now
@@ -559,6 +640,14 @@ struct WeighInResultsView: View {
         }
         let pad = max(hi.timeIntervalSince(lo) * 0.04, 3_600)
         return lo.addingTimeInterval(-pad)...hi.addingTimeInterval(pad)
+    }
+
+    private func trendCaptionScientific(_ projection: ScientificWeightProjection) -> String {
+        if let crossing = projection.crossing {
+            let day = crossing.date.formatted(.dateTime.month(.abbreviated).day())
+            return String(format: "Projected → %.1f · %@", crossing.value, day)
+        }
+        return "Projected (safe pace)"
     }
 
     private func trendCaption(_ projection: WeightTrendProjection) -> String {

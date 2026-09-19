@@ -54,13 +54,14 @@ final class CoachChatController: ObservableObject {
                 text: """
                 \(who). Coach here (one voice; specialists stay backstage).
                 Tell me habits like "I'm doing intermittent fasting" and I'll remember them on-device for diet tweaks.
+                Say a target like "I want to get to 80 kg" and I'll update your chart target if it is medically sensible.
                 Dark humour included. Health stays on-device until you consent to Grok.
                 """
             )
         ]
     }
 
-    func send(brief: CoachBrief) async {
+    func send(session: ScaleSessionViewModel) async {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isSending else { return }
         draft = ""
@@ -68,9 +69,40 @@ final class CoachChatController: ObservableObject {
         for fact in CoachMemoryExtractor.extract(from: text) {
             CoachMemoryStore.remember(fact)
         }
+
+        // Gate + apply stated weight / body-fat targets before Grok sees the brief.
+        let targetResults = session.processCoachStatedTargets(from: text)
         rememberedCount = CoachMemoryStore.load().count
 
-        let briefWithMemory = CoachBrief(
+        turns.append(CoachChatTurn(kind: .user, text: text))
+        for result in targetResults {
+            turns.append(
+                CoachChatTurn(
+                    kind: .assistant,
+                    agent: .orchestrator,
+                    text: result.coachNote,
+                    usedNetwork: false
+                )
+            )
+        }
+
+        let brief = session.makeCoachBrief()
+        let targetContext: String = {
+            guard !targetResults.isEmpty else { return "" }
+            let lines = targetResults.map { r -> String in
+                switch r.verdict {
+                case .accepted:
+                    return "Target applied: \(r.coachNote)"
+                case .acceptedWithCaution:
+                    return "Target applied with caution: \(r.coachNote)"
+                case .rejected:
+                    return "Target REJECTED (do not store; reinforce this warning): \(r.coachNote)"
+                }
+            }
+            return "\n\nTarget gate (on-device, honour this):\n" + lines.joined(separator: "\n")
+        }()
+
+        let briefWithExtras = CoachBrief(
             userName: brief.userName,
             diet: brief.diet,
             currentKg: brief.currentKg,
@@ -81,11 +113,10 @@ final class CoachChatController: ObservableObject {
             weekDeltaKg: brief.weekDeltaKg,
             weeklyGoal: brief.weeklyGoal,
             personaBlock: brief.personaBlock,
-            memoryBlock: CoachMemoryStore.promptBlock(),
+            memoryBlock: brief.memoryBlock + targetContext,
             fitnessDigestBlock: brief.fitnessDigestBlock
         )
 
-        turns.append(CoachChatTurn(kind: .user, text: text))
         let assistantID = UUID()
         turns.append(
             CoachChatTurn(
@@ -104,7 +135,7 @@ final class CoachChatController: ObservableObject {
 
         await GrokClient.shared.chatStreaming(
             userText: text,
-            brief: briefWithMemory,
+            brief: briefWithExtras,
             history: historySnapshot
         ) { [weak self] reply in
             guard let self else { return }
@@ -121,8 +152,8 @@ final class CoachChatController: ObservableObject {
         }
 
         if let idx = turns.firstIndex(where: { $0.id == assistantID }) {
-            var finished = turns[idx]
-            finished = CoachChatTurn(
+            let finished = turns[idx]
+            turns[idx] = CoachChatTurn(
                 id: assistantID,
                 kind: .assistant,
                 agent: .orchestrator,
@@ -131,7 +162,6 @@ final class CoachChatController: ObservableObject {
                 isFailure: finished.isFailure,
                 isStreaming: false
             )
-            turns[idx] = finished
         }
     }
 }

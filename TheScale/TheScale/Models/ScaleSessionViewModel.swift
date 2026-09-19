@@ -391,6 +391,66 @@ final class ScaleSessionViewModel: ObservableObject {
         )
     }
 
+    /// Parse Coach chat for stated weight / body-fat targets, gate medically, update profile when safe.
+    @discardableResult
+    func processCoachStatedTargets(from userText: String) -> [TargetFeasibilityResult] {
+        let stated = CoachTargetExtractor.extract(from: userText)
+        guard !stated.isEmpty else { return [] }
+        let currentKg = healthBaselineKg ?? displayWeightKg
+        let currentFat = historyBodyFatPercents.last?.value ?? displayBodyFatPercent
+        var results: [TargetFeasibilityResult] = []
+        var next = profile
+        for target in stated {
+            let result = TargetFeasibility.evaluate(
+                stated: target,
+                profile: next,
+                currentKg: currentKg,
+                currentBodyFatPercent: currentFat
+            )
+            results.append(result)
+            switch result.verdict {
+            case .accepted, .acceptedWithCaution:
+                if let kg = result.appliedWeightKg {
+                    next.idealWeightKg = kg
+                }
+                if let fat = result.appliedBodyFatPercent {
+                    next.idealBodyFatPercent = fat
+                }
+                CoachMemoryStore.remember(
+                    CoachMemoryFact(
+                        text: result.coachNote,
+                        tags: ["target"]
+                    )
+                )
+            case .rejected:
+                CoachMemoryStore.remember(
+                    CoachMemoryFact(
+                        text: "Rejected unsafe target: \(result.coachNote)",
+                        tags: ["target", "safety"]
+                    )
+                )
+            }
+        }
+        if next != profile {
+            profile = next
+        }
+        return results
+    }
+
+    /// Scientific tempered projection for History charts (always-on Target path).
+    func scientificWeightProjection(now: Date = Date()) -> ScientificWeightProjection? {
+        let samples = historyWeights.isEmpty ? historyTrendWindowWeights : historyWeights
+        return HealthChartMath.scientificProjectWeight(
+            samples: samples,
+            idealKg: profile.idealWeightKg,
+            currentKg: healthBaselineKg ?? displayWeightKg ?? historyWeights.last?.value,
+            heightCm: profile.heightCm,
+            sex: profile.sex,
+            digest: lastFitnessDigest,
+            now: now
+        )
+    }
+
     func requestOrchestratorCoach() async -> CoachReply {
         await GrokClient.shared.orchestrate(brief: makeCoachBrief())
     }

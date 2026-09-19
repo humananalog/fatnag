@@ -103,7 +103,7 @@ struct SettingsView: View {
             }
 
             HStack {
-                Text("Ideal weight")
+                Text("Target weight")
                 Spacer()
                 TextField(
                     "kg",
@@ -117,7 +117,7 @@ struct SettingsView: View {
             }
 
             HStack {
-                Text("Ideal body fat")
+                Text("Target body fat")
                 Spacer()
                 TextField(
                     "%",

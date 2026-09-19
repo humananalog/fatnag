@@ -43,7 +43,7 @@ struct CoachChatView: View {
             Button("Cancel", role: .cancel) {}
             Button("Agree & send") {
                 GrokPrivacyConsent.isAccepted = true
-                Task { await chat.send(brief: session.makeCoachBrief()) }
+                Task { await chat.send(session: session) }
             }
         } message: {
             Text("Only this chat plus a short weight/fat/fitness digest go to the shared Grok backend. Memory stays on-device except the facts relevant to the ask. No per-user API key.")
@@ -176,7 +176,7 @@ struct CoachChatView: View {
                 if GrokSharedConfig.isLiveConfigured && !GrokPrivacyConsent.isAccepted {
                     showPrivacyGate = true
                 } else {
-                    Task { await chat.send(brief: session.makeCoachBrief()) }
+                    Task { await chat.send(session: session) }
                 }
             } label: {
                 Image(systemName: chat.isSending ? "hourglass" : "arrow.up")

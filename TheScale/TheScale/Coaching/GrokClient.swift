@@ -56,6 +56,8 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
             \(Self.voiceRules)
             Match their persona (location, ethnicity, language, cultural vibe) without stereotyping.
             Honour remembered user facts (e.g. intermittent fasting) when adjusting diet advice.
+            If the user states a weight or body-fat target, the app may have already gated it on-device.
+            Honour "Target gate" notes in context: if a target was rejected as unsafe, push back and suggest the safer waypoint. Do not encourage essential-floor body-fat crashes.
             Ask clarifying questions when diet tweaks need more detail.
             End with one concrete next action. Produce ONE coherent answer. No multi-agent dump.
             """
