@@ -29,7 +29,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - Does not write to Health
 
 ### History / charts / Trend / projection
-- Charts from Apple Health `bodyMass` + `bodyFatPercentage` (ranges 1W–1Y; default 2W)
+- Charts from Apple Health `bodyMass` + `bodyFatPercentage` (ranges 1W-1Y; default 2W)
 - Ideal line from Settings; Y domain never clips real samples
 - **Trend** toggle: OLS on last 14 days, projects to ideal with safe kg/wk caps
 - Tap a point for its value
@@ -195,9 +195,9 @@ Mi Scale 2 **broadcasts**; no pairing required for a live reading.
 |-------------------------------|---------|
 | 0 | Unit (`bit0` lbs; else kg) |
 | 1 | Flags: impedance / stabilized / weight removed |
-| 2–8 | Timestamp |
-| 9–10 | Impedance ohms (LE uint16) |
-| 11–12 | Weight raw (LE uint16): ÷200 → kg |
+| 2-8 | Timestamp |
+| 9-10 | Impedance ohms (LE uint16) |
+| 11-12 | Weight raw (LE uint16): ÷200 → kg |
 
 Composition numbers are reverse-engineered estimates, not clinical lab values. Not medical advice.
 
