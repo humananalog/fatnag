@@ -23,6 +23,7 @@ struct SettingsView: View {
                 grokCard
                 calibrationCard
                 privacyCard
+                legalCard
             }
             .padding(20)
         }
@@ -500,6 +501,22 @@ struct SettingsView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var legalCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Legal", systemImage: "doc.text")
+                .font(.headline)
+            Text(CoachCopySanitize.medicalDisclaimer)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("Shown once during onboarding. Coach chat does not repeat this.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.55), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var modeHelpText: String {

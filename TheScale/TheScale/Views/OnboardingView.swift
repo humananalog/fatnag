@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// First-launch profile: name, body basics, ideal weight, diet. On-device only.
+/// First-launch profile: name, body basics, ideal weight, diet, persona, then one medical disclaimer.
 struct OnboardingView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @State private var name: String = ""
@@ -15,6 +15,7 @@ struct OnboardingView: View {
     @State private var culturalVibe: String = ""
     @State private var step = 0
 
+    private let lastStep = 4
     private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
     private let steel = Color(red: 0.42, green: 0.45, blue: 0.50)
 
@@ -46,14 +47,16 @@ struct OnboardingView: View {
                         bodyStep
                     case 2:
                         goalsStep
-                    default:
+                    case 3:
                         personaStep
+                    default:
+                        legalStep
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
                 Button(action: advance) {
-                    Text(step < 3 ? "Continue" : "Let's go")
+                    Text(step < lastStep ? "Continue" : "I understand")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -82,7 +85,8 @@ struct OnboardingView: View {
         case 0: return "What should we call you?"
         case 1: return "Body basics for on-device fat math."
         case 2: return "Ideal weight + how you eat."
-        default: return "Coach persona (optional, editable later)."
+        case 3: return "Coach persona (optional, editable later)."
+        default: return "One legal note (won't spam your chat)."
         }
     }
 
@@ -147,6 +151,18 @@ struct OnboardingView: View {
         }
     }
 
+    private var legalStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(CoachCopySanitize.medicalDisclaimer)
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .foregroundStyle(ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("You'll find the same note quietly under Settings → Legal. Coach answers won't paste it again.")
+                .font(.footnote)
+                .foregroundStyle(steel)
+        }
+    }
+
     private func fieldRow(_ title: String, unit: String, value: Binding<Double>, fraction: Int) -> some View {
         HStack {
             Text(title)
@@ -165,7 +181,7 @@ struct OnboardingView: View {
     }
 
     private func advance() {
-        if step < 3 {
+        if step < lastStep {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
                 step += 1
             }

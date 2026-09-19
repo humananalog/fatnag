@@ -9,9 +9,10 @@ struct CoachChatTurn: Identifiable, Equatable, Sendable {
     let id: UUID
     let kind: Kind
     let agent: CoachAgentRole?
-    let text: String
+    var text: String
     let usedNetwork: Bool
     let isFailure: Bool
+    let isStreaming: Bool
     let createdAt: Date
 
     init(
@@ -21,6 +22,7 @@ struct CoachChatTurn: Identifiable, Equatable, Sendable {
         text: String,
         usedNetwork: Bool = false,
         isFailure: Bool = false,
+        isStreaming: Bool = false,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -29,6 +31,7 @@ struct CoachChatTurn: Identifiable, Equatable, Sendable {
         self.text = text
         self.usedNetwork = usedNetwork
         self.isFailure = isFailure
+        self.isStreaming = isStreaming
         self.createdAt = createdAt
     }
 }
@@ -51,7 +54,7 @@ final class CoachChatController: ObservableObject {
                 text: """
                 \(who). Coach here (one voice; specialists stay backstage).
                 Tell me habits like "I'm doing intermittent fasting" and I'll remember them on-device for diet tweaks.
-                Dark humour included; reckless medical advice is not. Health stays on-device until you consent to Grok.
+                Dark humour included. Health stays on-device until you consent to Grok.
                 """
             )
         ]
@@ -83,22 +86,52 @@ final class CoachChatController: ObservableObject {
         )
 
         turns.append(CoachChatTurn(kind: .user, text: text))
+        let assistantID = UUID()
+        turns.append(
+            CoachChatTurn(
+                id: assistantID,
+                kind: .assistant,
+                agent: .orchestrator,
+                text: "",
+                usedNetwork: false,
+                isStreaming: true
+            )
+        )
         isSending = true
         defer { isSending = false }
 
-        let reply = await GrokClient.shared.chat(
+        let historySnapshot = turns.filter { $0.id != assistantID }
+
+        await GrokClient.shared.chatStreaming(
             userText: text,
             brief: briefWithMemory,
-            history: turns
-        )
-        turns.append(
-            CoachChatTurn(
+            history: historySnapshot
+        ) { [weak self] reply in
+            guard let self else { return }
+            guard let idx = self.turns.firstIndex(where: { $0.id == assistantID }) else { return }
+            self.turns[idx] = CoachChatTurn(
+                id: assistantID,
                 kind: .assistant,
                 agent: .orchestrator,
                 text: reply.text,
                 usedNetwork: reply.usedNetwork,
-                isFailure: reply.failureReason != nil
+                isFailure: reply.failureReason != nil,
+                isStreaming: true
             )
-        )
+        }
+
+        if let idx = turns.firstIndex(where: { $0.id == assistantID }) {
+            var finished = turns[idx]
+            finished = CoachChatTurn(
+                id: assistantID,
+                kind: .assistant,
+                agent: .orchestrator,
+                text: finished.text,
+                usedNetwork: finished.usedNetwork,
+                isFailure: finished.isFailure,
+                isStreaming: false
+            )
+            turns[idx] = finished
+        }
     }
 }

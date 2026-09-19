@@ -1,7 +1,7 @@
 /**
  * The Scale shared Grok proxy.
- * Holds XAI_API_KEY server-side; iOS posts the same chat-completions JSON the app
- * would send to api.x.ai, without a Bearer header.
+ * Holds XAI_API_KEY server-side; iOS posts chat-completions JSON without a Bearer header.
+ * When body.stream === true, forwards xAI SSE bytes (no full-buffer wait).
  */
 
 const XAI_URL = "https://api.x.ai/v1/chat/completions";
@@ -13,7 +13,7 @@ export default {
     }
 
     if (request.method === "GET") {
-      return json({ ok: true, service: "the-scale-grok" }, 200);
+      return json({ ok: true, service: "the-scale-grok", stream: true }, 200);
     }
 
     if (request.method !== "POST") {
@@ -26,12 +26,14 @@ export default {
     }
 
     let bodyText;
+    let wantsStream = false;
     try {
       bodyText = await request.text();
       if (!bodyText || bodyText.length > 120_000) {
         return json({ error: "bad_body" }, 400);
       }
-      JSON.parse(bodyText);
+      const parsed = JSON.parse(bodyText);
+      wantsStream = parsed?.stream === true;
     } catch {
       return json({ error: "invalid_json" }, 400);
     }
@@ -41,9 +43,23 @@ export default {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        Accept: wantsStream ? "text/event-stream" : "application/json",
       },
       body: bodyText,
     });
+
+    if (wantsStream) {
+      return new Response(upstream.body, {
+        status: upstream.status,
+        headers: {
+          ...corsHeaders(),
+          "Content-Type":
+            upstream.headers.get("Content-Type") || "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+        },
+      });
+    }
 
     const payload = await upstream.text();
     return new Response(payload, {

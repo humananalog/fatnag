@@ -17,7 +17,23 @@ final class CoachOfflineTests: XCTestCase {
         let reply = CoachOfflineFallback.reply(role: .orchestrator, brief: brief)
         XCTAssertTrue(reply.text.contains("Alex"))
         XCTAssertFalse(reply.usedNetwork)
-        XCTAssertTrue(reply.disclaimer.lowercased().contains("not medical"))
+        XCTAssertTrue(reply.disclaimer.isEmpty)
+        XCTAssertFalse(reply.text.lowercased().contains("not medical advice"))
+    }
+
+    func testCopySanitizeStripsEmDashAndDisclaimer() {
+        let raw = "Hello — world\nNot medical advice. Talk to a real clinician."
+        let cleaned = CoachCopySanitize.clean(raw)
+        XCTAssertFalse(cleaned.contains("\u{2014}"))
+        XCTAssertTrue(cleaned.contains("Hello - world") || cleaned.contains("Hello -world"))
+        XCTAssertFalse(cleaned.lowercased().contains("not medical advice"))
+    }
+
+    func testParseSSEDeltaExtractsContent() {
+        let line = #"data: {"choices":[{"delta":{"content":"Hi"}}]}"#
+        XCTAssertEqual(GrokClient.parseSSEDelta(line: line), "Hi")
+        XCTAssertNil(GrokClient.parseSSEDelta(line: "data: [DONE]"))
+        XCTAssertNil(GrokClient.parseSSEDelta(line: "event: ping"))
     }
 
     func testBadTrendReasonFiresOnGainAboveIdeal() {

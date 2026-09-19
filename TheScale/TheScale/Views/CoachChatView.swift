@@ -8,13 +8,16 @@ struct CoachChatView: View {
     @State private var showPrivacyGate = false
     @FocusState private var focused: Bool
 
+    private let messageFont = Font.system(size: 18, weight: .medium, design: .rounded)
+    private let inputFont = Font.system(size: 17, weight: .medium, design: .rounded)
+
     var body: some View {
         VStack(spacing: 0) {
             header
             privacyLine
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 14) {
+                    LazyVStack(alignment: .leading, spacing: 16) {
                         ForEach(chat.turns) { turn in
                             bubble(turn).id(turn.id)
                         }
@@ -22,11 +25,10 @@ struct CoachChatView: View {
                     .padding(20)
                 }
                 .onChange(of: chat.turns.count) { _, _ in
-                    if let last = chat.turns.last {
-                        withAnimation(.spring(response: 0.45, dampingFraction: 0.86)) {
-                            proxy.scrollTo(last.id, anchor: .bottom)
-                        }
-                    }
+                    scrollToLatest(proxy)
+                }
+                .onChange(of: chat.turns.last?.text) { _, _ in
+                    scrollToLatest(proxy)
                 }
             }
             composer
@@ -48,6 +50,14 @@ struct CoachChatView: View {
         }
     }
 
+    private func scrollToLatest(_ proxy: ScrollViewProxy) {
+        if let last = chat.turns.last {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) {
+                proxy.scrollTo(last.id, anchor: .bottom)
+            }
+        }
+    }
+
     private var header: some View {
         HStack {
             Button { dismiss() } label: {
@@ -59,10 +69,10 @@ struct CoachChatView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("Coach")
-                    .font(.system(size: 20, weight: .semibold, design: .serif))
+                    .font(.system(size: 22, weight: .semibold, design: .serif))
                     .foregroundStyle(.white)
                 Text(statusLine)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(ScaleChrome.signal.opacity(0.85))
             }
             Spacer()
@@ -75,6 +85,9 @@ struct CoachChatView: View {
     private var statusLine: String {
         if let issue = GrokSharedConfig.configurationIssue, case .malformedProxyURL = issue {
             return "Proxy URL broken"
+        }
+        if chat.isSending {
+            return "Streaming…"
         }
         if GrokSharedConfig.isLiveConfigured {
             let mem = chat.rememberedCount
@@ -89,7 +102,7 @@ struct CoachChatView: View {
                 ? "Consent on. Chat + compact Health digest + relevant memory only."
                 : "Consent off until you agree (or stay offline)."
         )
-        .font(.system(size: 11, weight: .medium, design: .rounded))
+        .font(.system(size: 12, weight: .medium, design: .rounded))
         .foregroundStyle(.white.opacity(0.5))
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -99,38 +112,51 @@ struct CoachChatView: View {
     private func bubble(_ turn: CoachChatTurn) -> some View {
         HStack {
             if turn.kind == .user { Spacer(minLength: 36) }
-            VStack(alignment: turn.kind == .user ? .trailing : .leading, spacing: 4) {
+            VStack(alignment: turn.kind == .user ? .trailing : .leading, spacing: 6) {
                 if turn.kind == .assistant {
                     HStack(spacing: 6) {
                         Text("COACH")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
                             .tracking(0.8)
                             .foregroundStyle(ScaleChrome.ember.opacity(0.9))
                         if turn.usedNetwork {
                             Text("LIVE")
-                                .font(.system(size: 8, weight: .bold, design: .rounded))
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
                                 .foregroundStyle(ScaleChrome.signal)
+                        }
+                        if turn.isStreaming {
+                            Text("STREAM")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .foregroundStyle(ScaleChrome.signal.opacity(0.75))
                         }
                         if turn.isFailure {
                             Text("ERROR")
-                                .font(.system(size: 8, weight: .bold, design: .rounded))
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color.red.opacity(0.9))
                         }
                     }
                 }
-                Text(turn.text)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundStyle(turn.kind == .user ? ScaleChrome.void : .white.opacity(0.92))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(
-                                turn.isFailure
-                                    ? Color.red.opacity(0.22)
-                                    : (turn.kind == .user ? ScaleChrome.signal : Color.white.opacity(0.08))
-                            )
-                    )
+                Group {
+                    if turn.kind == .assistant && turn.isStreaming && turn.text.isEmpty {
+                        StreamingCursor()
+                    } else {
+                        Text(turn.text + (turn.isStreaming ? "▍" : ""))
+                            .font(messageFont)
+                            .foregroundStyle(turn.kind == .user ? ScaleChrome.void : .white.opacity(0.94))
+                            .contentTransition(.interpolate)
+                            .animation(.easeOut(duration: 0.12), value: turn.text)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(
+                            turn.isFailure
+                                ? Color.red.opacity(0.22)
+                                : (turn.kind == .user ? ScaleChrome.signal : Color.white.opacity(0.08))
+                        )
+                )
             }
             if turn.kind != .user { Spacer(minLength: 36) }
         }
@@ -139,10 +165,11 @@ struct CoachChatView: View {
     private var composer: some View {
         HStack(spacing: 10) {
             TextField("Ask something sharp…", text: $chat.draft, axis: .vertical)
-                .lineLimit(1...4)
+                .font(inputFont)
+                .lineLimit(1...5)
                 .focused($focused)
-                .padding(12)
-                .scaleGlassPanel(cornerRadius: 14)
+                .padding(14)
+                .scaleGlassPanel(cornerRadius: 16)
                 .foregroundStyle(.white)
 
             Button {
@@ -155,12 +182,28 @@ struct CoachChatView: View {
                 Image(systemName: chat.isSending ? "hourglass" : "arrow.up")
                     .font(.body.weight(.bold))
                     .foregroundStyle(ScaleChrome.void)
-                    .frame(width: 42, height: 42)
+                    .frame(width: 46, height: 46)
                     .background(ScaleChrome.ember, in: Circle())
             }
             .disabled(chat.isSending || chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
+    }
+}
+
+private struct StreamingCursor: View {
+    @State private var on = true
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+            .fill(ScaleChrome.signal)
+            .frame(width: 10, height: 18)
+            .opacity(on ? 1 : 0.15)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.55).repeatForever(autoreverses: true)) {
+                    on = false
+                }
+            }
     }
 }

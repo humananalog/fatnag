@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 2.3.0  
+**Version:** 2.4.0  
 **Target device:** iPhone 15 (iOS 26+, Xcode 27 / iOS 27 SDK)  
 **Deployment target:** iOS 26.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -66,9 +66,16 @@ Ideal weight from Settings is a dotted **Ideal** reference line. The plot domain
 
 ### Grok / xAI coaching
 
-One user-facing **Coach** voice (orchestrator). Medical / fitness / anatomy consult behind the scenes when needed. Badass / dark-humour / sometimes vulgar tone, still with medical disclaimers. Persona (location, ethnicity, language, vibe) and on-device chat memory inject into prompts. Offline fallbacks work when intentionally unconfigured; **broken proxy URLs show a clear error** (not a silent mock roast).
+One user-facing **Coach** voice (orchestrator). Medical / fitness / anatomy consult behind the scenes when needed. Badass / dark-humour / sometimes vulgar tone. **No medical disclaimer spam in chat**: the one disclaimer is shown once in onboarding and buried under **Settings → Legal**. Persona (location, ethnicity, language, vibe) and on-device chat memory inject into prompts. Live replies **stream** token/chunk updates into the chat UI (Worker forwards SSE when `stream: true`). Offline fallbacks work when intentionally unconfigured; **broken proxy URLs show a clear error** (not a silent mock roast).
 
 **Users never paste an API key.** Settings only has **Allow Grok coach requests** (consent) plus a status line for the shared build config.
+
+#### Verify streaming (Alex, on device)
+
+1. `git pull origin main`, Clean Build Folder, Run on iPhone 15.
+2. Open **Coach**, consent if needed, send a short ask.
+3. Expect the assistant bubble to grow live (STREAM badge / cursor), not pop in as one blob.
+4. Confirm Settings Grok status still shows shared proxy; `curl -s https://the-scale-grok.the-scale-grok.workers.dev` → `{"ok":true,"service":"the-scale-grok","stream":true}`.
 
 #### xcconfig `https://` footgun (fixed in 2.3.0)
 
@@ -140,11 +147,14 @@ Revoke for a user: Settings → turn off **Allow Grok coach requests**.
 - Trend caption bug fixed (distinct losing vs gaining away-from-ideal copy).
 - Personalized History title when a name is set.
 
-### Coach chat (2.1+ → 2.3)
+### Coach chat (2.1+ → 2.4)
 
 - Home **Coach** opens a dark sparse chat with a single Coach voice.
 - **2.2.0:** shared Grok for all installs (Worker + `TheScale.xcconfig` proxy URL); per-user Keychain paste removed.
-- **2.3.0:** xcconfig URL escape fix; on-device memory; persona prefs; Health fitness digest monitoring.## Protocol (honest notes)
+- **2.3.0:** xcconfig URL escape fix; on-device memory; persona prefs; Health fitness digest monitoring.
+- **2.4.0:** SSE streaming chat; larger Coach fonts; no em dashes / AI tells; medical disclaimer only in onboarding + Settings → Legal.
+
+## Protocol (honest notes)
 
 The Mi Body Composition Scale 2 **broadcasts** measurements; it does not need pairing for a live reading.
 
@@ -284,4 +294,4 @@ scripts/
 
 ## Version
 
-Marketing version **1.6.0** / build **14**. Bump both in the Xcode target when shipping changes.
+Marketing version **2.4.0** / build **21**. Bump both in the Xcode target when shipping changes.

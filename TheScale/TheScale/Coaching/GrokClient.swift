@@ -18,27 +18,34 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// Shared voice + punctuation rules for every role.
+    private static let voiceRules = """
+        Voice: badass, dark humour, sometimes vulgar, always friendly. Call the user by name.
+        Never use em dashes or en dashes. Use commas, periods, or ASCII hyphens (-).
+        Never use AI tells ("As an AI…", "I'd be happy to…", "Certainly!", robotic hedging, markdown spoiler fluff).
+        Do NOT append medical disclaimers or "not medical advice" boilerplate. That lives in onboarding and Settings → Legal only.
+        You are not a clinician: no diagnosis, no drug doses, no telling them to ignore symptoms. Just don't recite disclaimer text.
+        """
+
     var systemPrompt: String {
         switch self {
         case .medical:
             return """
             You are the medical specialist for The Scale, a privacy-first Mi Scale → Apple Health app.
-            Voice: badass, dark humour, sometimes vulgar, always friendly. Call the user by name.
-            Hard rules: you are NOT a doctor; no diagnosis, no drug doses, no telling them to ignore symptoms.
-            Always include a one-line disclaimer that this is educational, not medical advice.
+            \(Self.voiceRules)
             Prefer trends over single weigh-ins. Be honest when data is thin.
             """
         case .fitness:
             return """
             You are the fitness specialist for The Scale.
-            Voice: badass, dark humour, sometimes vulgar, friendly. Call the user by name.
+            \(Self.voiceRules)
             Give practical training / recovery / habit nudges tied to weight, fat %, sleep, HR, and activity.
             No crash diets. Respect their diet preference and remembered facts. Keep it short and punchy.
             """
         case .anatomy:
             return """
             You are the anatomy / body-composition specialist for The Scale.
-            Voice: badass, dark humour, sometimes vulgar, friendly. Call the user by name.
+            \(Self.voiceRules)
             Explain fat %, lean %, impedance limits, and why day-to-day noise is normal.
             Never invent lab precision the scale cannot deliver.
             """
@@ -46,13 +53,11 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
             return """
             You are the only user-facing coach for The Scale. Medical, fitness, and anatomy specialists
             may consult behind the scenes; you alone speak to the user. Never mention agent roles or routing.
-            Voice: badass, dark humour, sometimes vulgar, friendly. Call the user by name.
+            \(Self.voiceRules)
             Match their persona (location, ethnicity, language, cultural vibe) without stereotyping.
             Honour remembered user facts (e.g. intermittent fasting) when adjusting diet advice.
             Ask clarifying questions when diet tweaks need more detail.
-            End with one concrete next action and a medical-disclaimer line.
-            Never claim to replace a clinician.
-            Produce ONE coherent answer. No multi-agent dump.
+            End with one concrete next action. Produce ONE coherent answer. No multi-agent dump.
             """
         }
     }
@@ -105,22 +110,20 @@ struct CoachReply: Equatable, Sendable {
     let role: CoachAgentRole
     let text: String
     let usedNetwork: Bool
+    /// Kept empty; medical disclaimer is onboarding + Settings → Legal only.
     let disclaimer: String
     /// When set, UI should treat this as a hard failure (not a witty offline mock).
     let failureReason: String?
-
-    static let standardDisclaimer =
-        "Not medical advice. If something feels wrong, talk to a real clinician."
 
     init(
         role: CoachAgentRole,
         text: String,
         usedNetwork: Bool,
-        disclaimer: String = standardDisclaimer,
+        disclaimer: String = "",
         failureReason: String? = nil
     ) {
         self.role = role
-        self.text = text
+        self.text = CoachCopySanitize.clean(text)
         self.usedNetwork = usedNetwork
         self.disclaimer = disclaimer
         self.failureReason = failureReason
@@ -145,21 +148,20 @@ enum CoachOfflineFallback {
         return CoachReply(
             role: role,
             text: text,
-            usedNetwork: false,
-            disclaimer: CoachReply.standardDisclaimer
+            usedNetwork: false
         )
     }
 
     private static func medicalLine(name: String, brief: CoachBrief) -> String {
         switch brief.trend {
         case .gain:
-            return "\(name), the scale says you're up. One weigh-in isn't a diagnosis, it's a mood. Hydration, salt, and that late snack all pile on before fat does. Watch the week, not the hour. \(CoachReply.standardDisclaimer)"
+            return "\(name), the scale says you're up. One weigh-in isn't a diagnosis, it's a mood. Hydration, salt, and that late snack all pile on before fat does. Watch the week, not the hour."
         case .loss:
-            return "\(name), you're trending down. Nice. Don't turn it into a starvation cosplay: if you're dizzy, exhausted, or dropping too fast, stop and get actual medical eyes on it. \(CoachReply.standardDisclaimer)"
+            return "\(name), you're trending down. Nice. Don't turn it into a starvation cosplay: if you're dizzy, exhausted, or dropping too fast, stop and get actual medical eyes on it."
         case .stable:
-            return "\(name), you're stable within noise. Boring is underrated. Keep the boring streak unless something else feels off. \(CoachReply.standardDisclaimer)"
+            return "\(name), you're stable within noise. Boring is underrated. Keep the boring streak unless something else feels off."
         case .unknown:
-            return "\(name), no Health baseline yet. Weigh a few times barefoot, same time of day, then we can talk trends instead of vibes. \(CoachReply.standardDisclaimer)"
+            return "\(name), no Health baseline yet. Weigh a few times barefoot, same time of day, then we can talk trends instead of vibes."
         }
     }
 
@@ -197,7 +199,7 @@ enum CoachOfflineFallback {
             }
             return String(format: "%.1f kg under ideal. Cool. Maintain, don't chase zero.", abs(delta))
         }()
-        return "\(name): \(gap) \(CoachReply.standardDisclaimer)"
+        return "\(name): \(gap)"
     }
 }
 
@@ -265,28 +267,49 @@ actor GrokClient {
         brief: CoachBrief,
         history: [CoachChatTurn]
     ) async -> CoachReply {
+        var final = CoachReply(role: .orchestrator, text: "", usedNetwork: false)
+        await chatStreaming(role: role, userText: userText, brief: brief, history: history) { reply in
+            final = reply
+        }
+        return final
+    }
+
+    /// Streams token/chunk updates into `onUpdate`. Final call has the complete sanitized reply.
+    func chatStreaming(
+        role: CoachAgentRole = .orchestrator,
+        userText: String,
+        brief: CoachBrief,
+        history: [CoachChatTurn],
+        onUpdate: @MainActor @Sendable (CoachReply) -> Void
+    ) async {
         _ = role
         let specialty = Self.route(userText: userText)
 
         guard GrokPrivacyConsent.isAccepted else {
-            return failureReply(LiveFailure.consentDenied, brief: brief, userText: userText)
+            await onUpdate(failureReply(LiveFailure.consentDenied, brief: brief, userText: userText))
+            return
         }
         if let issue = GrokSharedConfig.configurationIssue {
-            // Malformed proxy should never look like a witty offline roast.
             if case .malformedProxyURL = issue {
-                return failureReply(.malformedProxy(issue.userMessage), brief: brief, userText: userText)
+                await onUpdate(failureReply(.malformedProxy(issue.userMessage), brief: brief, userText: userText))
+                return
             }
             if case .nonHTTPSProxy = issue {
-                return failureReply(.malformedProxy(issue.userMessage), brief: brief, userText: userText)
+                await onUpdate(failureReply(.malformedProxy(issue.userMessage), brief: brief, userText: userText))
+                return
             }
-            return offlineChat(userText: userText, brief: brief, hint: issue.userMessage)
+            await onUpdate(offlineChat(userText: userText, brief: brief, hint: issue.userMessage))
+            return
         }
         guard let transport = resolveTransport() else {
-            return offlineChat(
-                userText: userText,
-                brief: brief,
-                hint: GrokSharedConfig.ConfigurationIssue.missingProxyAndKey.userMessage
+            await onUpdate(
+                offlineChat(
+                    userText: userText,
+                    brief: brief,
+                    hint: GrokSharedConfig.ConfigurationIssue.missingProxyAndKey.userMessage
+                )
             )
+            return
         }
 
         var consultNotes = ""
@@ -325,25 +348,37 @@ actor GrokClient {
             "model": "grok-3-mini",
             "temperature": 0.85,
             "max_tokens": 420,
+            "stream": true,
             "messages": messages
         ]
+
         do {
-            let data = try await postChat(body: body, transport: transport, timeout: 40)
-            guard let text = Self.parseContent(from: data), !text.isEmpty else {
-                return failureReply(.emptyResponse, brief: brief, userText: userText)
+            var accumulated = ""
+            try await postChatStream(body: body, transport: transport, timeout: 60) { delta in
+                accumulated += delta
+                let partial = CoachReply(
+                    role: .orchestrator,
+                    text: accumulated,
+                    usedNetwork: true
+                )
+                await onUpdate(partial)
             }
-            return CoachReply(
-                role: .orchestrator,
-                text: text.trimmingCharacters(in: .whitespacesAndNewlines),
-                usedNetwork: true
+            let cleaned = CoachCopySanitize.clean(accumulated)
+            guard !cleaned.isEmpty else {
+                await onUpdate(failureReply(.emptyResponse, brief: brief, userText: userText))
+                return
+            }
+            await onUpdate(
+                CoachReply(role: .orchestrator, text: cleaned, usedNetwork: true)
             )
         } catch let failure as LiveFailure {
-            return failureReply(failure, brief: brief, userText: userText)
+            await onUpdate(failureReply(failure, brief: brief, userText: userText))
         } catch {
             if let urlError = error as? URLError, urlError.code == .badURL {
-                return failureReply(.badURL, brief: brief, userText: userText)
+                await onUpdate(failureReply(.badURL, brief: brief, userText: userText))
+            } else {
+                await onUpdate(failureReply(.transport(error.localizedDescription), brief: brief, userText: userText))
             }
-            return failureReply(.transport(error.localizedDescription), brief: brief, userText: userText)
         }
     }
 
@@ -465,7 +500,7 @@ actor GrokClient {
         return nil
     }
 
-    private func postChat(body: [String: Any], transport: Transport, timeout: TimeInterval) async throws -> Data {
+    private func makeRequest(body: [String: Any], transport: Transport, timeout: TimeInterval) throws -> URLRequest {
         var request: URLRequest
         switch transport {
         case .proxy(let proxy):
@@ -480,6 +515,11 @@ actor GrokClient {
         }
         request.timeoutInterval = timeout
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        return request
+    }
+
+    private func postChat(body: [String: Any], transport: Transport, timeout: TimeInterval) async throws -> Data {
+        let request = try makeRequest(body: body, transport: transport, timeout: timeout)
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await session.data(for: request)
@@ -493,6 +533,34 @@ actor GrokClient {
             throw LiveFailure.httpStatus(http.statusCode)
         }
         return data
+    }
+
+    /// Streams SSE chat.completions deltas. Calls `onDelta` for each content chunk.
+    private func postChatStream(
+        body: [String: Any],
+        transport: Transport,
+        timeout: TimeInterval,
+        onDelta: @Sendable (String) async -> Void
+    ) async throws {
+        let request = try makeRequest(body: body, transport: transport, timeout: timeout)
+        let (bytes, response): (URLSession.AsyncBytes, URLResponse)
+        do {
+            (bytes, response) = try await session.bytes(for: request)
+        } catch let urlError as URLError where urlError.code == .badURL {
+            throw LiveFailure.badURL
+        }
+        guard let http = response as? HTTPURLResponse else {
+            throw LiveFailure.transport("No HTTP response")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw LiveFailure.httpStatus(http.statusCode)
+        }
+
+        for try await line in bytes.lines {
+            if let delta = Self.parseSSEDelta(line: line) {
+                await onDelta(delta)
+            }
+        }
     }
 
     /// Orchestrator: try Grok synthesis; fall back to offline specialists merged once.
@@ -551,7 +619,7 @@ actor GrokClient {
         if !brief.fitnessDigestBlock.isEmpty {
             lines.append(brief.fitnessDigestBlock)
         }
-        lines.append("Keep it under 140 words. No markdown tables.")
+        lines.append("Keep it under 140 words. No markdown tables. No medical disclaimer footer.")
         return lines.joined(separator: "\n")
     }
 
@@ -566,5 +634,28 @@ actor GrokClient {
             return nil
         }
         return content
+    }
+
+    /// Parse one SSE line (`data: {...}` or `[DONE]`).
+    nonisolated static func parseSSEDelta(line: String) -> String? {
+        guard line.hasPrefix("data:") else { return nil }
+        let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+        if payload == "[DONE]" || payload.isEmpty { return nil }
+        guard
+            let data = payload.data(using: .utf8),
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let choices = json["choices"] as? [[String: Any]],
+            let first = choices.first
+        else {
+            return nil
+        }
+        if let delta = first["delta"] as? [String: Any], let content = delta["content"] as? String {
+            return content.isEmpty ? nil : content
+        }
+        // Some gateways nest message.content mid-stream
+        if let message = first["message"] as? [String: Any], let content = message["content"] as? String {
+            return content.isEmpty ? nil : content
+        }
+        return nil
     }
 }

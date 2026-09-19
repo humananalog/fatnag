@@ -2,6 +2,8 @@
 
 Cloudflare Worker that holds the shared xAI API key. Every The Scale install calls this HTTPS endpoint; the key never lives in Settings or (when using this path) in the IPA.
 
+When the iOS app sets `"stream": true` in the JSON body, this Worker **pipes** xAI's SSE (`text/event-stream`) without buffering the full completion. Non-stream POSTs still return a single JSON body (specialist consults, Progress roast).
+
 ## One-time setup on Alex's Mac
 
 ```bash

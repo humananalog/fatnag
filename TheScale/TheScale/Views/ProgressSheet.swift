@@ -116,7 +116,7 @@ struct ProgressSheet: View {
                 ProgressView("Consulting the peanut gallery…")
             } else if let coachReply {
                 Text(coachReply.text)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .font(.system(size: 17, weight: .medium, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.9))
                 HStack {
                     Text(coachReply.usedNetwork ? "Grok · live" : "Offline fallback")
@@ -126,9 +126,6 @@ struct ProgressSheet: View {
                         .font(.caption2)
                 }
                 .foregroundStyle(atmosphere.accent.opacity(0.55))
-                Text(coachReply.disclaimer)
-                    .font(.caption2)
-                    .foregroundStyle(atmosphere.accent.opacity(0.5))
             } else {
                 Text("Want a short roast of your week? Offline mock always works; live Grok needs shared build config + consent.")
                     .font(.footnote)
