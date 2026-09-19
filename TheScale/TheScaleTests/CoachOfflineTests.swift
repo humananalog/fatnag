@@ -93,6 +93,85 @@ final class CoachOfflineTests: XCTestCase {
         XCTAssertEqual(GrokClient.route(userText: "How's my week looking?"), .orchestrator)
     }
 
+    func testMemoryExtractorCapturesIntermittentFasting() {
+        CoachMemoryStore.clear()
+        let facts = CoachMemoryExtractor.extract(from: "I'm doing intermittent fasting 16/8")
+        XCTAssertFalse(facts.isEmpty)
+        for fact in facts {
+            CoachMemoryStore.remember(fact)
+        }
+        let block = CoachMemoryStore.promptBlock()
+        XCTAssertTrue(block.lowercased().contains("intermittent fasting") || block.contains("16/8"))
+        CoachMemoryStore.clear()
+    }
+
+    func testPersonaBlockMigratesFromLegacyProfile() throws {
+        let legacy = """
+        {"heightCm":180,"ageYears":40,"sex":"male","displayName":"Alex"}
+        """.data(using: .utf8)!
+        let profile = try JSONDecoder().decode(UserBodyProfile.self, from: legacy)
+        XCTAssertEqual(profile.preferredLanguage, "English")
+        XCTAssertEqual(profile.location, "")
+        XCTAssertTrue(profile.coachPersonaBlock.isEmpty)
+        var filled = profile
+        filled.location = "Manila"
+        filled.ethnicity = "Filipina"
+        filled.culturalVibe = "local food, straight talk"
+        XCTAssertTrue(filled.coachPersonaBlock.contains("Manila"))
+    }
+
+    func testPreSleepHRElevatedTrigger() {
+        var digest = FitnessDigest.empty
+        digest.sleepOnset = Date()
+        digest.preSleepAverageHRBpm = 98
+        digest.preSleepHRSampleCount = 12
+        digest.restingHeartRateBpm = 60
+        let triggers = FitnessTriggerMonitor.evaluate(digest: digest, thresholds: .default)
+        XCTAssertTrue(triggers.contains(where: { $0.kind == .preSleepHRElevated }))
+    }
+
+    func testPreSleepHRMissingTrigger() {
+        var digest = FitnessDigest.empty
+        digest.sleepOnset = Date()
+        digest.preSleepHRSampleCount = 0
+        let triggers = FitnessTriggerMonitor.evaluate(digest: digest, thresholds: .default)
+        XCTAssertTrue(triggers.contains(where: { $0.kind == .preSleepHRMissing }))
+    }
+
+    func testWatchNotWornTrigger() {
+        var digest = FitnessDigest.empty
+        digest.stepsToday = 8_000
+        digest.heartRateSampleCountToday = 1
+        let triggers = FitnessTriggerMonitor.evaluate(digest: digest, thresholds: .default)
+        XCTAssertTrue(triggers.contains(where: { $0.kind == .watchLikelyNotWorn }))
+    }
+
+    func testAutomatedCheckDueLogic() {
+        var prefs = FitnessMonitorPreferences.default
+        prefs.enabled = true
+        prefs.interval = .daily
+        prefs.lastAutomatedCheckAt = nil
+        XCTAssertTrue(FitnessTriggerMonitor.isAutomatedCheckDue(prefs: prefs))
+        prefs.lastAutomatedCheckAt = Date()
+        XCTAssertFalse(FitnessTriggerMonitor.isAutomatedCheckDue(prefs: prefs))
+    }
+
+    func testXcconfigHttpsEscapeExpands() {
+        // Document the footgun fix: https:/$()/host → https://host
+        let escaped = "https:/$()/the-scale-grok.the-scale-grok.workers.dev"
+        let expanded = escaped.replacingOccurrences(of: "$()", with: "")
+        XCTAssertEqual(expanded, "https://the-scale-grok.the-scale-grok.workers.dev")
+        let strippedComment: String = {
+            let raw = "GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev"
+            if let idx = raw.range(of: "//") {
+                return String(raw[..<idx.lowerBound])
+            }
+            return raw
+        }()
+        XCTAssertTrue(strippedComment.contains("https:"))
+        XCTAssertFalse(strippedComment.contains("workers.dev"))
+    }
+
     func testSharedConfigStatusWithoutSecretsIsOffline() {
         // Bundle Info.plist in unit tests has empty / unset Grok keys → offline path.
         XCTAssertFalse(GrokSharedConfig.isLiveConfigured)

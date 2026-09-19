@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 2.2.0  
+**Version:** 2.3.0  
 **Target device:** iPhone 15 (iOS 26+, Xcode 27 / iOS 27 SDK)  
 **Deployment target:** iOS 26.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -28,18 +28,19 @@ No accounts, no analytics. Weigh-ins stay on-device / Apple Health. Optional sha
 | Data | Where it goes |
 |------|----------------|
 | Weight / impedance from the scale | Parsed in memory on the iPhone |
-| Height / age / sex / ideal weight / ideal fat % | `UserDefaults` on device only |
+| Height / age / sex / ideal weight / ideal fat % / persona | `UserDefaults` on device only |
+| Coach memory facts (chat habits) | `UserDefaults` on device only |
 | Weight calibration (factor / offset) | `UserDefaults` on device only |
-| Health **read** | Recent `bodyMass` for trend; `bodyMass` + `bodyFatPercentage` for history charts |
+| Health **read** | Recent `bodyMass` for trend; `bodyMass` + `bodyFatPercentage` for history charts; optional fitness digest (`heartRate`, `restingHeartRate`, `stepCount`, `activeEnergyBurned`, `sleepAnalysis`, workouts) |
 | Health **writes** | Apple Health (HealthKit) on device, after **Confirm to Health** or **Manual → Save** |
-| Name / diet / notification prefs / weekly mini-goal | `UserDefaults` on device only |
+| Name / diet / notification prefs / weekly mini-goal / fitness-monitor prefs | `UserDefaults` on device only |
 | Shared xAI / Grok access | Operator-managed: Cloudflare Worker secret (preferred) or build-time key via `TheScale.xcconfig` / gitignored `Secrets.xcconfig` (IPA-extractable) |
-| Grok coach request | Opt-in only: short trend / chat snapshot → shared proxy or `api.x.ai` after consent |
-| Network | None by default; Grok only when you tap Coach with shared config + consent |
+| Grok coach request | Opt-in only: short trend / chat / fitness digest + relevant memory → shared proxy or `api.x.ai` after consent |
+| Network | None by default; Grok only when you tap Coach (or enabled fitness monitoring) with shared config + consent |
 
 HealthKit types:
 
-- Read: `bodyMass`, `bodyFatPercentage`
+- Read: `bodyMass`, `bodyFatPercentage`, `heartRate`, `restingHeartRate`, `stepCount`, `activeEnergyBurned`, `sleepAnalysis`, workouts
 - Write: `bodyMass`, `bodyMassIndex`, `bodyFatPercentage`, `leanBodyMass`
 
 Muscle mass, bone mass, water %, visceral fat, and raw ohms are **shown in-app only**. HealthKit has no first-class quantities for those.
@@ -65,9 +66,25 @@ Ideal weight from Settings is a dotted **Ideal** reference line. The plot domain
 
 ### Grok / xAI coaching
 
-Agents (medical, fitness, anatomy, orchestrator) share a badass / dark-humour / sometimes vulgar voice, still with medical disclaimers. Offline fallbacks always work.
+One user-facing **Coach** voice (orchestrator). Medical / fitness / anatomy consult behind the scenes when needed. Badass / dark-humour / sometimes vulgar tone, still with medical disclaimers. Persona (location, ethnicity, language, vibe) and on-device chat memory inject into prompts. Offline fallbacks work when intentionally unconfigured; **broken proxy URLs show a clear error** (not a silent mock roast).
 
 **Users never paste an API key.** Settings only has **Allow Grok coach requests** (consent) plus a status line for the shared build config.
+
+#### xcconfig `https://` footgun (fixed in 2.3.0)
+
+Xcode `.xcconfig` treats `//` as a comment. A line like:
+
+```
+GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev
+```
+
+becomes `GROK_PROXY_URL = https:` and the app fails with `NSURLErrorDomain -1000` / `https:localhost/`.
+
+**Correct form** (empty `$()` splice):
+
+```
+GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
+```
 
 #### Where Alex puts the shared secret (Mac)
 
@@ -85,11 +102,11 @@ npx wrangler deploy
 Tracked default (already set for shared builds):
 
 ```
-GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev
+GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
 GROK_API_KEY =
 ```
 
-Optional local override: copy `Secrets.example.xcconfig` → `Secrets.xcconfig` (**gitignored**). Use that only for private baked-key experiments, never for the shared Worker path.
+Optional local override: copy `Secrets.example.xcconfig` → `Secrets.xcconfig` (**gitignored**). Use the same `https:/$()/` escape if you override the URL.
 
 Rebuild / reinstall so every install of that build gets live Coach without Settings paste.
 
@@ -108,7 +125,14 @@ Honest caveat: a baked key can be extracted from the IPA. Prefer the Worker for 
 
 Revoke for a user: Settings → turn off **Allow Grok coach requests**.
 
-### History charts (2.0 / 2.1 / 2.2)
+### Health ↔ Grok monitoring (2.3.0)
+
+- Settings: enable monitoring, pick interval (manual / 6h / 12h / daily / morning+evening), tune pre-sleep HR window + absolute bpm threshold.
+- Local algorithms: elevated / missing HR ~30 min before sleep onset; sparse HR despite movement → Watch-not-worn nudge (cooldown, not spammy).
+- Automated Grok checks send one orchestrator answer with fitness digest + memory + persona.
+- Background: `BGAppRefresh` is best-effort; repeating local notifications nudge you to open the app so checks can run. Foreground resume also runs due checks.
+
+### History charts (2.0 / 2.1 / 2.2 / 2.3)
 
 - MeshGradient atmosphere; rate/week chip on each chart; scrollable 3M / 1Y domains via Charts `chartScrollableAxes`.
 - Liquid Glass panels via `glassEffect` (iOS 26+) with material fallback.
@@ -116,12 +140,11 @@ Revoke for a user: Settings → turn off **Allow Grok coach requests**.
 - Trend caption bug fixed (distinct losing vs gaining away-from-ideal copy).
 - Personalized History title when a name is set.
 
-### Multi-agent chat (2.1+)
+### Coach chat (2.1+ → 2.3)
 
-- Home **Coach** opens a dark sparse chat with Auto-route or explicit Medical / Fitness / Anatomy / Orchestrator.
-- Orchestrator routes freeform asks; specialists answer with disclaimers. Mock/offline without shared proxy/key.
+- Home **Coach** opens a dark sparse chat with a single Coach voice.
 - **2.2.0:** shared Grok for all installs (Worker + `TheScale.xcconfig` proxy URL); per-user Keychain paste removed.
-## Protocol (honest notes)
+- **2.3.0:** xcconfig URL escape fix; on-device memory; persona prefs; Health fitness digest monitoring.## Protocol (honest notes)
 
 The Mi Body Composition Scale 2 **broadcasts** measurements; it does not need pairing for a live reading.
 

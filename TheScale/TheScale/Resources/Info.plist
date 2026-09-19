@@ -27,11 +27,19 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>The Scale listens for your Mi Body Composition Scale 2 Bluetooth broadcasts to read weight and impedance on this iPhone only.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>The Scale reads your weight and body fat percentage from Apple Health on this iPhone only, to show a local trend during weigh-in and history charts after you confirm. Nothing is uploaded.</string>
+	<string>The Scale reads weight, body fat, heart rate, resting heart rate, sleep, steps, active energy, and workouts from Apple Health on this iPhone only. Used for local charts, fitness digests, and optional Grok coaching after you consent. Nothing is uploaded without that opt-in.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>The Scale saves confirmed weight, BMI, body fat percentage, and lean body mass to Apple Health when you tap Confirm. Nothing is uploaded.</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>The Scale can notify you when weight trends look bad versus your ideal, and optionally nudge a weekly mini-goal. No marketing spam.</string>
+	<string>The Scale can notify you when weight trends look bad versus your ideal, when Watch/sleep-HR signals look off, for optional weekly mini-goals, and for scheduled fitness-check nudges. No marketing spam.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>app.thescale.ios.fitness-check</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<key>GrokProxyURL</key>
 	<string>$(GROK_PROXY_URL)</string>
 	<key>GrokAPIKey</key>

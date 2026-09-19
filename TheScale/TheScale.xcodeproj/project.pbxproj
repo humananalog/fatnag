@@ -39,6 +39,8 @@
 		A1B2C3D4E5F60718293A0015 /* CoachChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1015 /* CoachChatView.swift */; };
 		A1B2C3D4E5F60718293A0014 /* CoachChatController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1014 /* CoachChatController.swift */; };
 		A1B2C3D4E5F60718293A0013 /* ScaleChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1013 /* ScaleChrome.swift */; };
+		A1B2C3D4E5F60718293A001A /* CoachMemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A101A /* CoachMemoryStore.swift */; };
+		A1B2C3D4E5F60718293A001B /* GrokFitnessMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A101B /* GrokFitnessMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -90,6 +92,8 @@
 		A1B2C3D4E5F60718293A1013 /* ScaleChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleChrome.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1014 /* CoachChatController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachChatController.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1015 /* CoachChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachChatView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A101A /* CoachMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachMemoryStore.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A101B /* GrokFitnessMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokFitnessMonitor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -237,6 +241,8 @@
 				A1B2C3D4E5F60718293A100D /* GrokKeychain.swift */,
 				A1B2C3D4E5F60718293A1016 /* GrokSharedConfig.swift */,
 				A1B2C3D4E5F60718293A100E /* GrokClient.swift */,
+				A1B2C3D4E5F60718293A101A /* CoachMemoryStore.swift */,
+				A1B2C3D4E5F60718293A101B /* GrokFitnessMonitor.swift */,
 				A1B2C3D4E5F60718293A1014 /* CoachChatController.swift */,
 			);
 			path = Coaching;
@@ -395,6 +401,8 @@
 				A1B2C3D4E5F60718293A0013 /* ScaleChrome.swift in Sources */,
 				A1B2C3D4E5F60718293A0014 /* CoachChatController.swift in Sources */,
 				A1B2C3D4E5F60718293A0015 /* CoachChatView.swift in Sources */,
+				A1B2C3D4E5F60718293A001A /* CoachMemoryStore.swift in Sources */,
+				A1B2C3D4E5F60718293A001B /* GrokFitnessMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -414,11 +422,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.2.1;
+				MARKETING_VERSION = 2.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -455,7 +463,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -468,7 +476,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.2.1;
+				MARKETING_VERSION = 2.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -487,11 +495,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.2.1;
+				MARKETING_VERSION = 2.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -509,7 +517,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -522,7 +530,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.2.1;
+				MARKETING_VERSION = 2.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

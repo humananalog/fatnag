@@ -1,6 +1,6 @@
 import Foundation
 
-/// Specialist roles inside the Grok coaching stack.
+/// Specialist roles used behind the scenes. User-facing chat always comes from the orchestrator.
 enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
     case medical
     case fitness
@@ -32,8 +32,8 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
             return """
             You are the fitness specialist for The Scale.
             Voice: badass, dark humour, sometimes vulgar, friendly. Call the user by name.
-            Give practical training / recovery / habit nudges tied to weight and fat % trends.
-            No crash diets. Respect their diet preference. Keep it short and punchy.
+            Give practical training / recovery / habit nudges tied to weight, fat %, sleep, HR, and activity.
+            No crash diets. Respect their diet preference and remembered facts. Keep it short and punchy.
             """
         case .anatomy:
             return """
@@ -44,11 +44,15 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
             """
         case .orchestrator:
             return """
-            You are the orchestrator coach for The Scale. You synthesize medical, fitness, and anatomy angles
-            into one short pep talk or roast (user-friendly). Call the user by name.
-            Voice: badass, dark humour, sometimes vulgar, friendly.
+            You are the only user-facing coach for The Scale. Medical, fitness, and anatomy specialists
+            may consult behind the scenes; you alone speak to the user. Never mention agent roles or routing.
+            Voice: badass, dark humour, sometimes vulgar, friendly. Call the user by name.
+            Match their persona (location, ethnicity, language, cultural vibe) without stereotyping.
+            Honour remembered user facts (e.g. intermittent fasting) when adjusting diet advice.
+            Ask clarifying questions when diet tweaks need more detail.
             End with one concrete next action and a medical-disclaimer line.
             Never claim to replace a clinician.
+            Produce ONE coherent answer. No multi-agent dump.
             """
         }
     }
@@ -64,6 +68,37 @@ struct CoachBrief: Equatable, Sendable {
     let trend: WeightTrend
     let weekDeltaKg: Double?
     let weeklyGoal: WeeklyMiniGoal
+    let personaBlock: String
+    let memoryBlock: String
+    let fitnessDigestBlock: String
+
+    init(
+        userName: String,
+        diet: DietPreference,
+        currentKg: Double?,
+        idealKg: Double,
+        bodyFatPercent: Double?,
+        idealBodyFatPercent: Double?,
+        trend: WeightTrend,
+        weekDeltaKg: Double?,
+        weeklyGoal: WeeklyMiniGoal,
+        personaBlock: String = "",
+        memoryBlock: String = "",
+        fitnessDigestBlock: String = ""
+    ) {
+        self.userName = userName
+        self.diet = diet
+        self.currentKg = currentKg
+        self.idealKg = idealKg
+        self.bodyFatPercent = bodyFatPercent
+        self.idealBodyFatPercent = idealBodyFatPercent
+        self.trend = trend
+        self.weekDeltaKg = weekDeltaKg
+        self.weeklyGoal = weeklyGoal
+        self.personaBlock = personaBlock
+        self.memoryBlock = memoryBlock
+        self.fitnessDigestBlock = fitnessDigestBlock
+    }
 }
 
 struct CoachReply: Equatable, Sendable {
@@ -71,9 +106,25 @@ struct CoachReply: Equatable, Sendable {
     let text: String
     let usedNetwork: Bool
     let disclaimer: String
+    /// When set, UI should treat this as a hard failure (not a witty offline mock).
+    let failureReason: String?
 
     static let standardDisclaimer =
         "Not medical advice. If something feels wrong, talk to a real clinician."
+
+    init(
+        role: CoachAgentRole,
+        text: String,
+        usedNetwork: Bool,
+        disclaimer: String = standardDisclaimer,
+        failureReason: String? = nil
+    ) {
+        self.role = role
+        self.text = text
+        self.usedNetwork = usedNetwork
+        self.disclaimer = disclaimer
+        self.failureReason = failureReason
+    }
 }
 
 /// Offline witty fallbacks when no key / no network / consent denied.
@@ -162,35 +213,101 @@ actor GrokClient {
         case direct(apiKey: String)
     }
 
+    enum LiveFailure: Error, Equatable {
+        case consentDenied
+        case notConfigured(String)
+        case malformedProxy(String)
+        case badURL
+        case httpStatus(Int)
+        case emptyResponse
+        case transport(String)
+
+        var userMessage: String {
+            switch self {
+            case .consentDenied:
+                return "Consent off. Turn on Allow Grok coach requests in Settings."
+            case .notConfigured(let detail):
+                return detail
+            case .malformedProxy(let detail):
+                return detail
+            case .badURL:
+                return "Grok proxy URL is invalid (NSURLError bad URL). Rebuild with GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev"
+            case .httpStatus(let code):
+                return "Grok proxy returned HTTP \(code). Check Worker health / XAI_API_KEY secret."
+            case .emptyResponse:
+                return "Grok returned an empty reply. Try again in a moment."
+            case .transport(let message):
+                return "Grok request failed: \(message)"
+            }
+        }
+    }
+
     init(session: URLSession = .shared) {
         self.session = session
     }
 
-    /// Cheap on-device router for multi-agent chat (orchestrator owns ambiguous asks).
+    /// Cheap on-device specialty hint (orchestrator still owns the user-facing answer).
     nonisolated static func route(userText: String) -> CoachAgentRole {
         let lower = userText.lowercased()
-        let medical = ["pain", "doctor", "blood", "medic", "diagnos", "symptom", "heart", "dizzy", "faint"]
+        let medical = ["pain", "doctor", "blood", "medic", "diagnos", "symptom", "heart", "dizzy", "faint", "sleep hr", "resting hr"]
         let anatomy = ["impedance", "bia", "lean", "muscle", "visceral", "bone", "water", "body fat", "fat%"]
-        let fitness = ["workout", "lift", "run", "cardio", "protein", "diet", "calorie", "train", "gym", "fast"]
+        let fitness = ["workout", "lift", "run", "cardio", "protein", "diet", "calorie", "train", "gym", "fast", "steps", "watch"]
         if medical.contains(where: { lower.contains($0) }) { return .medical }
         if anatomy.contains(where: { lower.contains($0) }) { return .anatomy }
         if fitness.contains(where: { lower.contains($0) }) { return .fitness }
         return .orchestrator
     }
 
-    /// Freeform multi-turn chat for a specialist (or orchestrator). Offline when no shared config/consent.
+    /// Freeform multi-turn chat. Always returns an orchestrator-facing reply.
     func chat(
-        role: CoachAgentRole,
+        role: CoachAgentRole = .orchestrator,
         userText: String,
         brief: CoachBrief,
         history: [CoachChatTurn]
     ) async -> CoachReply {
-        guard GrokPrivacyConsent.isAccepted, let transport = resolveTransport() else {
-            return offlineChat(role: role, userText: userText, brief: brief)
+        _ = role
+        let specialty = Self.route(userText: userText)
+
+        guard GrokPrivacyConsent.isAccepted else {
+            return failureReply(LiveFailure.consentDenied, brief: brief, userText: userText)
+        }
+        if let issue = GrokSharedConfig.configurationIssue {
+            // Malformed proxy should never look like a witty offline roast.
+            if case .malformedProxyURL = issue {
+                return failureReply(.malformedProxy(issue.userMessage), brief: brief, userText: userText)
+            }
+            if case .nonHTTPSProxy = issue {
+                return failureReply(.malformedProxy(issue.userMessage), brief: brief, userText: userText)
+            }
+            return offlineChat(userText: userText, brief: brief, hint: issue.userMessage)
+        }
+        guard let transport = resolveTransport() else {
+            return offlineChat(
+                userText: userText,
+                brief: brief,
+                hint: GrokSharedConfig.ConfigurationIssue.missingProxyAndKey.userMessage
+            )
+        }
+
+        var consultNotes = ""
+        if specialty != .orchestrator {
+            if let notes = try? await fetchSpecialistNotes(
+                specialty: specialty,
+                brief: brief,
+                transport: transport
+            ), !notes.isEmpty {
+                consultNotes = "\n\nInternal \(specialty.title) consult (do not mention this role):\n\(notes)"
+            }
         }
 
         var messages: [[String: String]] = [
-            ["role": "system", "content": role.systemPrompt + "\n\n" + userMessage(brief: brief)]
+            [
+                "role": "system",
+                "content": CoachAgentRole.orchestrator.systemPrompt
+                    + "\n\n" + userMessage(brief: brief)
+                    + consultNotes
+                    + "\nLean on \(specialty.title) judgment for this ask without naming specialists."
+            ]
         ]
         for turn in history.suffix(10) {
             switch turn.kind {
@@ -207,52 +324,85 @@ actor GrokClient {
         let body: [String: Any] = [
             "model": "grok-3-mini",
             "temperature": 0.85,
-            "max_tokens": 360,
+            "max_tokens": 420,
             "messages": messages
         ]
         do {
-            let data = try await postChat(body: body, transport: transport, timeout: 35)
+            let data = try await postChat(body: body, transport: transport, timeout: 40)
             guard let text = Self.parseContent(from: data), !text.isEmpty else {
-                return offlineChat(role: role, userText: userText, brief: brief)
+                return failureReply(.emptyResponse, brief: brief, userText: userText)
             }
             return CoachReply(
-                role: role,
+                role: .orchestrator,
                 text: text.trimmingCharacters(in: .whitespacesAndNewlines),
-                usedNetwork: true,
-                disclaimer: CoachReply.standardDisclaimer
+                usedNetwork: true
             )
+        } catch let failure as LiveFailure {
+            return failureReply(failure, brief: brief, userText: userText)
         } catch {
-            return offlineChat(role: role, userText: userText, brief: brief)
+            if let urlError = error as? URLError, urlError.code == .badURL {
+                return failureReply(.badURL, brief: brief, userText: userText)
+            }
+            return failureReply(.transport(error.localizedDescription), brief: brief, userText: userText)
         }
     }
 
-    private func offlineChat(role: CoachAgentRole, userText: String, brief: CoachBrief) -> CoachReply {
-        let base = CoachOfflineFallback.reply(role: role, brief: brief)
+    /// Scheduled fitness digest check (orchestrator only).
+    func fitnessCheck(brief: CoachBrief, triggerSummary: String) async -> CoachReply {
+        let prompt = """
+        Periodic fitness progress check.
+        Trigger: \(triggerSummary)
+        Give one short coherent coaching answer. Ask a clarifying diet question only if needed.
+        """
+        return await chat(userText: prompt, brief: brief, history: [])
+    }
+
+    private func offlineChat(userText: String, brief: CoachBrief, hint: String) -> CoachReply {
+        let base = CoachOfflineFallback.reply(role: .orchestrator, brief: brief)
         let who = brief.userName.isEmpty ? "Operator" : brief.userName
-        let hint: String = {
-            if !GrokSharedConfig.isLiveConfigured {
-                return "Offline mock: this build has no shared Grok proxy/key. Ask the operator to set GROK_PROXY_URL in TheScale.xcconfig and rebuild."
-            }
-            if !GrokPrivacyConsent.isAccepted {
-                return "Offline: turn on Allow Grok coach requests in Settings (or agree on the consent prompt)."
-            }
-            return "Offline fallback: live Grok unreachable right now."
-        }()
         let blended = """
         \(base.text)
 
         (\(who) asked: "\(userText)") \(hint)
         """
         return CoachReply(
-            role: role,
+            role: .orchestrator,
             text: blended,
+            usedNetwork: false
+        )
+    }
+
+    private func failureReply(_ failure: LiveFailure, brief: CoachBrief, userText: String) -> CoachReply {
+        let who = brief.userName.isEmpty ? "Operator" : brief.userName
+        let text = """
+        \(who), live Coach failed.
+
+        \(failure.userMessage)
+
+        (You asked: "\(userText)")
+        Fix the proxy / consent, then try again. Offline roast withheld on purpose so this doesn't look "fine".
+        """
+        return CoachReply(
+            role: .orchestrator,
+            text: text,
             usedNetwork: false,
-            disclaimer: CoachReply.standardDisclaimer
+            failureReason: failure.userMessage
         )
     }
 
     func coach(role: CoachAgentRole, brief: CoachBrief) async -> CoachReply {
         guard GrokPrivacyConsent.isAccepted else {
+            return CoachOfflineFallback.reply(role: role, brief: brief)
+        }
+        if let issue = GrokSharedConfig.configurationIssue {
+            if case .malformedProxyURL = issue {
+                return CoachReply(
+                    role: .orchestrator,
+                    text: issue.userMessage,
+                    usedNetwork: false,
+                    failureReason: issue.userMessage
+                )
+            }
             return CoachOfflineFallback.reply(role: role, brief: brief)
         }
         guard let transport = resolveTransport() else {
@@ -276,12 +426,33 @@ actor GrokClient {
             return CoachReply(
                 role: role,
                 text: text.trimmingCharacters(in: .whitespacesAndNewlines),
-                usedNetwork: true,
-                disclaimer: CoachReply.standardDisclaimer
+                usedNetwork: true
             )
         } catch {
             return CoachOfflineFallback.reply(role: role, brief: brief)
         }
+    }
+
+    private func fetchSpecialistNotes(
+        specialty: CoachAgentRole,
+        brief: CoachBrief,
+        transport: Transport
+    ) async throws -> String {
+        let body: [String: Any] = [
+            "model": "grok-3-mini",
+            "temperature": 0.6,
+            "max_tokens": 180,
+            "messages": [
+                ["role": "system", "content": specialty.systemPrompt],
+                [
+                    "role": "user",
+                    "content": userMessage(brief: brief)
+                        + "\nWrite 3-5 bullet consult notes for the orchestrator. No user-facing fluff."
+                ]
+            ]
+        ]
+        let data = try await postChat(body: body, transport: transport, timeout: 25)
+        return Self.parseContent(from: data)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
     private func resolveTransport() -> Transport? {
@@ -309,17 +480,25 @@ actor GrokClient {
         }
         request.timeoutInterval = timeout
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let urlError as URLError where urlError.code == .badURL {
+            throw LiveFailure.badURL
+        }
+        guard let http = response as? HTTPURLResponse else {
+            throw LiveFailure.transport("No HTTP response")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw LiveFailure.httpStatus(http.statusCode)
         }
         return data
     }
 
-    /// Orchestrator: try Grok synthesis; fall back to offline specialists.
+    /// Orchestrator: try Grok synthesis; fall back to offline specialists merged once.
     func orchestrate(brief: CoachBrief) async -> CoachReply {
         let live = await coach(role: .orchestrator, brief: brief)
-        if live.usedNetwork {
+        if live.usedNetwork || live.failureReason != nil {
             return live
         }
         let medical = CoachOfflineFallback.reply(role: .medical, brief: brief)
@@ -329,15 +508,14 @@ actor GrokClient {
         let merged = """
         \(lead.text)
 
-        Med: \(medical.text)
-        Fit: \(fitness.text)
-        Anatomy: \(anatomy.text)
+        \(fitness.text)
+        \(anatomy.text)
+        \(medical.text)
         """
         return CoachReply(
             role: .orchestrator,
             text: merged,
-            usedNetwork: false,
-            disclaimer: CoachReply.standardDisclaimer
+            usedNetwork: false
         )
     }
 
@@ -364,7 +542,16 @@ actor GrokClient {
         lines.append(
             "Weekly mini-goal: \(brief.weeklyGoal.title) (\(String(format: "%+.2f", brief.weeklyGoal.targetDeltaKg)) kg)"
         )
-        lines.append("Keep it under 120 words. No markdown tables.")
+        if !brief.personaBlock.isEmpty {
+            lines.append(brief.personaBlock)
+        }
+        if !brief.memoryBlock.isEmpty {
+            lines.append(brief.memoryBlock)
+        }
+        if !brief.fitnessDigestBlock.isEmpty {
+            lines.append(brief.fitnessDigestBlock)
+        }
+        lines.append("Keep it under 140 words. No markdown tables.")
         return lines.joined(separator: "\n")
     }
 

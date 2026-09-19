@@ -9,6 +9,10 @@ struct OnboardingView: View {
     @State private var sex: UserBodyProfile.Sex = .male
     @State private var idealKg: Double = UserBodyProfile.suggestedIdealWeightKg(heightCm: 170)
     @State private var diet: DietPreference = .omnivore
+    @State private var location: String = ""
+    @State private var ethnicity: String = ""
+    @State private var preferredLanguage: String = "English"
+    @State private var culturalVibe: String = ""
     @State private var step = 0
 
     private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
@@ -40,14 +44,16 @@ struct OnboardingView: View {
                         nameStep
                     case 1:
                         bodyStep
-                    default:
+                    case 2:
                         goalsStep
+                    default:
+                        personaStep
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
                 Button(action: advance) {
-                    Text(step < 2 ? "Continue" : "Let's go")
+                    Text(step < 3 ? "Continue" : "Let's go")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -64,6 +70,10 @@ struct OnboardingView: View {
             sex = session.profile.sex
             idealKg = session.profile.idealWeightKg
             diet = session.profile.dietPreference
+            location = session.profile.location
+            ethnicity = session.profile.ethnicity
+            preferredLanguage = session.profile.preferredLanguage
+            culturalVibe = session.profile.culturalVibe
         }
     }
 
@@ -71,7 +81,8 @@ struct OnboardingView: View {
         switch step {
         case 0: return "What should we call you?"
         case 1: return "Body basics for on-device fat math."
-        default: return "Ideal weight + how you eat."
+        case 2: return "Ideal weight + how you eat."
+        default: return "Coach persona (optional, editable later)."
         }
     }
 
@@ -123,6 +134,19 @@ struct OnboardingView: View {
         }
     }
 
+    private var personaStep: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TextField("Location (city / region)", text: $location)
+            TextField("Ethnicity / culture", text: $ethnicity)
+            TextField("Preferred language", text: $preferredLanguage)
+            TextField("Vibe / cultural style", text: $culturalVibe, axis: .vertical)
+                .lineLimit(2...4)
+            Text("Example: Filipina in Manila, or French in HK preferring American culture. Skip anything you don't want Coach to use.")
+                .font(.caption)
+                .foregroundStyle(steel)
+        }
+    }
+
     private func fieldRow(_ title: String, unit: String, value: Binding<Double>, fraction: Int) -> some View {
         HStack {
             Text(title)
@@ -141,7 +165,7 @@ struct OnboardingView: View {
     }
 
     private func advance() {
-        if step < 2 {
+        if step < 3 {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
                 step += 1
             }
@@ -154,7 +178,11 @@ struct OnboardingView: View {
             sex: sex,
             idealWeightKg: idealKg,
             idealBodyFatPercent: session.profile.idealBodyFatPercent,
-            dietPreference: diet
+            dietPreference: diet,
+            location: location.trimmingCharacters(in: .whitespacesAndNewlines),
+            ethnicity: ethnicity.trimmingCharacters(in: .whitespacesAndNewlines),
+            preferredLanguage: preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines),
+            culturalVibe: culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         OnboardingStore.hasCompleted = true
         session.hasCompletedOnboarding = true

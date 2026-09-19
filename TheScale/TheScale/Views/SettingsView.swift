@@ -17,7 +17,9 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 profileCard
+                personaCard
                 notificationsCard
+                fitnessMonitorCard
                 grokCard
                 calibrationCard
                 privacyCard
@@ -149,6 +151,29 @@ struct SettingsView: View {
         .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+    private var personaCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Coach persona")
+                .font(.headline)
+            Text("Location, culture, language, and vibe shape Coach tone. On-device only until you consent to a Grok ask.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            TextField("Location (e.g. Manila, Hong Kong)", text: $session.profile.location)
+            TextField("Ethnicity / culture", text: $session.profile.ethnicity)
+            TextField("Preferred language", text: $session.profile.preferredLanguage)
+            TextField(
+                "Vibe (e.g. Filipina in Manila; French in HK preferring American culture)",
+                text: $session.profile.culturalVibe,
+                axis: .vertical
+            )
+            .lineLimit(2...4)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
     private var notificationsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Notifications", systemImage: "bell.badge")
@@ -186,11 +211,133 @@ struct SettingsView: View {
         .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+    private var fitnessMonitorCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Health ↔ Grok monitoring", systemImage: "heart.text.square")
+                .font(.headline)
+            Text("Reads HR, resting HR, sleep, steps, active energy, and workouts from Apple Health (after permission). Grok gets a compact digest on your schedule. iOS background is best-effort; local notifications nudge you to open the app.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Toggle(
+                "Enable fitness monitoring",
+                isOn: Binding(
+                    get: { session.fitnessMonitorPreferences.enabled },
+                    set: {
+                        var next = session.fitnessMonitorPreferences
+                        next.enabled = $0
+                        session.fitnessMonitorPreferences = next
+                        if $0 {
+                            Task { _ = await session.runFitnessMonitorCheck(force: true) }
+                        }
+                    }
+                )
+            )
+
+            Picker(
+                "Check interval",
+                selection: Binding(
+                    get: { session.fitnessMonitorPreferences.interval },
+                    set: {
+                        var next = session.fitnessMonitorPreferences
+                        next.interval = $0
+                        session.fitnessMonitorPreferences = next
+                    }
+                )
+            ) {
+                ForEach(GrokCheckInterval.allCases) { interval in
+                    Text(interval.title).tag(interval)
+                }
+            }
+            .pickerStyle(.menu)
+
+            Toggle(
+                "Notify on bad Watch / sleep-HR signals",
+                isOn: Binding(
+                    get: { session.fitnessMonitorPreferences.notifyOnTriggers },
+                    set: {
+                        var next = session.fitnessMonitorPreferences
+                        next.notifyOnTriggers = $0
+                        session.fitnessMonitorPreferences = next
+                    }
+                )
+            )
+
+            HStack {
+                Text("Pre-sleep HR window")
+                Spacer()
+                TextField(
+                    "min",
+                    value: Binding(
+                        get: { session.fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes },
+                        set: {
+                            var next = session.fitnessMonitorPreferences
+                            next.thresholds.preSleepHRWindowMinutes = max(10, min($0, 90))
+                            session.fitnessMonitorPreferences = next
+                        }
+                    ),
+                    format: .number
+                )
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 48)
+                Text("min").foregroundStyle(.secondary)
+            }
+            .font(.footnote)
+
+            HStack {
+                Text("Flag if pre-sleep HR ≥")
+                Spacer()
+                TextField(
+                    "bpm",
+                    value: Binding(
+                        get: { session.fitnessMonitorPreferences.thresholds.preSleepHRAbsoluteBpm },
+                        set: {
+                            var next = session.fitnessMonitorPreferences
+                            next.thresholds.preSleepHRAbsoluteBpm = max(60, min($0, 140))
+                            session.fitnessMonitorPreferences = next
+                        }
+                    ),
+                    format: .number.precision(.fractionLength(0))
+                )
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 48)
+                Text("bpm").foregroundStyle(.secondary)
+            }
+            .font(.footnote)
+
+            Button {
+                Task { _ = await session.runFitnessMonitorCheck(force: true) }
+            } label: {
+                Label("Run check now", systemImage: "arrow.triangle.2.circlepath")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+
+            if let reply = session.lastFitnessCoachReply {
+                Text("Last Coach note")
+                    .font(.caption.weight(.semibold))
+                Text(reply)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if !session.lastFitnessTriggers.isEmpty {
+                Text(session.lastFitnessTriggers.map(\.message).joined(separator: "\n"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
     private var grokCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Grok coach", systemImage: "sparkles")
                 .font(.headline)
-            Text("Shared for every install of this build. You never paste an API key here. Coach sends only a short trend / chat snapshot after consent. Offline mock always works.")
+            Text("Shared for every install of this build. You never paste an API key here. Coach sends only a short trend / chat / fitness digest after consent. If the proxy URL is broken, you'll see a clear error (not a fake offline roast).")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -343,7 +490,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Privacy & Health", systemImage: "lock.shield")
                 .font(.headline)
-            Text("Profile, calibration, and readings stay on this iPhone. Health is read for trend and history charts, and written only after you confirm. Grok is opt-in per coach tap after consent. The shared xAI key lives on the operator's Worker (or a build-time secret), never in Settings.")
+            Text("Profile, calibration, memory, persona, and readings stay on this iPhone. Health is read for trend, history, and optional fitness monitoring (HR, sleep, steps, energy, workouts), and written only after you confirm a weigh-in. Grok is opt-in after consent. The shared xAI key lives on the operator's Worker (or a build-time secret), never in Settings.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Text("If permissions were denied: Settings → Health → Data Access → The Scale. Notifications: Settings → Notifications → The Scale.")

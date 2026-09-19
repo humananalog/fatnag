@@ -11,6 +11,11 @@ protocol HealthWriting: AnyObject {
     func fetchWeights(from start: Date, to end: Date) async throws -> [HealthMetricSample]
     /// Body fat % samples in `[start, end]` (oldest first). Values are percent (e.g. 18.5).
     func fetchBodyFatPercents(from start: Date, to end: Date) async throws -> [HealthMetricSample]
+    /// Fitness / recovery digest for Grok monitoring (HR, sleep, steps, energy, workouts).
+    func fetchFitnessDigest(
+        preSleepWindowMinutes: Int,
+        now: Date
+    ) async throws -> FitnessDigest
     func write(
         measurement: ScaleMeasurement,
         composition: BodyCompositionResult?,
@@ -39,10 +44,11 @@ enum HealthKitWriterError: LocalizedError {
     }
 }
 
-/// Reads recent weight / body-fat history and writes confirmed scale readings to HealthKit.
+/// Reads weight / body-fat / fitness signals and writes confirmed scale readings to HealthKit.
 ///
 /// Authorized:
-/// - Read: bodyMass (trend + charts), bodyFatPercentage (charts)
+/// - Read: bodyMass, bodyFatPercentage, heartRate, restingHeartRate, stepCount,
+///   activeEnergyBurned, sleepAnalysis, workout
 /// - Write: bodyMass, bodyMassIndex, bodyFatPercentage, leanBodyMass
 ///
 /// Shown in-app only (no first-class HealthKit quantity): muscle mass, bone mass,
@@ -67,6 +73,12 @@ final class HealthKitWriter: HealthWriting {
         var types = Set<HKObjectType>()
         if let mass = HKObjectType.quantityType(forIdentifier: .bodyMass) { types.insert(mass) }
         if let fat = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) { types.insert(fat) }
+        if let hr = HKObjectType.quantityType(forIdentifier: .heartRate) { types.insert(hr) }
+        if let rhr = HKObjectType.quantityType(forIdentifier: .restingHeartRate) { types.insert(rhr) }
+        if let steps = HKObjectType.quantityType(forIdentifier: .stepCount) { types.insert(steps) }
+        if let energy = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) { types.insert(energy) }
+        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { types.insert(sleep) }
+        types.insert(HKObjectType.workoutType())
         return types
     }
 
@@ -129,6 +141,173 @@ final class HealthKitWriter: HealthWriting {
             to: end,
             scale: 100
         )
+    }
+
+    func fetchFitnessDigest(
+        preSleepWindowMinutes: Int,
+        now: Date = Date()
+    ) async throws -> FitnessDigest {
+        guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
+        try await requestAuthorizationIfNeeded()
+
+        let cal = Calendar.current
+        let dayStart = cal.startOfDay(for: now)
+        let last24h = now.addingTimeInterval(-24 * 3600)
+        let hrUnit = HKUnit.count().unitDivided(by: .minute())
+
+        async let steps = sumQuantity(.stepCount, unit: .count(), from: dayStart, to: now)
+        async let energy = sumQuantity(
+            .activeEnergyBurned,
+            unit: .kilocalorie(),
+            from: dayStart,
+            to: now
+        )
+        async let resting = latestQuantity(
+            .restingHeartRate,
+            unit: hrUnit,
+            from: now.addingTimeInterval(-7 * 86_400),
+            to: now
+        )
+        async let latestHR = latestQuantity(.heartRate, unit: hrUnit, from: dayStart, to: now)
+        async let hrToday = fetchQuantitySamples(
+            identifier: .heartRate,
+            unit: hrUnit,
+            from: dayStart,
+            to: now,
+            scale: 1
+        )
+        async let workouts = workoutCount(from: last24h, to: now)
+        async let sleep = sleepSummary(endingNear: now)
+
+        let (stepsV, energyV, restingV, latestHRV, hrSamples, workoutN, sleepInfo) = try await (
+            steps, energy, resting, latestHR, hrToday, workouts, sleep
+        )
+
+        var preSleepAvg: Double?
+        var preSleepCount = 0
+        if let onset = sleepInfo.onset {
+            let windowStart = onset.addingTimeInterval(-Double(preSleepWindowMinutes) * 60)
+            let preSamples = try await fetchQuantitySamples(
+                identifier: .heartRate,
+                unit: hrUnit,
+                from: windowStart,
+                to: onset,
+                scale: 1
+            )
+            preSleepCount = preSamples.count
+            if !preSamples.isEmpty {
+                preSleepAvg = preSamples.map(\.value).reduce(0, +) / Double(preSamples.count)
+            }
+        }
+
+        return FitnessDigest(
+            stepsToday: stepsV,
+            activeEnergyKcalToday: energyV,
+            restingHeartRateBpm: restingV,
+            latestHeartRateBpm: latestHRV,
+            heartRateSampleCountToday: hrSamples.count,
+            sleepHoursLastNight: sleepInfo.hours,
+            sleepOnset: sleepInfo.onset,
+            preSleepAverageHRBpm: preSleepAvg,
+            preSleepHRSampleCount: preSleepCount,
+            workoutCountLast24h: workoutN,
+            generatedAt: now
+        )
+    }
+
+    private func sumQuantity(
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        from start: Date,
+        to end: Date
+    ) async throws -> Double? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else {
+            throw HealthKitWriterError.missingType(identifier.rawValue)
+        }
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKStatisticsQuery(
+                quantityType: type,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum
+            ) { _, stats, error in
+                if let error {
+                    continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
+                    return
+                }
+                let value = stats?.sumQuantity()?.doubleValue(for: unit)
+                continuation.resume(returning: value)
+            }
+            store.execute(query)
+        }
+    }
+
+    private func latestQuantity(
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        from start: Date,
+        to end: Date
+    ) async throws -> Double? {
+        let samples = try await fetchQuantitySamples(
+            identifier: identifier,
+            unit: unit,
+            from: start,
+            to: end,
+            scale: 1
+        )
+        return samples.last?.value
+    }
+
+    private func workoutCount(from start: Date, to end: Date) async throws -> Int {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: .workoutType(),
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
+                    return
+                }
+                continuation.resume(returning: samples?.count ?? 0)
+            }
+            store.execute(query)
+        }
+    }
+
+    private func sleepSummary(endingNear now: Date) async throws -> (hours: Double?, onset: Date?) {
+        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
+            throw HealthKitWriterError.missingType("sleepAnalysis")
+        }
+        let start = now.addingTimeInterval(-36 * 3600)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: now, options: .strictStartDate)
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: sleepType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [sort]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
+                    return
+                }
+                let cats = (samples as? [HKCategorySample] ?? []).filter { sample in
+                    Self.isAsleepValue(sample.value)
+                }
+                guard !cats.isEmpty else {
+                    continuation.resume(returning: (nil, nil))
+                    return
+                }
+                let onset = cats.map(\.startDate).min()
+                let seconds = cats.reduce(0.0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
+                continuation.resume(returning: (seconds / 3600.0, onset))
+            }
+            store.execute(query)
+        }
     }
 
     private func fetchQuantitySamples(
@@ -255,6 +434,17 @@ final class HealthKitWriter: HealthWriting {
                 }
             }
         }
+    }
+
+    nonisolated private static func isAsleepValue(_ value: Int) -> Bool {
+        let asleepValues: Set<Int> = [
+            HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+            HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+            HKCategoryValueSleepAnalysis.asleepREM.rawValue,
+            1 // legacy HKCategoryValueSleepAnalysis.asleep
+        ]
+        return asleepValues.contains(value)
     }
 
     private func metadata(for draft: EditableMeasurementDraft) -> [String: Any] {

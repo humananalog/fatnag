@@ -74,11 +74,37 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
     /// Optional goal body fat %. When set, fat chart uses it as floor / reference.
     var idealBodyFatPercent: Double?
     var dietPreference: DietPreference
+    /// City / region for culturally aware coaching (on-device).
+    var location: String
+    /// Ethnicity or cultural background the user wants the coach to respect.
+    var ethnicity: String
+    /// Preferred spoken / written language for coach replies.
+    var preferredLanguage: String
+    /// Vibe / cultural style notes (e.g. Filipina in Manila; French in HK preferring American culture).
+    var culturalVibe: String
 
     /// First name / greeting fragment; falls back to empty.
     var greetingName: String {
         let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed
+    }
+
+    /// Compact persona lines for Grok system prompts (skips blanks).
+    var coachPersonaBlock: String {
+        var lines: [String] = []
+        let loc = location.trimmingCharacters(in: .whitespacesAndNewlines)
+        let eth = ethnicity.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lang = preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let vibe = culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !loc.isEmpty { lines.append("Location: \(loc)") }
+        if !eth.isEmpty { lines.append("Ethnicity / culture: \(eth)") }
+        if !lang.isEmpty { lines.append("Preferred language: \(lang)") }
+        if !vibe.isEmpty { lines.append("Vibe / cultural style: \(vibe)") }
+        guard !lines.isEmpty else { return "" }
+        return """
+        Persona (match tone and examples to this; do not stereotype or exoticize):
+        \(lines.joined(separator: "\n"))
+        """
     }
 
     static let `default` = UserBodyProfile(
@@ -88,7 +114,11 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         sex: .male,
         idealWeightKg: suggestedIdealWeightKg(heightCm: 170),
         idealBodyFatPercent: nil,
-        dietPreference: .omnivore
+        dietPreference: .omnivore,
+        location: "",
+        ethnicity: "",
+        preferredLanguage: "English",
+        culturalVibe: ""
     )
 
     /// BMI ~22 suggestion used when seeding a new profile or migrating old saves.
@@ -104,7 +134,11 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         sex: Sex,
         idealWeightKg: Double? = nil,
         idealBodyFatPercent: Double? = nil,
-        dietPreference: DietPreference = .omnivore
+        dietPreference: DietPreference = .omnivore,
+        location: String = "",
+        ethnicity: String = "",
+        preferredLanguage: String = "English",
+        culturalVibe: String = ""
     ) {
         self.displayName = displayName
         self.heightCm = heightCm
@@ -113,6 +147,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         self.idealWeightKg = idealWeightKg ?? Self.suggestedIdealWeightKg(heightCm: heightCm)
         self.idealBodyFatPercent = idealBodyFatPercent
         self.dietPreference = dietPreference
+        self.location = location
+        self.ethnicity = ethnicity
+        self.preferredLanguage = preferredLanguage
+        self.culturalVibe = culturalVibe
     }
 
     init(from decoder: Decoder) throws {
@@ -125,10 +163,15 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
             ?? Self.suggestedIdealWeightKg(heightCm: heightCm)
         idealBodyFatPercent = try c.decodeIfPresent(Double.self, forKey: .idealBodyFatPercent)
         dietPreference = try c.decodeIfPresent(DietPreference.self, forKey: .dietPreference) ?? .omnivore
+        location = try c.decodeIfPresent(String.self, forKey: .location) ?? ""
+        ethnicity = try c.decodeIfPresent(String.self, forKey: .ethnicity) ?? ""
+        preferredLanguage = try c.decodeIfPresent(String.self, forKey: .preferredLanguage) ?? "English"
+        culturalVibe = try c.decodeIfPresent(String.self, forKey: .culturalVibe) ?? ""
     }
 
     private enum CodingKeys: String, CodingKey {
         case displayName, heightCm, ageYears, sex, idealWeightKg, idealBodyFatPercent, dietPreference
+        case location, ethnicity, preferredLanguage, culturalVibe
     }
 }
 

@@ -70,6 +70,18 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var notificationPreferences: NotificationPreferences {
         didSet { NotificationPreferencesStore.save(notificationPreferences) }
     }
+    @Published var fitnessMonitorPreferences: FitnessMonitorPreferences {
+        didSet {
+            FitnessMonitorPreferencesStore.save(fitnessMonitorPreferences)
+            Task {
+                await GrokFitnessMonitor.scheduleIntervalNotification(
+                    prefs: fitnessMonitorPreferences,
+                    profileName: profile.greetingName
+                )
+                GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: fitnessMonitorPreferences)
+            }
+        }
+    }
     @Published var weeklyGoal: WeeklyMiniGoal {
         didSet { WeeklyMiniGoalStore.save(weeklyGoal) }
     }
@@ -78,6 +90,9 @@ final class ScaleSessionViewModel: ObservableObject {
     }
     @Published var isProgressPresented = false
     @Published var isCoachPresented = false
+    @Published private(set) var lastFitnessDigest: FitnessDigest?
+    @Published private(set) var lastFitnessCoachReply: String?
+    @Published private(set) var lastFitnessTriggers: [FitnessTrigger] = []
     /// Last raw kg seen from BLE (kept after the live sheet closes so Settings can capture).
     @Published private(set) var lastRawWeightKg: Double?
     /// Optional manual raw kg typed in Settings when BLE reading is unavailable.
@@ -94,6 +109,7 @@ final class ScaleSessionViewModel: ObservableObject {
         profile: UserBodyProfile = UserProfileStore.load(),
         calibration: ScaleCalibration = ScaleCalibrationStore.load(),
         notificationPreferences: NotificationPreferences = NotificationPreferencesStore.load(),
+        fitnessMonitorPreferences: FitnessMonitorPreferences = FitnessMonitorPreferencesStore.load(),
         weeklyGoal: WeeklyMiniGoal = WeeklyMiniGoalStore.load(),
         hasCompletedOnboarding: Bool = OnboardingStore.hasCompleted
     ) {
@@ -102,9 +118,15 @@ final class ScaleSessionViewModel: ObservableObject {
         self.profile = profile
         self.calibration = calibration
         self.notificationPreferences = notificationPreferences
+        self.fitnessMonitorPreferences = fitnessMonitorPreferences
         self.weeklyGoal = weeklyGoal
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.scanner.delegate = self
+        self.lastFitnessCoachReply = GrokFitnessMonitor.loadLastReply()
+        GrokFitnessMonitor.install { [weak self] force in
+            guard let self else { return false }
+            return await self.runFitnessMonitorCheck(force: force)
+        }
     }
 
     convenience init() {
@@ -346,11 +368,13 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
 
-    func makeCoachBrief() -> CoachBrief {
+    func makeCoachBrief(digest: FitnessDigest? = nil) -> CoachBrief {
         let weekDelta: Double? = {
             guard let current = healthBaselineKg, let start = weeklyGoal.weekStartKg else { return nil }
             return current - start
         }()
+        let activeDigest = digest ?? lastFitnessDigest
+        let window = fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes
         return CoachBrief(
             userName: profile.greetingName,
             diet: profile.dietPreference,
@@ -360,12 +384,72 @@ final class ScaleSessionViewModel: ObservableObject {
             idealBodyFatPercent: profile.idealBodyFatPercent,
             trend: trendForDisplay,
             weekDeltaKg: weekDelta,
-            weeklyGoal: weeklyGoal
+            weeklyGoal: weeklyGoal,
+            personaBlock: profile.coachPersonaBlock,
+            memoryBlock: CoachMemoryStore.promptBlock(),
+            fitnessDigestBlock: activeDigest?.promptBlock(preSleepWindowMinutes: window) ?? ""
         )
     }
 
     func requestOrchestratorCoach() async -> CoachReply {
         await GrokClient.shared.orchestrate(brief: makeCoachBrief())
+    }
+
+    /// Pull Health fitness signals, evaluate triggers, optionally call Grok.
+    @discardableResult
+    func runFitnessMonitorCheck(force: Bool) async -> Bool {
+        var prefs = fitnessMonitorPreferences
+        guard prefs.enabled || force else { return false }
+        if !force, !FitnessTriggerMonitor.isAutomatedCheckDue(prefs: prefs) {
+            return false
+        }
+
+        do {
+            try await healthStore.requestAuthorizationIfNeeded()
+            let digest = try await healthStore.fetchFitnessDigest(
+                preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes,
+                now: Date()
+            )
+            lastFitnessDigest = digest
+            let triggers = FitnessTriggerMonitor.evaluate(digest: digest, thresholds: prefs.thresholds)
+            lastFitnessTriggers = triggers
+
+            await GrokFitnessMonitor.notifyTriggers(
+                triggers,
+                prefs: &prefs,
+                profileName: profile.greetingName
+            )
+
+            let triggerSummary: String = {
+                if triggers.isEmpty {
+                    return "Scheduled progress check (no critical local triggers)."
+                }
+                return triggers.map(\.message).joined(separator: " | ")
+            }()
+
+            if GrokPrivacyConsent.isAccepted, GrokSharedConfig.isLiveConfigured {
+                let reply = await GrokClient.shared.fitnessCheck(
+                    brief: makeCoachBrief(digest: digest),
+                    triggerSummary: triggerSummary
+                )
+                lastFitnessCoachReply = reply.text
+                GrokFitnessMonitor.storeLastReply(reply.text)
+            } else if let top = triggers.first {
+                lastFitnessCoachReply = top.message
+                GrokFitnessMonitor.storeLastReply(top.message)
+            }
+
+            prefs.lastAutomatedCheckAt = Date()
+            fitnessMonitorPreferences = prefs
+            await GrokFitnessMonitor.scheduleIntervalNotification(
+                prefs: prefs,
+                profileName: profile.greetingName
+            )
+            GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: prefs)
+            return true
+        } catch {
+            return false
+        }
     }
 
     func refreshTrendNotifications() async {

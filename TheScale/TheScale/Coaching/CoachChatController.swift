@@ -11,6 +11,7 @@ struct CoachChatTurn: Identifiable, Equatable, Sendable {
     let agent: CoachAgentRole?
     let text: String
     let usedNetwork: Bool
+    let isFailure: Bool
     let createdAt: Date
 
     init(
@@ -19,6 +20,7 @@ struct CoachChatTurn: Identifiable, Equatable, Sendable {
         agent: CoachAgentRole? = nil,
         text: String,
         usedNetwork: Bool = false,
+        isFailure: Bool = false,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -26,6 +28,7 @@ struct CoachChatTurn: Identifiable, Equatable, Sendable {
         self.agent = agent
         self.text = text
         self.usedNetwork = usedNetwork
+        self.isFailure = isFailure
         self.createdAt = createdAt
     }
 }
@@ -34,21 +37,21 @@ struct CoachChatTurn: Identifiable, Equatable, Sendable {
 final class CoachChatController: ObservableObject {
     @Published private(set) var turns: [CoachChatTurn] = []
     @Published var draft = ""
-    @Published var selectedAgent: CoachAgentRole = .orchestrator
-    @Published var autoRoute = true
     @Published private(set) var isSending = false
+    @Published private(set) var rememberedCount = 0
 
     func seedWelcome(name: String) {
         guard turns.isEmpty else { return }
         let who = name.isEmpty ? "Operator" : name
+        rememberedCount = CoachMemoryStore.load().count
         turns = [
             CoachChatTurn(
                 kind: .assistant,
                 agent: .orchestrator,
                 text: """
-                \(who). Orchestrator here.
-                Tap Med / Fit / Anat or leave Auto-route on. Dark humour included; reckless medical advice is not.
-                Health stays on-device. Grok only sees this chat (+ a short trend snapshot) after consent.
+                \(who). Coach here (one voice; specialists stay backstage).
+                Tell me habits like "I'm doing intermittent fasting" and I'll remember them on-device for diet tweaks.
+                Dark humour included; reckless medical advice is not. Health stays on-device until you consent to Grok.
                 """
             )
         ]
@@ -58,24 +61,43 @@ final class CoachChatController: ObservableObject {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isSending else { return }
         draft = ""
-        let role = autoRoute ? GrokClient.route(userText: text) : selectedAgent
-        selectedAgent = role
+
+        for fact in CoachMemoryExtractor.extract(from: text) {
+            CoachMemoryStore.remember(fact)
+        }
+        rememberedCount = CoachMemoryStore.load().count
+
+        let briefWithMemory = CoachBrief(
+            userName: brief.userName,
+            diet: brief.diet,
+            currentKg: brief.currentKg,
+            idealKg: brief.idealKg,
+            bodyFatPercent: brief.bodyFatPercent,
+            idealBodyFatPercent: brief.idealBodyFatPercent,
+            trend: brief.trend,
+            weekDeltaKg: brief.weekDeltaKg,
+            weeklyGoal: brief.weeklyGoal,
+            personaBlock: brief.personaBlock,
+            memoryBlock: CoachMemoryStore.promptBlock(),
+            fitnessDigestBlock: brief.fitnessDigestBlock
+        )
+
         turns.append(CoachChatTurn(kind: .user, text: text))
         isSending = true
         defer { isSending = false }
 
         let reply = await GrokClient.shared.chat(
-            role: role,
             userText: text,
-            brief: brief,
+            brief: briefWithMemory,
             history: turns
         )
         turns.append(
             CoachChatTurn(
                 kind: .assistant,
-                agent: role,
+                agent: .orchestrator,
                 text: reply.text,
-                usedNetwork: reply.usedNetwork
+                usedNetwork: reply.usedNetwork,
+                isFailure: reply.failureReason != nil
             )
         )
     }

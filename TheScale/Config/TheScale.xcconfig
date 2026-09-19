@@ -3,8 +3,11 @@
 // Non-secret defaults live here so every checkout gets the shared Grok proxy URL.
 // Optional local overrides: copy Secrets.example.xcconfig → Secrets.xcconfig (gitignored).
 // Never put a real XAI key in this tracked file. Prefer the Cloudflare Worker secret.
+//
+// IMPORTANT: xcconfig treats // as a comment. Never write https:// literally.
+// Use https:/$()/host so the build setting expands to https://host.
 
-GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev
+GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
 GROK_API_KEY =
 
 #include? "Secrets.xcconfig"
