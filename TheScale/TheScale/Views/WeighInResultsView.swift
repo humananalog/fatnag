@@ -87,7 +87,7 @@ struct WeighInResultsView: View {
                     .font(.body.weight(.semibold))
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
                     .frame(width: 40, height: 40)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .scaleGlassCircle()
             }
             .accessibilityLabel("Close history")
 
@@ -113,7 +113,7 @@ struct WeighInResultsView: View {
                     .foregroundStyle(atmosphere.accent)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
-                    .background(.ultraThinMaterial, in: Capsule())
+                    .scaleGlassCapsule()
             }
             .accessibilityLabel("Manual weight entry")
         }
@@ -150,6 +150,10 @@ struct WeighInResultsView: View {
                 .toggleStyle(.switch)
                 .labelsHidden()
                 .accessibilityLabel("Trend projection to ideal weight")
+                .onChange(of: showTrend) { _, _ in
+                    selectedWeightDate = nil
+                    selectedFatDate = nil
+                }
 
                 Text("Trend")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -226,7 +230,7 @@ struct WeighInResultsView: View {
                         y: .value("Weight", sample.value),
                         series: .value("Series", "Health")
                     )
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(samples.count < 3 ? .linear : .catmullRom)
                     .foregroundStyle(atmosphere.accent.opacity(0.9))
                     .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
 
@@ -234,7 +238,7 @@ struct WeighInResultsView: View {
                         x: .value("Date", sample.date),
                         y: .value("Weight", sample.value)
                     )
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(samples.count < 3 ? .linear : .catmullRom)
                     .foregroundStyle(
                         LinearGradient(
                             colors: [atmosphere.accent.opacity(0.22), atmosphere.accent.opacity(0.02)],
@@ -356,7 +360,7 @@ struct WeighInResultsView: View {
                         y: .value("Body fat", sample.value),
                         series: .value("Series", "Health")
                     )
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(samples.count < 3 ? .linear : .catmullRom)
                     .foregroundStyle(atmosphere.accent.opacity(0.9))
                     .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
 
@@ -364,7 +368,7 @@ struct WeighInResultsView: View {
                         x: .value("Date", sample.date),
                         y: .value("Body fat", sample.value)
                     )
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(samples.count < 3 ? .linear : .catmullRom)
                     .foregroundStyle(
                         LinearGradient(
                             colors: [atmosphere.accent.opacity(0.22), atmosphere.accent.opacity(0.02)],
@@ -480,7 +484,7 @@ struct WeighInResultsView: View {
         }
         .padding(panelInnerPad)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .scaleGlassPanel(cornerRadius: 18)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel(title: title, unit: unit, samples: samples, extrema: extrema))
     }

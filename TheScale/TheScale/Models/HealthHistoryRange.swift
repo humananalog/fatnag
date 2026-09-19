@@ -256,7 +256,17 @@ enum HealthChartMath {
             )
         }
 
-        // Solve ideal = intercept + slope * (t - t0)  →  t = t0 + (ideal - intercept) / slope
+        // Solve ideal = intercept + slope * (t - t0) → t = t0 + (ideal - intercept) / slope
+        guard abs(fit.slopeKgPerSecond) > 1e-15 else {
+            let stubEnd = calendar.date(byAdding: .day, value: 7, to: startDate) ?? startDate.addingTimeInterval(7 * 86_400)
+            path.append(HealthMetricSample(value: fit.value(at: stubEnd), date: stubEnd))
+            return WeightTrendProjection(
+                windowSamples: ordered,
+                slopeKgPerDay: slopePerDay,
+                path: path,
+                crossing: nil
+            )
+        }
         let deltaSeconds = (ideal - fit.interceptKg) / fit.slopeKgPerSecond
         let crossingDate = Date(timeIntervalSinceReferenceDate: fit.t0.timeIntervalSinceReferenceDate + deltaSeconds)
         let horizon = calendar.date(byAdding: .day, value: maxHorizonDays, to: startDate)

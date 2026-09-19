@@ -73,8 +73,11 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var weeklyGoal: WeeklyMiniGoal {
         didSet { WeeklyMiniGoalStore.save(weeklyGoal) }
     }
-    @Published var hasCompletedOnboarding: Bool
+    @Published var hasCompletedOnboarding: Bool {
+        didSet { OnboardingStore.hasCompleted = hasCompletedOnboarding }
+    }
     @Published var isProgressPresented = false
+    @Published var isCoachPresented = false
     /// Last raw kg seen from BLE (kept after the live sheet closes so Settings can capture).
     @Published private(set) var lastRawWeightKg: Double?
     /// Optional manual raw kg typed in Settings when BLE reading is unavailable.
@@ -306,6 +309,14 @@ final class ScaleSessionViewModel: ObservableObject {
 
     func dismissProgress() {
         isProgressPresented = false
+    }
+
+    func presentCoach() {
+        isCoachPresented = true
+    }
+
+    func dismissCoach() {
+        isCoachPresented = false
     }
 
     func updateWeeklyGoalDelta(_ deltaKg: Double) {

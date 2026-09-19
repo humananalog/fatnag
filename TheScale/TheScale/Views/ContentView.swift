@@ -64,6 +64,13 @@ struct ContentView: View {
                 ProgressSheet()
                     .environmentObject(session)
             }
+            .fullScreenCover(isPresented: Binding(
+                get: { session.isCoachPresented },
+                set: { if !$0 { session.dismissCoach() } }
+            )) {
+                CoachChatView()
+                    .environmentObject(session)
+            }
             .task {
                 await session.refreshHealthBaseline()
                 session.ensureWeeklyGoalBaseline()
@@ -167,6 +174,17 @@ struct ContentView: View {
                 session.presentProgress()
             } label: {
                 Label("Progress", systemImage: "flag.checkered")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 2)
+            }
+            .buttonStyle(.bordered)
+            .tint(ink)
+
+            Button {
+                session.presentCoach()
+            } label: {
+                Label("Coach", systemImage: "sparkles")
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 2)

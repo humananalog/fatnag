@@ -63,7 +63,7 @@ final class CoachOfflineTests: XCTestCase {
         XCTAssertEqual(profile.dietPreference, .omnivore)
     }
 
-    func testWeeklyGoalProgress() {
+    func testWeeklyGoalProgress() throws {
         var goal = WeeklyMiniGoal.default
         goal.weekStartKg = 80
         goal.targetDeltaKg = -0.5
@@ -79,5 +79,33 @@ final class CoachOfflineTests: XCTestCase {
         ]
         let rate = try XCTUnwrap(HealthChartMath.ratePerWeek(samples: samples))
         XCTAssertEqual(rate, -1.0, accuracy: 0.05)
+    }
+
+    func testRoutePicksMedical() {
+        XCTAssertEqual(GrokClient.route(userText: "Is this chest pain bad?"), .medical)
+    }
+
+    func testRoutePicksFitness() {
+        XCTAssertEqual(GrokClient.route(userText: "Should I lift today on a calorie cut?"), .fitness)
+    }
+
+    func testRouteDefaultsToOrchestrator() {
+        XCTAssertEqual(GrokClient.route(userText: "How's my week looking?"), .orchestrator)
+    }
+
+    func testProjectNearZeroSlopeDoesNotCrash() throws {
+        let day: TimeInterval = 86_400
+        let samples = [
+            HealthMetricSample(value: 80, date: Date(timeIntervalSince1970: 0)),
+            HealthMetricSample(value: 80.01, date: Date(timeIntervalSince1970: day * 7))
+        ]
+        let projection = try XCTUnwrap(
+            HealthChartMath.projectWeightToIdeal(
+                windowSamples: samples,
+                idealKg: 75,
+                now: Date(timeIntervalSince1970: day * 7)
+            )
+        )
+        XCTAssertNotNil(projection.path.last)
     }
 }

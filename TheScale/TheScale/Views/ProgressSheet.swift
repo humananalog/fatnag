@@ -103,7 +103,7 @@ struct ProgressSheet: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .scaleGlassPanel(cornerRadius: 18)
     }
 
     private var coachCard: some View {
@@ -142,15 +142,24 @@ struct ProgressSheet: View {
                     showPrivacyGate = true
                 }
             } label: {
-                Text(GrokKeychain.hasAPIKey ? "Coach me" : "Coach me (offline)")
+                Text(GrokKeychain.hasAPIKey ? "Quick roast" : "Quick roast (offline)")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .disabled(isCoaching)
+
+            Button {
+                dismiss()
+                session.presentCoach()
+            } label: {
+                Label("Open multi-agent chat", systemImage: "bubble.left.and.bubble.right")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .scaleGlassPanel(cornerRadius: 18)
     }
 
     private var privacyNote: some View {
