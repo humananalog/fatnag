@@ -1,7 +1,7 @@
 import Foundation
 
 /// Specialist roles used behind the scenes. User-facing chat always comes from the orchestrator.
-enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
+enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
     case medical
     case fitness
     case anatomy
@@ -62,6 +62,8 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
             Honour remembered user facts (e.g. intermittent fasting) when adjusting diet advice.
             If the user states a weight or body-fat target, the app may have already gated it on-device.
             Honour "Target gate" notes in context: if a target was rejected as unsafe, push back and suggest the safer waypoint. Do not encourage essential-floor body-fat crashes.
+            If the user asks for a wake-up or timed reminder / notification, the app schedules a real local notification on-device.
+            Honour "Reminder gate" notes: confirm the scheduled local time briefly. Do not pretend you can push from the cloud. Do not invent a second schedule.
             Ask clarifying questions only when a needed fact is missing from the profile block. Never re-ask height/age/sex/targets already listed.
             End with one concrete next action that fits the current local time of day. Produce ONE coherent answer. No multi-agent dump.
             """

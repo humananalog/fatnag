@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 2.5.1  
+**Version:** 2.6.0  
 **Target device:** iPhone 15 (iOS 26+, Xcode 27 / iOS 27 SDK)  
 **Deployment target:** iOS 26.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -33,7 +33,7 @@ No accounts, no analytics. Weigh-ins stay on-device / Apple Health. Optional sha
 | Weight calibration (factor / offset) | `UserDefaults` on device only |
 | Health **read** | Recent `bodyMass` for trend; `bodyMass` + `bodyFatPercentage` for history charts; optional fitness digest (`heartRate`, `restingHeartRate`, `stepCount`, `activeEnergyBurned`, `sleepAnalysis`, workouts) |
 | Health **writes** | Apple Health (HealthKit) on device, after **Confirm to Health** or **Manual → Save** |
-| Name / diet / notification prefs / weekly mini-goal / fitness-monitor prefs | `UserDefaults` on device only |
+| Name / diet / notification prefs / weekly mini-goal / Coach wake reminders / fitness-monitor prefs | `UserDefaults` on device only |
 | Shared xAI / Grok access | Operator-managed: Cloudflare Worker secret (preferred) or build-time key via `TheScale.xcconfig` / gitignored `Secrets.xcconfig` (IPA-extractable) |
 | Grok coach request | Opt-in only: short trend / chat / fitness digest + relevant memory → shared proxy or `api.x.ai` after consent |
 | Network | None by default; Grok only when you tap Coach (or enabled fitness monitoring) with shared config + consent |

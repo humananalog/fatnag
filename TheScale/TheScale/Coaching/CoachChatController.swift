@@ -1,7 +1,7 @@
 import Foundation
 
-struct CoachChatTurn: Identifiable, Equatable, Sendable {
-    enum Kind: String, Sendable {
+struct CoachChatTurn: Identifiable, Equatable, Codable, Sendable {
+    enum Kind: String, Codable, Sendable {
         case user
         case assistant
     }
@@ -36,6 +36,36 @@ struct CoachChatTurn: Identifiable, Equatable, Sendable {
     }
 }
 
+/// On-device conversation transcript (UserDefaults). Separate from habit/target fact memory.
+enum CoachChatHistoryStore {
+    private static let key = "thescale.coachChatHistory.v1"
+    /// Keep enough for multi-session continuity without bloating UserDefaults.
+    private static let maxTurns = 80
+
+    static func load() -> [CoachChatTurn] {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let turns = try? JSONDecoder().decode([CoachChatTurn].self, from: data)
+        else {
+            return []
+        }
+        // Never restore a mid-stream placeholder.
+        return turns.filter { !($0.isStreaming || ($0.kind == .assistant && $0.text.isEmpty)) }
+    }
+
+    static func save(_ turns: [CoachChatTurn]) {
+        let cleaned = turns
+            .filter { !($0.isStreaming || ($0.kind == .assistant && $0.text.isEmpty)) }
+            .suffix(maxTurns)
+        if let data = try? JSONEncoder().encode(Array(cleaned)) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+}
+
 @MainActor
 final class CoachChatController: ObservableObject {
     @Published private(set) var turns: [CoachChatTurn] = []
@@ -44,21 +74,28 @@ final class CoachChatController: ObservableObject {
     @Published private(set) var rememberedCount = 0
 
     func seedWelcome(name: String) {
+        rememberedCount = CoachMemoryStore.load().count
+        let saved = CoachChatHistoryStore.load()
+        if !saved.isEmpty {
+            turns = saved
+            return
+        }
         guard turns.isEmpty else { return }
         let who = name.isEmpty ? "Operator" : name
-        rememberedCount = CoachMemoryStore.load().count
         turns = [
             CoachChatTurn(
                 kind: .assistant,
                 agent: .orchestrator,
-                text: """
-                \(who). Coach here (one voice; specialists stay backstage).
-                Tell me habits like "I'm doing intermittent fasting" and I'll remember them on-device for diet tweaks.
-                Say a target like "I want to get to 80 kg" and I'll update your chart target if it is medically sensible.
-                Dark humour included. Health stays on-device until you consent to Grok.
-                """
+                text: "\(who). What's the play?"
             )
         ]
+        persist()
+    }
+
+    func clearConversation(name: String) {
+        CoachChatHistoryStore.clear()
+        turns = []
+        seedWelcome(name: name)
     }
 
     func send(session: ScaleSessionViewModel) async {
@@ -74,6 +111,25 @@ final class CoachChatController: ObservableObject {
         let targetResults = session.processCoachStatedTargets(from: text)
         rememberedCount = CoachMemoryStore.load().count
 
+        // Schedule local wake / reminder pings on-device (UNUserNotificationCenter).
+        var reminderResults: [CoachReminderResult] = []
+        if let reminder = CoachReminderExtractor.extract(from: text) {
+            let scheduled = await CoachReminderScheduler.schedule(
+                reminder,
+                profileName: session.profile.greetingName
+            )
+            reminderResults.append(scheduled)
+            if scheduled.status == .scheduled {
+                CoachMemoryStore.remember(
+                    CoachMemoryFact(
+                        text: scheduled.coachNote,
+                        tags: ["reminder", "notification"]
+                    )
+                )
+            }
+            rememberedCount = CoachMemoryStore.load().count
+        }
+
         turns.append(CoachChatTurn(kind: .user, text: text))
         for result in targetResults {
             turns.append(
@@ -85,6 +141,17 @@ final class CoachChatController: ObservableObject {
                 )
             )
         }
+        for result in reminderResults {
+            turns.append(
+                CoachChatTurn(
+                    kind: .assistant,
+                    agent: .orchestrator,
+                    text: result.coachNote,
+                    usedNetwork: false
+                )
+            )
+        }
+        persist()
 
         let brief = session.makeCoachBrief()
         let targetContext: String = {
@@ -102,6 +169,21 @@ final class CoachChatController: ObservableObject {
             return "\n\nTarget gate (on-device, honour this):\n" + lines.joined(separator: "\n")
         }()
 
+        let reminderContext: String = {
+            guard !reminderResults.isEmpty else { return "" }
+            let lines = reminderResults.map { r -> String in
+                switch r.status {
+                case .scheduled:
+                    return "Reminder SCHEDULED on-device: \(r.coachNote)"
+                case .denied:
+                    return "Reminder NOT scheduled (notifications denied): \(r.coachNote)"
+                case .failed:
+                    return "Reminder FAILED: \(r.coachNote)"
+                }
+            }
+            return "\n\nReminder gate (on-device, honour this):\n" + lines.joined(separator: "\n")
+        }()
+
         let briefWithExtras = CoachBrief(
             userName: brief.userName,
             diet: brief.diet,
@@ -116,7 +198,7 @@ final class CoachChatController: ObservableObject {
             weekDeltaKg: brief.weekDeltaKg,
             weeklyGoal: brief.weeklyGoal,
             personaBlock: brief.personaBlock,
-            memoryBlock: brief.memoryBlock + targetContext,
+            memoryBlock: brief.memoryBlock + targetContext + reminderContext,
             fitnessDigestBlock: brief.fitnessDigestBlock,
             localNow: brief.localNow
         )
@@ -167,5 +249,10 @@ final class CoachChatController: ObservableObject {
                 isStreaming: false
             )
         }
+        persist()
+    }
+
+    private func persist() {
+        CoachChatHistoryStore.save(turns)
     }
 }
