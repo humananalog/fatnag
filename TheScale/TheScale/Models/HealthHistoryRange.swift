@@ -101,6 +101,26 @@ struct WeightTrendProjection: Equatable, Sendable {
 
 /// Pure helpers for chart domain, extrema labels, and Trend projection.
 enum HealthChartMath {
+    /// Sort ascending and collapse near-duplicate timestamps so AreaMark / LineMark
+    /// never scribble (identical X values + Catmull-Rom = classic "weird lines" bug).
+    static func chartSeries(
+        _ samples: [HealthMetricSample],
+        mergeWithinSeconds: TimeInterval = 2
+    ) -> [HealthMetricSample] {
+        let ordered = samples.sorted { $0.date < $1.date }
+        guard !ordered.isEmpty else { return [] }
+        var out: [HealthMetricSample] = []
+        out.reserveCapacity(ordered.count)
+        for sample in ordered {
+            if let last = out.last, abs(last.date.timeIntervalSince(sample.date)) < mergeWithinSeconds {
+                out[out.count - 1] = sample
+            } else {
+                out.append(sample)
+            }
+        }
+        return out
+    }
+
     /// Y-axis / domain for the weight chart.
     ///
     /// Ideal weight from Settings draws as the Ideal reference line. The plot

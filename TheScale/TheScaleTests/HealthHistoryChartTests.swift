@@ -122,6 +122,28 @@ final class HealthHistoryChartTests: XCTestCase {
         XCTAssertEqual(nearest.value, 79, accuracy: 0.001)
     }
 
+    func testChartSeriesSortsAndMergesNearDuplicates() {
+        let a = HealthMetricSample(value: 80, date: Date(timeIntervalSince1970: 300))
+        let b = HealthMetricSample(value: 79, date: Date(timeIntervalSince1970: 100))
+        let c = HealthMetricSample(value: 78.5, date: Date(timeIntervalSince1970: 101)) // within 2s of b
+        let series = HealthChartMath.chartSeries([a, b, c], mergeWithinSeconds: 2)
+        XCTAssertEqual(series.count, 2)
+        XCTAssertEqual(series[0].value, 78.5, accuracy: 0.001)
+        XCTAssertEqual(series[1].value, 80, accuracy: 0.001)
+        XCTAssertTrue(series[0].date <= series[1].date)
+    }
+
+    func testChartSeriesPreservesDistinctDaySamples() {
+        let day: TimeInterval = 86_400
+        let samples = [
+            HealthMetricSample(value: 80, date: Date(timeIntervalSince1970: 0)),
+            HealthMetricSample(value: 79.5, date: Date(timeIntervalSince1970: day)),
+            HealthMetricSample(value: 79, date: Date(timeIntervalSince1970: day * 2))
+        ]
+        let series = HealthChartMath.chartSeries(samples)
+        XCTAssertEqual(series.count, 3)
+    }
+
     func testManualDraftIsMassOnly() {
         let draft = EditableMeasurementDraft.manual(
             weightKg: 77.4,

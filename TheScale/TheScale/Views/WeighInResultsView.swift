@@ -193,7 +193,7 @@ struct WeighInResultsView: View {
         projection: WeightTrendProjection?,
         projectedValues: [Double]
     ) -> some View {
-        let samples = session.historyWeights
+        let samples = HealthChartMath.chartSeries(session.historyWeights)
         let extrema = HealthChartMath.extrema(in: samples)
         let domain = HealthChartMath.weightDomain(
             values: samples.map(\.value),
@@ -204,6 +204,7 @@ struct WeighInResultsView: View {
         let selected = selectedWeightDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
+        let floorY = domain.lowerBound
 
         return metricScaffold(
             title: "Weight",
@@ -224,29 +225,36 @@ struct WeighInResultsView: View {
                             .padding(.trailing, 2)
                     }
 
+                // Area first: yStart/yEnd to the plot floor (never fill toward 0 kg).
+                ForEach(samples) { sample in
+                    AreaMark(
+                        x: .value("Date", sample.date),
+                        yStart: .value("Floor", floorY),
+                        yEnd: .value("Weight", sample.value),
+                        series: .value("Series", "Fill")
+                    )
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [atmosphere.accent.opacity(0.28), atmosphere.accent.opacity(0.04)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+
                 ForEach(samples) { sample in
                     LineMark(
                         x: .value("Date", sample.date),
                         y: .value("Weight", sample.value),
                         series: .value("Series", "Health")
                     )
-                    .interpolationMethod(samples.count < 3 ? .linear : .catmullRom)
-                    .foregroundStyle(atmosphere.accent.opacity(0.9))
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(atmosphere.accent.opacity(0.92))
                     .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
+                }
 
-                    AreaMark(
-                        x: .value("Date", sample.date),
-                        y: .value("Weight", sample.value)
-                    )
-                    .interpolationMethod(samples.count < 3 ? .linear : .catmullRom)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [atmosphere.accent.opacity(0.22), atmosphere.accent.opacity(0.02)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-
+                ForEach(samples) { sample in
                     PointMark(
                         x: .value("Date", sample.date),
                         y: .value("Weight", sample.value)
@@ -323,7 +331,7 @@ struct WeighInResultsView: View {
     }
 
     private var bodyFatChartCard: some View {
-        let samples = session.historyBodyFatPercents
+        let samples = HealthChartMath.chartSeries(session.historyBodyFatPercents)
         let extrema = HealthChartMath.extrema(in: samples)
         let domain = HealthChartMath.bodyFatDomain(
             values: samples.map(\.value),
@@ -332,6 +340,7 @@ struct WeighInResultsView: View {
         let selected = selectedFatDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
+        let floorY = domain.lowerBound
 
         return metricScaffold(
             title: "Body fat",
@@ -355,28 +364,34 @@ struct WeighInResultsView: View {
                 }
 
                 ForEach(samples) { sample in
+                    AreaMark(
+                        x: .value("Date", sample.date),
+                        yStart: .value("Floor", floorY),
+                        yEnd: .value("Body fat", sample.value),
+                        series: .value("Series", "Fill")
+                    )
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [atmosphere.accent.opacity(0.28), atmosphere.accent.opacity(0.04)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+
+                ForEach(samples) { sample in
                     LineMark(
                         x: .value("Date", sample.date),
                         y: .value("Body fat", sample.value),
                         series: .value("Series", "Health")
                     )
-                    .interpolationMethod(samples.count < 3 ? .linear : .catmullRom)
-                    .foregroundStyle(atmosphere.accent.opacity(0.9))
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(atmosphere.accent.opacity(0.92))
                     .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
+                }
 
-                    AreaMark(
-                        x: .value("Date", sample.date),
-                        y: .value("Body fat", sample.value)
-                    )
-                    .interpolationMethod(samples.count < 3 ? .linear : .catmullRom)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [atmosphere.accent.opacity(0.22), atmosphere.accent.opacity(0.02)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-
+                ForEach(samples) { sample in
                     PointMark(
                         x: .value("Date", sample.date),
                         y: .value("Body fat", sample.value)

@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 2.4.0  
+**Version:** 2.4.1  
 **Target device:** iPhone 15 (iOS 26+, Xcode 27 / iOS 27 SDK)  
 **Deployment target:** iOS 26.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -153,6 +153,7 @@ Revoke for a user: Settings → turn off **Allow Grok coach requests**.
 - **2.2.0:** shared Grok for all installs (Worker + `TheScale.xcconfig` proxy URL); per-user Keychain paste removed.
 - **2.3.0:** xcconfig URL escape fix; on-device memory; persona prefs; Health fitness digest monitoring.
 - **2.4.0:** SSE streaming chat; larger Coach fonts; no em dashes / AI tells; medical disclaimer only in onboarding + Settings → Legal.
+- **2.4.1:** History chart AreaMark fill fixed (baseline to plot floor, monotone interp, dedupe near-duplicate timestamps).
 
 ## Protocol (honest notes)
 
@@ -294,4 +295,4 @@ scripts/
 
 ## Version
 
-Marketing version **2.4.0** / build **21**. Bump both in the Xcode target when shipping changes.
+Marketing version **2.4.1** / build **22**. Bump both in the Xcode target when shipping changes.
