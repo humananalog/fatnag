@@ -378,6 +378,9 @@ final class ScaleSessionViewModel: ObservableObject {
         return CoachBrief(
             userName: profile.greetingName,
             diet: profile.dietPreference,
+            heightCm: profile.heightCm,
+            ageYears: profile.ageYears,
+            sex: profile.sex,
             currentKg: healthBaselineKg ?? displayWeightKg,
             idealKg: profile.idealWeightKg,
             bodyFatPercent: historyBodyFatPercents.last?.value ?? displayBodyFatPercent,
@@ -387,7 +390,8 @@ final class ScaleSessionViewModel: ObservableObject {
             weeklyGoal: weeklyGoal,
             personaBlock: profile.coachPersonaBlock,
             memoryBlock: CoachMemoryStore.promptBlock(),
-            fitnessDigestBlock: activeDigest?.promptBlock(preSleepWindowMinutes: window) ?? ""
+            fitnessDigestBlock: activeDigest?.promptBlock(preSleepWindowMinutes: window) ?? "",
+            localNow: Date()
         )
     }
 

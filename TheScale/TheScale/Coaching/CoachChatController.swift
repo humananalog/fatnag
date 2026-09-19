@@ -105,6 +105,9 @@ final class CoachChatController: ObservableObject {
         let briefWithExtras = CoachBrief(
             userName: brief.userName,
             diet: brief.diet,
+            heightCm: brief.heightCm,
+            ageYears: brief.ageYears,
+            sex: brief.sex,
             currentKg: brief.currentKg,
             idealKg: brief.idealKg,
             bodyFatPercent: brief.bodyFatPercent,
@@ -114,7 +117,8 @@ final class CoachChatController: ObservableObject {
             weeklyGoal: brief.weeklyGoal,
             personaBlock: brief.personaBlock,
             memoryBlock: brief.memoryBlock + targetContext,
-            fitnessDigestBlock: brief.fitnessDigestBlock
+            fitnessDigestBlock: brief.fitnessDigestBlock,
+            localNow: brief.localNow
         )
 
         let assistantID = UUID()

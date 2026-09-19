@@ -6,6 +6,9 @@ final class CoachOfflineTests: XCTestCase {
         let brief = CoachBrief(
             userName: "Alex",
             diet: .omnivore,
+            heightCm: 178,
+            ageYears: 40,
+            sex: .male,
             currentKg: 78,
             idealKg: 75,
             bodyFatPercent: 18,

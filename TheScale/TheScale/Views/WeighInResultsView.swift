@@ -29,8 +29,10 @@ struct WeighInResultsView: View {
         )
     }
 
+    /// Projection lines only when the History toggle is on.
     private var scientificProjection: ScientificWeightProjection? {
-        session.scientificWeightProjection()
+        guard showTrend else { return nil }
+        return session.scientificWeightProjection()
     }
 
     var body: some View {
@@ -147,23 +149,23 @@ struct WeighInResultsView: View {
 
             HStack(spacing: 10) {
                 Toggle(isOn: $showTrend.animation(.spring(response: 0.7, dampingFraction: 0.84))) {
-                    Text("Observed")
+                    Text("Projection")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(atmosphere.accent.opacity(0.85))
                 }
                 .toggleStyle(.switch)
                 .labelsHidden()
-                .accessibilityLabel("Show observed OLS trend stub")
+                .accessibilityLabel("Show target projection lines")
                 .onChange(of: showTrend) { _, _ in
                     selectedWeightDate = nil
                     selectedFatDate = nil
                 }
 
-                Text("Observed")
+                Text("Projection")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
 
-                if let sci = scientificProjection {
+                if showTrend, let sci = scientificProjection {
                     Text(trendCaptionScientific(sci))
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(atmosphere.accent.opacity(0.65))
@@ -186,10 +188,12 @@ struct WeighInResultsView: View {
     private var chartsColumn: some View {
         let projection = weightProjection
         let scientific = scientificProjection
-        let projectedValues =
-            (scientific?.temperedPath.map(\.value) ?? [])
-            + (scientific?.observedPath.map(\.value) ?? [])
-            + (projection?.path.map(\.value) ?? [])
+        let projectedValues: [Double] = {
+            guard showTrend else { return [] }
+            return (scientific?.temperedPath.map(\.value) ?? [])
+                + (scientific?.observedPath.map(\.value) ?? [])
+                + (projection?.path.map(\.value) ?? [])
+        }()
 
         return VStack(spacing: 12) {
             weightChartCard(
@@ -198,7 +202,7 @@ struct WeighInResultsView: View {
                 projectedValues: projectedValues
             )
             bodyFatChartCard
-            if let scientific, !scientific.notes.isEmpty {
+            if showTrend, let scientific, !scientific.notes.isEmpty {
                 Text(scientific.methodSummary)
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.5))
@@ -293,8 +297,8 @@ struct WeighInResultsView: View {
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
                 }
 
-                // Always-on medically tempered projection to Target.
-                if let scientific {
+                // Projection lines only when toggle is on.
+                if showTrend, let scientific {
                     ForEach(Array(scientific.temperedPath.enumerated()), id: \.offset) { _, point in
                         LineMark(
                             x: .value("Date", point.date),
@@ -327,9 +331,7 @@ struct WeighInResultsView: View {
                             .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
                     }
-                }
 
-                if showTrend, let scientific {
                     ForEach(Array(scientific.observedPath.enumerated()), id: \.offset) { _, point in
                         LineMark(
                             x: .value("Date", point.date),
@@ -340,7 +342,7 @@ struct WeighInResultsView: View {
                         .foregroundStyle(atmosphere.accent.opacity(0.4))
                         .interpolationMethod(.linear)
                     }
-                } else if let projection, showTrend {
+                } else if showTrend, let projection {
                     ForEach(Array(projection.path.enumerated()), id: \.offset) { _, point in
                         LineMark(
                             x: .value("Date", point.date),
@@ -626,10 +628,10 @@ struct WeighInResultsView: View {
         scientific: ScientificWeightProjection?
     ) -> ClosedRange<Date> {
         let sampleDates = samples.map(\.date)
-        let projectionDates = (showTrend ? projection?.path.map(\.date) : nil) ?? []
-        let scientificDates =
-            (scientific?.temperedPath.map(\.date) ?? [])
-            + (showTrend ? (scientific?.observedPath.map(\.date) ?? []) : [])
+        let projectionDates = showTrend ? (projection?.path.map(\.date) ?? []) : []
+        let scientificDates = showTrend
+            ? ((scientific?.temperedPath.map(\.date) ?? []) + (scientific?.observedPath.map(\.date) ?? []))
+            : []
         let all = sampleDates + projectionDates + scientificDates
         guard let lo = all.min(), let hi = all.max() else {
             let now = Date()

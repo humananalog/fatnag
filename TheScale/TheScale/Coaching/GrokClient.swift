@@ -25,6 +25,9 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
         Never use AI tells ("As an AI…", "I'd be happy to…", "Certainly!", robotic hedging, markdown spoiler fluff).
         Do NOT append medical disclaimers or "not medical advice" boilerplate. That lives in onboarding and Settings → Legal only.
         You are not a clinician: no diagnosis, no drug doses, no telling them to ignore symptoms. Just don't recite disclaimer text.
+        CRITICAL: Never ask for height, age, sex, name, diet, target weight, or body-fat goal if those fields are already in the profile block.
+        CRITICAL: Be time-aware. Use Local now (weekday, clock, daypart). Evening / night / late = recovery, sleep, food timing, light mobility. Do NOT prescribe gym lifts, bench press, heavy training, or "hit the gym now" when the user is home at night or the clock says evening/night.
+        CRITICAL: Do not rubber-stamp every idea. Push back when the ask is unsafe, unrealistic, or mismatched to the clock / context. Suggest what fits *this moment*.
         """
 
     var systemPrompt: String {
@@ -40,6 +43,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
             You are the fitness specialist for The Scale.
             \(Self.voiceRules)
             Give practical training / recovery / habit nudges tied to weight, fat %, sleep, HR, and activity.
+            Match advice to Local now: morning can be training; night is wind-down, not a PR attempt.
             No crash diets. Respect their diet preference and remembered facts. Keep it short and punchy.
             """
         case .anatomy:
@@ -58,8 +62,8 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
             Honour remembered user facts (e.g. intermittent fasting) when adjusting diet advice.
             If the user states a weight or body-fat target, the app may have already gated it on-device.
             Honour "Target gate" notes in context: if a target was rejected as unsafe, push back and suggest the safer waypoint. Do not encourage essential-floor body-fat crashes.
-            Ask clarifying questions when diet tweaks need more detail.
-            End with one concrete next action. Produce ONE coherent answer. No multi-agent dump.
+            Ask clarifying questions only when a needed fact is missing from the profile block. Never re-ask height/age/sex/targets already listed.
+            End with one concrete next action that fits the current local time of day. Produce ONE coherent answer. No multi-agent dump.
             """
         }
     }
@@ -68,6 +72,9 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Sendable {
 struct CoachBrief: Equatable, Sendable {
     let userName: String
     let diet: DietPreference
+    let heightCm: Double
+    let ageYears: Double
+    let sex: UserBodyProfile.Sex
     let currentKg: Double?
     let idealKg: Double
     let bodyFatPercent: Double?
@@ -78,10 +85,15 @@ struct CoachBrief: Equatable, Sendable {
     let personaBlock: String
     let memoryBlock: String
     let fitnessDigestBlock: String
+    /// Device-local clock for time-aware coaching (never invent a timezone).
+    let localNow: Date
 
     init(
         userName: String,
         diet: DietPreference,
+        heightCm: Double,
+        ageYears: Double,
+        sex: UserBodyProfile.Sex,
         currentKg: Double?,
         idealKg: Double,
         bodyFatPercent: Double?,
@@ -91,10 +103,14 @@ struct CoachBrief: Equatable, Sendable {
         weeklyGoal: WeeklyMiniGoal,
         personaBlock: String = "",
         memoryBlock: String = "",
-        fitnessDigestBlock: String = ""
+        fitnessDigestBlock: String = "",
+        localNow: Date = Date()
     ) {
         self.userName = userName
         self.diet = diet
+        self.heightCm = heightCm
+        self.ageYears = ageYears
+        self.sex = sex
         self.currentKg = currentKg
         self.idealKg = idealKg
         self.bodyFatPercent = bodyFatPercent
@@ -105,6 +121,7 @@ struct CoachBrief: Equatable, Sendable {
         self.personaBlock = personaBlock
         self.memoryBlock = memoryBlock
         self.fitnessDigestBlock = fitnessDigestBlock
+        self.localNow = localNow
     }
 }
 
@@ -348,7 +365,7 @@ actor GrokClient {
 
         let body: [String: Any] = [
             "model": "grok-3-mini",
-            "temperature": 0.85,
+            "temperature": 0.55,
             "max_tokens": 420,
             "stream": true,
             "messages": messages
@@ -448,7 +465,7 @@ actor GrokClient {
 
         let body: [String: Any] = [
             "model": "grok-3-mini",
-            "temperature": 0.85,
+            "temperature": 0.55,
             "max_tokens": 280,
             "messages": [
                 ["role": "system", "content": role.systemPrompt],
@@ -591,12 +608,31 @@ actor GrokClient {
 
     private func userMessage(brief: CoachBrief) -> String {
         let name = brief.userName.isEmpty ? "friend" : brief.userName
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: brief.localNow)
+        let daypart: String = {
+            switch hour {
+            case 5..<12: return "morning"
+            case 12..<17: return "afternoon"
+            case 17..<21: return "evening"
+            default: return "night"
+            }
+        }()
+        let weekday = brief.localNow.formatted(.dateTime.weekday(.wide))
+        let clock = brief.localNow.formatted(date: .abbreviated, time: .shortened)
         var lines: [String] = [
             "Name: \(name)",
+            "Local now: \(weekday) \(clock) (device local, daypart=\(daypart))",
+            "Profile (DO NOT re-ask these): height \(String(format: "%.0f", brief.heightCm)) cm, age \(String(format: "%.0f", brief.ageYears)), sex \(brief.sex.title)",
             "Diet: \(brief.diet.title)",
-            "Ideal weight: \(String(format: "%.1f", brief.idealKg)) kg",
+            "Target weight: \(String(format: "%.1f", brief.idealKg)) kg",
             "Trend vs last Health weight: \(brief.trend.title)"
         ]
+        if daypart == "evening" || daypart == "night" {
+            lines.append(
+                "Time gate: it is \(daypart). Prefer recovery / sleep / food timing / light mobility. Ban gym lifts, bench press, or 'train hard now' as the next action."
+            )
+        }
         if let kg = brief.currentKg {
             lines.append("Current weight: \(String(format: "%.1f", kg)) kg")
         }
@@ -604,7 +640,7 @@ actor GrokClient {
             lines.append("Body fat: \(String(format: "%.1f", fat))%")
         }
         if let idealFat = brief.idealBodyFatPercent {
-            lines.append("Ideal body fat: \(String(format: "%.1f", idealFat))%")
+            lines.append("Target body fat: \(String(format: "%.1f", idealFat))%")
         }
         if let week = brief.weekDeltaKg {
             lines.append("Week delta: \(String(format: "%+.2f", week)) kg")
@@ -621,7 +657,9 @@ actor GrokClient {
         if !brief.fitnessDigestBlock.isEmpty {
             lines.append(brief.fitnessDigestBlock)
         }
-        lines.append("Keep it under 140 words. No markdown tables. No medical disclaimer footer.")
+        lines.append(
+            "Keep it under 140 words. No markdown tables. No medical disclaimer footer. Next action must fit \(daypart)."
+        )
         return lines.joined(separator: "\n")
     }
 
