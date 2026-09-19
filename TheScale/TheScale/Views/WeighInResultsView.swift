@@ -558,7 +558,8 @@ struct WeighInResultsView: View {
                         AxisMarks(values: .automatic(desiredCount: 3)) { _ in
                             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                                 .foregroundStyle(atmosphere.accent.opacity(0.12))
-                            AxisValueLabel()
+                            // Named anchors only: custom UnitPoint crashes Charts layout noise on iOS 26+.
+                            AxisValueLabel(anchor: .top)
                                 .font(.system(size: 9, weight: .medium, design: .rounded))
                                 .foregroundStyle(atmosphere.accent.opacity(0.55))
                         }
@@ -567,7 +568,7 @@ struct WeighInResultsView: View {
                         AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
                             AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                                 .foregroundStyle(atmosphere.accent.opacity(0.12))
-                            AxisValueLabel()
+                            AxisValueLabel(anchor: .trailing)
                                 .font(.system(size: 9, weight: .medium, design: .rounded))
                                 .foregroundStyle(atmosphere.accent.opacity(0.55))
                         }
