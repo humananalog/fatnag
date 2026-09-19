@@ -51,7 +51,7 @@ struct ProgressSheet: View {
                     Task { await runCoach() }
                 }
             } message: {
-                Text("Only a short weight/fat trend summary (no raw impedance, no Health dump) goes to xAI when you tap Coach. API key stays in Keychain. You can revoke consent in Settings.")
+                Text("Only a short weight/fat trend summary (no raw impedance, no Health dump) goes to the shared Grok backend when you tap Coach. You can revoke consent in Settings.")
             }
         }
         .preferredColorScheme(.light)
@@ -130,19 +130,19 @@ struct ProgressSheet: View {
                     .font(.caption2)
                     .foregroundStyle(atmosphere.accent.opacity(0.5))
             } else {
-                Text("Want a short roast of your week? Offline works without a key; Grok needs Keychain + consent.")
+                Text("Want a short roast of your week? Offline mock always works; live Grok needs shared build config + consent.")
                     .font(.footnote)
                     .foregroundStyle(atmosphere.accent.opacity(0.7))
             }
 
             Button {
-                if GrokPrivacyConsent.isAccepted || !GrokKeychain.hasAPIKey {
+                if GrokPrivacyConsent.isAccepted || !GrokSharedConfig.isLiveConfigured {
                     Task { await runCoach() }
                 } else {
                     showPrivacyGate = true
                 }
             } label: {
-                Text(GrokKeychain.hasAPIKey ? "Quick roast" : "Quick roast (offline)")
+                Text(GrokSharedConfig.isLiveConfigured ? "Quick roast" : "Quick roast (offline)")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -163,7 +163,7 @@ struct ProgressSheet: View {
     }
 
     private var privacyNote: some View {
-        Text("Privacy: weigh-ins stay on-device / Apple Health. Grok only runs when you tap Coach after consent. Keychain holds the xAI key; revoke anytime in Settings.")
+        Text("Privacy: weigh-ins stay on-device / Apple Health. Grok only runs when you tap Coach after consent. Shared key is operator-managed; revoke consent anytime in Settings.")
             .font(.caption2)
             .foregroundStyle(atmosphere.accent.opacity(0.55))
     }

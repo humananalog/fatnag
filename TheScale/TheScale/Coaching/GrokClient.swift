@@ -150,12 +150,17 @@ enum CoachOfflineFallback {
     }
 }
 
-/// xAI chat completions client (Grok). Falls back offline on any failure.
+/// Shared Grok client. Prefer Cloudflare proxy; fall back to baked key; else offline mock.
 actor GrokClient {
     static let shared = GrokClient()
 
     private let session: URLSession
-    private let endpoint = URL(string: "https://api.x.ai/v1/chat/completions")!
+    private let directEndpoint = URL(string: "https://api.x.ai/v1/chat/completions")!
+
+    private enum Transport {
+        case proxy(URL)
+        case direct(apiKey: String)
+    }
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -173,14 +178,14 @@ actor GrokClient {
         return .orchestrator
     }
 
-    /// Freeform multi-turn chat for a specialist (or orchestrator). Offline when no key/consent.
+    /// Freeform multi-turn chat for a specialist (or orchestrator). Offline when no shared config/consent.
     func chat(
         role: CoachAgentRole,
         userText: String,
         brief: CoachBrief,
         history: [CoachChatTurn]
     ) async -> CoachReply {
-        guard GrokPrivacyConsent.isAccepted, let apiKey = GrokKeychain.loadAPIKey(), !apiKey.isEmpty else {
+        guard GrokPrivacyConsent.isAccepted, let transport = resolveTransport() else {
             return offlineChat(role: role, userText: userText, brief: brief)
         }
 
@@ -199,11 +204,6 @@ actor GrokClient {
             messages.append(["role": "user", "content": userText])
         }
 
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 35
         let body: [String: Any] = [
             "model": "grok-3-mini",
             "temperature": 0.85,
@@ -211,11 +211,8 @@ actor GrokClient {
             "messages": messages
         ]
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-                  let text = Self.parseContent(from: data), !text.isEmpty
-            else {
+            let data = try await postChat(body: body, transport: transport, timeout: 35)
+            guard let text = Self.parseContent(from: data), !text.isEmpty else {
                 return offlineChat(role: role, userText: userText, brief: brief)
             }
             return CoachReply(
@@ -232,10 +229,19 @@ actor GrokClient {
     private func offlineChat(role: CoachAgentRole, userText: String, brief: CoachBrief) -> CoachReply {
         let base = CoachOfflineFallback.reply(role: role, brief: brief)
         let who = brief.userName.isEmpty ? "Operator" : brief.userName
+        let hint: String = {
+            if !GrokSharedConfig.isLiveConfigured {
+                return "Offline mock: this build has no shared Grok proxy/key. Ask the operator to set Secrets.xcconfig and rebuild."
+            }
+            if !GrokPrivacyConsent.isAccepted {
+                return "Offline: turn on Allow Grok coach requests in Settings (or agree on the consent prompt)."
+            }
+            return "Offline fallback: live Grok unreachable right now."
+        }()
         let blended = """
         \(base.text)
 
-        (\(who) asked: "\(userText)") Offline mode: no live Grok. Drop a key + consent in Settings when you want the real peanut gallery.
+        (\(who) asked: "\(userText)") \(hint)
         """
         return CoachReply(
             role: role,
@@ -249,16 +255,9 @@ actor GrokClient {
         guard GrokPrivacyConsent.isAccepted else {
             return CoachOfflineFallback.reply(role: role, brief: brief)
         }
-        guard let apiKey = GrokKeychain.loadAPIKey(), !apiKey.isEmpty else {
+        guard let transport = resolveTransport() else {
             return CoachOfflineFallback.reply(role: role, brief: brief)
         }
-
-        let userPayload = userMessage(brief: brief)
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 25
 
         let body: [String: Any] = [
             "model": "grok-3-mini",
@@ -266,15 +265,11 @@ actor GrokClient {
             "max_tokens": 280,
             "messages": [
                 ["role": "system", "content": role.systemPrompt],
-                ["role": "user", "content": userPayload]
+                ["role": "user", "content": userMessage(brief: brief)]
             ]
         ]
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                return CoachOfflineFallback.reply(role: role, brief: brief)
-            }
+            let data = try await postChat(body: body, transport: transport, timeout: 25)
             guard let text = Self.parseContent(from: data), !text.isEmpty else {
                 return CoachOfflineFallback.reply(role: role, brief: brief)
             }
@@ -287,6 +282,38 @@ actor GrokClient {
         } catch {
             return CoachOfflineFallback.reply(role: role, brief: brief)
         }
+    }
+
+    private func resolveTransport() -> Transport? {
+        if let proxy = GrokSharedConfig.proxyURL {
+            return .proxy(proxy)
+        }
+        if let key = GrokSharedConfig.bakedAPIKey {
+            return .direct(apiKey: key)
+        }
+        return nil
+    }
+
+    private func postChat(body: [String: Any], transport: Transport, timeout: TimeInterval) async throws -> Data {
+        var request: URLRequest
+        switch transport {
+        case .proxy(let proxy):
+            request = URLRequest(url: proxy)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        case .direct(let apiKey):
+            request = URLRequest(url: directEndpoint)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        request.timeoutInterval = timeout
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return data
     }
 
     /// Orchestrator: try Grok synthesis; fall back to offline specialists.

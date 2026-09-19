@@ -13,3 +13,9 @@ build/
 !default.mode2v3
 *.perspectivev3
 !default.perspectivev3
+
+# Shared Grok secrets (never commit the real key)
+TheScale/Config/Secrets.xcconfig
+**/Secrets.xcconfig
+workers/grok-proxy/.dev.vars
+workers/grok-proxy/.wrangler/

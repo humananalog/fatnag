@@ -1,0 +1,9 @@
+name = "the-scale-grok"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# Put the xAI key on the Worker (never in the iOS IPA):
+#   npx wrangler secret put XAI_API_KEY
+#
+# Optional: restrict callers (comma-separated Origin or bundle id markers). Leave unset for private apps.
+#   npx wrangler secret put ALLOWED_ORIGINS

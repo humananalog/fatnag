@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 2.1.0  
+**Version:** 2.2.0  
 **Target device:** iPhone 15 (iOS 26+, Xcode 27 / iOS 27 SDK)  
 **Deployment target:** iOS 26.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -16,12 +16,12 @@ Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model
 4. Reads recent **Apple Health** body-mass history (on-device) and colors the sheet by trend vs last weight: **green** loss, **yellow** stable (±0.2 kg), **red** gain
 5. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
 6. Lets you **edit** weight / fat % / lean % **before** confirm
-7. **Home** is sparse: brand (greets you by name), **Find Scale**, **History**, **Progress**, **Coach**, **Manual**, optional **Weigh in**. Profile, diet, notifications, Grok key, calibration under **Settings**. First launch runs onboarding.
+7. **Home** is sparse: brand (greets you by name), **Find Scale**, **History**, **Progress**, **Coach**, **Manual**, optional **Weigh in**. Profile, diet, notifications, Grok consent, calibration under **Settings**. First launch runs onboarding.
 8. **Calibration uses the same live sheet** (from Settings): enter reference mass, open live sheet, weigh that mass, store offset/factor on-device
 9. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
 10. After a successful Health save (and anytime via home **History**), opens charts for weight kg + body fat % from HealthKit (default **Last 2 weeks**). Ideal line from Settings; domain includes all Health samples. Optional **Trend** projects weight to ideal from the last 2 weeks (OLS). Tap a point for its value. **Manual** logs mass-only while travelling.
 
-No accounts, no backend, no analytics, no third-party cloud.
+No accounts, no analytics. Weigh-ins stay on-device / Apple Health. Optional shared Grok coaching uses an operator-managed Worker (or build-time secret); users never paste a key.
 
 ## Privacy model
 
@@ -33,9 +33,9 @@ No accounts, no backend, no analytics, no third-party cloud.
 | Health **read** | Recent `bodyMass` for trend; `bodyMass` + `bodyFatPercentage` for history charts |
 | Health **writes** | Apple Health (HealthKit) on device, after **Confirm to Health** or **Manual → Save** |
 | Name / diet / notification prefs / weekly mini-goal | `UserDefaults` on device only |
-| xAI API key | iOS Keychain (`WhenUnlockedThisDeviceOnly`) |
-| Grok coach request | Opt-in only: short trend summary → `api.x.ai` after consent |
-| Network | None by default; Grok only when you tap Coach with key + consent |
+| Shared xAI / Grok access | Operator-managed: Cloudflare Worker secret (preferred) or build-time `Secrets.xcconfig` (IPA-extractable) |
+| Grok coach request | Opt-in only: short trend / chat snapshot → shared proxy or `api.x.ai` after consent |
+| Network | None by default; Grok only when you tap Coach with shared config + consent |
 
 HealthKit types:
 
@@ -67,17 +67,46 @@ Ideal weight from Settings is a dotted **Ideal** reference line. The plot domain
 
 Agents (medical, fitness, anatomy, orchestrator) share a badass / dark-humour / sometimes vulgar voice, still with medical disclaimers. Offline fallbacks always work.
 
-**Setup the API key (on device):**
+**Users never paste an API key.** Settings only has **Allow Grok coach requests** (consent) plus a status line for the shared build config.
 
-1. Create a key at [console.x.ai](https://console.x.ai/) → API keys.
-2. Open **The Scale → Settings → Grok / xAI**.
-3. Paste the key → **Save key** (stored in Keychain on this iPhone only).
-4. Enable **Allow Grok coach requests** (or accept the consent alert on first Coach tap).
-5. Open **Coach** (home) for multi-agent chat, or **Progress → Quick roast** for a one-shot orchestrator take. Without a key, offline replies still run.
+#### Where Alex puts the shared secret (Mac)
 
-Revoke: Settings → Clear key + turn off Allow Grok coach requests.
+**Preferred: Cloudflare Worker (key stays server-side)**
 
-### History charts (2.0 / 2.1)
+```bash
+cd workers/grok-proxy
+npx wrangler secret put XAI_API_KEY
+# paste at the terminal prompt; never into chat or git
+npx wrangler deploy
+```
+
+Then on the Mac Mini checkout:
+
+```bash
+cp TheScale/Config/Secrets.example.xcconfig TheScale/Config/Secrets.xcconfig
+# edit Secrets.xcconfig:
+#   GROK_PROXY_URL = https://the-scale-grok.YOUR_SUBDOMAIN.workers.dev
+#   GROK_API_KEY =
+```
+
+`TheScale/Config/Secrets.xcconfig` is **gitignored**. Rebuild / reinstall so every install of that build gets live Coach without Settings paste.
+
+**Fallback: bake key into the IPA** (private TestFlight / Ad Hoc only)
+
+In the same `Secrets.xcconfig`:
+
+```
+GROK_PROXY_URL =
+GROK_API_KEY = xai-your-key-here
+```
+
+Honest caveat: a baked key can be extracted from the IPA. Prefer the Worker for any shared distribution.
+
+**Offline mock:** leave both empty (or omit `Secrets.xcconfig`). Coach still runs with on-device witty fallbacks.
+
+Revoke for a user: Settings → turn off **Allow Grok coach requests**.
+
+### History charts (2.0 / 2.1 / 2.2)
 
 - MeshGradient atmosphere; rate/week chip on each chart; scrollable 3M / 1Y domains via Charts `chartScrollableAxes`.
 - Liquid Glass panels via `glassEffect` (iOS 26+) with material fallback.
@@ -85,10 +114,11 @@ Revoke: Settings → Clear key + turn off Allow Grok coach requests.
 - Trend caption bug fixed (distinct losing vs gaining away-from-ideal copy).
 - Personalized History title when a name is set.
 
-### Multi-agent chat (2.1)
+### Multi-agent chat (2.1+)
 
 - Home **Coach** opens a dark sparse chat with Auto-route or explicit Medical / Fitness / Anatomy / Orchestrator.
-- Orchestrator routes freeform asks; specialists answer with disclaimers. Mock/offline without a key.
+- Orchestrator routes freeform asks; specialists answer with disclaimers. Mock/offline without shared proxy/key.
+- **2.2.0:** shared Grok for all installs (Worker or Secrets.xcconfig); per-user Keychain paste removed.
 ## Protocol (honest notes)
 
 The Mi Body Composition Scale 2 **broadcasts** measurements; it does not need pairing for a live reading.

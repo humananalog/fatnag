@@ -93,6 +93,18 @@ final class CoachOfflineTests: XCTestCase {
         XCTAssertEqual(GrokClient.route(userText: "How's my week looking?"), .orchestrator)
     }
 
+    func testSharedConfigStatusWithoutSecretsIsOffline() {
+        // Bundle Info.plist in unit tests has empty / unset Grok keys → offline path.
+        XCTAssertFalse(GrokSharedConfig.isLiveConfigured)
+        XCTAssertTrue(GrokSharedConfig.statusSummary.lowercased().contains("offline")
+            || GrokSharedConfig.statusSummary.lowercased().contains("no shared"))
+    }
+
+    func testLegacyKeychainClearIsIdempotent() {
+        XCTAssertTrue(GrokLegacyKeychain.clearUserEnteredKey())
+        XCTAssertTrue(GrokLegacyKeychain.clearUserEnteredKey())
+    }
+
     func testProjectNearZeroSlopeDoesNotCrash() throws {
         let day: TimeInterval = 86_400
         let samples = [

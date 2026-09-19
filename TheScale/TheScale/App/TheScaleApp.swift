@@ -15,6 +15,10 @@ struct TheScaleApp: App {
                         .environmentObject(session)
                 }
             }
+            .onAppear {
+                // Drop per-user paste keys from 2.0 / 2.1; coaching uses shared build config only.
+                GrokLegacyKeychain.clearUserEnteredKey()
+            }
         }
     }
 }

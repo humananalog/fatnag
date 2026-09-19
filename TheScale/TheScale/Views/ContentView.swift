@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Home: sparse brand + scan + History + Progress. Profile / Grok / calibration in Settings.
+/// Home: sparse brand + scan + History + Progress. Profile / Grok consent / calibration in Settings.
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
 

@@ -1,19 +1,16 @@
 import SwiftUI
 
-/// Profile, notifications, Grok key, calibration. Live capture uses the weigh-in sheet.
+/// Profile, notifications, Grok consent, calibration. Live capture uses the weigh-in sheet.
 struct SettingsView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @FocusState private var focusedField: Field?
     @State private var confirmReset = false
-    @State private var grokKeyDraft = ""
-    @State private var grokKeySaved = false
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable {
         case reference
         case offset
         case name
-        case grokKey
     }
 
     var body: some View {
@@ -46,9 +43,6 @@ struct SettingsView: View {
                 Spacer()
                 Button("Done") { focusedField = nil }
             }
-        }
-        .onAppear {
-            grokKeyDraft = GrokKeychain.hasAPIKey ? "••••••••" : ""
         }
         .alert("Reset calibration?", isPresented: $confirmReset) {
             Button("Cancel", role: .cancel) {}
@@ -194,37 +188,11 @@ struct SettingsView: View {
 
     private var grokCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Grok / xAI", systemImage: "key.fill")
+            Label("Grok coach", systemImage: "sparkles")
                 .font(.headline)
-            Text("Optional. Key stays in Keychain on this iPhone. Coach sends only a short trend summary after explicit consent. Offline roast works without a key.")
+            Text("Shared for every install of this build. You never paste an API key here. Coach sends only a short trend / chat snapshot after consent. Offline mock always works.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-
-            SecureField("xAI API key", text: $grokKeyDraft)
-                .textContentType(.password)
-                .autocorrectionDisabled()
-                .focused($focusedField, equals: .grokKey)
-                .onChange(of: grokKeyDraft) { _, newValue in
-                    if newValue.contains("•") { return }
-                }
-
-            HStack {
-                Button("Save key") {
-                    let raw = grokKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !raw.isEmpty, !raw.contains("•") else { return }
-                    grokKeySaved = GrokKeychain.saveAPIKey(raw)
-                    grokKeyDraft = "••••••••"
-                    focusedField = nil
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button("Clear key", role: .destructive) {
-                    _ = GrokKeychain.deleteAPIKey()
-                    grokKeyDraft = ""
-                    grokKeySaved = false
-                }
-                .buttonStyle(.bordered)
-            }
 
             Toggle(
                 "Allow Grok coach requests",
@@ -234,15 +202,17 @@ struct SettingsView: View {
                 )
             )
 
-            if grokKeySaved || GrokKeychain.hasAPIKey {
-                Text("Key present in Keychain.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text("Get a key at console.x.ai → API keys. Paste here. Never commit keys.")
-                .font(.caption2)
+            Text(GrokSharedConfig.statusSummary)
+                .font(.caption)
                 .foregroundStyle(.secondary)
+
+            Text(
+                GrokSharedConfig.isLiveConfigured
+                    ? "Live Grok ready when consent is on."
+                    : "Offline mock until the operator sets Secrets.xcconfig and rebuilds."
+            )
+            .font(.caption2)
+            .foregroundStyle(.secondary)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -373,7 +343,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Privacy & Health", systemImage: "lock.shield")
                 .font(.headline)
-            Text("Profile, calibration, and readings stay on this iPhone. Health is read for trend and history charts, and written only after you confirm. Grok is opt-in per coach tap after consent; the xAI key never leaves Keychain except as an Authorization header to api.x.ai.")
+            Text("Profile, calibration, and readings stay on this iPhone. Health is read for trend and history charts, and written only after you confirm. Grok is opt-in per coach tap after consent. The shared xAI key lives on the operator's Worker (or a build-time secret), never in Settings.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Text("If permissions were denied: Settings → Health → Data Access → The Scale. Notifications: Settings → Notifications → The Scale.")

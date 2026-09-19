@@ -1,0 +1,7 @@
+// Shared build settings for The Scale.
+// Defaults keep offline mock builds working when Secrets.xcconfig is absent.
+GROK_API_KEY =
+GROK_PROXY_URL =
+
+// Optional local override (gitignored). Copy from Secrets.example.xcconfig.
+#include? "Secrets.xcconfig"

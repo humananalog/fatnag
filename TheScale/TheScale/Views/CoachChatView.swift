@@ -44,7 +44,7 @@ struct CoachChatView: View {
                 Task { await chat.send(brief: session.makeCoachBrief()) }
             }
         } message: {
-            Text("Only this chat plus a short weight/fat trend snapshot go to xAI. No raw impedance dump. Key stays in Keychain.")
+            Text("Only this chat plus a short weight/fat trend snapshot go to the shared Grok backend. No raw impedance dump. No per-user API key.")
         }
     }
 
@@ -61,7 +61,7 @@ struct CoachChatView: View {
                 Text("Coach")
                     .font(.system(size: 20, weight: .semibold, design: .serif))
                     .foregroundStyle(.white)
-                Text(GrokKeychain.hasAPIKey ? "Grok · multi-agent" : "Mock / offline")
+                Text(GrokSharedConfig.isLiveConfigured ? "Grok · multi-agent" : "Mock / offline")
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(ScaleChrome.signal.opacity(0.85))
             }
@@ -169,7 +169,7 @@ struct CoachChatView: View {
                 .foregroundStyle(.white)
 
             Button {
-                if GrokKeychain.hasAPIKey && !GrokPrivacyConsent.isAccepted {
+                if GrokSharedConfig.isLiveConfigured && !GrokPrivacyConsent.isAccepted {
                     showPrivacyGate = true
                 } else {
                     Task { await chat.send(brief: session.makeCoachBrief()) }

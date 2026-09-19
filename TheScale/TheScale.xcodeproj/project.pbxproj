@@ -31,6 +31,7 @@
 		A1B2C3D4E5F60718293A000C /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100C /* UserPreferences.swift */; };
 		A1B2C3D4E5F60718293A000D /* GrokKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100D /* GrokKeychain.swift */; };
 		A1B2C3D4E5F60718293A000E /* GrokClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100E /* GrokClient.swift */; };
+		A1B2C3D4E5F60718293A0016 /* GrokSharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1016 /* GrokSharedConfig.swift */; };
 		A1B2C3D4E5F60718293A000F /* TrendNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100F /* TrendNotificationScheduler.swift */; };
 		A1B2C3D4E5F60718293A0010 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1010 /* OnboardingView.swift */; };
 		A1B2C3D4E5F60718293A0011 /* ProgressSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1011 /* ProgressSheet.swift */; };
@@ -79,6 +80,9 @@
 		A1B2C3D4E5F60718293A100C /* UserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferences.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A100D /* GrokKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokKeychain.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A100E /* GrokClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokClient.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1016 /* GrokSharedConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokSharedConfig.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1017 /* TheScale.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = TheScale.xcconfig; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1018 /* Secrets.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.example.xcconfig; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A100F /* TrendNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendNotificationScheduler.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1010 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1011 /* ProgressSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressSheet.swift; sourceTree = "<group>"; };
@@ -133,10 +137,20 @@
 		2B0FBBD8D0F5403DB489D183 = {
 			isa = PBXGroup;
 			children = (
+				A1B2C3D4E5F60718293A1019 /* Config */,
 				47A6C3C6275341DB8FC9EB0F /* TheScale */,
 				C098867BBD024314896FE9A9 /* TheScaleTests */,
 				786C64B488AF41CE9FFBB2D7 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F60718293A1019 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F60718293A1017 /* TheScale.xcconfig */,
+				A1B2C3D4E5F60718293A1018 /* Secrets.example.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		363A498F516E4D29A5042E2C /* Models */ = {
@@ -221,6 +235,7 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D4E5F60718293A100D /* GrokKeychain.swift */,
+				A1B2C3D4E5F60718293A1016 /* GrokSharedConfig.swift */,
 				A1B2C3D4E5F60718293A100E /* GrokClient.swift */,
 				A1B2C3D4E5F60718293A1014 /* CoachChatController.swift */,
 			);
@@ -372,6 +387,7 @@
 				A1B2C3D4E5F60718293A000B /* ManualWeighInView.swift in Sources */,
 				A1B2C3D4E5F60718293A000C /* UserPreferences.swift in Sources */,
 				A1B2C3D4E5F60718293A000D /* GrokKeychain.swift in Sources */,
+				A1B2C3D4E5F60718293A0016 /* GrokSharedConfig.swift in Sources */,
 				A1B2C3D4E5F60718293A000E /* GrokClient.swift in Sources */,
 				A1B2C3D4E5F60718293A000F /* TrendNotificationScheduler.swift in Sources */,
 				A1B2C3D4E5F60718293A0010 /* OnboardingView.swift in Sources */,
@@ -398,11 +414,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -433,12 +449,13 @@
 		};
 		B915D37194244C82AD5FC69B /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A1B2C3D4E5F60718293A1017 /* TheScale.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -451,7 +468,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -470,11 +487,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -486,12 +503,13 @@
 		};
 		C66C8747E64041F2A300F56A /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A1B2C3D4E5F60718293A1017 /* TheScale.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -504,7 +522,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

@@ -32,6 +32,10 @@
 	<string>The Scale saves confirmed weight, BMI, body fat percentage, and lean body mass to Apple Health when you tap Confirm. Nothing is uploaded.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>The Scale can notify you when weight trends look bad versus your ideal, and optionally nudge a weekly mini-goal. No marketing spam.</string>
+	<key>GrokProxyURL</key>
+	<string>$(GROK_PROXY_URL)</string>
+	<key>GrokAPIKey</key>
+	<string>$(GROK_API_KEY)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
