@@ -48,7 +48,7 @@ enum ScaleWeightUnit: String, Sendable {
     case catty
 }
 
-/// User profile needed to estimate body composition from impedance.
+/// User profile needed to estimate body composition from impedance + coaching.
 struct UserBodyProfile: Equatable, Codable, Sendable {
     enum Sex: String, Codable, CaseIterable, Identifiable, Sendable {
         case female
@@ -64,6 +64,8 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         }
     }
 
+    /// Preferred name for greetings and coach copy (on-device only).
+    var displayName: String
     var heightCm: Double
     var ageYears: Double
     var sex: Sex
@@ -71,13 +73,22 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
     var idealWeightKg: Double
     /// Optional goal body fat %. When set, fat chart uses it as floor / reference.
     var idealBodyFatPercent: Double?
+    var dietPreference: DietPreference
+
+    /// First name / greeting fragment; falls back to empty.
+    var greetingName: String {
+        let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed
+    }
 
     static let `default` = UserBodyProfile(
+        displayName: "",
         heightCm: 170,
         ageYears: 30,
         sex: .male,
         idealWeightKg: suggestedIdealWeightKg(heightCm: 170),
-        idealBodyFatPercent: nil
+        idealBodyFatPercent: nil,
+        dietPreference: .omnivore
     )
 
     /// BMI ~22 suggestion used when seeding a new profile or migrating old saves.
@@ -87,31 +98,37 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
     }
 
     init(
+        displayName: String = "",
         heightCm: Double,
         ageYears: Double,
         sex: Sex,
         idealWeightKg: Double? = nil,
-        idealBodyFatPercent: Double? = nil
+        idealBodyFatPercent: Double? = nil,
+        dietPreference: DietPreference = .omnivore
     ) {
+        self.displayName = displayName
         self.heightCm = heightCm
         self.ageYears = ageYears
         self.sex = sex
         self.idealWeightKg = idealWeightKg ?? Self.suggestedIdealWeightKg(heightCm: heightCm)
         self.idealBodyFatPercent = idealBodyFatPercent
+        self.dietPreference = dietPreference
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        displayName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? ""
         heightCm = try c.decode(Double.self, forKey: .heightCm)
         ageYears = try c.decode(Double.self, forKey: .ageYears)
         sex = try c.decode(Sex.self, forKey: .sex)
         idealWeightKg = try c.decodeIfPresent(Double.self, forKey: .idealWeightKg)
             ?? Self.suggestedIdealWeightKg(heightCm: heightCm)
         idealBodyFatPercent = try c.decodeIfPresent(Double.self, forKey: .idealBodyFatPercent)
+        dietPreference = try c.decodeIfPresent(DietPreference.self, forKey: .dietPreference) ?? .omnivore
     }
 
     private enum CodingKeys: String, CodingKey {
-        case heightCm, ageYears, sex, idealWeightKg, idealBodyFatPercent
+        case displayName, heightCm, ageYears, sex, idealWeightKg, idealBodyFatPercent, dietPreference
     }
 }
 

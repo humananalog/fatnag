@@ -6,8 +6,15 @@ struct TheScaleApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(session)
+            Group {
+                if session.hasCompletedOnboarding {
+                    ContentView()
+                        .environmentObject(session)
+                } else {
+                    OnboardingView()
+                        .environmentObject(session)
+                }
+            }
         }
     }
 }

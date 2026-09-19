@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Home: sparse brand + scan + History. Profile, calibration, and Health copy live in Settings.
+/// Home: sparse brand + scan + History + Progress. Profile / Grok / calibration in Settings.
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
 
@@ -57,8 +57,17 @@ struct ContentView: View {
                 ManualWeighInView()
                     .environmentObject(session)
             }
+            .sheet(isPresented: Binding(
+                get: { session.isProgressPresented },
+                set: { if !$0 { session.dismissProgress() } }
+            )) {
+                ProgressSheet()
+                    .environmentObject(session)
+            }
             .task {
                 await session.refreshHealthBaseline()
+                session.ensureWeeklyGoalBaseline()
+                await session.refreshTrendNotifications()
             }
         }
         .preferredColorScheme(.light)
@@ -91,9 +100,10 @@ struct ContentView: View {
                 .foregroundStyle(ink)
                 .tracking(-0.6)
 
-            Text("Mi Scale 2 → Apple Health")
+            Text(subtitleLine)
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(steel)
+                .multilineTextAlignment(.center)
 
             if let baseline = session.healthBaselineKg {
                 Text(String(format: "%.1f kg", baseline))
@@ -108,11 +118,24 @@ struct ContentView: View {
         .accessibilityLabel(brandAccessibilityLabel)
     }
 
-    private var brandAccessibilityLabel: String {
-        if let baseline = session.healthBaselineKg {
-            return String(format: "The Scale. Last Health weight %.1f kilograms.", baseline)
+    private var subtitleLine: String {
+        let name = session.profile.greetingName
+        if name.isEmpty {
+            return "Mi Scale 2 → Apple Health"
         }
-        return "The Scale"
+        return "Hey \(name). Mi Scale 2 → Apple Health"
+    }
+
+    private var brandAccessibilityLabel: String {
+        let name = session.profile.greetingName
+        if let baseline = session.healthBaselineKg {
+            if name.isEmpty {
+                return String(format: "The Scale. Last Health weight %.1f kilograms.", baseline)
+            }
+            return String(format: "The Scale. Hello %@. Last Health weight %.1f kilograms.", name, baseline)
+        }
+        if name.isEmpty { return "The Scale" }
+        return "The Scale. Hello \(name)."
     }
 
     private var primaryActions: some View {
@@ -133,6 +156,17 @@ struct ContentView: View {
                 session.reopenResults()
             } label: {
                 Label("History", systemImage: "chart.xyaxis.line")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 2)
+            }
+            .buttonStyle(.bordered)
+            .tint(ink)
+
+            Button {
+                session.presentProgress()
+            } label: {
+                Label("Progress", systemImage: "flag.checkered")
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 2)

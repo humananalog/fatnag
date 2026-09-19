@@ -1,21 +1,27 @@
 import SwiftUI
 
-/// Profile + calibration setup. Live capture uses the same weigh-in sheet.
+/// Profile, notifications, Grok key, calibration. Live capture uses the weigh-in sheet.
 struct SettingsView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @FocusState private var focusedField: Field?
     @State private var confirmReset = false
+    @State private var grokKeyDraft = ""
+    @State private var grokKeySaved = false
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable {
         case reference
         case offset
+        case name
+        case grokKey
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 profileCard
+                notificationsCard
+                grokCard
                 calibrationCard
                 privacyCard
             }
@@ -41,6 +47,9 @@ struct SettingsView: View {
                 Button("Done") { focusedField = nil }
             }
         }
+        .onAppear {
+            grokKeyDraft = GrokKeychain.hasAPIKey ? "••••••••" : ""
+        }
         .alert("Reset calibration?", isPresented: $confirmReset) {
             Button("Cancel", role: .cancel) {}
             Button("Reset", role: .destructive) {
@@ -55,9 +64,18 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Your profile")
                 .font(.headline)
-            Text("Used only for on-device body fat % and lean % math.")
+            Text("Used on-device for body fat math, greetings, and optional coaching tone.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+
+            HStack {
+                Text("Name")
+                Spacer()
+                TextField("Name", text: $session.profile.displayName)
+                    .focused($focusedField, equals: .name)
+                    .multilineTextAlignment(.trailing)
+                    .textContentType(.givenName)
+            }
 
             HStack {
                 Text("Height")
@@ -117,9 +135,6 @@ struct SettingsView: View {
                 .frame(width: 72)
                 Text("%").foregroundStyle(.secondary)
             }
-            Text("Ideal weight floors the history weight chart and draws the Ideal line. Ideal body fat is optional: when set, the fat chart uses it the same way.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
 
             Picker("Sex", selection: $session.profile.sex) {
                 ForEach(UserBodyProfile.Sex.allCases) { sex in
@@ -127,6 +142,107 @@ struct SettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
+
+            Picker("Diet", selection: $session.profile.dietPreference) {
+                ForEach(DietPreference.allCases) { diet in
+                    Text(diet.title).tag(diet)
+                }
+            }
+            .pickerStyle(.menu)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var notificationsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Notifications", systemImage: "bell.badge")
+                .font(.headline)
+            Text("Ping only when trends look bad, plus an optional Monday mini-goal nudge. No spam.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Toggle(
+                "Bad-trend alerts",
+                isOn: Binding(
+                    get: { session.notificationPreferences.notifyOnBadTrend },
+                    set: {
+                        var next = session.notificationPreferences
+                        next.notifyOnBadTrend = $0
+                        session.notificationPreferences = next
+                        Task { await session.refreshTrendNotifications() }
+                    }
+                )
+            )
+            Toggle(
+                "Weekly mini-goal reminder",
+                isOn: Binding(
+                    get: { session.notificationPreferences.weeklyGoalReminders },
+                    set: {
+                        var next = session.notificationPreferences
+                        next.weeklyGoalReminders = $0
+                        session.notificationPreferences = next
+                        Task { await session.refreshTrendNotifications() }
+                    }
+                )
+            )
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var grokCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Grok / xAI", systemImage: "key.fill")
+                .font(.headline)
+            Text("Optional. Key stays in Keychain on this iPhone. Coach sends only a short trend summary after explicit consent. Offline roast works without a key.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            SecureField("xAI API key", text: $grokKeyDraft)
+                .textContentType(.password)
+                .autocorrectionDisabled()
+                .focused($focusedField, equals: .grokKey)
+                .onChange(of: grokKeyDraft) { _, newValue in
+                    if newValue.contains("•") { return }
+                }
+
+            HStack {
+                Button("Save key") {
+                    let raw = grokKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !raw.isEmpty, !raw.contains("•") else { return }
+                    grokKeySaved = GrokKeychain.saveAPIKey(raw)
+                    grokKeyDraft = "••••••••"
+                    focusedField = nil
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Clear key", role: .destructive) {
+                    _ = GrokKeychain.deleteAPIKey()
+                    grokKeyDraft = ""
+                    grokKeySaved = false
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Toggle(
+                "Allow Grok coach requests",
+                isOn: Binding(
+                    get: { GrokPrivacyConsent.isAccepted },
+                    set: { GrokPrivacyConsent.isAccepted = $0 }
+                )
+            )
+
+            if grokKeySaved || GrokKeychain.hasAPIKey {
+                Text("Key present in Keychain.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text("Get a key at console.x.ai → API keys. Paste here. Never commit keys.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -162,9 +278,6 @@ struct SettingsView: View {
                     .frame(width: 96)
                     Text("kg").foregroundStyle(.secondary)
                 }
-                Text("Examples: 5.000 kg plate, or Alex’s 7.926 kg known mass.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -199,14 +312,13 @@ struct SettingsView: View {
 
             Button {
                 focusedField = nil
-                // Alex: true 7.926 kg, scale showed 7.90 kg → offset +0.026 kg
                 _ = session.recordCalibration(
                     referenceKg: 7.926,
                     rawKg: 7.90,
                     mode: .offset
                 )
             } label: {
-                Label("Store Alex’s 7.926 / 7.90 offset", systemImage: "checkmark.seal")
+                Label("Store Alex's 7.926 / 7.90 offset", systemImage: "checkmark.seal")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
@@ -216,19 +328,6 @@ struct SettingsView: View {
                     .font(.subheadline.weight(.semibold))
                 Text(session.calibration.summaryLine)
                     .font(.footnote.weight(.medium))
-                if let raw = session.calibration.lastCalibrationRawKg,
-                   let at = session.calibration.calibratedAt {
-                    Text(
-                        String(
-                            format: "Last capture: raw %.3f kg → reference %.3f kg on %@",
-                            raw,
-                            session.calibration.referenceMassKg,
-                            at.formatted(date: .abbreviated, time: .shortened)
-                        )
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
                 Toggle(
                     "Apply correction",
                     isOn: Binding(
@@ -264,10 +363,6 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
-
-            Text("Limits: single-point only. Offset mode assumes a nearly constant bias; factor mode assumes proportional error. Neither is a multi-point fit. Body composition inputs from the scale are never altered by calibration.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -278,10 +373,10 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Privacy & Health", systemImage: "lock.shield")
                 .font(.headline)
-            Text("Profile, calibration, and readings stay on this iPhone. Health is read for trend and history charts, and written only after you confirm. No accounts, no cloud, no analytics.")
+            Text("Profile, calibration, and readings stay on this iPhone. Health is read for trend and history charts, and written only after you confirm. Grok is opt-in per coach tap after consent; the xAI key never leaves Keychain except as an Authorization header to api.x.ai.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Text("If permissions were denied: Settings → Health → Data Access → The Scale.")
+            Text("If permissions were denied: Settings → Health → Data Access → The Scale. Notifications: Settings → Notifications → The Scale.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }

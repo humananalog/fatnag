@@ -55,6 +55,7 @@ struct WeighInResultsView: View {
                 .ignoresSafeArea()
         }
         .preferredColorScheme(.light)
+        .sensoryFeedback(.selection, trigger: range)
         .task(id: range) {
             await reload(for: range)
         }
@@ -72,6 +73,11 @@ struct WeighInResultsView: View {
         }
     }
 
+    private var historyTitle: String {
+        let name = session.profile.greetingName
+        return name.isEmpty ? "History" : "\(name)'s History"
+    }
+
     private var topBar: some View {
         HStack(alignment: .center, spacing: 12) {
             Button {
@@ -86,7 +92,7 @@ struct WeighInResultsView: View {
             .accessibilityLabel("Close history")
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("History")
+                Text(historyTitle)
                     .font(.system(size: 22, weight: .semibold, design: .serif))
                     .foregroundStyle(atmosphere.accent)
                     .lineLimit(1)
@@ -307,6 +313,7 @@ struct WeighInResultsView: View {
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
             .chartXSelection(value: $selectedWeightDate)
+            .historyChartScroll(for: range)
             .chartGestureStyle()
         }
     }
@@ -401,6 +408,7 @@ struct WeighInResultsView: View {
             }
             .chartYScale(domain: domain)
             .chartXSelection(value: $selectedFatDate)
+            .historyChartScroll(for: range)
             .chartGestureStyle()
         }
     }
@@ -424,12 +432,20 @@ struct WeighInResultsView: View {
                     .foregroundStyle(atmosphere.accent.opacity(0.55))
                 Spacer(minLength: 8)
                 if let extrema {
-                    Text("H \(formatValue(extrema.highest.value)) · L \(formatValue(extrema.lowest.value))")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(atmosphere.accent.opacity(0.7))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("H \(formatValue(extrema.highest.value)) · L \(formatValue(extrema.lowest.value))")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(atmosphere.accent.opacity(0.7))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                        if let rate = HealthChartMath.ratePerWeek(samples: samples) {
+                            Text(String(format: "%+.2f / wk", rate))
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundStyle(atmosphere.accent.opacity(0.55))
+                        }
+                    }
                 }
             }
 
@@ -531,10 +547,13 @@ struct WeighInResultsView: View {
             let day = crossing.date.formatted(.dateTime.month(.abbreviated).day())
             return String(format: "→ %.1f kg · %@", crossing.value, day)
         }
-        if projection.slopeKgPerDay >= -0.001, projection.slopeKgPerDay <= 0.001 {
+        if abs(projection.slopeKgPerDay) <= 0.001 {
             return "Flat vs ideal"
         }
-        return projection.slopeKgPerDay < 0 ? "Not toward ideal yet" : "Not toward ideal yet"
+        if projection.slopeKgPerDay < 0 {
+            return "Losing, not aimed at ideal"
+        }
+        return "Gaining, not aimed at ideal"
     }
 
     private func accessibilityLabel(
@@ -564,6 +583,20 @@ private extension View {
     @ViewBuilder
     func chartGestureStyle() -> some View {
         self
+    }
+
+    /// Pan longer History ranges (3M / 1Y) with Charts scroll APIs from the iOS 17+ Charts stack
+    /// (built against the iOS 27 SDK on this Mac).
+    @ViewBuilder
+    func historyChartScroll(for range: HealthHistoryRange) -> some View {
+        if range.prefersHorizontalScroll {
+            self
+                .chartScrollableAxes(.horizontal)
+                .chartXVisibleDomain(length: range.visibleDomainLength)
+                .chartScrollTargetBehavior(.valueAligned(matching: DateComponents(day: 1)))
+        } else {
+            self
+        }
     }
 }
 

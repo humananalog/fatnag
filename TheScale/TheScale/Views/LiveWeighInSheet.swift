@@ -884,19 +884,27 @@ struct TrendAtmosphereBackground: View {
     let atmosphere: TrendAtmosphere
 
     var body: some View {
-        // Soft radial washes (no `.blur` / `.drawingGroup`): those force Metal
-        // shader-cache fopen on first launch ("fopen failed for data file: errno = 2").
-        LinearGradient(
-            colors: [atmosphere.top, atmosphere.mid, atmosphere.bottom],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+        // MeshGradient (iOS 18+) for SOTA soft fields; no Metal drawingGroup / blur fopen spam.
+        MeshGradient(
+            width: 3,
+            height: 3,
+            points: [
+                .init(0, 0), .init(0.5, 0), .init(1, 0),
+                .init(0, 0.5), .init(0.5, 0.5), .init(1, 0.5),
+                .init(0, 1), .init(0.5, 1), .init(1, 1)
+            ],
+            colors: [
+                atmosphere.top, atmosphere.mid, atmosphere.top,
+                atmosphere.mid, atmosphere.bottom, atmosphere.mid,
+                atmosphere.bottom, atmosphere.mid, atmosphere.top
+            ]
         )
         .overlay {
             ZStack {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [.white.opacity(0.28), .white.opacity(0)],
+                            colors: [.white.opacity(0.22), .white.opacity(0)],
                             center: .center,
                             startRadius: 10,
                             endRadius: 180
@@ -907,7 +915,7 @@ struct TrendAtmosphereBackground: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [atmosphere.accent.opacity(0.16), atmosphere.accent.opacity(0)],
+                            colors: [atmosphere.accent.opacity(0.14), atmosphere.accent.opacity(0)],
                             center: .center,
                             startRadius: 20,
                             endRadius: 220

@@ -67,6 +67,14 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var calibration: ScaleCalibration {
         didSet { ScaleCalibrationStore.save(calibration) }
     }
+    @Published var notificationPreferences: NotificationPreferences {
+        didSet { NotificationPreferencesStore.save(notificationPreferences) }
+    }
+    @Published var weeklyGoal: WeeklyMiniGoal {
+        didSet { WeeklyMiniGoalStore.save(weeklyGoal) }
+    }
+    @Published var hasCompletedOnboarding: Bool
+    @Published var isProgressPresented = false
     /// Last raw kg seen from BLE (kept after the live sheet closes so Settings can capture).
     @Published private(set) var lastRawWeightKg: Double?
     /// Optional manual raw kg typed in Settings when BLE reading is unavailable.
@@ -81,12 +89,18 @@ final class ScaleSessionViewModel: ObservableObject {
         scanner: ScaleScanning,
         healthStore: HealthWriting,
         profile: UserBodyProfile = UserProfileStore.load(),
-        calibration: ScaleCalibration = ScaleCalibrationStore.load()
+        calibration: ScaleCalibration = ScaleCalibrationStore.load(),
+        notificationPreferences: NotificationPreferences = NotificationPreferencesStore.load(),
+        weeklyGoal: WeeklyMiniGoal = WeeklyMiniGoalStore.load(),
+        hasCompletedOnboarding: Bool = OnboardingStore.hasCompleted
     ) {
         self.scanner = scanner
         self.healthStore = healthStore
         self.profile = profile
         self.calibration = calibration
+        self.notificationPreferences = notificationPreferences
+        self.weeklyGoal = weeklyGoal
+        self.hasCompletedOnboarding = hasCompletedOnboarding
         self.scanner.delegate = self
     }
 
@@ -285,6 +299,77 @@ final class ScaleSessionViewModel: ObservableObject {
         isManualEntryPresented = false
     }
 
+    func presentProgress() {
+        isProgressPresented = true
+        ensureWeeklyGoalBaseline()
+    }
+
+    func dismissProgress() {
+        isProgressPresented = false
+    }
+
+    func updateWeeklyGoalDelta(_ deltaKg: Double) {
+        var next = weeklyGoal
+        next.targetDeltaKg = deltaKg
+        next.title = String(format: "Nudge %+.1f kg this week", deltaKg)
+        weeklyGoal = next
+    }
+
+    /// Lock ISO-week baseline from the latest Health weight when missing or stale.
+    func ensureWeeklyGoalBaseline() {
+        guard let baseline = healthBaselineKg else { return }
+        var next = weeklyGoal
+        let cal = Calendar.current
+        let weekStart = cal.dateInterval(of: .weekOfYear, for: Date())?.start
+        if next.weekStartKg == nil || next.weekStartDate == nil {
+            next.weekStartKg = baseline
+            next.weekStartDate = weekStart ?? Date()
+            weeklyGoal = next
+            return
+        }
+        if let stored = next.weekStartDate, let weekStart,
+           !cal.isDate(stored, equalTo: weekStart, toGranularity: .weekOfYear) {
+            next.weekStartKg = baseline
+            next.weekStartDate = weekStart
+            weeklyGoal = next
+        }
+    }
+
+    func makeCoachBrief() -> CoachBrief {
+        let weekDelta: Double? = {
+            guard let current = healthBaselineKg, let start = weeklyGoal.weekStartKg else { return nil }
+            return current - start
+        }()
+        return CoachBrief(
+            userName: profile.greetingName,
+            diet: profile.dietPreference,
+            currentKg: healthBaselineKg ?? displayWeightKg,
+            idealKg: profile.idealWeightKg,
+            bodyFatPercent: historyBodyFatPercents.last?.value ?? displayBodyFatPercent,
+            idealBodyFatPercent: profile.idealBodyFatPercent,
+            trend: trendForDisplay,
+            weekDeltaKg: weekDelta,
+            weeklyGoal: weeklyGoal
+        )
+    }
+
+    func requestOrchestratorCoach() async -> CoachReply {
+        await GrokClient.shared.orchestrate(brief: makeCoachBrief())
+    }
+
+    func refreshTrendNotifications() async {
+        await TrendNotificationScheduler.refresh(
+            prefs: notificationPreferences,
+            profileName: profile.greetingName,
+            currentKg: healthBaselineKg,
+            idealKg: profile.idealWeightKg,
+            recentWeights: historyTrendWindowWeights.isEmpty
+                ? historyWeights
+                : historyTrendWindowWeights,
+            weeklyGoal: weeklyGoal
+        )
+    }
+
     /// Load Apple Health weight + body fat samples for the results charts.
     /// Always also loads the last 2 weeks for Trend projection (independent of picker range).
     func loadHistory(for range: HealthHistoryRange = .default) async throws {
@@ -316,7 +401,9 @@ final class ScaleSessionViewModel: ObservableObject {
         try await healthStore.write(draft: draft, profile: profile)
         phase = .healthKitSuccess
         await refreshHealthBaseline()
+        ensureWeeklyGoalBaseline()
         try await loadHistory(for: historyRange)
+        await refreshTrendNotifications()
         isManualEntryPresented = false
         isWeighInPresented = false
         isResultsPresented = true
@@ -530,6 +617,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 liveHint = "Saved confirmed weight and BMI only. Body fat was not written."
             }
             await refreshHealthBaseline()
+            ensureWeeklyGoalBaseline()
             // Present the dual-chart history screen after a successful Health write.
             do {
                 try await loadHistory(for: .default)
@@ -539,6 +627,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 historyBodyFatPercents = []
                 historyTrendWindowWeights = []
             }
+            await refreshTrendNotifications()
             isWeighInPresented = false
             isResultsPresented = true
         } catch {

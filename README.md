@@ -2,9 +2,9 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 1.7.0  
-**Target device:** iPhone 15 (iOS 17+)  
-**Deployment target:** iOS 17.0 (iPhone only)  
+**Version:** 2.0.0  
+**Target device:** iPhone 15 (iOS 26+, Xcode 27 / iOS 27 SDK)  
+**Deployment target:** iOS 26.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
 **Bundle id:** `app.thescale.ios`
 
@@ -16,7 +16,7 @@ Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model
 4. Reads recent **Apple Health** body-mass history (on-device) and colors the sheet by trend vs last weight: **green** loss, **yellow** stable (±0.2 kg), **red** gain
 5. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
 6. Lets you **edit** weight / fat % / lean % **before** confirm
-7. **Home** is sparse: brand, **Find Scale**, **History**, **Manual**, optional **Weigh in**. Profile, ideal weight, calibration, and Health permissions copy live under the gear (**Settings**)
+7. **Home** is sparse: brand (greets you by name), **Find Scale**, **History**, **Progress**, **Manual**, optional **Weigh in**. Profile, diet, notifications, Grok key, calibration under **Settings**. First launch runs onboarding.
 8. **Calibration uses the same live sheet** (from Settings): enter reference mass, open live sheet, weigh that mass, store offset/factor on-device
 9. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
 10. After a successful Health save (and anytime via home **History**), opens charts for weight kg + body fat % from HealthKit (default **Last 2 weeks**). Ideal line from Settings; domain includes all Health samples. Optional **Trend** projects weight to ideal from the last 2 weeks (OLS). Tap a point for its value. **Manual** logs mass-only while travelling.
@@ -32,7 +32,10 @@ No accounts, no backend, no analytics, no third-party cloud.
 | Weight calibration (factor / offset) | `UserDefaults` on device only |
 | Health **read** | Recent `bodyMass` for trend; `bodyMass` + `bodyFatPercentage` for history charts |
 | Health **writes** | Apple Health (HealthKit) on device, after **Confirm to Health** or **Manual → Save** |
-| Network | None by design |
+| Name / diet / notification prefs / weekly mini-goal | `UserDefaults` on device only |
+| xAI API key | iOS Keychain (`WhenUnlockedThisDeviceOnly`) |
+| Grok coach request | Opt-in only: short trend summary → `api.x.ai` after consent |
+| Network | None by default; Grok only when you tap Coach with key + consent |
 
 HealthKit types:
 
@@ -54,6 +57,31 @@ Muscle mass, bone mass, water %, visceral fat, and raw ohms are **shown in-app o
 ### Weight chart Y-axis (ideal)
 
 Ideal weight from Settings is a dotted **Ideal** reference line. The plot domain is `min(dataMin, ideal)…max(dataMax, ideal, projection) + padding` so real Health points are never clipped. Body fat chart: when ideal body fat % is set, same Ideal line pattern; otherwise auto-scale with labeled highest / lowest.
+
+### Progress + notifications
+
+- **Progress** sheet: weekly mini-goal (editable Δ kg), progress bar, offline or live Grok orchestrator roast.
+- Notifications fire **only** for bad trends (above ideal and rising, or sharp weekly gain) and optional Monday mini-goal. Toggle in Settings.
+
+### Grok / xAI coaching
+
+Agents (medical, fitness, anatomy, orchestrator) share a badass / dark-humour / sometimes vulgar voice, still with medical disclaimers. Offline fallbacks always work.
+
+**Setup the API key (on device):**
+
+1. Create a key at [console.x.ai](https://console.x.ai/) → API keys.
+2. Open **The Scale → Settings → Grok / xAI**.
+3. Paste the key → **Save key** (stored in Keychain on this iPhone only).
+4. Enable **Allow Grok coach requests** (or accept the consent alert on first Coach tap).
+5. Open **Progress → Coach me**. Without a key, offline roast still runs.
+
+Revoke: Settings → Clear key + turn off Allow Grok coach requests.
+
+### History charts (2.0)
+
+- MeshGradient atmosphere; rate/week chip on each chart; scrollable 3M / 1Y domains via Charts `chartScrollableAxes`.
+- Trend caption bug fixed (distinct losing vs gaining away-from-ideal copy).
+- Personalized History title when a name is set.
 
 ## Protocol (honest notes)
 

@@ -36,6 +36,25 @@ enum HealthHistoryRange: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// Horizontal pan for longer ranges (iOS Charts scroll APIs).
+    var prefersHorizontalScroll: Bool {
+        switch self {
+        case .lastThreeMonths, .lastYear: return true
+        default: return false
+        }
+    }
+
+    /// Visible X window length when scroll is enabled (seconds).
+    var visibleDomainLength: TimeInterval {
+        switch self {
+        case .lastWeek: return 7 * 86_400
+        case .lastTwoWeeks: return 14 * 86_400
+        case .lastMonth: return 31 * 86_400
+        case .lastThreeMonths: return 45 * 86_400
+        case .lastYear: return 90 * 86_400
+        }
+    }
+
     /// Inclusive lookback from `now` (calendar days / months / year).
     func startDate(relativeTo now: Date = Date(), calendar: Calendar = .current) -> Date {
         switch self {
@@ -148,6 +167,12 @@ enum HealthChartMath {
     static func nearestSample(in samples: [HealthMetricSample], to date: Date) -> HealthMetricSample? {
         guard !samples.isEmpty else { return nil }
         return samples.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }
+    }
+
+    /// OLS slope converted to units per week (kg/wk or %/wk). Nil if under-sampled.
+    static func ratePerWeek(samples: [HealthMetricSample]) -> Double? {
+        guard let fit = ordinaryLeastSquares(samples: samples) else { return nil }
+        return fit.slopeKgPerSecond * 86_400 * 7
     }
 
     /// Simple least-squares line through (time, value) over the given samples.

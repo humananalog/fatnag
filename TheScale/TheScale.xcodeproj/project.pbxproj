@@ -28,6 +28,13 @@
 		A1B2C3D4E5F60718293A0009 /* WeighInResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1009 /* WeighInResultsView.swift */; };
 		A1B2C3D4E5F60718293A000A /* HealthHistoryChartTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100A /* HealthHistoryChartTests.swift */; };
 		A1B2C3D4E5F60718293A000B /* ManualWeighInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100B /* ManualWeighInView.swift */; };
+		A1B2C3D4E5F60718293A000C /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100C /* UserPreferences.swift */; };
+		A1B2C3D4E5F60718293A000D /* GrokKeychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100D /* GrokKeychain.swift */; };
+		A1B2C3D4E5F60718293A000E /* GrokClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100E /* GrokClient.swift */; };
+		A1B2C3D4E5F60718293A000F /* TrendNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A100F /* TrendNotificationScheduler.swift */; };
+		A1B2C3D4E5F60718293A0010 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1010 /* OnboardingView.swift */; };
+		A1B2C3D4E5F60718293A0011 /* ProgressSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1011 /* ProgressSheet.swift */; };
+		A1B2C3D4E5F60718293A0012 /* CoachOfflineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1012 /* CoachOfflineTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +100,8 @@
 				A1B2C3D4E5F60718293A1003 /* LiveWeighInSheet.swift */,
 				A1B2C3D4E5F60718293A1009 /* WeighInResultsView.swift */,
 				A1B2C3D4E5F60718293A100B /* ManualWeighInView.swift */,
+				A1B2C3D4E5F60718293A1010 /* OnboardingView.swift */,
+				A1B2C3D4E5F60718293A1011 /* ProgressSheet.swift */,
 				A1B2C3D4E5F60718293A1006 /* SettingsView.swift */,
 			);
 			path = Views;
@@ -125,6 +134,7 @@
 				A1B2C3D4E5F60718293A1002 /* EditableMeasurementDraft.swift */,
 				A1B2C3D4E5F60718293A1005 /* ScaleCalibration.swift */,
 				A1B2C3D4E5F60718293A1008 /* HealthHistoryRange.swift */,
+				A1B2C3D4E5F60718293A100C /* UserPreferences.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -136,6 +146,8 @@
 				363A498F516E4D29A5042E2C /* Models */,
 				19097D29942F47248A42C320 /* BLE */,
 				C1B0AEBF4FE7489F878071C4 /* Health */,
+				B7E2F1A0C3D4491E9F6A2B12 /* Coaching */,
+				B7E2F1A0C3D4491E9F6A2B13 /* Notifications */,
 				C5819192AB924C7DB8F782F9 /* BodyComposition */,
 				1506E668164B49DE9292E00E /* Views */,
 				5AA02014DB214A8798755049 /* Resources */,
@@ -177,6 +189,7 @@
 				A1B2C3D4E5F60718293A1004 /* WeightTrendTests.swift */,
 				A1B2C3D4E5F60718293A1007 /* ScaleCalibrationTests.swift */,
 				A1B2C3D4E5F60718293A100A /* HealthHistoryChartTests.swift */,
+				A1B2C3D4E5F60718293A1012 /* CoachOfflineTests.swift */,
 			);
 			path = TheScaleTests;
 			sourceTree = "<group>";
@@ -187,6 +200,23 @@
 				DD9268209C7548B6B832E710 /* HealthKitWriter.swift */,
 			);
 			path = Health;
+			sourceTree = "<group>";
+		};
+		B7E2F1A0C3D4491E9F6A2B12 /* Coaching */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F60718293A100D /* GrokKeychain.swift */,
+				A1B2C3D4E5F60718293A100E /* GrokClient.swift */,
+			);
+			path = Coaching;
+			sourceTree = "<group>";
+		};
+		B7E2F1A0C3D4491E9F6A2B13 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F60718293A100F /* TrendNotificationScheduler.swift */,
+			);
+			path = Notifications;
 			sourceTree = "<group>";
 		};
 		C5819192AB924C7DB8F782F9 /* BodyComposition */ = {
@@ -292,6 +322,7 @@
 				A1B2C3D4E5F60718293A0004 /* WeightTrendTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0007 /* ScaleCalibrationTests.swift in Sources */,
 				A1B2C3D4E5F60718293A000A /* HealthHistoryChartTests.swift in Sources */,
+				A1B2C3D4E5F60718293A0012 /* CoachOfflineTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -315,6 +346,12 @@
 				A1B2C3D4E5F60718293A0008 /* HealthHistoryRange.swift in Sources */,
 				A1B2C3D4E5F60718293A0009 /* WeighInResultsView.swift in Sources */,
 				A1B2C3D4E5F60718293A000B /* ManualWeighInView.swift in Sources */,
+				A1B2C3D4E5F60718293A000C /* UserPreferences.swift in Sources */,
+				A1B2C3D4E5F60718293A000D /* GrokKeychain.swift in Sources */,
+				A1B2C3D4E5F60718293A000E /* GrokClient.swift in Sources */,
+				A1B2C3D4E5F60718293A000F /* TrendNotificationScheduler.swift in Sources */,
+				A1B2C3D4E5F60718293A0010 /* OnboardingView.swift in Sources */,
+				A1B2C3D4E5F60718293A0011 /* ProgressSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -334,11 +371,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.6.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 2.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -358,7 +395,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_TESTABILITY = YES;
 				GCC_DYNAMIC_NO_PIC = NO;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -374,7 +411,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -382,12 +419,12 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "The Scale";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.6.0;
+				MARKETING_VERSION = 2.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -406,11 +443,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.6.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 2.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -427,7 +464,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -435,12 +472,12 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "The Scale";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.6.0;
+				MARKETING_VERSION = 2.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -462,7 +499,7 @@
 				CLANG_ENABLE_OBJC_ARC = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_VERSION = 5.0;
