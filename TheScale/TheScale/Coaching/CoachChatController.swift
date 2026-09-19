@@ -106,6 +106,9 @@ final class CoachChatController: ObservableObject {
         for fact in CoachMemoryExtractor.extract(from: text) {
             CoachMemoryStore.remember(fact)
         }
+        for fact in await FoundationModelCoach.extractMemoryFacts(from: text) {
+            CoachMemoryStore.remember(fact)
+        }
 
         // Gate + apply stated weight / body-fat targets before Grok sees the brief.
         let targetResults = session.processCoachStatedTargets(from: text)

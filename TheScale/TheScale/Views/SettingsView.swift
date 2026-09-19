@@ -20,6 +20,7 @@ struct SettingsView: View {
                 personaCard
                 notificationsCard
                 fitnessMonitorCard
+                appleIntelligenceCard
                 grokCard
                 calibrationCard
                 privacyCard
@@ -179,7 +180,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Notifications", systemImage: "bell.badge")
                 .font(.headline)
-            Text("Ping only when trends look bad, plus an optional Monday mini-goal nudge. No spam.")
+            Text("Ping only when trends look bad, plus an optional Monday mini-goal nudge. On-device Foundation Models can sharpen copy and skip weak pings when Apple Intelligence is on.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Toggle(
@@ -328,6 +329,25 @@ struct SettingsView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var appleIntelligenceCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Apple Intelligence", systemImage: "brain.head.profile")
+                .font(.headline)
+            Text("On-device Foundation Models polish notification copy, help decide whether a ping is worth it, and summarize private Health digests when Grok is offline. Nothing leaves the phone for these.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Text(FoundationModelAvailability.statusSummary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("Hybrid: FM for private snippets + notification judgment. Grok Worker for full multi-agent Coach when online and consented.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -491,10 +511,10 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Privacy & Health", systemImage: "lock.shield")
                 .font(.headline)
-            Text("Profile, calibration, memory, persona, and readings stay on this iPhone. Health is read for trend, history, and optional fitness monitoring (HR, sleep, steps, energy, workouts), and written only after you confirm a weigh-in. Grok is opt-in after consent. The shared xAI key lives on the operator's Worker (or a build-time secret), never in Settings.")
+            Text("Profile, calibration, memory, persona, and readings stay on this iPhone. Health is read for trend, history, and optional fitness monitoring (HR, sleep, steps, energy, workouts), and written only after you confirm a weigh-in. On-device Apple Intelligence (when available) polishes notifications and private digests without leaving the phone. Grok is opt-in after consent. The shared xAI key lives on the operator's Worker (or a build-time secret), never in Settings.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Text("If permissions were denied: Settings → Health → Data Access → The Scale. Notifications: Settings → Notifications → The Scale.")
+            Text("If permissions were denied: Settings → Health → Data Access → The Scale. Notifications: Settings → Notifications → The Scale. Apple Intelligence: Settings → Apple Intelligence & Siri.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }

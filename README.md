@@ -2,7 +2,7 @@
 
 Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
 
-**Version:** 2.6.1  
+**Version:** 2.7.0  
 **Target device:** iPhone 15 (iOS 26+, Xcode 27 / iOS 27 SDK)  
 **Deployment target:** iOS 26.0 (iPhone only)  
 **Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
@@ -35,6 +35,7 @@ No accounts, no analytics. Weigh-ins stay on-device / Apple Health. Optional sha
 | Health **writes** | Apple Health (HealthKit) on device, after **Confirm to Health** or **Manual → Save** |
 | Name / diet / notification prefs / weekly mini-goal / Coach wake reminders / fitness-monitor prefs | `UserDefaults` on device only |
 | Shared xAI / Grok access | Operator-managed: Cloudflare Worker secret (preferred) or build-time key via `TheScale.xcconfig` / gitignored `Secrets.xcconfig` (IPA-extractable) |
+| Apple Intelligence / Foundation Models | On-device only (`SystemLanguageModel` / `LanguageModelSession`); used for notification polish, ping judgment, private digest summaries, optional memory extraction |
 | Grok coach request | Opt-in only: short trend / chat / fitness digest + relevant memory → shared proxy or `api.x.ai` after consent |
 | Network | None by default; Grok only when you tap Coach (or enabled fitness monitoring) with shared config + consent |
 
@@ -62,7 +63,30 @@ Ideal weight from Settings is a dotted **Ideal** reference line. The plot domain
 ### Progress + notifications
 
 - **Progress** sheet: weekly mini-goal (editable Δ kg), progress bar, offline or live Grok orchestrator roast.
-- Notifications fire **only** for bad trends (above ideal and rising, or sharp weekly gain) and optional Monday mini-goal. Toggle in Settings.
+- Notifications fire **only** for bad trends (above ideal and rising, or sharp weekly gain), optional Monday mini-goal, Coach-scheduled wake/reminders, and fitness triggers (Watch wear / pre-sleep HR). Toggle in Settings.
+- **Foundation Models (2.7.0+):** when Apple Intelligence is available, on-device `LanguageModelSession` polishes notification titles/bodies (name, dark humour, no em dashes / AI tells) and can suppress weak pings. Algorithmic triggers stay the gate; FM is a judgment + copy layer. If Apple Intelligence is off or the device is ineligible, copy falls back to the algorithmic strings.
+
+### Apple Intelligence vs Grok (hybrid routing)
+
+| Job | On-device Foundation Models | Grok Worker |
+|-----|----------------------------|-------------|
+| Notification title/body polish | Prefer | No |
+| Whether to ping (noise filter) | Prefer (defaults to allow if FM off) | No |
+| Coach-scheduled reminder copy | Prefer polish | Timing stays `UNUserNotificationCenter` |
+| Private Health digest summary when Grok offline | Prefer | - |
+| Memory fact extraction (extra pass) | Optional `@Generable` | Heuristic + Grok context when consented |
+| Full multi-agent Coach chat | No (too light) | Prefer when consent + live config |
+
+Settings shows an **Apple Intelligence** status line (`FoundationModelAvailability.statusSummary`). Coach chrome shows `FM ready` / `FM off`.
+
+#### Enable Apple Intelligence + verify a smarter notification (Alex, iPhone 15)
+
+1. iOS **Settings → Apple Intelligence & Siri** → turn **Apple Intelligence** on; wait until the model finishes downloading.
+2. `git pull origin main`, Clean Build Folder, Run **The Scale 2.7.0** on the iPhone 15 (not Simulator).
+3. Open app **Settings → Apple Intelligence**: expect status **on-device model ready**.
+4. Turn on **Bad-trend alerts** (and/or fitness trigger notifies). Save a weigh-in that triggers a bad trend, or ask Coach: `ping me tomorrow morning before 7:30 to wake up`.
+5. Check **Settings → Notifications → The Scale** pending / delivered: title should call you by name, body should read like Coach (not a dry template), no em dashes, no "as an AI".
+6. If Apple Intelligence is off: same triggers still fire with algorithmic copy; Settings status explains the fallback.
 
 ### Grok / xAI coaching
 

@@ -53,9 +53,17 @@ enum CoachReminderScheduler {
 
         let center = UNUserNotificationCenter.current()
         let name = profileName.isEmpty ? "Hey" : profileName
+        let fallbackTitle = request.title.isEmpty ? "\(name): reminder" : request.title
+        let polished = await FoundationModelCoach.refineNotificationCopy(
+            profileName: name,
+            kind: request.kind == .wakeUp ? "wake-reminder" : "coach-reminder",
+            fallbackTitle: fallbackTitle,
+            fallbackBody: request.body,
+            context: "Coach-scheduled local reminder at \(request.fireAt.formatted(date: .abbreviated, time: .shortened))"
+        )
         let content = UNMutableNotificationContent()
-        content.title = request.title.isEmpty ? "\(name): reminder" : request.title
-        content.body = request.body
+        content.title = polished.title
+        content.body = polished.body
         content.sound = .default
 
         let cal = Calendar.current
@@ -64,13 +72,21 @@ enum CoachReminderScheduler {
         let id = request.kind == .wakeUp ? wakeReminderId : notificationIdPrefix + UUID().uuidString
         let unRequest = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
 
+        let polishedRequest = CoachReminderRequest(
+            kind: request.kind,
+            fireAt: request.fireAt,
+            beforeDeadline: request.beforeDeadline,
+            title: polished.title,
+            body: polished.body
+        )
+
         do {
             if request.kind == .wakeUp {
                 center.removePendingNotificationRequests(withIdentifiers: [wakeReminderId])
             }
             try await center.add(unRequest)
-            let note = confirmationNote(for: request, profileName: name)
-            return CoachReminderResult(status: .scheduled, request: request, coachNote: note)
+            let note = confirmationNote(for: polishedRequest, profileName: name)
+            return CoachReminderResult(status: .scheduled, request: polishedRequest, coachNote: note)
         } catch {
             return CoachReminderResult(
                 status: .failed,

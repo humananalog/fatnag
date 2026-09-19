@@ -2,6 +2,7 @@ import Foundation
 import UserNotifications
 
 /// Local notifications only when trends look bad (or weekly goal nudge if enabled).
+/// Algorithmic triggers stay authoritative; Foundation Models may polish copy and suppress noise.
 @MainActor
 enum TrendNotificationScheduler {
     static let badTrendId = "thescale.bad-trend"
@@ -47,14 +48,36 @@ enum TrendNotificationScheduler {
 
         if prefs.notifyOnBadTrend {
             if let reason = badTrendReason(currentKg: currentKg, idealKg: idealKg, recent: recentWeights) {
-                let content = UNMutableNotificationContent()
-                content.title = "\(name): scale check"
-                content.body = reason
-                content.sound = .default
-                // Fire once ~18h later so we don’t nag mid-weigh-in.
-                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 18 * 3600, repeats: false)
-                let request = UNNotificationRequest(identifier: badTrendId, content: content, trigger: trigger)
-                try? await center.add(request)
+                let judgment = await FoundationModelCoach.shouldSendPing(
+                    profileName: name,
+                    kind: "bad-trend",
+                    algorithmicReason: reason,
+                    extraContext: String(
+                        format: "currentKg=%@ idealKg=%.1f",
+                        currentKg.map { String(format: "%.1f" , $0) } ?? "nil",
+                        idealKg
+                    )
+                )
+                if judgment.shouldNotify {
+                    let fallbackTitle = "\(name): scale check"
+                    let polished = await FoundationModelCoach.refineNotificationCopy(
+                        profileName: name,
+                        kind: "bad-trend",
+                        fallbackTitle: fallbackTitle,
+                        fallbackBody: reason,
+                        context: reason
+                    )
+                    let content = UNMutableNotificationContent()
+                    content.title = polished.title
+                    content.body = polished.body
+                    content.sound = .default
+                    // Fire once ~18h later so we don’t nag mid-weigh-in.
+                    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 18 * 3600, repeats: false)
+                    let request = UNNotificationRequest(identifier: badTrendId, content: content, trigger: trigger)
+                    try? await center.add(request)
+                } else {
+                    center.removePendingNotificationRequests(withIdentifiers: [badTrendId])
+                }
             } else {
                 center.removePendingNotificationRequests(withIdentifiers: [badTrendId])
             }
@@ -67,9 +90,18 @@ enum TrendNotificationScheduler {
             date.weekday = 2 // Monday
             date.hour = 8
             date.minute = 15
+            let fallbackTitle = "\(name): weekly mini-goal"
+            let fallbackBody = weeklyGoal.title + " Open Progress when you’re ready."
+            let polished = await FoundationModelCoach.refineNotificationCopy(
+                profileName: name,
+                kind: "weekly-goal",
+                fallbackTitle: fallbackTitle,
+                fallbackBody: fallbackBody,
+                context: "Weekly mini-goal: \(weeklyGoal.title)"
+            )
             let content = UNMutableNotificationContent()
-            content.title = "\(name): weekly mini-goal"
-            content.body = weeklyGoal.title + " Open Progress when you’re ready."
+            content.title = polished.title
+            content.body = polished.body
             content.sound = .default
             let trigger = UNCalendarNotificationTrigger(dateMatching: date, repeats: true)
             let request = UNNotificationRequest(identifier: weeklyGoalId, content: content, trigger: trigger)

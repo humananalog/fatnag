@@ -89,11 +89,13 @@ struct CoachChatView: View {
         if chat.isSending {
             return "Streaming…"
         }
+        let fm = FoundationModelAvailability.shortLabel
         if GrokSharedConfig.isLiveConfigured {
             let mem = chat.rememberedCount
-            return mem > 0 ? "Grok · \(mem) memories" : "Grok · live"
+            let base = mem > 0 ? "Grok · \(mem) memories" : "Grok · live"
+            return "\(base) · \(fm)"
         }
-        return "Mock / offline"
+        return "Mock / offline · \(fm)"
     }
 
     private var privacyLine: some View {

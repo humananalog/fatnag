@@ -52,9 +52,16 @@ enum GrokFitnessMonitor {
         guard allowed else { return }
 
         let name = profileName.isEmpty ? "Hey" : profileName
+        let polished = await FoundationModelCoach.refineNotificationCopy(
+            profileName: name,
+            kind: "fitness-interval",
+            fallbackTitle: "\(name): fitness check",
+            fallbackBody: "Open The Scale so Coach can read the latest Health digest. iOS background is best-effort.",
+            context: "Scheduled Health↔Coach interval: \(prefs.interval.title)"
+        )
         let content = UNMutableNotificationContent()
-        content.title = "\(name): fitness check"
-        content.body = "Open The Scale so Coach can read the latest Health digest. iOS background is best-effort."
+        content.title = polished.title
+        content.body = polished.body
         content.sound = .default
 
         switch prefs.interval {
@@ -115,6 +122,14 @@ enum GrokFitnessMonitor {
         let name = profileName.isEmpty ? "Hey" : profileName
 
         for trigger in triggers {
+            let judgment = await FoundationModelCoach.shouldSendPing(
+                profileName: name,
+                kind: trigger.kind.rawValue,
+                algorithmicReason: trigger.message,
+                extraContext: "severity=\(trigger.severity)"
+            )
+            guard judgment.shouldNotify else { continue }
+
             switch trigger.kind {
             case .watchLikelyNotWorn:
                 if let last = prefs.lastWatchWearNotifyAt,
@@ -130,9 +145,16 @@ enum GrokFitnessMonitor {
                 prefs.lastPreSleepAlertAt = now
             }
 
+            let polished = await FoundationModelCoach.refineNotificationCopy(
+                profileName: name,
+                kind: trigger.kind.rawValue,
+                fallbackTitle: "\(name): Coach signal",
+                fallbackBody: trigger.message,
+                context: trigger.message
+            )
             let content = UNMutableNotificationContent()
-            content.title = "\(name): Coach signal"
-            content.body = trigger.message
+            content.title = polished.title
+            content.body = polished.body
             content.sound = .default
             let id = triggerNotifyPrefix + trigger.kind.rawValue
             let request = UNNotificationRequest(

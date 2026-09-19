@@ -498,6 +498,13 @@ final class ScaleSessionViewModel: ObservableObject {
                 )
                 lastFitnessCoachReply = reply.text
                 GrokFitnessMonitor.storeLastReply(reply.text)
+            } else if let fmSummary = await FoundationModelCoach.summarizeFitnessDigest(
+                profileName: profile.greetingName,
+                digestBlock: digest.promptBlock(preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes)
+                    + "\nTriggers: \(triggerSummary)"
+            ) {
+                lastFitnessCoachReply = fmSummary
+                GrokFitnessMonitor.storeLastReply(fmSummary)
             } else if let top = triggers.first {
                 lastFitnessCoachReply = top.message
                 GrokFitnessMonitor.storeLastReply(top.message)
