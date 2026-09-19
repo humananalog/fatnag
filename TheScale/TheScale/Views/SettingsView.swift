@@ -209,7 +209,7 @@ struct SettingsView: View {
             Text(
                 GrokSharedConfig.isLiveConfigured
                     ? "Live Grok ready when consent is on."
-                    : "Offline mock until the operator sets Secrets.xcconfig and rebuilds."
+                    : "Offline mock until the operator sets GROK_PROXY_URL in TheScale.xcconfig and rebuilds."
             )
             .font(.caption2)
             .foregroundStyle(.secondary)

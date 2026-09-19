@@ -231,7 +231,7 @@ actor GrokClient {
         let who = brief.userName.isEmpty ? "Operator" : brief.userName
         let hint: String = {
             if !GrokSharedConfig.isLiveConfigured {
-                return "Offline mock: this build has no shared Grok proxy/key. Ask the operator to set Secrets.xcconfig and rebuild."
+                return "Offline mock: this build has no shared Grok proxy/key. Ask the operator to set GROK_PROXY_URL in TheScale.xcconfig and rebuild."
             }
             if !GrokPrivacyConsent.isAccepted {
                 return "Offline: turn on Allow Grok coach requests in Settings (or agree on the consent prompt)."

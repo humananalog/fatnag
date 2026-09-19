@@ -2,7 +2,7 @@ import Foundation
 
 /// Shared Grok transport for every install of this build.
 /// Preferred: `GrokProxyURL` → Cloudflare Worker holds the xAI key.
-/// Fallback: `GrokAPIKey` baked via Secrets.xcconfig (IPA-extractable).
+/// Fallback: `GrokAPIKey` baked via TheScale.xcconfig / Secrets.xcconfig (IPA-extractable).
 /// Missing both → offline mock.
 enum GrokSharedConfig {
     private static let proxyInfoKey = "GrokProxyURL"
@@ -18,7 +18,7 @@ enum GrokSharedConfig {
         return url
     }
 
-    /// Build-time shared key from Secrets.xcconfig → Info.plist. Prefer proxyURL.
+    /// Build-time shared key from TheScale.xcconfig → Info.plist. Prefer proxyURL.
     static var bakedAPIKey: String? {
         string(forInfoKey: apiKeyInfoKey)
     }
@@ -36,7 +36,7 @@ enum GrokSharedConfig {
         if bakedAPIKey != nil {
             return "Shared build-time key present. Prefer the Worker proxy for distribution; a baked key can be extracted from the IPA."
         }
-        return "No shared proxy/key in this build. Coach stays on offline mock until Secrets.xcconfig is set and you rebuild."
+        return "No shared proxy/key in this build. Coach stays on offline mock until TheScale.xcconfig has GROK_PROXY_URL and you rebuild."
     }
 
     private static func string(forInfoKey key: String) -> String? {

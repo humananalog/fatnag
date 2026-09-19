@@ -11,13 +11,12 @@ npx wrangler secret put XAI_API_KEY
 npx wrangler deploy
 ```
 
-Copy the printed `*.workers.dev` URL into:
-
-`TheScale/Config/Secrets.xcconfig`
+Canonical Xcode include: `TheScale/Config/TheScale.xcconfig` (Debug + Release `baseConfigurationReference`).
+That file already sets the shared proxy URL (non-secret). Optional gitignored override: `Secrets.xcconfig`.
 
 ```
-GROK_PROXY_URL = https://the-scale-grok.YOUR_SUBDOMAIN.workers.dev
+GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev
 GROK_API_KEY =
 ```
 
-Rebuild / reinstall the app so Info.plist picks up the URL. Users never paste a key.
+Rebuild / reinstall the app so Info.plist picks up the URL. Users never paste a key. Never put `XAI_API_KEY` in an xcconfig that is tracked.

@@ -1,7 +1,10 @@
 // Shared build settings for The Scale.
-// Defaults keep offline mock builds working when Secrets.xcconfig is absent.
-GROK_API_KEY =
-GROK_PROXY_URL =
+// Xcode includes THIS file (Debug + Release baseConfigurationReference in project.pbxproj).
+// Non-secret defaults live here so every checkout gets the shared Grok proxy URL.
+// Optional local overrides: copy Secrets.example.xcconfig → Secrets.xcconfig (gitignored).
+// Never put a real XAI key in this tracked file. Prefer the Cloudflare Worker secret.
 
-// Optional local override (gitignored). Copy from Secrets.example.xcconfig.
+GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev
+GROK_API_KEY =
+
 #include? "Secrets.xcconfig"

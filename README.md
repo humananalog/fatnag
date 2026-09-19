@@ -33,7 +33,7 @@ No accounts, no analytics. Weigh-ins stay on-device / Apple Health. Optional sha
 | Health **read** | Recent `bodyMass` for trend; `bodyMass` + `bodyFatPercentage` for history charts |
 | Health **writes** | Apple Health (HealthKit) on device, after **Confirm to Health** or **Manual → Save** |
 | Name / diet / notification prefs / weekly mini-goal | `UserDefaults` on device only |
-| Shared xAI / Grok access | Operator-managed: Cloudflare Worker secret (preferred) or build-time `Secrets.xcconfig` (IPA-extractable) |
+| Shared xAI / Grok access | Operator-managed: Cloudflare Worker secret (preferred) or build-time key via `TheScale.xcconfig` / gitignored `Secrets.xcconfig` (IPA-extractable) |
 | Grok coach request | Opt-in only: short trend / chat snapshot → shared proxy or `api.x.ai` after consent |
 | Network | None by default; Grok only when you tap Coach with shared config + consent |
 
@@ -80,20 +80,22 @@ npx wrangler secret put XAI_API_KEY
 npx wrangler deploy
 ```
 
-Then on the Mac Mini checkout:
+**Canonical iOS build file:** `TheScale/Config/TheScale.xcconfig` (what `project.pbxproj` includes for Debug + Release). It maps into Info.plist as `GrokProxyURL` / `GrokAPIKey`.
 
-```bash
-cp TheScale/Config/Secrets.example.xcconfig TheScale/Config/Secrets.xcconfig
-# edit Secrets.xcconfig:
-#   GROK_PROXY_URL = https://the-scale-grok.YOUR_SUBDOMAIN.workers.dev
-#   GROK_API_KEY =
+Tracked default (already set for shared builds):
+
+```
+GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev
+GROK_API_KEY =
 ```
 
-`TheScale/Config/Secrets.xcconfig` is **gitignored**. Rebuild / reinstall so every install of that build gets live Coach without Settings paste.
+Optional local override: copy `Secrets.example.xcconfig` → `Secrets.xcconfig` (**gitignored**). Use that only for private baked-key experiments, never for the shared Worker path.
+
+Rebuild / reinstall so every install of that build gets live Coach without Settings paste.
 
 **Fallback: bake key into the IPA** (private TestFlight / Ad Hoc only)
 
-In the same `Secrets.xcconfig`:
+In gitignored `Secrets.xcconfig` (included after TheScale.xcconfig):
 
 ```
 GROK_PROXY_URL =
@@ -102,7 +104,7 @@ GROK_API_KEY = xai-your-key-here
 
 Honest caveat: a baked key can be extracted from the IPA. Prefer the Worker for any shared distribution.
 
-**Offline mock:** leave both empty (or omit `Secrets.xcconfig`). Coach still runs with on-device witty fallbacks.
+**Offline mock:** clear proxy URL in TheScale.xcconfig (and omit/empty Secrets). Coach still runs with on-device witty fallbacks.
 
 Revoke for a user: Settings → turn off **Allow Grok coach requests**.
 
@@ -118,7 +120,7 @@ Revoke for a user: Settings → turn off **Allow Grok coach requests**.
 
 - Home **Coach** opens a dark sparse chat with Auto-route or explicit Medical / Fitness / Anatomy / Orchestrator.
 - Orchestrator routes freeform asks; specialists answer with disclaimers. Mock/offline without shared proxy/key.
-- **2.2.0:** shared Grok for all installs (Worker or Secrets.xcconfig); per-user Keychain paste removed.
+- **2.2.0:** shared Grok for all installs (Worker + `TheScale.xcconfig` proxy URL); per-user Keychain paste removed.
 ## Protocol (honest notes)
 
 The Mi Body Composition Scale 2 **broadcasts** measurements; it does not need pairing for a live reading.
