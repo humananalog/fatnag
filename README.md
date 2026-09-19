@@ -1,289 +1,154 @@
 # The Scale
 
-Privacy-first iOS app for Alex’s **Xiaomi Mi Body Composition Scale 2** (model **XMTZC05HM** / label variant **XMTZCOSHM** → treat as XMTZC05HM). Replaces Zapp Lite for weighing: BLE on-device only, results into **Apple Health**.
+Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM; label variant XMTZCOSHM treated the same). Replaces Zapp Lite: BLE weigh-ins on-device only, results into **Apple Health**, optional **Coach** via a shared Grok Worker, and on-device **Apple Intelligence** for notification polish.
 
-**Version:** 2.7.0  
-**Target device:** iPhone 15 (iOS 26+, Xcode 27 / iOS 27 SDK)  
-**Deployment target:** iOS 26.0 (iPhone only)  
-**Signing team (Mac Mini):** Human Analog Limited `XHVW66YM39`  
-**Bundle id:** `app.thescale.ios`
+| | |
+|------|--|
+| **Version** | 2.7.0 (build 27) |
+| **Device** | iPhone 15 (physical; BLE + HealthKit) |
+| **Xcode / SDK** | Xcode 27, iOS 27 SDK |
+| **Deployment** | iOS 26.0, iPhone only |
+| **Bundle id** | `app.thescale.ios` |
+| **Team** | Human Analog Limited (`XHVW66YM39`) |
 
-## What it does
+No accounts. No analytics. Weigh-ins never leave the phone except into Apple Health. Users never paste an API key.
 
-1. Scans for the scale’s BLE advertisements (`MIBFS` / service data `0x181B`)
-2. Opens a **full-screen live weigh-in sheet** as soon as a scale is selected; one viewport (no ScrollView); content-first layout (atmosphere is background only so decorative washes cannot widen the sheet); system safe-area + 24pt horizontal inset; weight dominant with body fat % / lean %, trend, edit/confirm on one screen
-3. Keeps **body fat %** and **lean %** visible during the live session and in edit-before-save (impedance stays internal for BIA)
-4. Reads recent **Apple Health** body-mass history (on-device) and colors the sheet by trend vs last weight: **green** loss, **yellow** stable (±0.2 kg), **red** gain
-5. Estimates body composition on-device (fat %, water %, muscle, bone, BMI, visceral index)
-6. Lets you **edit** weight / fat % / lean % **before** confirm
-7. **Home** is sparse: brand (greets you by name), **Find Scale**, **History**, **Progress**, **Coach**, **Manual**, optional **Weigh in**. Profile, diet, notifications, Grok consent, calibration under **Settings**. First launch runs onboarding.
-8. **Calibration uses the same live sheet** (from Settings): enter reference mass, open live sheet, weigh that mass, store offset/factor on-device
-9. On confirm, writes **weight, BMI, body fat %, lean body mass** to HealthKit
-10. After a successful Health save (and anytime via home **History**), opens charts for weight kg + body fat % from HealthKit (default **Last 2 weeks**). Ideal line from Settings; domain includes all Health samples. Optional **Trend** projects weight to ideal from the last 2 weeks (OLS). Tap a point for its value. **Manual** logs mass-only while travelling.
+---
 
-No accounts, no analytics. Weigh-ins stay on-device / Apple Health. Optional shared Grok coaching uses an operator-managed Worker (or build-time secret); users never paste a key.
+## Features
 
-## Privacy model
+### BLE weigh-in
+- Scans Mi Scale ads (`MIBFS` / service data `0x181B`)
+- Full-screen live sheet: weight dominant, fat % / lean %, trend color, edit-before-save
+- On-device BIA estimates (fat, water, muscle, bone, BMI, visceral index)
+- Trend vs last Health weight: green loss, yellow stable (±0.2 kg), red gain
+- **Confirm to Health** writes weight, BMI, body fat %, lean body mass
 
-| Data | Where it goes |
-|------|----------------|
-| Weight / impedance from the scale | Parsed in memory on the iPhone |
-| Height / age / sex / ideal weight / ideal fat % / persona | `UserDefaults` on device only |
-| Coach memory facts (chat habits) | `UserDefaults` on device only |
-| Weight calibration (factor / offset) | `UserDefaults` on device only |
-| Health **read** | Recent `bodyMass` for trend; `bodyMass` + `bodyFatPercentage` for history charts; optional fitness digest (`heartRate`, `restingHeartRate`, `stepCount`, `activeEnergyBurned`, `sleepAnalysis`, workouts) |
-| Health **writes** | Apple Health (HealthKit) on device, after **Confirm to Health** or **Manual → Save** |
-| Name / diet / notification prefs / weekly mini-goal / Coach wake reminders / fitness-monitor prefs | `UserDefaults` on device only |
-| Shared xAI / Grok access | Operator-managed: Cloudflare Worker secret (preferred) or build-time key via `TheScale.xcconfig` / gitignored `Secrets.xcconfig` (IPA-extractable) |
-| Apple Intelligence / Foundation Models | On-device only (`SystemLanguageModel` / `LanguageModelSession`); used for notification polish, ping judgment, private digest summaries, optional memory extraction |
-| Grok coach request | Opt-in only: short trend / chat / fitness digest + relevant memory → shared proxy or `api.x.ai` after consent |
-| Network | None by default; Grok only when you tap Coach (or enabled fitness monitoring) with shared config + consent |
+### Calibration
+- Settings → reference mass → same live sheet → store factor/offset on-device
+- Does not write to Health
 
-HealthKit types:
+### History / charts / Trend / projection
+- Charts from Apple Health `bodyMass` + `bodyFatPercentage` (ranges 1W–1Y; default 2W)
+- Ideal line from Settings; Y domain never clips real samples
+- **Trend** toggle: OLS on last 14 days, projects to ideal with safe kg/wk caps
+- Tap a point for its value
 
-- Read: `bodyMass`, `bodyFatPercentage`, `heartRate`, `restingHeartRate`, `stepCount`, `activeEnergyBurned`, `sleepAnalysis`, workouts
-- Write: `bodyMass`, `bodyMassIndex`, `bodyFatPercentage`, `leanBodyMass`
+### Manual entry
+- Mass/kg only (travel); optional timestamp; `HKMetadataKeyWasUserEntered`
+- Opens History after save
 
-Muscle mass, bone mass, water %, visceral fat, and raw ohms are **shown in-app only**. HealthKit has no first-class quantities for those.
+### Coach (Grok)
+- One user-facing Coach voice; streaming SSE via shared Worker
+- Opt-in consent only (**Allow Grok coach requests**)
+- Persona + on-device memory inject into prompts
+- Target statements update profile after medical feasibility gates
+- Offline witty fallbacks when intentionally unconfigured; broken proxy URLs surface a clear error
 
-**Trend threshold (live sheet):** ±0.2 kg vs the most recent Health weight counts as stable.
+### Memory / persona
+- Name, diet, location/ethnicity/language/vibe: `UserDefaults`
+- Chat habit facts on-device; optional Foundation Models extract pass
 
-### History charts
+### Health monitoring
+- Fitness digest from HealthKit (HR, resting HR, steps, energy, sleep, workouts)
+- Local algorithms: pre-sleep HR, Watch-not-worn nudges
+- Optional automated Grok checks on interval (best-effort `BGAppRefresh`)
 
-- Series are **Apple Health** `bodyMass` / `bodyFatPercentage` for the selected range (never a local-only fake series).
-- Ideal weight draws as a dotted Ideal line; Y domain includes every Health sample (no clipping below ideal).
-- **Trend** toggle: OLS linear regression on the last **14 days** of Health weights; projects forward until the line crosses ideal; labels the crossing date + kg. Fat chart stays Health-only (no projection).
-- Tap a sample for a selection callout.
-- **Manual** (home or History): mass/kg only, optional when (default now), writes weight + BMI with `HKMetadataKeyWasUserEntered`, then opens History.
+### Foundation Models notifications
+- When Apple Intelligence is available: polish titles/bodies, judge weak pings
+- Algorithmic triggers stay the gate; FM off → algorithmic copy
+- Settings shows Apple Intelligence status; Coach chrome shows `FM ready` / `FM off`
 
-### Weight chart Y-axis (ideal)
+### Progress / goals
+- Weekly mini-goal (Δ kg), progress bar, offline or live Grok roast
+- Bad-trend alerts, Monday mini-goal, Coach wake reminders (Settings toggles)
 
-Ideal weight from Settings is a dotted **Ideal** reference line. The plot domain is `min(dataMin, ideal)…max(dataMax, ideal, projection) + padding` so real Health points are never clipped. Body fat chart: when ideal body fat % is set, same Ideal line pattern; otherwise auto-scale with labeled highest / lowest.
+---
 
-### Progress + notifications
-
-- **Progress** sheet: weekly mini-goal (editable Δ kg), progress bar, offline or live Grok orchestrator roast.
-- Notifications fire **only** for bad trends (above ideal and rising, or sharp weekly gain), optional Monday mini-goal, Coach-scheduled wake/reminders, and fitness triggers (Watch wear / pre-sleep HR). Toggle in Settings.
-- **Foundation Models (2.7.0+):** when Apple Intelligence is available, on-device `LanguageModelSession` polishes notification titles/bodies (name, dark humour, no em dashes / AI tells) and can suppress weak pings. Algorithmic triggers stay the gate; FM is a judgment + copy layer. If Apple Intelligence is off or the device is ineligible, copy falls back to the algorithmic strings.
-
-### Apple Intelligence vs Grok (hybrid routing)
-
-| Job | On-device Foundation Models | Grok Worker |
-|-----|----------------------------|-------------|
-| Notification title/body polish | Prefer | No |
-| Whether to ping (noise filter) | Prefer (defaults to allow if FM off) | No |
-| Coach-scheduled reminder copy | Prefer polish | Timing stays `UNUserNotificationCenter` |
-| Private Health digest summary when Grok offline | Prefer | - |
-| Memory fact extraction (extra pass) | Optional `@Generable` | Heuristic + Grok context when consented |
-| Full multi-agent Coach chat | No (too light) | Prefer when consent + live config |
-
-Settings shows an **Apple Intelligence** status line (`FoundationModelAvailability.statusSummary`). Coach chrome shows `FM ready` / `FM off`.
-
-#### Enable Apple Intelligence + verify a smarter notification (Alex, iPhone 15)
-
-1. iOS **Settings → Apple Intelligence & Siri** → turn **Apple Intelligence** on; wait until the model finishes downloading.
-2. `git pull origin main`, Clean Build Folder, Run **The Scale 2.7.0** on the iPhone 15 (not Simulator).
-3. Open app **Settings → Apple Intelligence**: expect status **on-device model ready**.
-4. Turn on **Bad-trend alerts** (and/or fitness trigger notifies). Save a weigh-in that triggers a bad trend, or ask Coach: `ping me tomorrow morning before 7:30 to wake up`.
-5. Check **Settings → Notifications → The Scale** pending / delivered: title should call you by name, body should read like Coach (not a dry template), no em dashes, no "as an AI".
-6. If Apple Intelligence is off: same triggers still fire with algorithmic copy; Settings status explains the fallback.
-
-### Grok / xAI coaching
-
-One user-facing **Coach** voice (orchestrator). Medical / fitness / anatomy consult behind the scenes when needed. Badass / dark-humour / sometimes vulgar tone. **No medical disclaimer spam in chat**: the one disclaimer is shown once in onboarding and buried under **Settings → Legal**. Persona (location, ethnicity, language, vibe) and on-device chat memory inject into prompts. Live replies **stream** token/chunk updates into the chat UI (Worker forwards SSE when `stream: true`). Offline fallbacks work when intentionally unconfigured; **broken proxy URLs show a clear error** (not a silent mock roast).
-
-**Users never paste an API key.** Settings only has **Allow Grok coach requests** (consent) plus a status line for the shared build config.
-
-#### Verify streaming (Alex, on device)
-
-1. `git pull origin main`, Clean Build Folder, Run on iPhone 15.
-2. Open **Coach**, consent if needed, send a short ask.
-3. Expect the assistant bubble to grow live (STREAM badge / cursor), not pop in as one blob.
-4. Confirm Settings Grok status still shows shared proxy; `curl -s https://the-scale-grok.the-scale-grok.workers.dev` → `{"ok":true,"service":"the-scale-grok","stream":true}`.
-
-#### xcconfig `https://` footgun (fixed in 2.3.0)
-
-Xcode `.xcconfig` treats `//` as a comment. A line like:
+## Architecture
 
 ```
-GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev
+Mi Scale 2 (BLE ads)
+        │
+        ▼
+   The Scale (iPhone)
+        │
+        ├── HealthKit  ←→  Apple Health
+        ├── UserDefaults (profile, cal, memory, prefs)
+        ├── Foundation Models (on-device; Apple Intelligence)
+        │
+        └── HTTPS (opt-in Coach / fitness)
+                │
+                ▼
+        Cloudflare Worker (grok-proxy)
+                │
+                ▼
+              xAI Grok
 ```
 
-becomes `GROK_PROXY_URL = https:` and the app fails with `NSURLErrorDomain -1000` / `https:localhost/`.
+Depth: [docs/architecture.md](docs/architecture.md) · [docs/coach-and-ai.md](docs/coach-and-ai.md) · [docs/health-and-notifications.md](docs/health-and-notifications.md)
 
-**Correct form** (empty `$()` splice):
+---
 
+## Setup
+
+### Mac Mini checkout
+
+```bash
+cd /Users/alexclaw/Projects/project-zero
+git checkout main && git pull origin main
+open TheScale/TheScale.xcodeproj
 ```
-GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
+
+Standing rule: **Xcode 27 + latest iOS**. Point CLI tools at Xcode if needed:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 ```
 
-#### Where Alex puts the shared secret (Mac)
+### Shared Grok proxy
 
-**Preferred: Cloudflare Worker (key stays server-side)**
+Preferred: key stays on the Worker (never in the IPA).
 
 ```bash
 cd workers/grok-proxy
-npx wrangler secret put XAI_API_KEY
-# paste at the terminal prompt; never into chat or git
+npx wrangler secret put XAI_API_KEY   # paste at prompt; never commit
 npx wrangler deploy
 ```
 
-**Canonical iOS build file:** `TheScale/Config/TheScale.xcconfig` (what `project.pbxproj` includes for Debug + Release). It maps into Info.plist as `GrokProxyURL` / `GrokAPIKey`.
+Canonical build config: `TheScale/Config/TheScale.xcconfig` (Debug + Release).
 
-Tracked default (already set for shared builds):
+**xcconfig `https://` footgun:** Xcode treats `//` as a comment. Never write a bare `https://` URL.
 
 ```
+# WRONG → becomes https:
+GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev
+
+# RIGHT (empty $() splice)
 GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
 GROK_API_KEY =
 ```
 
-Optional local override: copy `Secrets.example.xcconfig` → `Secrets.xcconfig` (**gitignored**). Use the same `https:/$()/` escape if you override the URL.
+Optional gitignored override: copy `Secrets.example.xcconfig` → `Secrets.xcconfig`. Prefer Worker over baking `GROK_API_KEY` into the IPA.
 
-Rebuild / reinstall so every install of that build gets live Coach without Settings paste.
+Health check: `curl -s https://the-scale-grok.the-scale-grok.workers.dev` → `{"ok":true,...,"stream":true}`
 
-**Fallback: bake key into the IPA** (private TestFlight / Ad Hoc only)
+### Apple Intelligence
 
-In gitignored `Secrets.xcconfig` (included after TheScale.xcconfig):
+1. iPhone: **Settings → Apple Intelligence & Siri** → on; wait for model download
+2. App **Settings → Apple Intelligence**: expect on-device model ready
+3. Trigger a bad-trend alert or Coach wake reminder; copy should use your name and Coach voice
 
-```
-GROK_PROXY_URL =
-GROK_API_KEY = xai-your-key-here
-```
+### Run on iPhone 15 (required for BLE)
 
-Honest caveat: a baked key can be extracted from the IPA. Prefer the Worker for any shared distribution.
+Simulator does **not** replace on-device BLE + HealthKit verification.
 
-**Offline mock:** clear proxy URL in TheScale.xcconfig (and omit/empty Secrets). Coach still runs with on-device witty fallbacks.
+1. Open `TheScale/TheScale.xcodeproj`
+2. Signing: team Human Analog Limited, bundle `app.thescale.ios`
+3. Destination: **iPhone 15** → Product → Run
+4. Allow Bluetooth; allow Health on first Confirm / Manual save
 
-Revoke for a user: Settings → turn off **Allow Grok coach requests**.
-
-### Health ↔ Grok monitoring (2.3.0)
-
-- Settings: enable monitoring, pick interval (manual / 6h / 12h / daily / morning+evening), tune pre-sleep HR window + absolute bpm threshold.
-- Local algorithms: elevated / missing HR ~30 min before sleep onset; sparse HR despite movement → Watch-not-worn nudge (cooldown, not spammy).
-- Automated Grok checks send one orchestrator answer with fitness digest + memory + persona.
-- Background: `BGAppRefresh` is best-effort; repeating local notifications nudge you to open the app so checks can run. Foreground resume also runs due checks.
-
-### History charts (2.0 / 2.1 / 2.2 / 2.3)
-
-- MeshGradient atmosphere; rate/week chip on each chart; scrollable 3M / 1Y domains via Charts `chartScrollableAxes`.
-- Liquid Glass panels via `glassEffect` (iOS 26+) with material fallback.
-- Sparse series use linear interpolation (< 3 points); Trend toggle clears selection.
-- Trend caption bug fixed (distinct losing vs gaining away-from-ideal copy).
-- Personalized History title when a name is set.
-
-### Coach chat (2.1+ → 2.4)
-
-- Home **Coach** opens a dark sparse chat with a single Coach voice.
-- **2.2.0:** shared Grok for all installs (Worker + `TheScale.xcconfig` proxy URL); per-user Keychain paste removed.
-- **2.3.0:** xcconfig URL escape fix; on-device memory; persona prefs; Health fitness digest monitoring.
-- **2.4.0:** SSE streaming chat; larger Coach fonts; no em dashes / AI tells; medical disclaimer only in onboarding + Settings → Legal.
-- **2.4.1:** History chart AreaMark fill fixed (baseline to plot floor, monotone interp, dedupe near-duplicate timestamps).
-- **2.5.0:** Coach-stated targets update profile after medical feasibility gates; History always shows Target + scientifically tempered projection (OLS + safe kg/wk caps + fitness modulators).
-- **2.5.1:** Projection lines gated by History toggle; Coach gets local clock + full profile (never re-ask height); evening/night bans gym-lift next-actions.
-
-## Protocol (honest notes)
-
-The Mi Body Composition Scale 2 **broadcasts** measurements; it does not need pairing for a live reading.
-
-**13-byte service data (`0x181B`) layout** (ESPHome / Theengs / openScale / ble-scale-sync):
-
-| Bytes | Meaning |
-|-------|---------|
-| 0 | Unit control (`bit0` = lbs; else kg; catty via byte1 `bit6`) |
-| 1 | Flags: `bit1` impedance present, `bit5` stabilized, `bit7` weight removed |
-| 2-8 | Timestamp |
-| 9-10 | Impedance ohms (LE uint16), when present |
-| 11-12 | Weight raw (LE uint16): ÷200 → kg, ÷100 → lbs/catty |
-
-Sources adapted:
-
-- [ESPHome `xiaomi_miscale`](https://esphome.io/components/sensor/xiaomi_miscale/)
-- [Theengs Decoder XMTZC05HM](https://decoder.theengs.io/devices/XMTZC05HM.html)
-- [lolouk44/xiaomi_mi_scale body metrics](https://github.com/lolouk44/xiaomi_mi_scale)
-- openScale / prototux MIBCS reverse-engineering (via ble-scale-sync `MiScaleCalc`)
-
-**Limitations**
-
-- The hardware sends **weight + impedance only**. Fat/muscle/water/bone are **estimates** from reverse-engineered Xiaomi formulas; they can differ from Zapp/Zepp by a few points.
-- Not medical advice; BIA foot-to-foot scales are approximate.
-- Simulator cannot verify real BLE or HealthKit end-to-end. Confirm on the iPhone 15.
-
-## Mac Mini local checkout
-
-Path that should already exist (no re-clone needed if present):
-
-```bash
-cd /Users/alexclaw/Projects/project-zero
-git checkout main
-git pull origin main
-open TheScale/TheScale.xcodeproj
-```
-
-If CLI tools still point at Command Line Tools instead of Xcode.app:
-
-```bash
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-# or one-shot:
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-```
-
-If Xcode says **“iOS 26.5 is not installed”** for device/simulator destinations:
-
-```bash
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-xcodebuild -downloadPlatform iOS
-# or: Xcode → Settings → Platforms / Components → download iOS 26.5
-```
-
-Smoke-build without a phone attached:
-
-```bash
-cd /Users/alexclaw/Projects/project-zero/TheScale
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-xcodebuild build -scheme TheScale -sdk iphoneos -configuration Debug -destination 'generic/platform=iOS'
-```
-
-## Run on iPhone 15 (required)
-
-BLE advertisements and HealthKit need a **physical iPhone**. The Simulator will not exercise the real scale path.
-
-### Prerequisites
-
-- Mac Mini with **Xcode** (this machine has Xcode 26.6 / iOS 26.5 SDK)
-- Team **Human Analog Limited** (`XHVW66YM39`) already wired in the project
-- iPhone 15 on **iOS 17 or later**, unlocked, Developer Mode on if prompted
-- USB-C cable (or wireless debugging after first pair)
-- Mi Body Composition Scale 2 with working batteries
-
-### Xcode setup
-
-1. Open `TheScale/TheScale.xcodeproj` in Xcode.
-2. Select the **TheScale** target → **Signing & Capabilities**:
-   - Team: **Human Analog Limited** (`XHVW66YM39`)
-   - Bundle id: `app.thescale.ios`
-   - HealthKit capability already present via `TheScale/Resources/TheScale.entitlements`
-3. Plug in the **iPhone 15**, unlock it, tap **Trust** if asked.
-4. Destination: select your **iPhone 15** (not a simulator).
-5. Product → **Run** (⌘R).
-6. First launch on device: Settings → General → VPN & Device Management → trust the **Human Analog Limited** / Apple Development certificate if iOS blocks the app.
-
-### Permissions on the phone
-
-1. When The Scale asks for **Bluetooth**: Allow.
-2. When you tap **Confirm to Health**, allow write access for weight / BMI / body fat / lean body mass, and read for weight + body fat history charts.
-3. If denied earlier: Settings → The Scale → enable Bluetooth; Settings → Health → Data Access → The Scale.
-
-### First weigh-in
-
-1. Gear → **Settings**: height, age, sex, **ideal weight** (floors the history weight chart), optional ideal body fat %.
-2. Optional calibration (Settings only): set reference mass (default **5 kg** or Alex’s **7.926 kg**), tap **Weigh reference on live sheet**. Place that mass, wait for raw kg, tap **Store calibration**. Same live sheet as a normal weigh-in; does not write to Health.
-3. Home → **Find Scale**; select `MIBFS` / Mi Scale → live weigh-in opens.
-4. Stand **barefoot** until fat % / lean % appear. Allow Health read when prompted for trend colors.
-5. **Edit** if needed; only **Confirm to Health** writes.
-6. After save, **History** opens (also reachable anytime from home **History**). Ranges: 1W, 2W (default), 1M, 3M, 1Y.
-7. Health app → Browse → Body Measurements to verify.
-
-### Unit tests (Mac)
+Unit tests (math only; not a BLE substitute):
 
 ```bash
 cd TheScale
@@ -291,34 +156,78 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 xcodebuild test -scheme TheScale -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
-Decoder / composition / chart math are unit-tested; they do **not** replace on-device BLE + HealthKit verification.
-
-Optional Linux/Mac reference check of the same frame math:
+Smoke-build without a phone:
 
 ```bash
-python3 scripts/validate_decode.py
+cd TheScale
+xcodebuild build -scheme TheScale -sdk iphoneos -configuration Debug -destination 'generic/platform=iOS'
 ```
 
-## Known scale quirks
+---
 
-- Advertise name is usually **`MIBFS`**. Model label may print `XMTZCOSHM`; treat as **XMTZC05HM**.
-- Unstabilized / weight-removed frames are ignored on purpose.
-- Impedance `0` or `≥ 3000` is treated as invalid (same as ESPHome).
-- Socks, wet feet, or stepping off early → weight-only reading (no composition / no fat% Health write).
-- Keep the iPhone near the scale; BLE ads are short-range.
-- Body-composition estimates need a sane profile (height/age/sex). Wrong profile → wrong estimates, not wrong weight.
+## Privacy model
+
+| Data | Where |
+|------|--------|
+| Scale weight / impedance | In memory on iPhone |
+| Profile, persona, calibration, Coach memory, prefs | `UserDefaults` on device |
+| Health reads / writes | HealthKit on device |
+| Foundation Models | On-device only |
+| Grok requests | Opt-in; short digest + memory → Worker (or build-time key) |
+| Network | None by default |
+
+**HealthKit write:** `bodyMass`, `bodyMassIndex`, `bodyFatPercentage`, `leanBodyMass`  
+**HealthKit read:** those plus fitness digest types for monitoring / Coach context  
+
+Muscle, bone, water %, visceral index, raw ohms: **in-app only**.
+
+### Legal disclaimer
+
+Shown **once** in onboarding and again under **Settings → Legal** only. Never in Coach chat, Progress roast, or notification copy.
+
+---
+
+## Protocol (scale)
+
+Mi Scale 2 **broadcasts**; no pairing required for a live reading.
+
+| Bytes (`0x181B` service data) | Meaning |
+|-------------------------------|---------|
+| 0 | Unit (`bit0` lbs; else kg) |
+| 1 | Flags: impedance / stabilized / weight removed |
+| 2–8 | Timestamp |
+| 9–10 | Impedance ohms (LE uint16) |
+| 11–12 | Weight raw (LE uint16): ÷200 → kg |
+
+Composition numbers are reverse-engineered estimates, not clinical lab values. Not medical advice.
+
+**Quirks:** name usually `MIBFS`; ignore unstabilized / weight-removed frames; impedance `0` or `≥ 3000` invalid; socks / wet feet → weight-only.
+
+Sources: ESPHome `xiaomi_miscale`, Theengs XMTZC05HM, openScale / MIBCS reverse-engineering.
+
+---
 
 ## Project layout
 
 ```
 TheScale/
   TheScale.xcodeproj/
-  TheScale/           # SwiftUI app (BLE, HealthKit, UI)
-  TheScaleTests/      # Decoder + composition + chart unit tests
-scripts/
-  validate_decode.py  # Cross-check frame decode without Xcode
+  Config/                 # TheScale.xcconfig, Secrets.example.xcconfig
+  TheScale/               # SwiftUI app (BLE, HealthKit, Coach, FM, UI)
+  TheScaleTests/
+workers/grok-proxy/       # Cloudflare Worker (XAI_API_KEY secret)
+scripts/validate_decode.py
+docs/                     # Architecture, Coach/AI, Health/notifications
 ```
+
+## Docs
+
+| Doc | Contents |
+|-----|----------|
+| [docs/architecture.md](docs/architecture.md) | Planes, data flow, layout |
+| [docs/coach-and-ai.md](docs/coach-and-ai.md) | Grok Worker, streaming, FM hybrid, memory |
+| [docs/health-and-notifications.md](docs/health-and-notifications.md) | HealthKit, Progress, alerts, FM polish |
 
 ## Version
 
-Marketing version **2.5.1** / build **24**. Bump both in the Xcode target when shipping changes.
+Bump **MARKETING_VERSION** and **CURRENT_PROJECT_VERSION** together in the Xcode target when shipping code. Docs-only commits may leave the number unchanged.
