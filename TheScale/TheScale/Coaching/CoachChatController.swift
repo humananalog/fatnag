@@ -156,7 +156,9 @@ final class CoachChatController: ObservableObject {
         }
         persist()
 
-        let brief = session.makeCoachBrief()
+        // Always attach a fresh Apple Health snapshot to Coach (not only background monitor jobs).
+        let digest = await session.refreshFitnessDigestForCoach()
+        let brief = session.makeCoachBrief(digest: digest)
         let targetContext: String = {
             guard !targetResults.isEmpty else { return "" }
             let lines = targetResults.map { r -> String in

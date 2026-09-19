@@ -93,6 +93,8 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var lastFitnessDigest: FitnessDigest?
     @Published private(set) var lastFitnessCoachReply: String?
     @Published private(set) var lastFitnessTriggers: [FitnessTrigger] = []
+    /// Settings + Coach honesty line for Apple Health read status.
+    @Published private(set) var healthAccessStatusLine: String = "Health status not checked yet."
     /// Last raw kg seen from BLE (kept after the live sheet closes so Settings can capture).
     @Published private(set) var lastRawWeightKg: Double?
     /// Optional manual raw kg typed in Settings when BLE reading is unavailable.
@@ -373,7 +375,7 @@ final class ScaleSessionViewModel: ObservableObject {
             guard let current = healthBaselineKg, let start = weeklyGoal.weekStartKg else { return nil }
             return current - start
         }()
-        let activeDigest = digest ?? lastFitnessDigest
+        let activeDigest = digest ?? lastFitnessDigest ?? FitnessDigest.empty
         let window = fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes
         return CoachBrief(
             userName: profile.greetingName,
@@ -390,9 +392,43 @@ final class ScaleSessionViewModel: ObservableObject {
             weeklyGoal: weeklyGoal,
             personaBlock: profile.coachPersonaBlock,
             memoryBlock: CoachMemoryStore.promptBlock(),
-            fitnessDigestBlock: activeDigest?.promptBlock(preSleepWindowMinutes: window) ?? "",
+            fitnessDigestBlock: activeDigest.promptBlock(preSleepWindowMinutes: window),
             localNow: Date()
         )
+    }
+
+    /// Fresh HealthKit snapshot for every Coach turn (not only background fitness jobs).
+    @discardableResult
+    func refreshFitnessDigestForCoach(reRequestAuth: Bool = false) async -> FitnessDigest {
+        guard healthKitAvailable else {
+            let digest = FitnessDigest.unavailable()
+            lastFitnessDigest = digest
+            healthAccessStatusLine = digest.settingsStatusLine
+            return digest
+        }
+        do {
+            if reRequestAuth {
+                try await healthStore.reRequestAuthorization()
+            }
+            try await healthStore.requestAuthorizationIfNeeded()
+            let digest = try await healthStore.fetchFitnessDigest(
+                preSleepWindowMinutes: fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes,
+                now: Date()
+            )
+            lastFitnessDigest = digest
+            healthAccessStatusLine = digest.settingsStatusLine
+            return digest
+        } catch {
+            let digest = FitnessDigest.readFailed(message: error.localizedDescription)
+            lastFitnessDigest = digest
+            healthAccessStatusLine = digest.settingsStatusLine
+            return digest
+        }
+    }
+
+    /// Settings: re-prompt Health permissions and refresh status line.
+    func requestHealthAccessFromSettings() async {
+        _ = await refreshFitnessDigestForCoach(reRequestAuth: true)
     }
 
     /// Parse Coach chat for stated weight / body-fat targets, gate medically, update profile when safe.
@@ -475,6 +511,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 now: Date()
             )
             lastFitnessDigest = digest
+            healthAccessStatusLine = digest.settingsStatusLine
             let triggers = FitnessTriggerMonitor.evaluate(digest: digest, thresholds: prefs.thresholds)
             lastFitnessTriggers = triggers
 

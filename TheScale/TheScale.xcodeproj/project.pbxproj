@@ -49,6 +49,7 @@
 		A1B2C3D4E5F60718293A0021 /* FoundationModelAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1021 /* FoundationModelAvailability.swift */; };
 		A1B2C3D4E5F60718293A0022 /* FoundationModelCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1022 /* FoundationModelCoach.swift */; };
 		A1B2C3D4E5F60718293A0023 /* FoundationModelCoachTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1023 /* FoundationModelCoachTests.swift */; };
+		A1B2C3D4E5F60718293A0024 /* FitnessDigestCoachTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1024 /* FitnessDigestCoachTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -110,6 +111,7 @@
 		A1B2C3D4E5F60718293A1021 /* FoundationModelAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelAvailability.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1022 /* FoundationModelCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelCoach.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1023 /* FoundationModelCoachTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelCoachTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1024 /* FitnessDigestCoachTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessDigestCoachTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -242,6 +244,7 @@
 				A1B2C3D4E5F60718293A101E /* TargetFeasibilityTests.swift */,
 				A1B2C3D4E5F60718293A1020 /* CoachReminderTests.swift */,
 				A1B2C3D4E5F60718293A1023 /* FoundationModelCoachTests.swift */,
+				A1B2C3D4E5F60718293A1024 /* FitnessDigestCoachTests.swift */,
 			);
 			path = TheScaleTests;
 			sourceTree = "<group>";
@@ -395,6 +398,7 @@
 				A1B2C3D4E5F60718293A001E /* TargetFeasibilityTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0020 /* CoachReminderTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0023 /* FoundationModelCoachTests.swift in Sources */,
+				A1B2C3D4E5F60718293A0024 /* FitnessDigestCoachTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

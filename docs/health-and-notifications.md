@@ -11,6 +11,18 @@ Writes happen only on **Confirm to Health** or **Manual → Save**. Manual entri
 
 In-app only (no HealthKit quantity): muscle mass, bone mass, water %, visceral index, raw ohms.
 
+### Coach live path (2.7.1+)
+
+Every Coach chat turn calls `refreshFitnessDigestForCoach()` before Grok sees the brief. That is separate from background fitness-monitor jobs.
+
+Digest includes:
+
+- Steps, active energy, resting/latest HR, sleep, workouts in last 24h
+- **Last workout** (type, end time, duration, kcal, source) over a 90-day lookback
+- Access / honesty lines so Coach says "allow Health / wear Watch" instead of inventing activity
+
+Settings → **Health ↔ Grok monitoring** shows **Health status**, **Allow Health access**, and **Open Health**. Ask Coach: `what was my last workout?`
+
 ### History charts
 
 - Series always from Apple Health for the selected range (not a local fake series).

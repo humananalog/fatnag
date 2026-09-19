@@ -4,7 +4,11 @@ import HealthKit
 @MainActor
 protocol HealthWriting: AnyObject {
     var isHealthDataAvailable: Bool { get }
+    /// True after the system Health permission sheet has been presented at least once.
+    var authorizationWasRequested: Bool { get }
     func requestAuthorizationIfNeeded() async throws
+    /// Call again after the user taps Allow Health access in Settings (sheet may no-op if already decided).
+    func reRequestAuthorization() async throws
     /// Recent body-mass samples from Apple Health (most recent first).
     func fetchRecentWeights(limit: Int) async throws -> [HealthWeightSample]
     /// Body mass samples in `[start, end]` (oldest first).
@@ -55,10 +59,17 @@ enum HealthKitWriterError: LocalizedError {
 /// body water %, visceral fat index, raw impedance.
 @MainActor
 final class HealthKitWriter: HealthWriting {
+    private static let authorizationRequestedKey = "thescale.healthKitAuthorizationRequested"
+    private static let lastWorkoutLookbackDays = 90
+
     private let store = HKHealthStore()
     private var didAuthorize = false
 
     var isHealthDataAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
+
+    var authorizationWasRequested: Bool {
+        didAuthorize || UserDefaults.standard.bool(forKey: Self.authorizationRequestedKey)
+    }
 
     private var shareTypes: Set<HKSampleType> {
         var types = Set<HKSampleType>()
@@ -86,7 +97,19 @@ final class HealthKitWriter: HealthWriting {
         guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
         if didAuthorize { return }
         try await store.requestAuthorization(toShare: shareTypes, read: readTypes)
+        markAuthorizationRequested()
+    }
+
+    func reRequestAuthorization() async throws {
+        guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
+        didAuthorize = false
+        try await store.requestAuthorization(toShare: shareTypes, read: readTypes)
+        markAuthorizationRequested()
+    }
+
+    private func markAuthorizationRequested() {
         didAuthorize = true
+        UserDefaults.standard.set(true, forKey: Self.authorizationRequestedKey)
     }
 
     func fetchRecentWeights(limit: Int = 14) async throws -> [HealthWeightSample] {
@@ -178,10 +201,15 @@ final class HealthKitWriter: HealthWriting {
         )
         async let workouts = workoutCount(from: last24h, to: now)
         async let sleep = sleepSummary(endingNear: now)
-
-        let (stepsV, energyV, restingV, latestHRV, hrSamples, workoutN, sleepInfo) = try await (
-            steps, energy, resting, latestHR, hrToday, workouts, sleep
+        async let lastWorkout = latestWorkout(
+            lookbackDays: Self.lastWorkoutLookbackDays,
+            now: now
         )
+
+        let (stepsV, energyV, restingV, latestHRV, hrSamples, workoutN, sleepInfo, workoutSummary) =
+            try await (
+                steps, energy, resting, latestHR, hrToday, workouts, sleep, lastWorkout
+            )
 
         var preSleepAvg: Double?
         var preSleepCount = 0
@@ -200,6 +228,14 @@ final class HealthKitWriter: HealthWriting {
             }
         }
 
+        let access: HealthDigestAccess = authorizationWasRequested ? .readable : .notRequested
+        let detail: String = {
+            if !authorizationWasRequested {
+                return "Health permission sheet not completed yet."
+            }
+            return "Health permission sheet completed. Read grants are private to iOS; empty samples may mean denial or no data."
+        }()
+
         return FitnessDigest(
             stepsToday: stepsV,
             activeEnergyKcalToday: energyV,
@@ -211,6 +247,9 @@ final class HealthKitWriter: HealthWriting {
             preSleepAverageHRBpm: preSleepAvg,
             preSleepHRSampleCount: preSleepCount,
             workoutCountLast24h: workoutN,
+            lastWorkout: workoutSummary,
+            access: access,
+            accessDetail: detail,
             generatedAt: now
         )
     }
@@ -272,6 +311,40 @@ final class HealthKitWriter: HealthWriting {
                     return
                 }
                 continuation.resume(returning: samples?.count ?? 0)
+            }
+            store.execute(query)
+        }
+    }
+
+    private func latestWorkout(lookbackDays: Int, now: Date) async throws -> HealthWorkoutSummary? {
+        let start = now.addingTimeInterval(-Double(lookbackDays) * 86_400)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: now, options: .strictStartDate)
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: .workoutType(),
+                predicate: predicate,
+                limit: 1,
+                sortDescriptors: [sort]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
+                    return
+                }
+                guard let workout = samples?.first as? HKWorkout else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let kcal = workout.totalEnergyBurned?.doubleValue(for: .kilocalorie())
+                let summary = HealthWorkoutSummary(
+                    activityName: Self.workoutActivityName(workout.workoutActivityType),
+                    startDate: workout.startDate,
+                    endDate: workout.endDate,
+                    durationMinutes: workout.duration / 60.0,
+                    activeEnergyKcal: kcal,
+                    sourceName: workout.sourceRevision.source.name
+                )
+                continuation.resume(returning: summary)
             }
             store.execute(query)
         }
@@ -445,6 +518,36 @@ final class HealthKitWriter: HealthWriting {
             1 // legacy HKCategoryValueSleepAnalysis.asleep
         ]
         return asleepValues.contains(value)
+    }
+
+    nonisolated private static func workoutActivityName(_ type: HKWorkoutActivityType) -> String {
+        switch type {
+        case .running: return "Running"
+        case .walking: return "Walking"
+        case .cycling: return "Cycling"
+        case .swimming: return "Swimming"
+        case .hiking: return "Hiking"
+        case .yoga: return "Yoga"
+        case .dance: return "Dance"
+        case .elliptical: return "Elliptical"
+        case .rowing: return "Rowing"
+        case .stairClimbing: return "Stair climbing"
+        case .traditionalStrengthTraining: return "Strength training"
+        case .functionalStrengthTraining: return "Functional strength"
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .coreTraining: return "Core training"
+        case .flexibility: return "Flexibility"
+        case .cooldown: return "Cooldown"
+        case .mindAndBody: return "Mind and body"
+        case .mixedCardio: return "Mixed cardio"
+        case .crossTraining: return "Cross training"
+        case .tennis: return "Tennis"
+        case .basketball: return "Basketball"
+        case .soccer: return "Soccer"
+        case .golf: return "Golf"
+        case .other: return "Other workout"
+        default: return "Workout"
+        }
     }
 
     private func metadata(for draft: EditableMeasurementDraft) -> [String: Any] {

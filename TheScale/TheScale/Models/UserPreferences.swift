@@ -221,6 +221,41 @@ enum FitnessMonitorPreferencesStore {
     }
 }
 
+/// Latest Apple Health workout snapshot for Coach (not limited to 24h).
+struct HealthWorkoutSummary: Equatable, Sendable {
+    var activityName: String
+    var startDate: Date
+    var endDate: Date
+    var durationMinutes: Double
+    var activeEnergyKcal: Double?
+    var sourceName: String?
+
+    func promptLine() -> String {
+        let when = endDate.formatted(date: .abbreviated, time: .shortened)
+        var line = String(
+            format: "Last workout: %@ on %@, %.0f min",
+            activityName,
+            when,
+            durationMinutes
+        )
+        if let kcal = activeEnergyKcal {
+            line += String(format: ", %.0f kcal", kcal)
+        }
+        if let source = sourceName, !source.isEmpty {
+            line += " (\(source))"
+        }
+        return line
+    }
+}
+
+/// Whether Coach can treat Health reads as usable.
+enum HealthDigestAccess: String, Equatable, Sendable {
+    case unavailable
+    case notRequested
+    case readable
+    case readFailed
+}
+
 /// Compact fitness snapshot for Grok + local trigger algorithms.
 struct FitnessDigest: Equatable, Sendable {
     var stepsToday: Double?
@@ -233,6 +268,10 @@ struct FitnessDigest: Equatable, Sendable {
     var preSleepAverageHRBpm: Double?
     var preSleepHRSampleCount: Int
     var workoutCountLast24h: Int
+    /// Most recent workout in lookback (default 90 days), independent of 24h count.
+    var lastWorkout: HealthWorkoutSummary?
+    var access: HealthDigestAccess
+    var accessDetail: String
     var generatedAt: Date
 
     static let empty = FitnessDigest(
@@ -246,22 +285,96 @@ struct FitnessDigest: Equatable, Sendable {
         preSleepAverageHRBpm: nil,
         preSleepHRSampleCount: 0,
         workoutCountLast24h: 0,
+        lastWorkout: nil,
+        access: .notRequested,
+        accessDetail: "Health digest not loaded yet.",
         generatedAt: Date()
     )
 
+    static func unavailable(now: Date = Date()) -> FitnessDigest {
+        var digest = FitnessDigest.empty
+        digest.access = .unavailable
+        digest.accessDetail = "Apple Health is not available on this device."
+        digest.generatedAt = now
+        return digest
+    }
+
+    static func readFailed(message: String, now: Date = Date()) -> FitnessDigest {
+        var digest = FitnessDigest.empty
+        digest.access = .readFailed
+        digest.accessDetail = message
+        digest.generatedAt = now
+        return digest
+    }
+
+    var hasAnyFitnessSignal: Bool {
+        (stepsToday ?? 0) > 0
+            || (activeEnergyKcalToday ?? 0) > 0
+            || restingHeartRateBpm != nil
+            || latestHeartRateBpm != nil
+            || heartRateSampleCountToday > 0
+            || sleepHoursLastNight != nil
+            || workoutCountLast24h > 0
+            || lastWorkout != nil
+    }
+
+    /// Short line for Settings → Health status.
+    var settingsStatusLine: String {
+        switch access {
+        case .unavailable:
+            return "Health unavailable on this device."
+        case .notRequested:
+            return "Health access not requested yet. Tap Allow Health access."
+        case .readFailed:
+            return "Health read failed: \(accessDetail)"
+        case .readable:
+            if let workout = lastWorkout {
+                return workout.promptLine()
+            }
+            if hasAnyFitnessSignal {
+                return "Health readable. Recent activity signals present (no workout in last 90 days)."
+            }
+            return "Health readable, but no steps / HR / sleep / workouts found. Allow The Scale in Health → Data Access & Devices, or wear Apple Watch."
+        }
+    }
+
     func promptBlock(preSleepWindowMinutes: Int) -> String {
-        var lines = ["Fitness digest (Apple Health, on-device read):"]
+        var lines = [
+            "Fitness digest (Apple Health, on-device read):",
+            "Access: \(access.rawValue)",
+            "Access detail: \(accessDetail)"
+        ]
+        lines.append(
+            "Honesty rule for Coach: this digest is authoritative for workouts, steps, energy, HR, and sleep. If Access is not readable, samples are empty, or Last workout is none, say that clearly (Settings → Allow Health access / Health → Data Access for The Scale / wear Apple Watch). Never invent a workout, step count, HR, or sleep session."
+        )
+
+        switch access {
+        case .unavailable, .notRequested, .readFailed:
+            lines.append("Samples: unavailable. Do not invent activity.")
+            return lines.joined(separator: "\n")
+        case .readable:
+            break
+        }
+
         if let steps = stepsToday {
             lines.append(String(format: "Steps today: %.0f", steps))
+        } else {
+            lines.append("Steps today: missing")
         }
         if let kcal = activeEnergyKcalToday {
             lines.append(String(format: "Active energy today: %.0f kcal", kcal))
+        } else {
+            lines.append("Active energy today: missing")
         }
         if let rhr = restingHeartRateBpm {
             lines.append(String(format: "Resting HR: %.0f bpm", rhr))
+        } else {
+            lines.append("Resting HR: missing")
         }
         if let hr = latestHeartRateBpm {
             lines.append(String(format: "Latest HR: %.0f bpm", hr))
+        } else {
+            lines.append("Latest HR: missing")
         }
         lines.append("HR samples today: \(heartRateSampleCountToday)")
         if let sleep = sleepHoursLastNight {
@@ -285,6 +398,18 @@ struct FitnessDigest: Equatable, Sendable {
             lines.append("Pre-sleep HR window: no samples (advise wearing Apple Watch to bed).")
         }
         lines.append("Workouts last 24h: \(workoutCountLast24h)")
+        if let workout = lastWorkout {
+            lines.append(workout.promptLine())
+        } else {
+            lines.append(
+                "Last workout: none in last 90 days (or Health read denied for Workouts). Do not invent one."
+            )
+        }
+        if !hasAnyFitnessSignal {
+            lines.append(
+                "Samples: empty across steps/HR/sleep/workouts. Tell the user to allow The Scale under Health → Data Access & Devices, wear Apple Watch, then ask again."
+            )
+        }
         return lines.joined(separator: "\n")
     }
 }

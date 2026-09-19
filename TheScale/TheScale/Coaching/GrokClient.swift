@@ -44,6 +44,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             \(Self.voiceRules)
             Give practical training / recovery / habit nudges tied to weight, fat %, sleep, HR, and activity.
             Match advice to Local now: morning can be training; night is wind-down, not a PR attempt.
+            Use only the Fitness digest for last workout / activity / steps / HR / sleep. If digest says none or empty, say so. Never invent a session.
             No crash diets. Respect their diet preference and remembered facts. Keep it short and punchy.
             """
         case .anatomy:
@@ -64,6 +65,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             Honour "Target gate" notes in context: if a target was rejected as unsafe, push back and suggest the safer waypoint. Do not encourage essential-floor body-fat crashes.
             If the user asks for a wake-up or timed reminder / notification, the app schedules a real local notification on-device.
             Honour "Reminder gate" notes: confirm the scheduled local time briefly. Do not pretend you can push from the cloud. Do not invent a second schedule.
+            CRITICAL: The Fitness digest block is the only source for workouts, last activity, steps, energy, HR, and sleep. If Access is not readable, samples are empty, or Last workout is none, say that plainly (allow The Scale in Health / wear Apple Watch). Never invent a workout or activity.
             Ask clarifying questions only when a needed fact is missing from the profile block. Never re-ask height/age/sex/targets already listed.
             End with one concrete next action that fits the current local time of day. Produce ONE coherent answer. No multi-agent dump.
             """
@@ -274,7 +276,11 @@ actor GrokClient {
         let lower = userText.lowercased()
         let medical = ["pain", "doctor", "blood", "medic", "diagnos", "symptom", "heart", "dizzy", "faint", "sleep hr", "resting hr"]
         let anatomy = ["impedance", "bia", "lean", "muscle", "visceral", "bone", "water", "body fat", "fat%"]
-        let fitness = ["workout", "lift", "run", "cardio", "protein", "diet", "calorie", "train", "gym", "fast", "steps", "watch"]
+        let fitness = [
+            "workout", "activity", "activities", "exercise", "lift", "run", "cardio",
+            "protein", "diet", "calorie", "train", "gym", "fast", "steps", "watch",
+            "jog", "swim", "bike", "cycling", "hiit", "recovery", "active energy"
+        ]
         if medical.contains(where: { lower.contains($0) }) { return .medical }
         if anatomy.contains(where: { lower.contains($0) }) { return .anatomy }
         if fitness.contains(where: { lower.contains($0) }) { return .fitness }
@@ -656,7 +662,11 @@ actor GrokClient {
         if !brief.memoryBlock.isEmpty {
             lines.append(brief.memoryBlock)
         }
-        if !brief.fitnessDigestBlock.isEmpty {
+        if brief.fitnessDigestBlock.isEmpty {
+            lines.append(
+                "Fitness digest: missing. Say you have no Apple Health snapshot yet. Do not invent workouts or activity."
+            )
+        } else {
             lines.append(brief.fitnessDigestBlock)
         }
         lines.append(

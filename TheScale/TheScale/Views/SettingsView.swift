@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Profile, notifications, Grok consent, calibration. Live capture uses the weigh-in sheet.
 struct SettingsView: View {
@@ -217,9 +218,33 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Health ↔ Grok monitoring", systemImage: "heart.text.square")
                 .font(.headline)
-            Text("Reads HR, resting HR, sleep, steps, active energy, and workouts from Apple Health (after permission). Grok gets a compact digest on your schedule. iOS background is best-effort; local notifications nudge you to open the app.")
+            Text("Reads HR, resting HR, sleep, steps, active energy, and workouts from Apple Health (after permission). Coach chat refreshes this digest on every ask. Grok also gets it on your monitor schedule. iOS background is best-effort; local notifications nudge you to open the app.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+
+            Text("Health status")
+                .font(.caption.weight(.semibold))
+            Text(session.healthAccessStatusLine)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                Button {
+                    Task { await session.requestHealthAccessFromSettings() }
+                } label: {
+                    Label("Allow Health access", systemImage: "heart.text.square.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    openAppleHealth()
+                } label: {
+                    Label("Open Health", systemImage: "arrow.up.right.square")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
 
             Toggle(
                 "Enable fitness monitoring",
@@ -333,6 +358,17 @@ struct SettingsView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .task {
+            _ = await session.refreshFitnessDigestForCoach()
+        }
+    }
+
+    private func openAppleHealth() {
+        if let url = URL(string: "x-apple-health://") {
+            UIApplication.shared.open(url)
+        } else if let settings = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(settings)
+        }
     }
 
     private var appleIntelligenceCard: some View {
