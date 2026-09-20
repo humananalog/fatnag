@@ -221,23 +221,29 @@ enum FitnessMonitorPreferencesStore {
     }
 }
 
-/// Latest Apple Health workout snapshot for Coach (not limited to 24h).
+/// Apple Health workout snapshot for Coach (not limited to 24h).
 struct HealthWorkoutSummary: Equatable, Sendable {
     var activityName: String
     var startDate: Date
     var endDate: Date
     var durationMinutes: Double
+    var distanceKm: Double?
     var activeEnergyKcal: Double?
     var sourceName: String?
 
-    func promptLine() -> String {
+    /// One-line digest entry. `label` is usually "Last workout" or "Recent workout".
+    func promptLine(label: String = "Last workout") -> String {
         let when = endDate.formatted(date: .abbreviated, time: .shortened)
         var line = String(
-            format: "Last workout: %@ on %@, %.0f min",
+            format: "%@: %@ on %@, %.0f min",
+            label,
             activityName,
             when,
             durationMinutes
         )
+        if let km = distanceKm, km > 0 {
+            line += String(format: ", %.1f km", km)
+        }
         if let kcal = activeEnergyKcal {
             line += String(format: ", %.0f kcal", kcal)
         }
@@ -245,6 +251,43 @@ struct HealthWorkoutSummary: Equatable, Sendable {
             line += " (\(source))"
         }
         return line
+    }
+}
+
+/// Walking/running distance totals from HealthKit (not a workout object).
+/// Used when third-party apps write distance without a Workout, or as a fallback signal.
+struct HealthDistanceSpike: Equatable, Sendable {
+    /// Sum of `distanceWalkingRunning` over the window (km).
+    var distanceKmLast24h: Double
+    /// Sum over the last 7 days (km).
+    var distanceKmLast7d: Double
+    /// True when 24h distance is large enough to imply a real outing without a Workout sample.
+    var isNotableSpike: Bool
+
+    static let notableSpikeKmThreshold: Double = 3.0
+
+    static func from(km24h: Double?, km7d: Double?) -> HealthDistanceSpike? {
+        let d24 = km24h ?? 0
+        let d7 = km7d ?? 0
+        guard d24 > 0 || d7 > 0 else { return nil }
+        return HealthDistanceSpike(
+            distanceKmLast24h: d24,
+            distanceKmLast7d: d7,
+            isNotableSpike: d24 >= notableSpikeKmThreshold
+        )
+    }
+
+    func promptLines(workoutsEmpty: Bool) -> [String] {
+        var lines = [
+            String(format: "Walking/running distance last 24h: %.1f km", distanceKmLast24h),
+            String(format: "Walking/running distance last 7d: %.1f km", distanceKmLast7d)
+        ]
+        if workoutsEmpty, isNotableSpike {
+            lines.append(
+                "Distance spike without a Workout sample: Health shows meaningful walking/running distance but no Workout titled hike/walk. Coach can say that plainly. Third-party apps (e.g. AllTrails, Strava) only appear here if they write to Apple Health. The Scale reads HealthKit only, never AllTrails directly. Ask the user to enable Health sync in that app, then Allow Health access / Workouts + Distance for The Scale."
+            )
+        }
+        return lines
     }
 }
 
@@ -268,11 +311,16 @@ struct FitnessDigest: Equatable, Sendable {
     var preSleepAverageHRBpm: Double?
     var preSleepHRSampleCount: Int
     var workoutCountLast24h: Int
-    /// Most recent workout in lookback (default 90 days), independent of 24h count.
-    var lastWorkout: HealthWorkoutSummary?
+    /// Most recent workouts in lookback (default 90 days), newest first. Independent of 24h count.
+    var recentWorkouts: [HealthWorkoutSummary]
+    /// Walking/running distance totals (HealthKit quantity), even when no Workout exists.
+    var walkingRunningDistance: HealthDistanceSpike?
     var access: HealthDigestAccess
     var accessDetail: String
     var generatedAt: Date
+
+    /// Convenience: newest workout, if any.
+    var lastWorkout: HealthWorkoutSummary? { recentWorkouts.first }
 
     static let empty = FitnessDigest(
         stepsToday: nil,
@@ -285,7 +333,8 @@ struct FitnessDigest: Equatable, Sendable {
         preSleepAverageHRBpm: nil,
         preSleepHRSampleCount: 0,
         workoutCountLast24h: 0,
-        lastWorkout: nil,
+        recentWorkouts: [],
+        walkingRunningDistance: nil,
         access: .notRequested,
         accessDetail: "Health digest not loaded yet.",
         generatedAt: Date()
@@ -315,7 +364,9 @@ struct FitnessDigest: Equatable, Sendable {
             || heartRateSampleCountToday > 0
             || sleepHoursLastNight != nil
             || workoutCountLast24h > 0
-            || lastWorkout != nil
+            || !recentWorkouts.isEmpty
+            || (walkingRunningDistance?.distanceKmLast24h ?? 0) > 0
+            || (walkingRunningDistance?.distanceKmLast7d ?? 0) > 0
     }
 
     /// Short line for Settings → Health status.
@@ -331,21 +382,27 @@ struct FitnessDigest: Equatable, Sendable {
             if let workout = lastWorkout {
                 return workout.promptLine()
             }
-            if hasAnyFitnessSignal {
-                return "Health readable. Recent activity signals present (no workout in last 90 days)."
+            if let dist = walkingRunningDistance, dist.isNotableSpike {
+                return String(
+                    format: "No Workout in Health, but %.1f km walking/running in last 24h. Third-party apps (AllTrails etc.) must write to Apple Health; The Scale reads Health only.",
+                    dist.distanceKmLast24h
+                )
             }
-            return "Health readable, but no steps / HR / sleep / workouts found. Allow The Scale in Health → Data Access & Devices, or wear Apple Watch."
+            if hasAnyFitnessSignal {
+                return "Health readable (steps/HR/sleep/distance present), but no Workouts in last 90 days. Enable Workouts + Distance for The Scale in Health, and turn on Health sync in third-party apps (AllTrails etc.)."
+            }
+            return "Health readable, but no steps / HR / sleep / workouts / distance found. Allow Workouts + Distance for The Scale in Health, wear Apple Watch, or sync third-party apps into Health."
         }
     }
 
     func promptBlock(preSleepWindowMinutes: Int) -> String {
         var lines = [
-            "Fitness digest (Apple Health, on-device read):",
+            "Fitness digest (Apple Health / HealthKit only, on-device read):",
             "Access: \(access.rawValue)",
             "Access detail: \(accessDetail)"
         ]
         lines.append(
-            "Honesty rule for Coach: this digest is authoritative for workouts, steps, energy, HR, and sleep. If Access is not readable, samples are empty, or Last workout is none, say that clearly (Settings → Allow Health access / Health → Data Access for The Scale / wear Apple Watch). Never invent a workout, step count, HR, or sleep session."
+            "Honesty rule for Coach: this digest is the only activity source. The Scale cannot read AllTrails, Strava, or other apps directly; only what those apps write into Apple Health. When Recent workouts lists real sessions (type, distance km, duration, kcal, source including third-party names), discuss those. If workouts are empty but walking/running distance shows a spike, say Health has distance without a Workout sample and suggest checking Health sync in the tracking app. Only claim total emptiness when workouts, distance, steps, HR, and sleep are all missing. Never invent a hike or workout."
         )
 
         switch access {
@@ -398,19 +455,47 @@ struct FitnessDigest: Equatable, Sendable {
             lines.append("Pre-sleep HR window: no samples (advise wearing Apple Watch to bed).")
         }
         lines.append("Workouts last 24h: \(workoutCountLast24h)")
-        if let workout = lastWorkout {
-            lines.append(workout.promptLine())
-        } else {
+        if recentWorkouts.isEmpty {
             lines.append(
-                "Last workout: none in last 90 days (or Health read denied for Workouts). Do not invent one."
+                "Recent workouts: none in last 90 days (denied Workouts permission, no Workout samples, or third-party hike never wrote to Health). Do not invent one. Tell the user: (1) Allow Health access / enable Workouts + Distance for The Scale, (2) if they tracked in AllTrails or similar, turn on write-to-Apple-Health in that app. The Scale cannot open AllTrails."
             )
+        } else {
+            lines.append("Recent workouts (newest first, all activity types including Hiking / Walking / Outdoor Walk / Running; source may be Watch, iPhone, or third-party):")
+            for (index, workout) in recentWorkouts.enumerated() {
+                let label = index == 0 ? "Last workout" : "Recent workout"
+                lines.append(workout.promptLine(label: label))
+            }
+        }
+        if let dist = walkingRunningDistance {
+            lines.append(contentsOf: dist.promptLines(workoutsEmpty: recentWorkouts.isEmpty))
+        } else {
+            lines.append("Walking/running distance: missing (or Distance read denied).")
         }
         if !hasAnyFitnessSignal {
             lines.append(
-                "Samples: empty across steps/HR/sleep/workouts. Tell the user to allow The Scale under Health → Data Access & Devices, wear Apple Watch, then ask again."
+                "Samples: empty across steps/HR/sleep/workouts/distance. Tell the user to allow The Scale under Health → Data Access & Devices (Workouts + Distance), wear Apple Watch, sync third-party apps into Health, then ask again."
             )
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// DEBUG-friendly one-liner (no PII beyond activity type / distance).
+    var debugSummaryLine: String {
+        let workoutBits: String = {
+            guard let w = lastWorkout else { return "lastWorkout=nil" }
+            let km = w.distanceKm.map { String(format: "%.1fkm", $0) } ?? "nokm"
+            return "lastWorkout=\(w.activityName)/\(km)/\(Int(w.durationMinutes))min/\(w.sourceName ?? "?")"
+        }()
+        let distBits: String = {
+            guard let d = walkingRunningDistance else { return "dist=nil" }
+            return String(
+                format: "dist24h=%.1fkm dist7d=%.1fkm spike=%@",
+                d.distanceKmLast24h,
+                d.distanceKmLast7d,
+                d.isNotableSpike ? "yes" : "no"
+            )
+        }()
+        return "FitnessDigest access=\(access.rawValue) signals=\(hasAnyFitnessSignal) workouts24h=\(workoutCountLast24h) recent=\(recentWorkouts.count) \(workoutBits) \(distBits)"
     }
 }
 

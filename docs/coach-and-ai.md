@@ -11,7 +11,7 @@ Hybrid routing: **Grok Worker** for full Coach chat; **Foundation Models** for p
 - **Persona + memory:** inject into prompts from on-device stores.
 - **Targets:** Coach-stated goals update profile after `TargetFeasibility` gates.
 - **Time-aware:** local clock in context; evening/night bans gym-lift next-actions.
-- **HealthKit on every turn (2.7.1+):** Coach refreshes a Fitness digest (including last workout) before each ask. Empty / denied access is stated plainly; Coach must not invent workouts.
+- **HealthKit on every turn (2.7.1+):** Coach refreshes a Fitness digest (recent workouts + walking/running distance) before each ask. Empty / denied / third-party-not-synced is stated plainly; Coach must not invent workouts or claim AllTrails access.
 
 ### Shared proxy setup
 

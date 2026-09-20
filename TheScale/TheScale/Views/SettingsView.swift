@@ -306,7 +306,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Health ↔ Grok monitoring", systemImage: "heart.text.square")
                 .font(.headline)
-            Text("Reads HR, resting HR, sleep, steps, active energy, and workouts from Apple Health (after permission). Coach chat refreshes this digest on every ask. Grok also gets it on your monitor schedule. iOS background is best-effort; local notifications nudge you to open the app.")
+            Text("Reads HR, resting HR, sleep, steps, active energy, walking/running distance, and workouts from Apple Health (after permission). Coach refreshes this digest on every ask. Third-party apps (AllTrails, Strava, etc.) only appear after they write into Apple Health. The Scale never reads those apps directly. iOS background is best-effort; local notifications nudge you to open the app.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 

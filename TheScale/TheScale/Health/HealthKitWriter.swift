@@ -52,7 +52,7 @@ enum HealthKitWriterError: LocalizedError {
 ///
 /// Authorized:
 /// - Read: bodyMass, bodyFatPercentage, heartRate, restingHeartRate, stepCount,
-///   activeEnergyBurned, sleepAnalysis, workout
+///   activeEnergyBurned, sleepAnalysis, workout, distanceWalkingRunning
 /// - Write: bodyMass, bodyMassIndex, bodyFatPercentage, leanBodyMass
 ///
 /// Shown in-app only (no first-class HealthKit quantity): muscle mass, bone mass,
@@ -60,7 +60,11 @@ enum HealthKitWriterError: LocalizedError {
 @MainActor
 final class HealthKitWriter: HealthWriting {
     private static let authorizationRequestedKey = "thescale.healthKitAuthorizationRequested"
+    /// Bump when `readTypes` gains new identifiers so upgrades re-prompt (Workouts, Distance, …).
+    private static let readAuthSchemaVersion = 2
+    private static let readAuthSchemaKey = "thescale.healthKitReadAuthSchema"
     private static let lastWorkoutLookbackDays = 90
+    private static let recentWorkoutLimit = 5
 
     private let store = HKHealthStore()
     private var didAuthorize = false
@@ -89,13 +93,25 @@ final class HealthKitWriter: HealthWriting {
         if let steps = HKObjectType.quantityType(forIdentifier: .stepCount) { types.insert(steps) }
         if let energy = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) { types.insert(energy) }
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { types.insert(sleep) }
+        if let distance = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning) {
+            types.insert(distance)
+        }
         types.insert(HKObjectType.workoutType())
         return types
     }
 
+    private var needsReadAuthRefresh: Bool {
+        let stored = UserDefaults.standard.integer(forKey: Self.readAuthSchemaKey)
+        return stored < Self.readAuthSchemaVersion
+    }
+
     func requestAuthorizationIfNeeded() async throws {
         guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
-        if didAuthorize { return }
+        if didAuthorize, !needsReadAuthRefresh {
+            // Still ask iOS if new types appeared (no-op when already decided for those types).
+            let status = try await store.statusForAuthorizationRequest(toShare: shareTypes, read: readTypes)
+            if status != .shouldRequest { return }
+        }
         try await store.requestAuthorization(toShare: shareTypes, read: readTypes)
         markAuthorizationRequested()
     }
@@ -110,6 +126,7 @@ final class HealthKitWriter: HealthWriting {
     private func markAuthorizationRequested() {
         didAuthorize = true
         UserDefaults.standard.set(true, forKey: Self.authorizationRequestedKey)
+        UserDefaults.standard.set(Self.readAuthSchemaVersion, forKey: Self.readAuthSchemaKey)
     }
 
     func fetchRecentWeights(limit: Int = 14) async throws -> [HealthWeightSample] {
@@ -176,7 +193,9 @@ final class HealthKitWriter: HealthWriting {
         let cal = Calendar.current
         let dayStart = cal.startOfDay(for: now)
         let last24h = now.addingTimeInterval(-24 * 3600)
+        let last7d = now.addingTimeInterval(-7 * 86_400)
         let hrUnit = HKUnit.count().unitDivided(by: .minute())
+        let meter = HKUnit.meter()
 
         async let steps = sumQuantity(.stepCount, unit: .count(), from: dayStart, to: now)
         async let energy = sumQuantity(
@@ -201,15 +220,38 @@ final class HealthKitWriter: HealthWriting {
         )
         async let workouts = workoutCount(from: last24h, to: now)
         async let sleep = sleepSummary(endingNear: now)
-        async let lastWorkout = latestWorkout(
+        async let recent = recentWorkouts(
             lookbackDays: Self.lastWorkoutLookbackDays,
+            limit: Self.recentWorkoutLimit,
             now: now
         )
+        async let dist24hMeters = sumQuantity(
+            .distanceWalkingRunning,
+            unit: meter,
+            from: last24h,
+            to: now
+        )
+        async let dist7dMeters = sumQuantity(
+            .distanceWalkingRunning,
+            unit: meter,
+            from: last7d,
+            to: now
+        )
 
-        let (stepsV, energyV, restingV, latestHRV, hrSamples, workoutN, sleepInfo, workoutSummary) =
-            try await (
-                steps, energy, resting, latestHR, hrToday, workouts, sleep, lastWorkout
-            )
+        let (
+            stepsV,
+            energyV,
+            restingV,
+            latestHRV,
+            hrSamples,
+            workoutN,
+            sleepInfo,
+            workoutSummaries,
+            dist24m,
+            dist7m
+        ) = try await (
+            steps, energy, resting, latestHR, hrToday, workouts, sleep, recent, dist24hMeters, dist7dMeters
+        )
 
         var preSleepAvg: Double?
         var preSleepCount = 0
@@ -233,10 +275,15 @@ final class HealthKitWriter: HealthWriting {
             if !authorizationWasRequested {
                 return "Health permission sheet not completed yet."
             }
-            return "Health permission sheet completed. Read grants are private to iOS; empty samples may mean denial or no data."
+            return "Health permission sheet completed. Read grants are private to iOS; empty samples may mean denial, no data, or a third-party app that never wrote to Health."
         }()
 
-        return FitnessDigest(
+        let distanceSpike = HealthDistanceSpike.from(
+            km24h: dist24m.map { $0 / 1000.0 },
+            km7d: dist7m.map { $0 / 1000.0 }
+        )
+
+        let digest = FitnessDigest(
             stepsToday: stepsV,
             activeEnergyKcalToday: energyV,
             restingHeartRateBpm: restingV,
@@ -247,11 +294,16 @@ final class HealthKitWriter: HealthWriting {
             preSleepAverageHRBpm: preSleepAvg,
             preSleepHRSampleCount: preSleepCount,
             workoutCountLast24h: workoutN,
-            lastWorkout: workoutSummary,
+            recentWorkouts: workoutSummaries,
+            walkingRunningDistance: distanceSpike,
             access: access,
             accessDetail: detail,
             generatedAt: now
         )
+        #if DEBUG
+        print("[TheScale] \(digest.debugSummaryLine)")
+        #endif
+        return digest
     }
 
     private func sumQuantity(
@@ -298,7 +350,11 @@ final class HealthKitWriter: HealthWriting {
     }
 
     private func workoutCount(from start: Date, to end: Date) async throws -> Int {
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let predicate = HKQuery.predicateForSamples(
+            withStart: start,
+            end: end,
+            options: .strictEndDate
+        )
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKSampleQuery(
                 sampleType: .workoutType(),
@@ -316,38 +372,76 @@ final class HealthKitWriter: HealthWriting {
         }
     }
 
-    private func latestWorkout(lookbackDays: Int, now: Date) async throws -> HealthWorkoutSummary? {
+    /// All workout activity types (Hiking, Walking, Running, Other, third-party). Newest first.
+    private func recentWorkouts(
+        lookbackDays: Int,
+        limit: Int,
+        now: Date
+    ) async throws -> [HealthWorkoutSummary] {
         let start = now.addingTimeInterval(-Double(lookbackDays) * 86_400)
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: now, options: .strictStartDate)
+        // Prefer end-date window so a long hike that started earlier still qualifies.
+        let predicate = HKQuery.predicateForSamples(
+            withStart: start,
+            end: now,
+            options: .strictEndDate
+        )
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKSampleQuery(
                 sampleType: .workoutType(),
                 predicate: predicate,
-                limit: 1,
+                limit: max(limit, 1),
                 sortDescriptors: [sort]
             ) { _, samples, error in
                 if let error {
                     continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
                     return
                 }
-                guard let workout = samples?.first as? HKWorkout else {
-                    continuation.resume(returning: nil)
-                    return
+                let workouts = (samples as? [HKWorkout] ?? []).map { workout -> HealthWorkoutSummary in
+                    HealthWorkoutSummary(
+                        activityName: Self.workoutActivityName(workout.workoutActivityType),
+                        startDate: workout.startDate,
+                        endDate: workout.endDate,
+                        durationMinutes: workout.duration / 60.0,
+                        distanceKm: Self.distanceKilometers(from: workout),
+                        activeEnergyKcal: Self.activeEnergyKcal(from: workout),
+                        sourceName: workout.sourceRevision.source.name
+                    )
                 }
-                let kcal = workout.totalEnergyBurned?.doubleValue(for: .kilocalorie())
-                let summary = HealthWorkoutSummary(
-                    activityName: Self.workoutActivityName(workout.workoutActivityType),
-                    startDate: workout.startDate,
-                    endDate: workout.endDate,
-                    durationMinutes: workout.duration / 60.0,
-                    activeEnergyKcal: kcal,
-                    sourceName: workout.sourceRevision.source.name
-                )
-                continuation.resume(returning: summary)
+                continuation.resume(returning: workouts)
             }
             store.execute(query)
         }
+    }
+
+    nonisolated private static func distanceKilometers(from workout: HKWorkout) -> Double? {
+        if let total = workout.totalDistance {
+            let km = total.doubleValue(for: .meter()) / 1000.0
+            if km > 0 { return km }
+        }
+        let identifiers: [HKQuantityTypeIdentifier] = [
+            .distanceWalkingRunning,
+            .distanceCycling,
+            .distanceSwimming
+        ]
+        for identifier in identifiers {
+            guard let type = HKQuantityType.quantityType(forIdentifier: identifier),
+                  let sum = workout.statistics(for: type)?.sumQuantity()
+            else { continue }
+            let km = sum.doubleValue(for: .meter()) / 1000.0
+            if km > 0 { return km }
+        }
+        return nil
+    }
+
+    nonisolated private static func activeEnergyKcal(from workout: HKWorkout) -> Double? {
+        if let total = workout.totalEnergyBurned {
+            return total.doubleValue(for: .kilocalorie())
+        }
+        guard let type = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
+              let sum = workout.statistics(for: type)?.sumQuantity()
+        else { return nil }
+        return sum.doubleValue(for: .kilocalorie())
     }
 
     private func sleepSummary(endingNear now: Date) async throws -> (hours: Double?, onset: Date?) {
@@ -545,6 +639,7 @@ final class HealthKitWriter: HealthWriting {
         case .basketball: return "Basketball"
         case .soccer: return "Soccer"
         case .golf: return "Golf"
+        case .climbing: return "Climbing"
         case .other: return "Other workout"
         default: return "Workout"
         }

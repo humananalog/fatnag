@@ -44,7 +44,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             \(Self.voiceRules)
             Give practical training / recovery / habit nudges tied to weight, fat %, sleep, HR, and activity.
             Match advice to Local now: morning can be training; night is wind-down, not a PR attempt.
-            Use only the Fitness digest for last workout / activity / steps / HR / sleep. If digest says none or empty, say so. Never invent a session.
+            Use only the Fitness digest for last workout / activity / steps / HR / sleep / distance. If digest lists workouts or a walking/running distance spike, use those facts. If empty, say Health has nothing (and that third-party apps like AllTrails only count after they write to Apple Health). Never invent a session. Never claim you can read AllTrails directly.
             No crash diets. Respect their diet preference and remembered facts. Keep it short and punchy.
             """
         case .anatomy:
@@ -68,7 +68,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             - SCHEDULED: confirm that exact local fire time once. Do not invent a second schedule.
             - NOT scheduled / FAILED / gate missing: do NOT claim a notification was set. Tell them to allow notifications or ask again.
             Do not pretend you can push from the cloud.
-            CRITICAL: The Fitness digest block is the only source for workouts, last activity, steps, energy, HR, and sleep. If Access is not readable, samples are empty, or Last workout is none, say that plainly (allow The Scale in Health / wear Apple Watch). Never invent a workout or activity.
+            CRITICAL: The Fitness digest block is the only source for workouts, last activity, steps, energy, distance, HR, and sleep (HealthKit only). If Recent workouts lists sessions, discuss them (distance km included). If workouts are empty but walking/running distance spiked, say Health shows km without a Workout sample and suggest enabling Health sync in the tracking app (AllTrails etc.). If truly empty, say so and mention Allow Health / Workouts + Distance / third-party write-to-Health. Never invent a hike. Never claim direct AllTrails access.
             Ask clarifying questions only when a needed fact is missing from the profile block. Never re-ask height/age/sex/targets already listed.
             End with one concrete next action that fits the current local time of day. Produce ONE coherent answer. No multi-agent dump.
             """
@@ -282,7 +282,9 @@ actor GrokClient {
         let fitness = [
             "workout", "activity", "activities", "exercise", "lift", "run", "cardio",
             "protein", "diet", "calorie", "train", "gym", "fast", "steps", "watch",
-            "jog", "swim", "bike", "cycling", "hiit", "recovery", "active energy"
+            "jog", "swim", "bike", "cycling", "hiit", "recovery", "active energy",
+            "hike", "hiking", "walk", "walking", "outdoor", "trail", "alltrails",
+            "strava", "insight", "insights", "km", "distance"
         ]
         if medical.contains(where: { lower.contains($0) }) { return .medical }
         if anatomy.contains(where: { lower.contains($0) }) { return .anatomy }

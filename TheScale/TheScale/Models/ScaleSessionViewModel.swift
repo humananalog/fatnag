@@ -417,11 +417,17 @@ final class ScaleSessionViewModel: ObservableObject {
             )
             lastFitnessDigest = digest
             healthAccessStatusLine = digest.settingsStatusLine
+            #if DEBUG
+            print("[TheScale] Coach digest refresh: \(digest.debugSummaryLine)")
+            #endif
             return digest
         } catch {
             let digest = FitnessDigest.readFailed(message: error.localizedDescription)
             lastFitnessDigest = digest
             healthAccessStatusLine = digest.settingsStatusLine
+            #if DEBUG
+            print("[TheScale] Coach digest refresh FAILED: \(error.localizedDescription)")
+            #endif
             return digest
         }
     }

@@ -5,7 +5,7 @@
 | Direction | Types |
 |-----------|--------|
 | **Write** | `bodyMass`, `bodyMassIndex`, `bodyFatPercentage`, `leanBodyMass` |
-| **Read** | Weight + fat % for charts/trend; plus `heartRate`, `restingHeartRate`, `stepCount`, `activeEnergyBurned`, `sleepAnalysis`, workouts for fitness digest |
+| **Read** | Weight + fat % for charts/trend; plus `heartRate`, `restingHeartRate`, `stepCount`, `activeEnergyBurned`, `sleepAnalysis`, `distanceWalkingRunning`, workouts for fitness digest |
 
 Writes happen only on **Confirm to Health** or **Manual → Save**. Manual entries set `HKMetadataKeyWasUserEntered`.
 
@@ -18,10 +18,20 @@ Every Coach chat turn calls `refreshFitnessDigestForCoach()` before Grok sees th
 Digest includes:
 
 - Steps, active energy, resting/latest HR, sleep, workouts in last 24h
-- **Last workout** (type, end time, duration, kcal, source) over a 90-day lookback
-- Access / honesty lines so Coach says "allow Health / wear Watch" instead of inventing activity
+- **Recent workouts** (up to 5; type, end time, duration, **distance km**, kcal, source) over a 90-day lookback, all activity types (Hiking, Walking, Running, Other, third-party)
+- **Walking/running distance** totals (24h + 7d). If Workouts are empty but 24h distance ≥ ~3 km, Coach is told Health shows a distance spike without a Workout sample
+- Access / honesty lines so Coach says "allow Health / enable third-party Health sync" instead of inventing activity
 
-Settings → **Health ↔ Grok monitoring** shows **Health status**, **Allow Health access**, and **Open Health**. Ask Coach: `what was my last workout?`
+**Important:** The Scale reads **HealthKit only**. Apps like AllTrails or Strava appear only after they write workouts/distance into Apple Health. An AllTrails hike that never synced to Health will correctly look empty to Coach.
+
+Settings → **Health ↔ Grok monitoring** shows **Health status**, **Allow Health access**, and **Open Health**. Ask Coach: `what was my last workout?` or `insights from my hike`.
+
+### Coach distance / third-party (2.7.3+)
+
+1. Allow Health access (Workouts + Walking/Running Distance).
+2. If you track in AllTrails (or similar), enable **write to Apple Health** in that app.
+3. Confirm the workout (or distance) appears in the Apple Health app.
+4. Ask Coach about the hike/workout. Expect distance km + source when Health has samples; expect an honest "not in Health / check app sync" when it does not.
 
 ### History charts
 
