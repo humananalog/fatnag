@@ -13,6 +13,8 @@
 		639C1D0FBB9F479E88FDD8E4 /* MiScale2FrameDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E034D719C949FFB23C0620 /* MiScale2FrameDecoder.swift */; };
 		6F875465CF3841AAAE957421 /* TheScaleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35B878F26684D38829349F0 /* TheScaleApp.swift */; };
 		77A738E9F5444319B38724AA /* HealthKitWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9268209C7548B6B832E710 /* HealthKitWriter.swift */; };
+		A1B2C3D4E5F60718293A0026 /* HealthScienceMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1026 /* HealthScienceMath.swift */; };
+		A1B2C3D4E5F60718293A0027 /* HealthScienceMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1027 /* HealthScienceMathTests.swift */; };
 		8425863436B347BE915C74E8 /* CoreBluetoothScaleScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8BB567BC5A469595541B70 /* CoreBluetoothScaleScanner.swift */; };
 		8C54A511087B4CD1ACD4066D /* ScaleMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E310DE90F9D4E95A8C307F0 /* ScaleMeasurement.swift */; };
 		B100683E83BB4960A142A289 /* MiScale2DecoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E595CBE9B3604BDA974B7530 /* MiScale2DecoderTests.swift */; };
@@ -77,6 +79,8 @@
 		D6A9DA851C404433ACD94ECA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D9E034D719C949FFB23C0620 /* MiScale2FrameDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiScale2FrameDecoder.swift; sourceTree = "<group>"; };
 		DD9268209C7548B6B832E710 /* HealthKitWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitWriter.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1026 /* HealthScienceMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthScienceMath.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1027 /* HealthScienceMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthScienceMathTests.swift; sourceTree = "<group>"; };
 		E595CBE9B3604BDA974B7530 /* MiScale2DecoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiScale2DecoderTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1001 /* WeightTrend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightTrend.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1002 /* EditableMeasurementDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableMeasurementDraft.swift; sourceTree = "<group>"; };
@@ -247,6 +251,7 @@
 				A1B2C3D4E5F60718293A1020 /* CoachReminderTests.swift */,
 				A1B2C3D4E5F60718293A1023 /* FoundationModelCoachTests.swift */,
 				A1B2C3D4E5F60718293A1024 /* FitnessDigestCoachTests.swift */,
+				A1B2C3D4E5F60718293A1027 /* HealthScienceMathTests.swift */,
 			);
 			path = TheScaleTests;
 			sourceTree = "<group>";
@@ -255,6 +260,7 @@
 			isa = PBXGroup;
 			children = (
 				DD9268209C7548B6B832E710 /* HealthKitWriter.swift */,
+				A1B2C3D4E5F60718293A1026 /* HealthScienceMath.swift */,
 			);
 			path = Health;
 			sourceTree = "<group>";
@@ -402,6 +408,7 @@
 				A1B2C3D4E5F60718293A0020 /* CoachReminderTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0023 /* FoundationModelCoachTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0024 /* FitnessDigestCoachTests.swift in Sources */,
+				A1B2C3D4E5F60718293A0027 /* HealthScienceMathTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -415,6 +422,7 @@
 				639C1D0FBB9F479E88FDD8E4 /* MiScale2FrameDecoder.swift in Sources */,
 				8425863436B347BE915C74E8 /* CoreBluetoothScaleScanner.swift in Sources */,
 				77A738E9F5444319B38724AA /* HealthKitWriter.swift in Sources */,
+				A1B2C3D4E5F60718293A0026 /* HealthScienceMath.swift in Sources */,
 				1856DEB36DD046A7ACBD0584 /* BodyCompositionCalculator.swift in Sources */,
 				3CAF1391CFF64BF3AC07916E /* ContentView.swift in Sources */,
 				A1B2C3D4E5F60718293A0001 /* WeightTrend.swift in Sources */,
@@ -462,11 +470,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.7.3;
+				MARKETING_VERSION = 2.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -503,7 +511,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -516,7 +524,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.7.3;
+				MARKETING_VERSION = 2.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -535,11 +543,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.7.3;
+				MARKETING_VERSION = 2.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -557,7 +565,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -570,7 +578,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.7.3;
+				MARKETING_VERSION = 2.7.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

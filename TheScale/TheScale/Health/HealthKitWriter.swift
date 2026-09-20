@@ -51,17 +51,21 @@ enum HealthKitWriterError: LocalizedError {
 /// Reads weight / body-fat / fitness signals and writes confirmed scale readings to HealthKit.
 ///
 /// Authorized:
-/// - Read: bodyMass, bodyFatPercentage, heartRate, restingHeartRate, stepCount,
-///   activeEnergyBurned, sleepAnalysis, workout, distanceWalkingRunning
+/// - Read: bodyMass, bodyFatPercentage, heartRate, restingHeartRate,
+///   heartRateVariabilitySDNN, respiratoryRate, appleSleepingWristTemperature,
+///   oxygenSaturation, vo2Max, stepCount, activeEnergyBurned, appleExerciseTime,
+///   sleepAnalysis, workout, distanceWalkingRunning
 /// - Write: bodyMass, bodyMassIndex, bodyFatPercentage, leanBodyMass
 ///
 /// Shown in-app only (no first-class HealthKit quantity): muscle mass, bone mass,
 /// body water %, visceral fat index, raw impedance.
+///
+/// We only request types the digest / charts / algorithms actually use.
 @MainActor
 final class HealthKitWriter: HealthWriting {
     private static let authorizationRequestedKey = "thescale.healthKitAuthorizationRequested"
-    /// Bump when `readTypes` gains new identifiers so upgrades re-prompt (Workouts, Distance, …).
-    private static let readAuthSchemaVersion = 2
+    /// Bump when `readTypes` gains new identifiers so upgrades re-prompt (HRV, sleep stages, …).
+    private static let readAuthSchemaVersion = 3
     private static let readAuthSchemaKey = "thescale.healthKitReadAuthSchema"
     private static let lastWorkoutLookbackDays = 90
     private static let recentWorkoutLimit = 5
@@ -86,15 +90,28 @@ final class HealthKitWriter: HealthWriting {
 
     private var readTypes: Set<HKObjectType> {
         var types = Set<HKObjectType>()
-        if let mass = HKObjectType.quantityType(forIdentifier: .bodyMass) { types.insert(mass) }
-        if let fat = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) { types.insert(fat) }
-        if let hr = HKObjectType.quantityType(forIdentifier: .heartRate) { types.insert(hr) }
-        if let rhr = HKObjectType.quantityType(forIdentifier: .restingHeartRate) { types.insert(rhr) }
-        if let steps = HKObjectType.quantityType(forIdentifier: .stepCount) { types.insert(steps) }
-        if let energy = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) { types.insert(energy) }
-        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { types.insert(sleep) }
-        if let distance = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning) {
-            types.insert(distance)
+        let quantityIds: [HKQuantityTypeIdentifier] = [
+            .bodyMass,
+            .bodyFatPercentage,
+            .heartRate,
+            .restingHeartRate,
+            .heartRateVariabilitySDNN,
+            .respiratoryRate,
+            .appleSleepingWristTemperature,
+            .oxygenSaturation,
+            .vo2Max,
+            .stepCount,
+            .activeEnergyBurned,
+            .appleExerciseTime,
+            .distanceWalkingRunning
+        ]
+        for id in quantityIds {
+            if let type = HKObjectType.quantityType(forIdentifier: id) {
+                types.insert(type)
+            }
+        }
+        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            types.insert(sleep)
         }
         types.insert(HKObjectType.workoutType())
         return types
@@ -196,6 +213,10 @@ final class HealthKitWriter: HealthWriting {
         let last7d = now.addingTimeInterval(-7 * 86_400)
         let hrUnit = HKUnit.count().unitDivided(by: .minute())
         let meter = HKUnit.meter()
+        let msUnit = HKUnit.secondUnit(with: .milli)
+        let breathUnit = HKUnit.count().unitDivided(by: .minute())
+        let spo2Unit = HKUnit.percent()
+        let vo2Unit = HKUnit.literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute()))
 
         async let steps = sumQuantity(.stepCount, unit: .count(), from: dayStart, to: now)
         async let energy = sumQuantity(
@@ -204,10 +225,16 @@ final class HealthKitWriter: HealthWriting {
             from: dayStart,
             to: now
         )
+        async let exerciseMin = sumQuantity(
+            .appleExerciseTime,
+            unit: .minute(),
+            from: dayStart,
+            to: now
+        )
         async let resting = latestQuantity(
             .restingHeartRate,
             unit: hrUnit,
-            from: now.addingTimeInterval(-7 * 86_400),
+            from: last7d,
             to: now
         )
         async let latestHR = latestQuantity(.heartRate, unit: hrUnit, from: dayStart, to: now)
@@ -218,8 +245,45 @@ final class HealthKitWriter: HealthWriting {
             to: now,
             scale: 1
         )
+        async let hrvRecent = latestQuantity(
+            .heartRateVariabilitySDNN,
+            unit: msUnit,
+            from: last24h,
+            to: now
+        )
+        async let hrvWeekSamples = fetchQuantitySamples(
+            identifier: .heartRateVariabilitySDNN,
+            unit: msUnit,
+            from: last7d,
+            to: now,
+            scale: 1
+        )
+        async let respiratory = latestQuantity(
+            .respiratoryRate,
+            unit: breathUnit,
+            from: last24h,
+            to: now
+        )
+        async let wristTemp = latestQuantity(
+            .appleSleepingWristTemperature,
+            unit: .degreeCelsius(),
+            from: last7d,
+            to: now
+        )
+        async let spo2 = latestQuantity(
+            .oxygenSaturation,
+            unit: spo2Unit,
+            from: last24h,
+            to: now
+        )
+        async let vo2 = latestQuantity(
+            .vo2Max,
+            unit: vo2Unit,
+            from: now.addingTimeInterval(-90 * 86_400),
+            to: now
+        )
         async let workouts = workoutCount(from: last24h, to: now)
-        async let sleep = sleepSummary(endingNear: now)
+        async let sleep = sleepSnapshot(endingNear: now)
         async let recent = recentWorkouts(
             lookbackDays: Self.lastWorkoutLookbackDays,
             limit: Self.recentWorkoutLimit,
@@ -241,16 +305,24 @@ final class HealthKitWriter: HealthWriting {
         let (
             stepsV,
             energyV,
+            exerciseV,
             restingV,
             latestHRV,
             hrSamples,
+            hrvV,
+            hrvWeek,
+            respiratoryV,
+            wristTempV,
+            spo2Fraction,
+            vo2V,
             workoutN,
             sleepInfo,
             workoutSummaries,
             dist24m,
             dist7m
         ) = try await (
-            steps, energy, resting, latestHR, hrToday, workouts, sleep, recent, dist24hMeters, dist7dMeters
+            steps, energy, exerciseMin, resting, latestHR, hrToday, hrvRecent, hrvWeekSamples,
+            respiratory, wristTemp, spo2, vo2, workouts, sleep, recent, dist24hMeters, dist7dMeters
         )
 
         var preSleepAvg: Double?
@@ -270,6 +342,14 @@ final class HealthKitWriter: HealthWriting {
             }
         }
 
+        let hrvMedian7d: Double? = {
+            let values = hrvWeek.map(\.value).sorted()
+            guard !values.isEmpty else { return nil }
+            return values[values.count / 2]
+        }()
+
+        let spo2Percent = spo2Fraction.map { $0 * 100.0 }
+
         let access: HealthDigestAccess = authorizationWasRequested ? .readable : .notRequested
         let detail: String = {
             if !authorizationWasRequested {
@@ -283,19 +363,43 @@ final class HealthKitWriter: HealthWriting {
             km7d: dist7m.map { $0 / 1000.0 }
         )
 
+        let recovery = HealthScienceMath.recoveryHeuristic(
+            sleepHours: sleepInfo.totalAsleepHours,
+            stages: sleepInfo.stages,
+            hrvSDNNMs: hrvV,
+            hrvMedian7dMs: hrvMedian7d,
+            restingHRBpm: restingV,
+            workoutCountLast24h: workoutN,
+            lastWorkoutDurationMinutes: workoutSummaries.first?.durationMinutes,
+            lastWorkoutKcal: workoutSummaries.first?.activeEnergyKcal
+        )
+
         let digest = FitnessDigest(
             stepsToday: stepsV,
             activeEnergyKcalToday: energyV,
+            appleExerciseMinutesToday: exerciseV,
             restingHeartRateBpm: restingV,
             latestHeartRateBpm: latestHRV,
             heartRateSampleCountToday: hrSamples.count,
-            sleepHoursLastNight: sleepInfo.hours,
+            hrvSDNNMs: hrvV,
+            hrvMedian7dMs: hrvMedian7d,
+            respiratoryRateBreathsPerMin: respiratoryV,
+            wristTemperatureDeltaC: wristTempV,
+            oxygenSaturationPercent: spo2Percent,
+            vo2MaxMlKgMin: vo2V,
+            sleepHoursLastNight: sleepInfo.totalAsleepHours,
             sleepOnset: sleepInfo.onset,
+            sleepWake: sleepInfo.wake,
+            sleepStages: sleepInfo.stages,
+            bedtimeConsistencyStdDevHours: sleepInfo.bedtimeConsistencyStdDevHours,
+            averageSleepHours7d: sleepInfo.averageAsleepHours7d,
+            sleepNightsSampled: sleepInfo.nightsSampled,
             preSleepAverageHRBpm: preSleepAvg,
             preSleepHRSampleCount: preSleepCount,
             workoutCountLast24h: workoutN,
             recentWorkouts: workoutSummaries,
             walkingRunningDistance: distanceSpike,
+            recovery: recovery,
             access: access,
             accessDetail: detail,
             generatedAt: now
@@ -444,11 +548,12 @@ final class HealthKitWriter: HealthWriting {
         return sum.doubleValue(for: .kilocalorie())
     }
 
-    private func sleepSummary(endingNear now: Date) async throws -> (hours: Double?, onset: Date?) {
+    private func sleepSnapshot(endingNear now: Date) async throws -> HealthSleepSnapshot {
         guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
             throw HealthKitWriterError.missingType("sleepAnalysis")
         }
-        let start = now.addingTimeInterval(-36 * 3600)
+        // ~8 days covers last night + 7-night consistency / average.
+        let start = now.addingTimeInterval(-8 * 86_400)
         let predicate = HKQuery.predicateForSamples(withStart: start, end: now, options: .strictStartDate)
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
         return try await withCheckedThrowingContinuation { continuation in
@@ -462,16 +567,11 @@ final class HealthKitWriter: HealthWriting {
                     continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
                     return
                 }
-                let cats = (samples as? [HKCategorySample] ?? []).filter { sample in
-                    Self.isAsleepValue(sample.value)
+                let mapped: [(value: Int, start: Date, end: Date)] = (samples as? [HKCategorySample] ?? []).map {
+                    (value: $0.value, start: $0.startDate, end: $0.endDate)
                 }
-                guard !cats.isEmpty else {
-                    continuation.resume(returning: (nil, nil))
-                    return
-                }
-                let onset = cats.map(\.startDate).min()
-                let seconds = cats.reduce(0.0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
-                continuation.resume(returning: (seconds / 3600.0, onset))
+                let snapshot = HealthScienceMath.buildSleepSnapshot(samples: mapped, now: now)
+                continuation.resume(returning: snapshot)
             }
             store.execute(query)
         }
@@ -601,17 +701,6 @@ final class HealthKitWriter: HealthWriting {
                 }
             }
         }
-    }
-
-    nonisolated private static func isAsleepValue(_ value: Int) -> Bool {
-        let asleepValues: Set<Int> = [
-            HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
-            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-            HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-            HKCategoryValueSleepAnalysis.asleepREM.rawValue,
-            1 // legacy HKCategoryValueSleepAnalysis.asleep
-        ]
-        return asleepValues.contains(value)
     }
 
     nonisolated private static func workoutActivityName(_ type: HKWorkoutActivityType) -> String {

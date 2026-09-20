@@ -398,6 +398,16 @@ enum HealthChartMath {
                 rateScale *= 0.9
                 notes.append("Short sleep; recovery-limited pace.")
             }
+            if let hrv = digest.hrvSDNNMs, let median = digest.hrvMedian7dMs, median > 0, hrv / median < 0.7 {
+                confidence *= 0.9
+                rateScale *= 0.92
+                notes.append("HRV SDNN below recent median; tempered pace slowed slightly.")
+            }
+            if let recovery = digest.recovery, recovery.band == .red {
+                confidence *= 0.85
+                rateScale *= 0.88
+                notes.append("Recovery heuristic in red band; tempered pace slowed.")
+            }
         }
 
         let towardLower = startKg > ideal + 0.05

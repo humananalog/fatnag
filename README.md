@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 2.7.3 (build 30) |
+| **Version** | 2.7.4 (build 31) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -50,9 +50,9 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - Chat habit facts on-device; optional Foundation Models extract pass
 
 ### Health monitoring
-- Fitness digest from HealthKit (HR, resting HR, steps, energy, sleep, workouts + last workout)
-- Coach chat refreshes digest on every ask (not only background jobs)
-- Local algorithms: pre-sleep HR, Watch-not-worn nudges
+- Fitness digest from HealthKit: HR, RHR, **HRV (SDNN)**, respiratory rate, wrist temperature, SpO2, VO2 max, sleep (+ stages / consistency when available), steps, energy, Exercise Time, workouts + distance
+- Coach chat refreshes a **dated** digest on every ask (never invents missing metrics)
+- Local algorithms: safe weight-rate caps (~0.5–1%/wk), pre-sleep HR (+ HRV), Watch-not-worn (HR vs steps/distance), transparent recovery/load band
 - Optional automated Grok checks on interval (best-effort `BGAppRefresh`)
 - Settings shows Health status + Allow Health access / Open Health
 

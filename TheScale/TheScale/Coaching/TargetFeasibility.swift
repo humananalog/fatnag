@@ -75,12 +75,20 @@ enum TargetFeasibility {
         return (bmi * m * m).rounded(toPlaces: 1)
     }
 
-    /// Max sustainable loss toward a lower target: ~0.5–1% body weight / week, capped at 1.0 kg/wk.
+    /// Max sustainable loss toward a lower target.
+    ///
+    /// **Rationale:** adult weight-management guidance commonly cites about
+    /// **0.5–1% of body weight per week** as a sustainable loss band for people
+    /// without specialized medical supervision (ACSM / obesity-medicine ballparks;
+    /// similar ranges appear in clinical lifestyle programs). We use ~0.7%/wk
+    /// (midpoint), then clamp to **0.25–1.0 kg/wk** so very light or heavy frames
+    /// stay in a sane absolute band. Educational feasibility only — not a prescription.
     static func maxSafeLossKgPerWeek(currentKg: Double) -> Double {
         let pct = max(currentKg, 40) * 0.007 // ~0.7%/wk midpoint of 0.5–1%
         return min(max(pct, 0.25), 1.0)
     }
 
+    /// Modest surplus for intentional gain: ~0.5%/wk, capped at 0.5 kg/wk.
     static func maxSafeGainKgPerWeek(currentKg: Double) -> Double {
         let pct = max(currentKg, 40) * 0.005
         return min(max(pct, 0.15), 0.5)

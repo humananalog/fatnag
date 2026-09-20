@@ -303,11 +303,26 @@ enum HealthDigestAccess: String, Equatable, Sendable {
 struct FitnessDigest: Equatable, Sendable {
     var stepsToday: Double?
     var activeEnergyKcalToday: Double?
+    var appleExerciseMinutesToday: Double?
     var restingHeartRateBpm: Double?
     var latestHeartRateBpm: Double?
     var heartRateSampleCountToday: Int
+    /// Latest overnight / recent HRV (SDNN) in milliseconds.
+    var hrvSDNNMs: Double?
+    /// Median HRV SDNN over ~7 days (ms), for relative recovery checks.
+    var hrvMedian7dMs: Double?
+    var respiratoryRateBreathsPerMin: Double?
+    /// Apple Watch sleeping wrist temperature delta (°C vs personal baseline) when present.
+    var wristTemperatureDeltaC: Double?
+    var oxygenSaturationPercent: Double?
+    var vo2MaxMlKgMin: Double?
     var sleepHoursLastNight: Double?
     var sleepOnset: Date?
+    var sleepWake: Date?
+    var sleepStages: SleepStageHours?
+    var bedtimeConsistencyStdDevHours: Double?
+    var averageSleepHours7d: Double?
+    var sleepNightsSampled: Int
     var preSleepAverageHRBpm: Double?
     var preSleepHRSampleCount: Int
     var workoutCountLast24h: Int
@@ -315,6 +330,8 @@ struct FitnessDigest: Equatable, Sendable {
     var recentWorkouts: [HealthWorkoutSummary]
     /// Walking/running distance totals (HealthKit quantity), even when no Workout exists.
     var walkingRunningDistance: HealthDistanceSpike?
+    /// Transparent recovery / load band (nil until computed).
+    var recovery: RecoveryLoadHeuristic?
     var access: HealthDigestAccess
     var accessDetail: String
     var generatedAt: Date
@@ -325,16 +342,29 @@ struct FitnessDigest: Equatable, Sendable {
     static let empty = FitnessDigest(
         stepsToday: nil,
         activeEnergyKcalToday: nil,
+        appleExerciseMinutesToday: nil,
         restingHeartRateBpm: nil,
         latestHeartRateBpm: nil,
         heartRateSampleCountToday: 0,
+        hrvSDNNMs: nil,
+        hrvMedian7dMs: nil,
+        respiratoryRateBreathsPerMin: nil,
+        wristTemperatureDeltaC: nil,
+        oxygenSaturationPercent: nil,
+        vo2MaxMlKgMin: nil,
         sleepHoursLastNight: nil,
         sleepOnset: nil,
+        sleepWake: nil,
+        sleepStages: nil,
+        bedtimeConsistencyStdDevHours: nil,
+        averageSleepHours7d: nil,
+        sleepNightsSampled: 0,
         preSleepAverageHRBpm: nil,
         preSleepHRSampleCount: 0,
         workoutCountLast24h: 0,
         recentWorkouts: [],
         walkingRunningDistance: nil,
+        recovery: nil,
         access: .notRequested,
         accessDetail: "Health digest not loaded yet.",
         generatedAt: Date()
@@ -359,9 +389,15 @@ struct FitnessDigest: Equatable, Sendable {
     var hasAnyFitnessSignal: Bool {
         (stepsToday ?? 0) > 0
             || (activeEnergyKcalToday ?? 0) > 0
+            || (appleExerciseMinutesToday ?? 0) > 0
             || restingHeartRateBpm != nil
             || latestHeartRateBpm != nil
             || heartRateSampleCountToday > 0
+            || hrvSDNNMs != nil
+            || respiratoryRateBreathsPerMin != nil
+            || wristTemperatureDeltaC != nil
+            || oxygenSaturationPercent != nil
+            || vo2MaxMlKgMin != nil
             || sleepHoursLastNight != nil
             || workoutCountLast24h > 0
             || !recentWorkouts.isEmpty
@@ -379,6 +415,13 @@ struct FitnessDigest: Equatable, Sendable {
         case .readFailed:
             return "Health read failed: \(accessDetail)"
         case .readable:
+            if let sleep = sleepHoursLastNight, let recovery, recovery.band != .unknown {
+                return String(
+                    format: "Sleep %.1f h last night · recovery %@ · tap Coach for full digest.",
+                    sleep,
+                    recovery.band.rawValue
+                )
+            }
             if let workout = lastWorkout {
                 return workout.promptLine()
             }
@@ -389,20 +432,23 @@ struct FitnessDigest: Equatable, Sendable {
                 )
             }
             if hasAnyFitnessSignal {
-                return "Health readable (steps/HR/sleep/distance present), but no Workouts in last 90 days. Enable Workouts + Distance for The Scale in Health, and turn on Health sync in third-party apps (AllTrails etc.)."
+                return "Health readable (steps/HR/HRV/sleep/distance present), but no Workouts in last 90 days. Enable Workouts + Distance + Sleep for The Scale in Health, and turn on Health sync in third-party apps (AllTrails etc.)."
             }
-            return "Health readable, but no steps / HR / sleep / workouts / distance found. Allow Workouts + Distance for The Scale in Health, wear Apple Watch, or sync third-party apps into Health."
+            return "Health readable, but no steps / HR / sleep / workouts / distance found. Allow Health types for The Scale, wear Apple Watch, or sync third-party apps into Health."
         }
     }
 
     func promptBlock(preSleepWindowMinutes: Int) -> String {
+        let iso = ISO8601DateFormatter()
+        let local = generatedAt.formatted(date: .abbreviated, time: .shortened)
         var lines = [
-            "Fitness digest (Apple Health / HealthKit only, on-device read):",
+            "Fitness digest snapshot (Apple Health / HealthKit only, on-device read):",
+            "Generated at: \(iso.string(from: generatedAt)) (local \(local))",
             "Access: \(access.rawValue)",
             "Access detail: \(accessDetail)"
         ]
         lines.append(
-            "Honesty rule for Coach: this digest is the only activity source. The Scale cannot read AllTrails, Strava, or other apps directly; only what those apps write into Apple Health. When Recent workouts lists real sessions (type, distance km, duration, kcal, source including third-party names), discuss those. If workouts are empty but walking/running distance shows a spike, say Health has distance without a Workout sample and suggest checking Health sync in the tracking app. Only claim total emptiness when workouts, distance, steps, HR, and sleep are all missing. Never invent a hike or workout."
+            "Honesty rule for Coach: this digest is the only activity / recovery source. Never invent missing metrics (sleep stages, HRV, SpO2, VO2, wrist temp, workouts). The Scale cannot read AllTrails, Strava, or other apps directly; only what those apps write into Apple Health. When Recent workouts lists real sessions (type, distance km, duration, kcal, source), discuss those. If workouts are empty but walking/running distance shows a spike, say Health has distance without a Workout sample. Only claim total emptiness when listed signals are all missing."
         )
 
         switch access {
@@ -423,6 +469,11 @@ struct FitnessDigest: Equatable, Sendable {
         } else {
             lines.append("Active energy today: missing")
         }
+        if let exercise = appleExerciseMinutesToday {
+            lines.append(String(format: "Apple Exercise Time today: %.0f min", exercise))
+        } else {
+            lines.append("Apple Exercise Time today: missing")
+        }
         if let rhr = restingHeartRateBpm {
             lines.append(String(format: "Resting HR: %.0f bpm", rhr))
         } else {
@@ -434,14 +485,81 @@ struct FitnessDigest: Equatable, Sendable {
             lines.append("Latest HR: missing")
         }
         lines.append("HR samples today: \(heartRateSampleCountToday)")
+        if let hrv = hrvSDNNMs {
+            lines.append(String(format: "HRV SDNN (recent): %.0f ms", hrv))
+        } else {
+            lines.append("HRV SDNN: missing")
+        }
+        if let median = hrvMedian7dMs {
+            lines.append(String(format: "HRV SDNN ~7d median: %.0f ms", median))
+        }
+        if let rr = respiratoryRateBreathsPerMin {
+            lines.append(String(format: "Respiratory rate: %.1f breaths/min", rr))
+        } else {
+            lines.append("Respiratory rate: missing")
+        }
+        if let temp = wristTemperatureDeltaC {
+            lines.append(String(format: "Sleeping wrist temperature delta: %+.2f C", temp))
+        } else {
+            lines.append("Sleeping wrist temperature: missing")
+        }
+        if let spo2 = oxygenSaturationPercent {
+            lines.append(String(format: "SpO2: %.1f%%", spo2))
+        } else {
+            lines.append("SpO2: missing")
+        }
+        if let vo2 = vo2MaxMlKgMin {
+            lines.append(String(format: "VO2 max: %.1f mL/kg/min", vo2))
+        } else {
+            lines.append("VO2 max: missing")
+        }
+
         if let sleep = sleepHoursLastNight {
-            lines.append(String(format: "Sleep last night: %.1f h", sleep))
+            lines.append(String(format: "Sleep last night (asleep): %.1f h", sleep))
         } else {
             lines.append("Sleep last night: missing")
         }
         if let onset = sleepOnset {
-            lines.append("Sleep onset: \(ISO8601DateFormatter().string(from: onset))")
+            lines.append("Sleep onset: \(iso.string(from: onset))")
         }
+        if let wake = sleepWake {
+            lines.append("Sleep wake: \(iso.string(from: wake))")
+        }
+        if let stages = sleepStages, stages.hasAnyStage {
+            lines.append("Sleep stages last night (hours, only stages Health recorded):")
+            if let core = stages.coreHours {
+                lines.append(String(format: "  Core: %.1f h", core))
+            }
+            if let deep = stages.deepHours {
+                lines.append(String(format: "  Deep: %.1f h", deep))
+            }
+            if let rem = stages.remHours {
+                lines.append(String(format: "  REM: %.1f h", rem))
+            }
+            if let awake = stages.awakeHours {
+                lines.append(String(format: "  Awake (in bed): %.1f h", awake))
+            }
+            if let unspecified = stages.unspecifiedAsleepHours {
+                lines.append(String(format: "  Asleep (unspecified/legacy): %.1f h", unspecified))
+            }
+        } else if sleepHoursLastNight != nil {
+            lines.append("Sleep stages: not broken out by Health (legacy asleep samples only).")
+        }
+        if let avg = averageSleepHours7d {
+            lines.append(
+                String(format: "Sleep ~7d average: %.1f h (%d nights)", avg, sleepNightsSampled)
+            )
+        }
+        if let consistency = bedtimeConsistencyStdDevHours {
+            lines.append(
+                String(
+                    format: "Bedtime consistency (onset std-dev): %.2f h over %d nights (lower is steadier)",
+                    consistency,
+                    sleepNightsSampled
+                )
+            )
+        }
+
         if let pre = preSleepAverageHRBpm {
             lines.append(
                 String(
@@ -454,6 +572,14 @@ struct FitnessDigest: Equatable, Sendable {
         } else if sleepOnset != nil {
             lines.append("Pre-sleep HR window: no samples (advise wearing Apple Watch to bed).")
         }
+
+        if let recovery {
+            lines.append(recovery.summaryLine)
+            for factor in recovery.factors.prefix(6) {
+                lines.append("  Recovery factor: \(factor)")
+            }
+        }
+
         lines.append("Workouts last 24h: \(workoutCountLast24h)")
         if recentWorkouts.isEmpty {
             lines.append(
@@ -473,7 +599,7 @@ struct FitnessDigest: Equatable, Sendable {
         }
         if !hasAnyFitnessSignal {
             lines.append(
-                "Samples: empty across steps/HR/sleep/workouts/distance. Tell the user to allow The Scale under Health → Data Access & Devices (Workouts + Distance), wear Apple Watch, sync third-party apps into Health, then ask again."
+                "Samples: empty across steps/HR/HRV/sleep/workouts/distance. Tell the user to allow The Scale under Health → Data Access & Devices, wear Apple Watch, sync third-party apps into Health, then ask again."
             )
         }
         return lines.joined(separator: "\n")
@@ -495,7 +621,10 @@ struct FitnessDigest: Equatable, Sendable {
                 d.isNotableSpike ? "yes" : "no"
             )
         }()
-        return "FitnessDigest access=\(access.rawValue) signals=\(hasAnyFitnessSignal) workouts24h=\(workoutCountLast24h) recent=\(recentWorkouts.count) \(workoutBits) \(distBits)"
+        let sleepBits = sleepHoursLastNight.map { String(format: "sleep=%.1fh", $0) } ?? "sleep=nil"
+        let hrvBits = hrvSDNNMs.map { String(format: "hrv=%.0fms", $0) } ?? "hrv=nil"
+        let recoveryBits = recovery.map { "recovery=\($0.band.rawValue)" } ?? "recovery=nil"
+        return "FitnessDigest access=\(access.rawValue) signals=\(hasAnyFitnessSignal) \(sleepBits) \(hrvBits) \(recoveryBits) workouts24h=\(workoutCountLast24h) recent=\(recentWorkouts.count) \(workoutBits) \(distBits)"
     }
 }
 
@@ -530,12 +659,15 @@ enum FitnessTriggerMonitor {
                     )
                 )
             } else if let avg = digest.preSleepAverageHRBpm {
-                let elevatedVsResting: Bool = {
-                    guard let rhr = digest.restingHeartRateBpm else { return false }
-                    return avg >= rhr + thresholds.preSleepHRAboveRestingBpm
-                }()
-                let elevatedAbsolute = avg >= thresholds.preSleepHRAbsoluteBpm
-                if elevatedVsResting || elevatedAbsolute {
+                let elevated = HealthScienceMath.isPreSleepHRElevated(
+                    averageBpm: avg,
+                    restingBpm: digest.restingHeartRateBpm,
+                    aboveRestingDelta: thresholds.preSleepHRAboveRestingBpm,
+                    absoluteFloorBpm: thresholds.preSleepHRAbsoluteBpm,
+                    hrvSDNNMs: digest.hrvSDNNMs,
+                    hrvMedian7dMs: digest.hrvMedian7dMs
+                )
+                if elevated {
                     triggers.append(
                         FitnessTrigger(
                             kind: .preSleepHRElevated,
@@ -551,14 +683,19 @@ enum FitnessTriggerMonitor {
             }
         }
 
-        let moved = (digest.stepsToday ?? 0) >= thresholds.watchWearMinSteps
-            || digest.workoutCountLast24h > 0
-            || (digest.activeEnergyKcalToday ?? 0) >= 150
-        if moved, digest.heartRateSampleCountToday < thresholds.watchWearMinHRSamples {
+        if HealthScienceMath.isWatchLikelyNotWorn(
+            stepsToday: digest.stepsToday,
+            workoutCountLast24h: digest.workoutCountLast24h,
+            activeEnergyKcalToday: digest.activeEnergyKcalToday,
+            distanceKmLast24h: digest.walkingRunningDistance?.distanceKmLast24h,
+            heartRateSampleCountToday: digest.heartRateSampleCountToday,
+            minSteps: thresholds.watchWearMinSteps,
+            minHRSamples: thresholds.watchWearMinHRSamples
+        ) {
             triggers.append(
                 FitnessTrigger(
                     kind: .watchLikelyNotWorn,
-                    message: "You moved today but HR samples are sparse. Apple Watch probably wasn't on (or wrist detection was off).",
+                    message: "You moved today (steps, distance, energy, or a workout) but HR samples are sparse. Apple Watch probably wasn't on (or wrist detection was off).",
                     severity: 2
                 )
             )

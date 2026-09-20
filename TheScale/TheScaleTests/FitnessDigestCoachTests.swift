@@ -144,4 +144,85 @@ final class FitnessDigestCoachTests: XCTestCase {
         let small = HealthDistanceSpike.from(km24h: 1.5, km7d: 4)
         XCTAssertEqual(small?.isNotableSpike, false)
     }
+
+    func testPromptBlockIncludesSleepHRVRecoveryAndDatedSnapshot() {
+        var digest = FitnessDigest.empty
+        digest.access = .readable
+        digest.accessDetail = "ok"
+        digest.generatedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        digest.sleepHoursLastNight = 7.2
+        digest.sleepOnset = Date(timeIntervalSince1970: 1_699_970_000)
+        digest.sleepWake = Date(timeIntervalSince1970: 1_699_996_000)
+        digest.sleepStages = SleepStageHours(
+            coreHours: 4.0,
+            deepHours: 1.1,
+            remHours: 1.5,
+            awakeHours: 0.4,
+            unspecifiedAsleepHours: nil
+        )
+        digest.bedtimeConsistencyStdDevHours = 0.45
+        digest.averageSleepHours7d = 7.0
+        digest.sleepNightsSampled = 5
+        digest.hrvSDNNMs = 42
+        digest.hrvMedian7dMs = 48
+        digest.restingHeartRateBpm = 58
+        digest.appleExerciseMinutesToday = 22
+        digest.respiratoryRateBreathsPerMin = 14.5
+        digest.oxygenSaturationPercent = 97.0
+        digest.vo2MaxMlKgMin = 38.5
+        digest.wristTemperatureDeltaC = 0.12
+        digest.recovery = HealthScienceMath.recoveryHeuristic(
+            sleepHours: 7.2,
+            stages: digest.sleepStages,
+            hrvSDNNMs: 42,
+            hrvMedian7dMs: 48,
+            restingHRBpm: 58,
+            workoutCountLast24h: 0,
+            lastWorkoutDurationMinutes: nil,
+            lastWorkoutKcal: nil
+        )
+
+        let block = digest.promptBlock(preSleepWindowMinutes: 30)
+        XCTAssertTrue(block.contains("Fitness digest snapshot"))
+        XCTAssertTrue(block.contains("Generated at:"))
+        XCTAssertTrue(block.contains("Sleep last night (asleep): 7.2 h"))
+        XCTAssertTrue(block.contains("Deep: 1.1 h"))
+        XCTAssertTrue(block.contains("REM: 1.5 h"))
+        XCTAssertTrue(block.contains("HRV SDNN (recent): 42 ms"))
+        XCTAssertTrue(block.contains("Apple Exercise Time today: 22 min"))
+        XCTAssertTrue(block.contains("SpO2: 97.0%"))
+        XCTAssertTrue(block.contains("VO2 max: 38.5"))
+        XCTAssertTrue(block.contains("Recovery heuristic:"))
+        XCTAssertTrue(block.contains("Never invent missing metrics"))
+        XCTAssertFalse(block.contains("\u{2014}"))
+    }
+
+    func testPromptBlockMarksMissingScienceMetrics() {
+        var digest = FitnessDigest.empty
+        digest.access = .readable
+        digest.stepsToday = 1_000
+        let block = digest.promptBlock(preSleepWindowMinutes: 30)
+        XCTAssertTrue(block.contains("HRV SDNN: missing"))
+        XCTAssertTrue(block.contains("Sleep last night: missing"))
+        XCTAssertTrue(block.contains("SpO2: missing"))
+        XCTAssertTrue(block.contains("VO2 max: missing"))
+    }
+
+    func testRouteSleepAndHRVKeywords() {
+        XCTAssertEqual(GrokClient.route(userText: "How was my sleep?"), .fitness)
+        XCTAssertEqual(GrokClient.route(userText: "what is my HRV today"), .fitness)
+        XCTAssertEqual(GrokClient.route(userText: "recovery after yesterday"), .fitness)
+    }
+
+    func testWatchNotWornTriggerUsesDistance() {
+        var digest = FitnessDigest.empty
+        digest.walkingRunningDistance = HealthDistanceSpike(
+            distanceKmLast24h: 6,
+            distanceKmLast7d: 10,
+            isNotableSpike: true
+        )
+        digest.heartRateSampleCountToday = 1
+        let triggers = FitnessTriggerMonitor.evaluate(digest: digest, thresholds: .default)
+        XCTAssertTrue(triggers.contains(where: { $0.kind == .watchLikelyNotWorn }))
+    }
 }
