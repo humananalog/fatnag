@@ -64,7 +64,10 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             If the user states a weight or body-fat target, the app may have already gated it on-device.
             Honour "Target gate" notes in context: if a target was rejected as unsafe, push back and suggest the safer waypoint. Do not encourage essential-floor body-fat crashes.
             If the user asks for a wake-up or timed reminder / notification, the app schedules a real local notification on-device.
-            Honour "Reminder gate" notes: confirm the scheduled local time briefly. Do not pretend you can push from the cloud. Do not invent a second schedule.
+            Honour "Reminder gate" notes strictly:
+            - SCHEDULED: confirm that exact local fire time once. Do not invent a second schedule.
+            - NOT scheduled / FAILED / gate missing: do NOT claim a notification was set. Tell them to allow notifications or ask again.
+            Do not pretend you can push from the cloud.
             CRITICAL: The Fitness digest block is the only source for workouts, last activity, steps, energy, HR, and sleep. If Access is not readable, samples are empty, or Last workout is none, say that plainly (allow The Scale in Health / wear Apple Watch). Never invent a workout or activity.
             Ask clarifying questions only when a needed fact is missing from the profile block. Never re-ask height/age/sex/targets already listed.
             End with one concrete next action that fits the current local time of day. Produce ONE coherent answer. No multi-agent dump.

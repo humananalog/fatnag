@@ -176,14 +176,17 @@ final class CoachChatController: ObservableObject {
 
         let reminderContext: String = {
             guard !reminderResults.isEmpty else { return "" }
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withInternetDateTime]
             let lines = reminderResults.map { r -> String in
+                let fireISO = fmt.string(from: r.request.fireAt)
                 switch r.status {
                 case .scheduled:
-                    return "Reminder SCHEDULED on-device: \(r.coachNote)"
+                    return "Reminder SCHEDULED on-device at \(fireISO): \(r.coachNote)"
                 case .denied:
-                    return "Reminder NOT scheduled (notifications denied): \(r.coachNote)"
+                    return "Reminder NOT scheduled (notifications denied) for \(fireISO): \(r.coachNote)"
                 case .failed:
-                    return "Reminder FAILED: \(r.coachNote)"
+                    return "Reminder FAILED for \(fireISO): \(r.coachNote)"
                 }
             }
             return "\n\nReminder gate (on-device, honour this):\n" + lines.joined(separator: "\n")

@@ -42,7 +42,7 @@ Requires eligible device + Apple Intelligence enabled + model ready.
 |-----|----|------|
 | Notification title/body polish | Prefer | No |
 | Ping noise filter (`shouldSendPing`) | Prefer (allow if FM off) | No |
-| Coach wake reminder copy | Prefer polish | Timing stays local notifications |
+| Coach wake reminder copy | Prefer polish **after** schedule | Timing stays local notifications; polish never blocks |
 | Private fitness digest summary when Grok offline | Prefer | - |
 | Memory fact extraction | Optional `@Generable` pass | Heuristic + Grok context when consented |
 | Full multi-agent Coach chat | No | Prefer when consent + live config |
@@ -64,5 +64,6 @@ Never appended to chat, Progress roast, or notifications. Client sanitizer strip
 2. Coach: consent, short ask → bubble streams (not one blob).
 3. `curl -s https://the-scale-grok.the-scale-grok.workers.dev` → ok + `stream: true`.
 4. FM: enable Apple Intelligence → Settings status ready → trigger alert / wake reminder.
+5. Coach reminders (2.7.2+): `remind me in 2 minutes` → exact local time in chat + Settings pending list → banner lands.
 
 See [health-and-notifications.md](health-and-notifications.md) for alert surfaces.

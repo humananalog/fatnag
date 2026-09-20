@@ -45,6 +45,7 @@
 		A1B2C3D4E5F60718293A001D /* TargetFeasibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A101D /* TargetFeasibility.swift */; };
 		A1B2C3D4E5F60718293A001E /* TargetFeasibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A101E /* TargetFeasibilityTests.swift */; };
 		A1B2C3D4E5F60718293A001F /* CoachReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A101F /* CoachReminderScheduler.swift */; };
+		A1B2C3D4E5F60718293A0025 /* ScaleNotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1025 /* ScaleNotificationDelegate.swift */; };
 		A1B2C3D4E5F60718293A0020 /* CoachReminderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1020 /* CoachReminderTests.swift */; };
 		A1B2C3D4E5F60718293A0021 /* FoundationModelAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1021 /* FoundationModelAvailability.swift */; };
 		A1B2C3D4E5F60718293A0022 /* FoundationModelCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1022 /* FoundationModelCoach.swift */; };
@@ -107,6 +108,7 @@
 		A1B2C3D4E5F60718293A101D /* TargetFeasibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetFeasibility.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A101E /* TargetFeasibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetFeasibilityTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A101F /* CoachReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachReminderScheduler.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1025 /* ScaleNotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleNotificationDelegate.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1020 /* CoachReminderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachReminderTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1021 /* FoundationModelAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelAvailability.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1022 /* FoundationModelCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelCoach.swift; sourceTree = "<group>"; };
@@ -279,6 +281,7 @@
 			children = (
 				A1B2C3D4E5F60718293A100F /* TrendNotificationScheduler.swift */,
 				A1B2C3D4E5F60718293A101F /* CoachReminderScheduler.swift */,
+				A1B2C3D4E5F60718293A1025 /* ScaleNotificationDelegate.swift */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -437,6 +440,7 @@
 				A1B2C3D4E5F60718293A001C /* CoachCopySanitize.swift in Sources */,
 				A1B2C3D4E5F60718293A001D /* TargetFeasibility.swift in Sources */,
 				A1B2C3D4E5F60718293A001F /* CoachReminderScheduler.swift in Sources */,
+				A1B2C3D4E5F60718293A0025 /* ScaleNotificationDelegate.swift in Sources */,
 				A1B2C3D4E5F60718293A0021 /* FoundationModelAvailability.swift in Sources */,
 				A1B2C3D4E5F60718293A0022 /* FoundationModelCoach.swift in Sources */,
 			);
@@ -458,11 +462,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 29;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.7.1;
+				MARKETING_VERSION = 2.7.2;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -499,7 +503,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 29;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -512,7 +516,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.7.1;
+				MARKETING_VERSION = 2.7.2;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -531,11 +535,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 29;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.7.1;
+				MARKETING_VERSION = 2.7.2;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -553,7 +557,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 29;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -566,7 +570,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.7.1;
+				MARKETING_VERSION = 2.7.2;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

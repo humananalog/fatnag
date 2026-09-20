@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 @main
 struct TheScaleApp: App {
@@ -6,6 +7,7 @@ struct TheScaleApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        UNUserNotificationCenter.current().delegate = ScaleNotificationDelegate.shared
         GrokFitnessMonitor.registerBackgroundTask()
     }
 

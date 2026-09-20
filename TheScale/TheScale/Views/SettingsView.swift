@@ -6,6 +6,8 @@ struct SettingsView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @FocusState private var focusedField: Field?
     @State private var confirmReset = false
+    @State private var notificationAuthLine = "Notifications: checking..."
+    @State private var pendingCoachReminders: [PendingCoachReminder] = []
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable {
@@ -28,6 +30,9 @@ struct SettingsView: View {
                 legalCard
             }
             .padding(20)
+        }
+        .task {
+            await refreshNotificationStatus()
         }
         .scrollDismissesKeyboard(.interactively)
         .background(
@@ -181,9 +186,35 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Notifications", systemImage: "bell.badge")
                 .font(.headline)
-            Text("Ping only when trends look bad, plus an optional Monday mini-goal nudge. On-device Foundation Models can sharpen copy and skip weak pings when Apple Intelligence is on.")
+            Text("Ping only when trends look bad, plus an optional Monday mini-goal nudge. Coach can also schedule one-shot local reminders (wake / timed). On-device Foundation Models can sharpen copy after the schedule lands; they never block delivery. Focus/DND can still silence banners.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+
+            Text(notificationAuthLine)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                Button {
+                    Task {
+                        _ = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
+                        await refreshNotificationStatus()
+                    }
+                } label: {
+                    Label("Request permission", systemImage: "bell")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    openNotificationSettings()
+                } label: {
+                    Label("System Settings", systemImage: "gear")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+
             Toggle(
                 "Bad-trend alerts",
                 isOn: Binding(
@@ -208,10 +239,67 @@ struct SettingsView: View {
                     }
                 )
             )
+
+            Text("Coach reminders")
+                .font(.caption.weight(.semibold))
+                .padding(.top, 4)
+
+            if pendingCoachReminders.isEmpty {
+                Text("No pending Coach reminders.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(pendingCoachReminders) { item in
+                    HStack(alignment: .top, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.title)
+                                .font(.caption.weight(.semibold))
+                            if let fire = item.nextFire {
+                                Text(fire.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(item.body)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 0)
+                        Button("Cancel") {
+                            CoachReminderScheduler.cancelCoachReminder(id: item.id)
+                            Task { await refreshNotificationStatus() }
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                Button("Cancel all Coach reminders") {
+                    Task {
+                        await CoachReminderScheduler.cancelAllCoachReminders()
+                        await refreshNotificationStatus()
+                    }
+                }
+                .font(.caption)
+                .buttonStyle(.bordered)
+            }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func refreshNotificationStatus() async {
+        notificationAuthLine = await CoachReminderScheduler.authorizationStatusLine()
+        pendingCoachReminders = await CoachReminderScheduler.listPendingCoachReminders()
+    }
+
+    private func openNotificationSettings() {
+        if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+            UIApplication.shared.open(url)
+        } else if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
     }
 
     private var fitnessMonitorCard: some View {
