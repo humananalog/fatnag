@@ -1,7 +1,61 @@
 import SwiftUI
 
+/// Slow-motion diffused haze behind the weekly-goal hero. Subtle, not noisy.
+struct WeeklyGoalHazeBackground: View {
+    let atmosphere: WeeklyGoalAtmosphere
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            let slow = t / 18.0
+            let x1 = CGFloat(sin(slow) * 0.12)
+            let y1 = CGFloat(cos(slow * 0.7) * 0.10)
+            let x2 = CGFloat(cos(slow * 0.55) * 0.14)
+            let y2 = CGFloat(sin(slow * 0.9) * 0.11)
+            let x3 = CGFloat(sin(slow * 0.4 + 1.2) * 0.10)
+            let y3 = CGFloat(cos(slow * 0.65 + 0.8) * 0.13)
+
+            ZStack {
+                LinearGradient(
+                    colors: [atmosphere.top, atmosphere.mid, atmosphere.bottom],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                Ellipse()
+                    .fill(atmosphere.hazeA)
+                    .frame(width: 340, height: 280)
+                    .blur(radius: 48)
+                    .offset(x: -80 + x1 * 160, y: -120 + y1 * 140)
+
+                Ellipse()
+                    .fill(atmosphere.hazeB)
+                    .frame(width: 380, height: 300)
+                    .blur(radius: 56)
+                    .offset(x: 90 + x2 * 150, y: 40 + y2 * 160)
+
+                Ellipse()
+                    .fill(atmosphere.hazeA.opacity(0.7))
+                    .frame(width: 260, height: 220)
+                    .blur(radius: 40)
+                    .offset(x: 20 + x3 * 120, y: 180 + y3 * 100)
+
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.28),
+                        Color.white.opacity(0.08),
+                        Color.white.opacity(0.18)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .ignoresSafeArea()
+        }
+    }
+}
+
 /// Home: one weekly-goal hero (% + track color + tomorrow advice + daily targets).
-/// Weigh-in / Coach stay one tap away; Progress opens from the % block.
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     #if DEBUG
@@ -19,13 +73,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [atmosphere.top, atmosphere.mid, atmosphere.bottom],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                .animation(.easeInOut(duration: 0.45), value: surface.band)
+                WeeklyGoalHazeBackground(atmosphere: atmosphere)
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
@@ -34,15 +82,26 @@ struct ContentView: View {
 
                         weeklyHero
                             .padding(.top, 18)
+                            .homeReadablePanel(atmosphere.panel)
 
                         tomorrowBlock
-                            .padding(.top, 22)
+                            .padding(.top, 16)
+                            .homeReadablePanel(atmosphere.panel)
+
+                        if let meals = surface.mealSuggestion {
+                            Text(meals)
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(atmosphere.ink)
+                                .padding(.top, 12)
+                                .homeReadablePanel(atmosphere.panel)
+                        }
 
                         targetsRow
-                            .padding(.top, 20)
+                            .padding(.top, 16)
+                            .homeReadablePanel(atmosphere.panel)
 
                         Text(surface.targets.honestyLine)
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .foregroundStyle(atmosphere.muted)
                             .padding(.top, 8)
 
@@ -82,7 +141,7 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "gearshape")
                             .font(.body.weight(.medium))
-                            .foregroundStyle(atmosphere.ink.opacity(0.85))
+                            .foregroundStyle(atmosphere.ink)
                     }
                     .accessibilityLabel("Settings")
                 }
@@ -183,7 +242,7 @@ struct ContentView: View {
                     .font(.system(size: 22, weight: .semibold, design: .serif))
                     .foregroundStyle(atmosphere.ink)
                 Text(greetingLine)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.muted)
             }
             Spacer(minLength: 0)
@@ -235,9 +294,9 @@ struct ContentView: View {
                             .foregroundStyle(atmosphere.ink)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(atmosphere.ink.opacity(0.10), in: Capsule())
+                            .background(atmosphere.ink.opacity(0.12), in: Capsule())
                         Text("of week goal")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
                             .foregroundStyle(atmosphere.muted)
                     }
                     Spacer(minLength: 0)
@@ -248,7 +307,7 @@ struct ContentView: View {
                     .foregroundStyle(atmosphere.ink)
 
                 Text(surface.detailLine)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -268,7 +327,7 @@ struct ContentView: View {
                 .tracking(0.8)
 
             Text(surface.tomorrowAdvice)
-                .font(.system(size: 22, weight: .semibold, design: .serif))
+                .font(.system(size: 21, weight: .semibold, design: .serif))
                 .foregroundStyle(atmosphere.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
@@ -299,7 +358,7 @@ struct ContentView: View {
 
     private var targetDivider: some View {
         Rectangle()
-            .fill(atmosphere.ink.opacity(0.12))
+            .fill(atmosphere.ink.opacity(0.14))
             .frame(width: 1)
             .padding(.vertical, 4)
     }
@@ -307,7 +366,7 @@ struct ContentView: View {
     private func targetCell(value: String, unit: String, caption: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(caption)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(atmosphere.muted)
             Text(value)
                 .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -316,7 +375,7 @@ struct ContentView: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.75)
             Text(unit)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(atmosphere.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -355,7 +414,7 @@ struct ContentView: View {
                     session.reopenWeighIn()
                 } label: {
                     Text("Weigh in")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
@@ -365,13 +424,13 @@ struct ContentView: View {
 
             if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
                 Text("Saved to Health")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.30))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.08, green: 0.36, blue: 0.24))
             }
 
             if !session.healthKitAvailable {
                 Text("Health unavailable on this device.")
-                    .font(.caption)
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(atmosphere.muted)
             }
         }
@@ -398,8 +457,8 @@ struct ContentView: View {
                 .tint(atmosphere.ink)
         case .bluetoothUnavailable(let message):
             Text(message)
-                .font(.footnote)
-                .foregroundStyle(Color(red: 0.55, green: 0.12, blue: 0.12))
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Color(red: 0.45, green: 0.08, blue: 0.08))
                 .multilineTextAlignment(.center)
                 .padding(.top, 12)
         default:
@@ -417,7 +476,7 @@ struct ContentView: View {
                                         .font(.system(size: 16, weight: .semibold, design: .rounded))
                                         .foregroundStyle(atmosphere.ink)
                                     Text("RSSI \(scale.rssi) dBm")
-                                        .font(.caption)
+                                        .font(.caption.weight(.semibold))
                                         .foregroundStyle(atmosphere.muted)
                                 }
                                 Spacer()
@@ -434,8 +493,18 @@ struct ContentView: View {
                     }
                 }
                 .padding(.top, 8)
+                .homeReadablePanel(atmosphere.panel)
             }
         }
+    }
+}
+
+private extension View {
+    func homeReadablePanel(_ fill: Color) -> some View {
+        self
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(fill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 

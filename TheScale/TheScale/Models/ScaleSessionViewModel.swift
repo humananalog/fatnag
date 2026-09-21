@@ -595,7 +595,8 @@ final class ScaleSessionViewModel: ObservableObject {
             weeklyGoal: weeklyGoal,
             currentKg: healthBaselineKg ?? displayWeightKg,
             profile: profile,
-            digest: lastFitnessDigest
+            digest: lastFitnessDigest,
+            recentWeights: recentHealthWeights
         )
     }
 
@@ -606,20 +607,41 @@ final class ScaleSessionViewModel: ObservableObject {
         let block = digest?.promptBlock(
             preSleepWindowMinutes: fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes
         ) ?? ""
-        guard !block.isEmpty, digest?.access == .readable else { return }
+        let energyLine = weeklyGoalSurface.energySnapshot?.summaryLine ?? ""
+        let meals = weeklyGoalSurface.mealSuggestion ?? ""
         let fallback = weeklyGoalSurface.tomorrowAdvice
-        let prompt = """
-            Rewrite this as ONE short punchy line for tomorrow (max 28 words).
-            Coach voice, call the user by name if present, no em dashes, no medical diagnosis, no disclaimer.
-            Keep the concrete numbers (steps / kcal / protein) when present.
-            Current line: \(fallback)
-            """
+        let overeating: Bool = {
+            if case .overeatingWhileActive = weeklyGoalSurface.energySnapshot?.diagnosis { return true }
+            return false
+        }()
+        let prompt: String
+        if overeating {
+            prompt = """
+                Rewrite as ONE blunt Coach line for tomorrow (max 36 words).
+                Name the user if present. No em dashes. No medical diagnosis. No disclaimer.
+                Lead with intake / get your act together, NOT a step target.
+                Keep the calorie cap number. Optionally weave one short meal idea from: \(meals)
+                Energy read: \(energyLine)
+                Current line: \(fallback)
+                """
+        } else {
+            prompt = """
+                Rewrite this as ONE short punchy line for tomorrow (max 28 words).
+                Coach voice, call the user by name if present, no em dashes, no medical diagnosis, no disclaimer.
+                Prefer calorie / protein / sleep fixes over inventing a new step goal when intake is the issue.
+                Current line: \(fallback)
+                Energy read: \(energyLine)
+                """
+        }
+        let digestBlock = block.isEmpty ? energyLine : (block + "\n" + energyLine)
+        guard !digestBlock.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || !fallback.isEmpty else { return }
         if let polished = await FoundationModelCoach.summarizeFitnessDigest(
             profileName: profile.greetingName,
-            digestBlock: prompt + "\n\n" + block
+            digestBlock: prompt + "\n\n" + digestBlock
         ) {
             let cleaned = CoachCopySanitize.clean(polished)
-            guard !cleaned.isEmpty, cleaned.count < 220 else { return }
+            guard !cleaned.isEmpty, cleaned.count < 280 else { return }
             var next = weeklyGoalSurface
             next.tomorrowAdvice = cleaned
             weeklyGoalSurface = next

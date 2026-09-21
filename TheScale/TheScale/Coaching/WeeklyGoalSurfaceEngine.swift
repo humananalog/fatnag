@@ -47,61 +47,86 @@ struct WeeklyGoalSurface: Equatable, Sendable {
     var weekTitle: String
     var detailLine: String
     var tomorrowAdvice: String
+    var mealSuggestion: String?
+    var energySnapshot: WeeklyEnergyBalanceSnapshot?
     var targets: DailyGoalTargets
     /// Fraction of ISO week elapsed (0...1), for pace math.
     var weekElapsedFraction: Double
     var expectedPaceFraction: Double
 }
 
-/// Atmosphere for the home weekly-goal hero (light, readable on iPhone 15).
+/// Atmosphere for the home weekly-goal hero.
+/// Soft pastel field + near-black ink so type stays readable on every band.
 struct WeeklyGoalAtmosphere: Equatable {
     let top: Color
     let mid: Color
     let bottom: Color
+    let hazeA: Color
+    let hazeB: Color
     let ink: Color
     let muted: Color
+    let panel: Color
+
+    /// Shared near-black for maximum contrast on pastel fields.
+    private static let deepInk = Color(red: 0.07, green: 0.08, blue: 0.10)
+    private static let deepMuted = Color(red: 0.18, green: 0.20, blue: 0.24)
 
     static func forBand(_ band: WeeklyTrackBand) -> WeeklyGoalAtmosphere {
         switch band {
         case .crushed:
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.72, green: 0.94, blue: 0.82),
-                mid: Color(red: 0.38, green: 0.78, blue: 0.58),
-                bottom: Color(red: 0.18, green: 0.52, blue: 0.38),
-                ink: Color(red: 0.06, green: 0.28, blue: 0.18),
-                muted: Color(red: 0.12, green: 0.36, blue: 0.26).opacity(0.78)
+                top: Color(red: 0.90, green: 0.97, blue: 0.92),
+                mid: Color(red: 0.72, green: 0.90, blue: 0.78),
+                bottom: Color(red: 0.55, green: 0.80, blue: 0.64),
+                hazeA: Color(red: 0.45, green: 0.78, blue: 0.58).opacity(0.35),
+                hazeB: Color(red: 0.70, green: 0.92, blue: 0.80).opacity(0.40),
+                ink: deepInk,
+                muted: deepMuted.opacity(0.88),
+                panel: Color.white.opacity(0.72)
             )
         case .ahead:
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.78, green: 0.92, blue: 0.88),
-                mid: Color(red: 0.48, green: 0.78, blue: 0.72),
-                bottom: Color(red: 0.28, green: 0.58, blue: 0.54),
-                ink: Color(red: 0.08, green: 0.30, blue: 0.28),
-                muted: Color(red: 0.14, green: 0.38, blue: 0.36).opacity(0.78)
+                top: Color(red: 0.90, green: 0.96, blue: 0.95),
+                mid: Color(red: 0.70, green: 0.88, blue: 0.86),
+                bottom: Color(red: 0.52, green: 0.76, blue: 0.74),
+                hazeA: Color(red: 0.40, green: 0.72, blue: 0.70).opacity(0.32),
+                hazeB: Color(red: 0.68, green: 0.90, blue: 0.88).opacity(0.38),
+                ink: deepInk,
+                muted: deepMuted.opacity(0.88),
+                panel: Color.white.opacity(0.72)
             )
         case .onTrack:
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.86, green: 0.93, blue: 0.98),
-                mid: Color(red: 0.58, green: 0.76, blue: 0.90),
-                bottom: Color(red: 0.34, green: 0.52, blue: 0.70),
-                ink: Color(red: 0.10, green: 0.20, blue: 0.34),
-                muted: Color(red: 0.16, green: 0.28, blue: 0.42).opacity(0.78)
+                top: Color(red: 0.92, green: 0.95, blue: 0.98),
+                mid: Color(red: 0.76, green: 0.86, blue: 0.94),
+                bottom: Color(red: 0.58, green: 0.72, blue: 0.86),
+                hazeA: Color(red: 0.42, green: 0.62, blue: 0.82).opacity(0.30),
+                hazeB: Color(red: 0.72, green: 0.84, blue: 0.94).opacity(0.40),
+                ink: deepInk,
+                muted: deepMuted.opacity(0.88),
+                panel: Color.white.opacity(0.74)
             )
         case .atRisk:
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.98, green: 0.88, blue: 0.82),
-                mid: Color(red: 0.94, green: 0.62, blue: 0.48),
-                bottom: Color(red: 0.78, green: 0.34, blue: 0.28),
-                ink: Color(red: 0.42, green: 0.12, blue: 0.10),
-                muted: Color(red: 0.48, green: 0.18, blue: 0.14).opacity(0.80)
+                top: Color(red: 0.99, green: 0.93, blue: 0.90),
+                mid: Color(red: 0.96, green: 0.78, blue: 0.70),
+                bottom: Color(red: 0.90, green: 0.58, blue: 0.50),
+                hazeA: Color(red: 0.88, green: 0.42, blue: 0.34).opacity(0.28),
+                hazeB: Color(red: 0.96, green: 0.72, blue: 0.62).opacity(0.36),
+                ink: deepInk,
+                muted: deepMuted.opacity(0.90),
+                panel: Color.white.opacity(0.76)
             )
         case .unknown:
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.92, green: 0.93, blue: 0.95),
-                mid: Color(red: 0.78, green: 0.82, blue: 0.86),
-                bottom: Color(red: 0.52, green: 0.56, blue: 0.62),
-                ink: Color(red: 0.12, green: 0.14, blue: 0.18),
-                muted: Color(red: 0.28, green: 0.32, blue: 0.38).opacity(0.80)
+                top: Color(red: 0.95, green: 0.96, blue: 0.97),
+                mid: Color(red: 0.86, green: 0.88, blue: 0.90),
+                bottom: Color(red: 0.72, green: 0.76, blue: 0.80),
+                hazeA: Color(red: 0.50, green: 0.56, blue: 0.62).opacity(0.28),
+                hazeB: Color(red: 0.78, green: 0.82, blue: 0.86).opacity(0.36),
+                ink: deepInk,
+                muted: deepMuted.opacity(0.88),
+                panel: Color.white.opacity(0.74)
             )
         }
     }
@@ -117,16 +142,17 @@ enum WeeklyGoalSurfaceEngine {
         currentKg: Double?,
         profile: UserBodyProfile,
         digest: FitnessDigest?,
+        recentWeights: [HealthWeightSample] = [],
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> WeeklyGoalSurface {
         let elapsed = weekElapsedFraction(now: now, calendar: calendar)
-        let expected = max(0.08, elapsed) // early week: tiny expected progress
+        let expected = max(0.08, elapsed)
         let rawFraction = weeklyGoal.progressFraction(currentKg: currentKg)
         let fraction = rawFraction ?? 0
         let percent = Int((min(max(fraction, 0), 1.2) * 100).rounded())
 
-        let band = trackBand(
+        var band = trackBand(
             progressFraction: rawFraction,
             expectedPace: expected,
             recovery: digest?.recovery?.band,
@@ -141,6 +167,25 @@ enum WeeklyGoalSurfaceEngine {
             band: band
         )
 
+        let energy = WeeklyEnergyBalanceEvaluator.evaluate(
+            profile: profile,
+            weeklyGoal: weeklyGoal,
+            currentKg: currentKg,
+            recentWeights: recentWeights,
+            digest: digest,
+            targetMaxKcal: targets.maxCalories,
+            now: now,
+            calendar: calendar
+        )
+
+        // Energy diagnosis can push at-risk when overeating while "on track" by kg pace alone.
+        if case .overeatingWhileActive = energy.diagnosis, band == .onTrack || band == .ahead {
+            band = .atRisk
+        }
+        if case .underMoving = energy.diagnosis, band == .onTrack {
+            band = .atRisk
+        }
+
         let detail: String = {
             if currentKg == nil || weeklyGoal.weekStartKg == nil {
                 return "Weigh in once to lock this week's baseline."
@@ -148,14 +193,31 @@ enum WeeklyGoalSurfaceEngine {
             return weeklyGoal.statusLine(currentKg: currentKg)
         }()
 
+        let meals = WeeklyEnergyBalanceEvaluator.mealSuggestion(
+            diet: profile.dietPreference,
+            maxKcal: targets.maxCalories,
+            proteinGrams: targets.proteinGrams
+        )
+
         let advice = tomorrowAdvice(
             name: profile.greetingName,
             band: band,
             weeklyGoal: weeklyGoal,
             targets: targets,
             digest: digest,
-            diet: profile.dietPreference
+            diet: profile.dietPreference,
+            energy: energy,
+            mealLine: meals
         )
+
+        let showMeals: String? = {
+            switch energy.diagnosis {
+            case .overeatingWhileActive, .underMoving:
+                return meals
+            default:
+                return nil
+            }
+        }()
 
         return WeeklyGoalSurface(
             completionPercent: percent,
@@ -163,6 +225,8 @@ enum WeeklyGoalSurfaceEngine {
             weekTitle: weeklyGoal.title,
             detailLine: detail,
             tomorrowAdvice: advice,
+            mealSuggestion: showMeals,
+            energySnapshot: energy,
             targets: targets,
             weekElapsedFraction: elapsed,
             expectedPaceFraction: expected
@@ -171,7 +235,6 @@ enum WeeklyGoalSurfaceEngine {
 
     // MARK: - Pace / band
 
-    /// Fraction of the ISO week already elapsed (Mon start → next Mon = 1.0).
     static func weekElapsedFraction(now: Date, calendar: Calendar = .current) -> Double {
         guard let interval = calendar.dateInterval(of: .weekOfYear, for: now) else { return 0.5 }
         let total = interval.end.timeIntervalSince(interval.start)
@@ -198,12 +261,11 @@ enum WeeklyGoalSurfaceEngine {
             band = .atRisk
         }
 
-        // Recovery / activity can tip the color without inventing progress.
         if recovery == .red, band == .onTrack || band == .ahead {
             band = .atRisk
         }
         if recovery == .red, band == .crushed {
-            band = .ahead // still winning the week, but body wants recovery
+            band = .ahead
         }
         if let steps = stepsToday, steps < 2500, expectedPace > 0.35, band == .onTrack {
             band = .atRisk
@@ -216,7 +278,6 @@ enum WeeklyGoalSurfaceEngine {
 
     // MARK: - Targets
 
-    /// Mifflin-St Jeor BMR (kcal/day). Coaching estimate only.
     static func mifflinBMR(profile: UserBodyProfile, weightKg: Double) -> Double {
         let w = max(40, weightKg)
         let h = max(120, profile.heightCm)
@@ -239,24 +300,18 @@ enum WeeklyGoalSurfaceEngine {
         let weight = currentKg ?? profile.idealWeightKg
         let bmr = mifflinBMR(profile: profile, weightKg: weight)
 
-        // Lightly active default; bump if Health shows meaningful movement.
-        var activity = 1.375
-        if let steps = digest?.stepsToday, steps >= 10_000 {
-            activity = 1.55
-        } else if let kcal = digest?.activeEnergyKcalToday, kcal >= 450 {
-            activity = 1.55
-        } else if digest?.workoutCountLast24h ?? 0 >= 1 {
-            activity = 1.45
-        }
-        let tdee = bmr * activity
+        // Prefer measured spend when Health has active energy.
+        let spend = WeeklyEnergyBalanceEvaluator.estimatedDailySpendKcal(
+            profile: profile,
+            weightKg: weight,
+            digest: digest
+        )
+        let tdee = spend
 
-        // Weekly kg target → daily energy budget. Negative delta = deficit.
         let dailyDeltaKcal = (weeklyDeltaKg * kcalPerKg) / 7.0
         var maxCal = tdee + dailyDeltaKcal
-        // Floor: don't prescribe crash diets.
         let floor = bmr * 1.15
         maxCal = max(floor, maxCal)
-        // Ceiling when gaining slowly.
         maxCal = min(tdee + 500, maxCal)
 
         var steps = 8_500
@@ -265,16 +320,13 @@ enum WeeklyGoalSurfaceEngine {
         if digest?.recovery?.band == .red {
             steps = min(steps, 7_000)
         }
-        if let today = digest?.stepsToday, today > Double(steps) {
-            // Nudge slightly above today's hit so the target stays aspirational.
-            steps = Int((today * 1.05).rounded())
-            steps = min(steps, 14_000)
+        // Don't inflate steps above what they already hit when intake is the issue.
+        if let today = digest?.stepsToday, today > Double(steps), today < 12_000 {
+            steps = Int(today.rounded())
         }
 
-        // Protein: ~1.6–1.8 g/kg current (higher on cut).
         let proteinPerKg = weeklyDeltaKg < -0.15 ? 1.8 : 1.6
         let protein = Int((weight * proteinPerKg).rounded())
-
         let micro = microPriority(profile: profile, weeklyDeltaKg: weeklyDeltaKg, diet: profile.dietPreference)
 
         return DailyGoalTargets(
@@ -313,25 +365,36 @@ enum WeeklyGoalSurfaceEngine {
         weeklyGoal: WeeklyMiniGoal,
         targets: DailyGoalTargets,
         digest: FitnessDigest?,
-        diet: DietPreference
+        diet: DietPreference,
+        energy: WeeklyEnergyBalanceSnapshot,
+        mealLine: String
     ) -> String {
         let who = name.isEmpty ? "Operator" : name
         let recovery = digest?.recovery?.band
         let sleep = digest?.sleepHoursLastNight
-        let steps = digest?.stepsToday
+
+        // Energy diagnosis wins over generic step pep talks.
+        switch energy.diagnosis {
+        case .overeatingWhileActive(let intake, let spend, let maxK, _, let obs, let days):
+            return "\(who), you're moving (~\(spend) kcal out) but the scale barely budged (\(String(format: "%+.2f", obs)) kg / \(String(format: "%.0f", days))d). That's intake (~\(intake) implied), not steps. Get your act together: under \(maxK) kcal tomorrow. \(mealLine)"
+        case .underMoving(_, let exp, let obs, _):
+            return "\(who), movement was soft and weight went \(String(format: "%+.2f", obs)) kg (wanted \(String(format: "%+.2f", exp))). Tomorrow: \(targets.steps) steps and under \(targets.maxCalories) kcal. \(mealLine)"
+        case .aheadOfEnergy, .onPace, .insufficientData:
+            break
+        }
 
         if recovery == .red {
-            return "\(who), recovery's in the red. Tomorrow: easy steps (~\(targets.steps)), protein \(targets.proteinGrams) g, early lights-out. Ego lifts can wait."
+            return "\(who), recovery's in the red. Tomorrow: easy day, protein \(targets.proteinGrams) g, early lights-out, stay under \(targets.maxCalories) kcal. Ego lifts can wait."
         }
         if let sleep, sleep < 6.0 {
-            return "\(who), \(String(format: "%.1f", sleep)) h sleep is thin. Tomorrow protect bedtime first, then hit \(targets.steps) steps under \(targets.maxCalories) kcal."
+            return "\(who), \(String(format: "%.1f", sleep)) h sleep is thin. Tomorrow protect bedtime first, then stay under \(targets.maxCalories) kcal with \(targets.proteinGrams) g protein."
         }
 
         switch band {
         case .crushed:
-            return "\(who), week already won. Tomorrow maintain: \(targets.steps) steps, protein \(targets.proteinGrams) g, stay under \(targets.maxCalories) kcal. Don't celebrate with chaos."
+            return "\(who), week already won. Tomorrow maintain under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. Don't celebrate with chaos."
         case .ahead:
-            return "\(who), you're ahead of pace. Tomorrow keep it boring: \(targets.proteinGrams) g protein, max \(targets.maxCalories) kcal, walk the \(targets.steps)."
+            return "\(who), you're ahead of pace. Tomorrow keep it boring: \(targets.proteinGrams) g protein, max \(targets.maxCalories) kcal."
         case .onTrack:
             let dietBit: String = {
                 switch diet {
@@ -341,14 +404,11 @@ enum WeeklyGoalSurfaceEngine {
                 case .omnivore, .other: return "Palm-size protein each meal."
                 }
             }()
-            return "\(who), on track for \(weeklyGoal.title). Tomorrow: \(targets.steps) steps, under \(targets.maxCalories) kcal. \(dietBit)"
+            return "\(who), on track for \(weeklyGoal.title). Tomorrow under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. \(dietBit)"
         case .atRisk:
-            if let steps, steps < 4000 {
-                return "\(who), steps were soft. Tomorrow crush \(targets.steps) and cap \(targets.maxCalories) kcal. \(targets.microName): \(targets.microTargetLine)."
-            }
-            return "\(who), pace is slipping. Tomorrow is the fix: \(targets.steps) steps, max \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. No heroics, just the number."
+            return "\(who), pace is slipping. Fix is the kitchen: max \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. \(mealLine)"
         case .unknown:
-            return "\(who), step on the scale once, then tomorrow is \(targets.steps) steps and under \(targets.maxCalories) kcal. Baseline first, vibes second."
+            return "\(who), step on the scale once, then tomorrow under \(targets.maxCalories) kcal. Baseline first, vibes second."
         }
     }
 }

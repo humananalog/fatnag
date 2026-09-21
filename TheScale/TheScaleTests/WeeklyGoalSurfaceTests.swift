@@ -130,6 +130,86 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         XCTAssertFalse(surface.tomorrowAdvice.lowercased().contains("diagnos"))
     }
 
+    func testOvereatingWhileActiveBeatsStepAdvice() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 25, hour: 9))!
+        var goal = WeeklyMiniGoal.default
+        goal.targetDeltaKg = -0.5
+        goal.weekStartKg = 84.0
+        goal.weekStartDate = cal.date(from: DateComponents(year: 2026, month: 9, day: 21))!
+        goal.title = "Nudge -0.5 kg this week"
+
+        var digest = FitnessDigest.empty
+        digest.access = .readable
+        digest.stepsToday = 9_200
+        digest.activeEnergyKcalToday = 520
+        digest.activeEnergyKcalLast7dAverage = 480
+
+        // Flat weight over 4 days while cutting → overeating if active.
+        let weights = [
+            HealthWeightSample(weightKg: 84.0, date: cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 8))!),
+            HealthWeightSample(weightKg: 84.05, date: cal.date(from: DateComponents(year: 2026, month: 9, day: 23, hour: 8))!),
+            HealthWeightSample(weightKg: 84.1, date: now)
+        ]
+
+        let surface = WeeklyGoalSurfaceEngine.build(
+            weeklyGoal: goal,
+            currentKg: 84.1,
+            profile: UserBodyProfile(displayName: "Alex", heightCm: 175, ageYears: 35, sex: .male),
+            digest: digest,
+            recentWeights: weights,
+            now: now,
+            calendar: cal
+        )
+
+        guard case .overeatingWhileActive = surface.energySnapshot?.diagnosis else {
+            return XCTFail("expected overeatingWhileActive, got \(String(describing: surface.energySnapshot?.diagnosis))")
+        }
+        XCTAssertEqual(surface.band, .atRisk)
+        XCTAssertTrue(surface.tomorrowAdvice.lowercased().contains("act together")
+                      || surface.tomorrowAdvice.lowercased().contains("intake"))
+        XCTAssertFalse(surface.tomorrowAdvice.contains("8600"))
+        XCTAssertNotNil(surface.mealSuggestion)
+        XCTAssertTrue(surface.mealSuggestion?.contains("kcal") == true)
+    }
+
+    func testUnderMovingWhenSoftActivityAndStall() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 25, hour: 9))!
+        var goal = WeeklyMiniGoal.default
+        goal.targetDeltaKg = -0.4
+        goal.weekStartKg = 90
+        goal.weekStartDate = cal.date(from: DateComponents(year: 2026, month: 9, day: 21))!
+
+        var digest = FitnessDigest.empty
+        digest.access = .readable
+        digest.stepsToday = 1_800
+        digest.activeEnergyKcalToday = 80
+        digest.activeEnergyKcalLast7dAverage = 90
+
+        let weights = [
+            HealthWeightSample(weightKg: 90.0, date: cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 8))!),
+            HealthWeightSample(weightKg: 90.1, date: now)
+        ]
+
+        let snap = WeeklyEnergyBalanceEvaluator.evaluate(
+            profile: .default,
+            weeklyGoal: goal,
+            currentKg: 90.1,
+            recentWeights: weights,
+            digest: digest,
+            targetMaxKcal: 2000,
+            now: now,
+            calendar: cal
+        )
+        guard case .underMoving = snap.diagnosis else {
+            return XCTFail("expected underMoving, got \(snap.diagnosis)")
+        }
+        XCTAssertFalse(snap.isMeaningfullyActive)
+    }
+
     func testUnknownBandWithoutBaseline() {
         let surface = WeeklyGoalSurfaceEngine.build(
             weeklyGoal: .default,

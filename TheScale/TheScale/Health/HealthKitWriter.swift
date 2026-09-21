@@ -225,6 +225,12 @@ final class HealthKitWriter: HealthWriting {
             from: dayStart,
             to: now
         )
+        async let energy7d = sumQuantity(
+            .activeEnergyBurned,
+            unit: .kilocalorie(),
+            from: last7d,
+            to: now
+        )
         async let exerciseMin = sumQuantity(
             .appleExerciseTime,
             unit: .minute(),
@@ -305,6 +311,7 @@ final class HealthKitWriter: HealthWriting {
         let (
             stepsV,
             energyV,
+            energy7dV,
             exerciseV,
             restingV,
             latestHRV,
@@ -321,7 +328,7 @@ final class HealthKitWriter: HealthWriting {
             dist24m,
             dist7m
         ) = try await (
-            steps, energy, exerciseMin, resting, latestHR, hrToday, hrvRecent, hrvWeekSamples,
+            steps, energy, energy7d, exerciseMin, resting, latestHR, hrToday, hrvRecent, hrvWeekSamples,
             respiratory, wristTemp, spo2, vo2, workouts, sleep, recent, dist24hMeters, dist7dMeters
         )
 
@@ -374,9 +381,15 @@ final class HealthKitWriter: HealthWriting {
             lastWorkoutKcal: workoutSummaries.first?.activeEnergyKcal
         )
 
+        let energy7dAvg: Double? = {
+            guard let total = energy7dV, total > 0 else { return nil }
+            return total / 7.0
+        }()
+
         let digest = FitnessDigest(
             stepsToday: stepsV,
             activeEnergyKcalToday: energyV,
+            activeEnergyKcalLast7dAverage: energy7dAvg,
             appleExerciseMinutesToday: exerciseV,
             restingHeartRateBpm: restingV,
             latestHeartRateBpm: latestHRV,

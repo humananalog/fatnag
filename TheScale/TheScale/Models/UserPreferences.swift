@@ -303,6 +303,8 @@ enum HealthDigestAccess: String, Equatable, Sendable {
 struct FitnessDigest: Equatable, Sendable {
     var stepsToday: Double?
     var activeEnergyKcalToday: Double?
+    /// Mean active energy (kcal/day) over the last ~7 days when Health has samples.
+    var activeEnergyKcalLast7dAverage: Double?
     var appleExerciseMinutesToday: Double?
     var restingHeartRateBpm: Double?
     var latestHeartRateBpm: Double?
@@ -342,6 +344,7 @@ struct FitnessDigest: Equatable, Sendable {
     static let empty = FitnessDigest(
         stepsToday: nil,
         activeEnergyKcalToday: nil,
+        activeEnergyKcalLast7dAverage: nil,
         appleExerciseMinutesToday: nil,
         restingHeartRateBpm: nil,
         latestHeartRateBpm: nil,
@@ -468,6 +471,11 @@ struct FitnessDigest: Equatable, Sendable {
             lines.append(String(format: "Active energy today: %.0f kcal", kcal))
         } else {
             lines.append("Active energy today: missing")
+        }
+        if let avg7 = activeEnergyKcalLast7dAverage {
+            lines.append(String(format: "Active energy ~7d avg: %.0f kcal/day", avg7))
+        } else {
+            lines.append("Active energy ~7d avg: missing")
         }
         if let exercise = appleExerciseMinutesToday {
             lines.append(String(format: "Apple Exercise Time today: %.0f min", exercise))
