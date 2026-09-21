@@ -4,6 +4,7 @@ import SwiftUI
 struct CoachChatView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @StateObject private var chat = CoachChatController()
+    @ObservedObject private var subscription = ScaleSubscriptionStore.shared
     @Environment(\.dismiss) private var dismiss
     @State private var showPrivacyGate = false
     @FocusState private var focused: Bool
@@ -48,6 +49,13 @@ struct CoachChatView: View {
         } message: {
             Text("Only this chat plus a short weight/fat/fitness digest go to the shared Grok backend. Memory stays on-device except the facts relevant to the ask. No per-user API key.")
         }
+        .sheet(isPresented: $chat.showPaywall) {
+            PaywallView(
+                lockMessage: chat.paywallLockMessage,
+                highlighted: chat.paywallHighlight
+            )
+            .environmentObject(session)
+        }
     }
 
     private func scrollToLatest(_ proxy: ScrollViewProxy) {
@@ -89,19 +97,21 @@ struct CoachChatView: View {
         if chat.isSending {
             return "Streaming…"
         }
+        let snap = subscription.quotaSnapshot
+        let quota = "\(snap.remaining)/\(snap.limit) wk"
         let fm = FoundationModelAvailability.shortLabel
         if GrokSharedConfig.isLiveConfigured {
             let mem = chat.rememberedCount
-            let base = mem > 0 ? "Grok · \(mem) memories" : "Grok · live"
-            return "\(base) · \(fm)"
+            let base = mem > 0 ? "Grok · \(mem) mem" : "Grok · live"
+            return "\(base) · \(quota) · \(fm)"
         }
-        return "Mock / offline · \(fm)"
+        return "Mock / offline · \(quota) · \(fm)"
     }
 
     private var privacyLine: some View {
         Text(
             GrokPrivacyConsent.isAccepted
-                ? "Consent on. Chat + compact Health digest + relevant memory only."
+                ? "Consent on. \(subscription.quotaSnapshot.statusLine). Chat + compact Health digest + relevant memory only."
                 : "Consent off until you agree (or stay offline)."
         )
         .font(.system(size: 12, weight: .medium, design: .rounded))
@@ -135,6 +145,11 @@ struct CoachChatView: View {
                             Text("ERROR")
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color.red.opacity(0.9))
+                        }
+                        if turn.isQuotaLock {
+                            Text("LIMIT")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color.orange.opacity(0.95))
                         }
                     }
                 }

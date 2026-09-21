@@ -66,6 +66,11 @@
 		A1B2C3D4E5F60718293A0032 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1032 /* PrivacyInfo.xcprivacy */; };
 		A1B2C3D4E5F60718293A0033 /* ScaleLegal.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1033 /* ScaleLegal.swift */; };
 		A1B2C3D4E5F60718293A0034 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1034 /* PrivacyPolicyView.swift */; };
+		A1B2C3D4E5F60718293A0035 /* ScalePlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1035 /* ScalePlan.swift */; };
+		A1B2C3D4E5F60718293A0036 /* CoachWeeklyQuota.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1036 /* CoachWeeklyQuota.swift */; };
+		A1B2C3D4E5F60718293A0037 /* ScaleSubscriptionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1037 /* ScaleSubscriptionStore.swift */; };
+		A1B2C3D4E5F60718293A0038 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1038 /* PaywallView.swift */; };
+		A1B2C3D4E5F60718293A0039 /* CoachQuotaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1039 /* CoachQuotaTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -144,6 +149,12 @@
 		A1B2C3D4E5F60718293A1031 /* ScaleNotificationContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleNotificationContentTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1033 /* ScaleLegal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleLegal.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1034 /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1035 /* ScalePlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScalePlan.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1036 /* CoachWeeklyQuota.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachWeeklyQuota.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1037 /* ScaleSubscriptionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleSubscriptionStore.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1038 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1039 /* CoachQuotaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachQuotaTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A103A /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -176,6 +187,7 @@
 				A1B2C3D4E5F60718293A1015 /* CoachChatView.swift */,
 				A1B2C3D4E5F60718293A1029 /* MondayWeeklyCardView.swift */,
 				A1B2C3D4E5F60718293A1034 /* PrivacyPolicyView.swift */,
+				A1B2C3D4E5F60718293A1038 /* PaywallView.swift */,
 				A1B2C3D4E5F60718293A1006 /* SettingsView.swift */,
 			);
 			path = Views;
@@ -205,6 +217,7 @@
 			children = (
 				A1B2C3D4E5F60718293A1017 /* TheScale.xcconfig */,
 				A1B2C3D4E5F60718293A1018 /* Secrets.example.xcconfig */,
+				A1B2C3D4E5F60718293A103A /* Products.storekit */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -283,6 +296,7 @@
 				A1B2C3D4E5F60718293A1027 /* HealthScienceMathTests.swift */,
 				A1B2C3D4E5F60718293A102A /* MondayCardTests.swift */,
 				A1B2C3D4E5F60718293A1031 /* ScaleNotificationContentTests.swift */,
+				A1B2C3D4E5F60718293A1039 /* CoachQuotaTests.swift */,
 			);
 			path = TheScaleTests;
 			sourceTree = "<group>";
@@ -312,6 +326,9 @@
 				A1B2C3D4E5F60718293A1022 /* FoundationModelCoach.swift */,
 				A1B2C3D4E5F60718293A1028 /* MondayCardEngine.swift */,
 				A1B2C3D4E5F60718293A1033 /* ScaleLegal.swift */,
+				A1B2C3D4E5F60718293A1035 /* ScalePlan.swift */,
+				A1B2C3D4E5F60718293A1036 /* CoachWeeklyQuota.swift */,
+				A1B2C3D4E5F60718293A1037 /* ScaleSubscriptionStore.swift */,
 			);
 			path = Coaching;
 			sourceTree = "<group>";
@@ -451,6 +468,7 @@
 				A1B2C3D4E5F60718293A0027 /* HealthScienceMathTests.swift in Sources */,
 				A1B2C3D4E5F60718293A002A /* MondayCardTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0031 /* ScaleNotificationContentTests.swift in Sources */,
+				A1B2C3D4E5F60718293A0039 /* CoachQuotaTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -503,6 +521,10 @@
 				A1B2C3D4E5F60718293A0030 /* HealthKitBackgroundDelivery.swift in Sources */,
 				A1B2C3D4E5F60718293A0033 /* ScaleLegal.swift in Sources */,
 				A1B2C3D4E5F60718293A0034 /* PrivacyPolicyView.swift in Sources */,
+				A1B2C3D4E5F60718293A0035 /* ScalePlan.swift in Sources */,
+				A1B2C3D4E5F60718293A0036 /* CoachWeeklyQuota.swift in Sources */,
+				A1B2C3D4E5F60718293A0037 /* ScaleSubscriptionStore.swift in Sources */,
+				A1B2C3D4E5F60718293A0038 /* PaywallView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -522,11 +544,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 35;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.9.1;
+				MARKETING_VERSION = 2.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -563,7 +585,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 35;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -576,7 +598,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.9.1;
+				MARKETING_VERSION = 2.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -595,11 +617,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 35;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.9.1;
+				MARKETING_VERSION = 2.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -617,7 +639,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 35;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -630,7 +652,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.9.1;
+				MARKETING_VERSION = 2.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

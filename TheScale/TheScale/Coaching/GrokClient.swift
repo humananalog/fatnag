@@ -141,19 +141,23 @@ struct CoachReply: Equatable, Sendable {
     let disclaimer: String
     /// When set, UI should treat this as a hard failure (not a witty offline mock).
     let failureReason: String?
+    /// Weekly Grok credit exhausted; UI should offer Plus / Pro unlock.
+    let isQuotaLock: Bool
 
     init(
         role: CoachAgentRole,
         text: String,
         usedNetwork: Bool,
         disclaimer: String = "",
-        failureReason: String? = nil
+        failureReason: String? = nil,
+        isQuotaLock: Bool = false
     ) {
         self.role = role
         self.text = CoachCopySanitize.clean(text)
         self.usedNetwork = usedNetwork
         self.disclaimer = disclaimer
         self.failureReason = failureReason
+        self.isQuotaLock = isQuotaLock
     }
 }
 
@@ -234,6 +238,9 @@ enum CoachOfflineFallback {
 actor GrokClient {
     static let shared = GrokClient()
 
+    /// Console live model (Human Analog). Keep off reasoning SKUs for COGS.
+    static let liveModel = "grok-4.20-non-reasoning"
+
     private let session: URLSession
     private let directEndpoint = URL(string: "https://api.x.ai/v1/chat/completions")!
 
@@ -300,10 +307,17 @@ actor GrokClient {
         role: CoachAgentRole = .orchestrator,
         userText: String,
         brief: CoachBrief,
-        history: [CoachChatTurn]
+        history: [CoachChatTurn],
+        quotaKind: CoachQuotaKind? = .chat
     ) async -> CoachReply {
         var final = CoachReply(role: .orchestrator, text: "", usedNetwork: false)
-        await chatStreaming(role: role, userText: userText, brief: brief, history: history) { reply in
+        await chatStreaming(
+            role: role,
+            userText: userText,
+            brief: brief,
+            history: history,
+            quotaKind: quotaKind
+        ) { reply in
             final = reply
         }
         return final
@@ -315,6 +329,7 @@ actor GrokClient {
         userText: String,
         brief: CoachBrief,
         history: [CoachChatTurn],
+        quotaKind: CoachQuotaKind? = .chat,
         onUpdate: @MainActor @Sendable (CoachReply) -> Void
     ) async {
         _ = role
@@ -342,6 +357,19 @@ actor GrokClient {
                     userText: userText,
                     brief: brief,
                     hint: GrokSharedConfig.ConfigurationIssue.missingProxyAndKey.userMessage
+                )
+            )
+            return
+        }
+
+        if let kind = quotaKind, let lock = await consumeQuota(kind) {
+            await onUpdate(
+                CoachReply(
+                    role: .orchestrator,
+                    text: lock,
+                    usedNetwork: false,
+                    failureReason: lock,
+                    isQuotaLock: true
                 )
             )
             return
@@ -380,7 +408,7 @@ actor GrokClient {
         }
 
         let body: [String: Any] = [
-            "model": "grok-3-mini",
+            "model": Self.liveModel,
             "temperature": 0.55,
             "max_tokens": 420,
             "stream": true,
@@ -424,7 +452,12 @@ actor GrokClient {
         Trigger: \(triggerSummary)
         Give one short coherent coaching answer. Ask a clarifying diet question only if needed.
         """
-        return await chat(userText: prompt, brief: brief, history: [])
+        return await chat(
+            userText: prompt,
+            brief: brief,
+            history: [],
+            quotaKind: .fitnessCheck
+        )
     }
 
     /// Monday post-weigh card: stream encouragement + meals + physics diagnostic.
@@ -453,6 +486,12 @@ actor GrokClient {
             return (offline.encouragement, offline.meals, offline.diagnostic, false)
         }
         guard let transport = resolveTransport() else {
+            await onUpdate(offline.encouragement, offline.meals, offline.diagnostic, "")
+            return (offline.encouragement, offline.meals, offline.diagnostic, false)
+        }
+
+        if let _ = await consumeQuota(.mondayCard) {
+            // Full card still shows via offline copy; unlock higher tier for live Grok rewrite.
             await onUpdate(offline.encouragement, offline.meals, offline.diagnostic, "")
             return (offline.encouragement, offline.meals, offline.diagnostic, false)
         }
@@ -490,7 +529,7 @@ actor GrokClient {
         """
 
         let body: [String: Any] = [
-            "model": "grok-3-mini",
+            "model": Self.liveModel,
             "temperature": 0.55,
             "max_tokens": 520,
             "stream": true,
@@ -576,8 +615,18 @@ actor GrokClient {
             return CoachOfflineFallback.reply(role: role, brief: brief)
         }
 
+        if let lock = await consumeQuota(.chat) {
+            return CoachReply(
+                role: role,
+                text: lock,
+                usedNetwork: false,
+                failureReason: lock,
+                isQuotaLock: true
+            )
+        }
+
         let body: [String: Any] = [
-            "model": "grok-3-mini",
+            "model": Self.liveModel,
             "temperature": 0.55,
             "max_tokens": 280,
             "messages": [
@@ -606,7 +655,7 @@ actor GrokClient {
         transport: Transport
     ) async throws -> String {
         let body: [String: Any] = [
-            "model": "grok-3-mini",
+            "model": Self.liveModel,
             "temperature": 0.6,
             "max_tokens": 180,
             "messages": [
@@ -630,6 +679,16 @@ actor GrokClient {
             return .direct(apiKey: key)
         }
         return nil
+    }
+
+    /// ISO-week credit burn. Returns lock copy when exhausted; nil when allowed (and increments).
+    private func consumeQuota(_ kind: CoachQuotaKind) async -> String? {
+        await MainActor.run {
+            let plan = ScaleSubscriptionStore.shared.plan
+            let lock = CoachWeeklyQuota.consume(kind, plan: plan)
+            ScaleSubscriptionStore.shared.noteQuotaChange()
+            return lock
+        }
     }
 
     private func makeRequest(body: [String: Any], transport: Transport, timeout: TimeInterval) throws -> URLRequest {

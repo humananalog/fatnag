@@ -13,6 +13,7 @@ struct CoachChatTurn: Identifiable, Equatable, Codable, Sendable {
     let usedNetwork: Bool
     let isFailure: Bool
     let isStreaming: Bool
+    let isQuotaLock: Bool
     let createdAt: Date
 
     init(
@@ -23,6 +24,7 @@ struct CoachChatTurn: Identifiable, Equatable, Codable, Sendable {
         usedNetwork: Bool = false,
         isFailure: Bool = false,
         isStreaming: Bool = false,
+        isQuotaLock: Bool = false,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -32,7 +34,25 @@ struct CoachChatTurn: Identifiable, Equatable, Codable, Sendable {
         self.usedNetwork = usedNetwork
         self.isFailure = isFailure
         self.isStreaming = isStreaming
+        self.isQuotaLock = isQuotaLock
         self.createdAt = createdAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, agent, text, usedNetwork, isFailure, isStreaming, isQuotaLock, createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        kind = try c.decode(Kind.self, forKey: .kind)
+        agent = try c.decodeIfPresent(CoachAgentRole.self, forKey: .agent)
+        text = try c.decode(String.self, forKey: .text)
+        usedNetwork = try c.decodeIfPresent(Bool.self, forKey: .usedNetwork) ?? false
+        isFailure = try c.decodeIfPresent(Bool.self, forKey: .isFailure) ?? false
+        isStreaming = try c.decodeIfPresent(Bool.self, forKey: .isStreaming) ?? false
+        isQuotaLock = try c.decodeIfPresent(Bool.self, forKey: .isQuotaLock) ?? false
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
     }
 }
 
@@ -72,6 +92,9 @@ final class CoachChatController: ObservableObject {
     @Published var draft = ""
     @Published private(set) var isSending = false
     @Published private(set) var rememberedCount = 0
+    @Published var showPaywall = false
+    @Published var paywallLockMessage: String?
+    @Published var paywallHighlight: ScalePlan = .plus
 
     func seedWelcome(name: String) {
         rememberedCount = CoachMemoryStore.load().count
@@ -241,8 +264,14 @@ final class CoachChatController: ObservableObject {
                 text: reply.text,
                 usedNetwork: reply.usedNetwork,
                 isFailure: reply.failureReason != nil,
-                isStreaming: true
+                isStreaming: true,
+                isQuotaLock: reply.isQuotaLock
             )
+            if reply.isQuotaLock {
+                self.paywallLockMessage = reply.text
+                self.paywallHighlight = ScaleSubscriptionStore.shared.plan.upgradeTarget ?? .plus
+                self.showPaywall = true
+            }
         }
 
         if let idx = turns.firstIndex(where: { $0.id == assistantID }) {
@@ -254,7 +283,8 @@ final class CoachChatController: ObservableObject {
                 text: finished.text,
                 usedNetwork: finished.usedNetwork,
                 isFailure: finished.isFailure,
-                isStreaming: false
+                isStreaming: false,
+                isQuotaLock: finished.isQuotaLock
             )
         }
         persist()

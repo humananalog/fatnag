@@ -29,6 +29,7 @@ struct TheScaleApp: App {
                 GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: session.fitnessMonitorPreferences)
                 GrokFitnessMonitor.scheduleBackgroundProcessing(prefs: session.fitnessMonitorPreferences)
                 Task {
+                    await ScaleSubscriptionStore.shared.refresh()
                     await GrokFitnessMonitor.scheduleIntervalNotification(
                         prefs: session.fitnessMonitorPreferences,
                         profileName: session.profile.greetingName

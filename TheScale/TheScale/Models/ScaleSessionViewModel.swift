@@ -743,8 +743,23 @@ final class ScaleSessionViewModel: ObservableObject {
                             brief: makeCoachBrief(digest: digest),
                             triggerSummary: triggerSummary
                         )
-                        lastFitnessCoachReply = reply.text
-                        GrokFitnessMonitor.storeLastReply(reply.text)
+                        if reply.isQuotaLock {
+                            if let fmSummary = await FoundationModelCoach.summarizeFitnessDigest(
+                                profileName: profile.greetingName,
+                                digestBlock: digest.promptBlock(
+                                    preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes
+                                ) + "\nTriggers: \(triggerSummary)\nNote: \(reply.text)"
+                            ) {
+                                lastFitnessCoachReply = fmSummary
+                                GrokFitnessMonitor.storeLastReply(fmSummary)
+                            } else if let top = triggers.first {
+                                lastFitnessCoachReply = top.message
+                                GrokFitnessMonitor.storeLastReply(top.message)
+                            }
+                        } else {
+                            lastFitnessCoachReply = reply.text
+                            GrokFitnessMonitor.storeLastReply(reply.text)
+                        }
                     } else if let fmSummary = await FoundationModelCoach.summarizeFitnessDigest(
                         profileName: profile.greetingName,
                         digestBlock: digest.promptBlock(

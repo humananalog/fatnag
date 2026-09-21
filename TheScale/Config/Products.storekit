@@ -1,0 +1,92 @@
+{
+  "identifier" : "A1B2C3D4E5F60718293ASTORE",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "A1B2C3D4E5F60718293AGROUP",
+      "localizations" : [
+        {
+          "description" : "Live Grok Coach weekly credits",
+          "displayName" : "The Scale Coach",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Coach",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A1B2C3D4E5F60718293APLUS",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "28 live Grok credits per week for active daily Coach.",
+              "displayName" : "Plus",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "app.thescale.ios.plus.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Plus Monthly",
+          "subscriptionGroupID" : "A1B2C3D4E5F60718293AGROUP",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "8.00",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "A1B2C3D4E5F60718293APROX",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "120 live Grok credits per week for heavy Coach use.",
+              "displayName" : "Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "app.thescale.ios.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pro Monthly",
+          "subscriptionGroupID" : "A1B2C3D4E5F60718293AGROUP",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

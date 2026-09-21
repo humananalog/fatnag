@@ -4,12 +4,14 @@ import UIKit
 /// Profile, notifications, Grok consent, calibration. Live capture uses the weigh-in sheet.
 struct SettingsView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
+    @ObservedObject private var subscription = ScaleSubscriptionStore.shared
     @FocusState private var focusedField: Field?
     @State private var confirmReset = false
     @State private var notificationAuthLine = "Notifications: checking..."
     @State private var pendingCoachReminders: [PendingCoachReminder] = []
     @State private var healthBackgroundLine = "Health background: checking..."
     @State private var samplePingNote: String?
+    @State private var showPaywall = false
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable {
@@ -22,6 +24,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 profileCard
+                planCard
                 personaCard
                 notificationsCard
                 fitnessMonitorCard
@@ -35,6 +38,14 @@ struct SettingsView: View {
         }
         .task {
             await refreshNotificationStatus()
+            await subscription.refresh()
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(
+                lockMessage: nil,
+                highlighted: subscription.plan.upgradeTarget ?? .plus
+            )
+            .environmentObject(session)
         }
         .scrollDismissesKeyboard(.interactively)
         .background(
@@ -64,6 +75,66 @@ struct SettingsView: View {
         } message: {
             Text("Removes the stored scale factor and offset. Your reference mass value is kept.")
         }
+    }
+
+    private var planCard: some View {
+        let snap = subscription.quotaSnapshot
+        return VStack(alignment: .leading, spacing: 12) {
+            Label("Coach plan", systemImage: "creditcard")
+                .font(.headline)
+            Text("Free, Plus ($2/mo), and Pro ($8/mo). Weigh-in, Health, charts, and on-device Coach stay unlimited. Live Grok uses a weekly credit pool that resets Monday.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            HStack {
+                Text(subscription.plan.displayName)
+                    .font(.title3.weight(.semibold))
+                Spacer()
+                Text(subscription.plan.priceLabel)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            Text(snap.statusLine)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(snap.isExhausted ? .orange : .secondary)
+            Text(subscription.plan.blurb)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Button {
+                showPaywall = true
+            } label: {
+                Label(
+                    subscription.plan == .pro ? "Manage plans" : "Unlock more Grok",
+                    systemImage: "arrow.up.circle"
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+
+            #if DEBUG
+            Picker(
+                "DEBUG plan override",
+                selection: Binding(
+                    get: { subscription.debugOverride ?? subscription.plan },
+                    set: { subscription.debugOverride = $0 }
+                )
+            ) {
+                ForEach(ScalePlan.allCases) { plan in
+                    Text(plan.displayName).tag(plan)
+                }
+            }
+            .pickerStyle(.segmented)
+            Button("DEBUG reset weekly quota") {
+                CoachWeeklyQuota.debugReset()
+                subscription.noteQuotaChange()
+            }
+            .font(.caption)
+            #endif
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var profileCard: some View {
