@@ -1,29 +1,62 @@
 import SwiftUI
 
-/// Home: sparse brand + scan + History + Progress. Profile / Grok consent / calibration in Settings.
+/// Home: one weekly-goal hero (% + track color + tomorrow advice + daily targets).
+/// Weigh-in / Coach stay one tap away; Progress opens from the % block.
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     #if DEBUG
     @State private var showDebugTools = false
     #endif
 
-    private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
-    private let steel = Color(red: 0.42, green: 0.45, blue: 0.50)
+    private var surface: WeeklyGoalSurface {
+        session.weeklyGoalSurface
+    }
+
+    private var atmosphere: WeeklyGoalAtmosphere {
+        WeeklyGoalAtmosphere.forBand(surface.band)
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                homeAtmosphere
-                VStack(spacing: 0) {
-                    Spacer(minLength: 12)
-                    brandBlock
-                    Spacer(minLength: 28)
-                    primaryActions
-                    discoveryBlock
-                    Spacer(minLength: 8)
+                LinearGradient(
+                    colors: [atmosphere.top, atmosphere.mid, atmosphere.bottom],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.45), value: surface.band)
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        brandRow
+                            .padding(.top, 4)
+
+                        weeklyHero
+                            .padding(.top, 18)
+
+                        tomorrowBlock
+                            .padding(.top, 22)
+
+                        targetsRow
+                            .padding(.top, 20)
+
+                        Text(surface.targets.honestyLine)
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(atmosphere.muted)
+                            .padding(.top, 8)
+
+                        primaryActions
+                            .padding(.top, 28)
+
+                        discoveryBlock
+                            .padding(.top, 12)
+
+                        Spacer(minLength: 24)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 16)
                 }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 20)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -49,7 +82,7 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "gearshape")
                             .font(.body.weight(.medium))
-                            .foregroundStyle(ink.opacity(0.85))
+                            .foregroundStyle(atmosphere.ink.opacity(0.85))
                     }
                     .accessibilityLabel("Settings")
                 }
@@ -120,8 +153,11 @@ struct ContentView: View {
                 }
             }
             .task {
+                session.ensureWeeklyGoalBaseline()
+                session.rebuildWeeklyGoalSurface()
                 await session.refreshHealthBaseline()
                 session.ensureWeeklyGoalBaseline()
+                await session.refreshWeeklyGoalSurface()
                 await session.refreshTrendNotifications()
                 ScaleNotificationRouter.openDestination = { destination in
                     session.handleNotificationDestination(destination)
@@ -134,57 +170,38 @@ struct ContentView: View {
         .preferredColorScheme(.light)
     }
 
-    private var homeAtmosphere: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.96, green: 0.97, blue: 0.98),
-                Color(red: 0.90, green: 0.92, blue: 0.94),
-                Color(red: 0.86, green: 0.88, blue: 0.90)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .ignoresSafeArea()
-    }
-
-    private var brandBlock: some View {
-        VStack(spacing: 18) {
+    private var brandRow: some View {
+        HStack(alignment: .center, spacing: 12) {
             Image("BrandMark")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 72, height: 72)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .shadow(color: ink.opacity(0.14), radius: 16, y: 6)
+                .frame(width: 40, height: 40)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            Text("The Scale")
-                .font(.system(size: 42, weight: .semibold, design: .serif))
-                .foregroundStyle(ink)
-                .tracking(-0.6)
-
-            Text(subtitleLine)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(steel)
-                .multilineTextAlignment(.center)
-
-            if let baseline = session.healthBaselineKg {
-                Text(String(format: "%.1f kg", baseline))
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(steel.opacity(0.9))
-                    .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("The Scale")
+                    .font(.system(size: 22, weight: .semibold, design: .serif))
+                    .foregroundStyle(atmosphere.ink)
+                Text(greetingLine)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(atmosphere.muted)
             }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(brandAccessibilityLabel)
     }
 
-    private var subtitleLine: String {
+    private var greetingLine: String {
         let name = session.profile.greetingName
-        if name.isEmpty {
-            return "Mi Scale 2 → Apple Health"
+        if let kg = session.healthBaselineKg {
+            if name.isEmpty {
+                return String(format: "%.1f kg · this week", kg)
+            }
+            return String(format: "%@ · %.1f kg", name, kg)
         }
-        return "Hey \(name). Mi Scale 2 → Apple Health"
+        if name.isEmpty { return "Weekly goal" }
+        return "\(name) · weekly goal"
     }
 
     private var brandAccessibilityLabel: String {
@@ -199,8 +216,116 @@ struct ContentView: View {
         return "The Scale. Hello \(name)."
     }
 
+    private var weeklyHero: some View {
+        Button {
+            session.presentProgress()
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text("\(surface.completionPercent)%")
+                        .font(.system(size: 72, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(atmosphere.ink)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(surface.band.statusLabel)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(atmosphere.ink)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(atmosphere.ink.opacity(0.10), in: Capsule())
+                        Text("of week goal")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(atmosphere.muted)
+                    }
+                    Spacer(minLength: 0)
+                }
+
+                Text(surface.weekTitle)
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.ink)
+
+                Text(surface.detailLine)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(atmosphere.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens Progress")
+    }
+
+    private var tomorrowBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Tomorrow")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(atmosphere.muted)
+                .textCase(.uppercase)
+                .tracking(0.8)
+
+            Text(surface.tomorrowAdvice)
+                .font(.system(size: 22, weight: .semibold, design: .serif))
+                .foregroundStyle(atmosphere.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineSpacing(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var targetsRow: some View {
+        let t = surface.targets
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 0) {
+                targetCell(value: "\(t.steps)", unit: "steps", caption: "Target")
+                targetDivider
+                targetCell(value: "\(t.maxCalories)", unit: "kcal", caption: "Max")
+            }
+            HStack(alignment: .top, spacing: 0) {
+                targetCell(value: "\(t.proteinGrams) g", unit: t.proteinLabel, caption: "Hit")
+                targetDivider
+                targetCell(value: t.microName, unit: t.microTargetLine, caption: "Micro")
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "Targets. \(t.steps) steps. Max \(t.maxCalories) calories. Protein \(t.proteinGrams) grams. \(t.microName) \(t.microTargetLine). \(t.honestyLine)."
+        )
+    }
+
+    private var targetDivider: some View {
+        Rectangle()
+            .fill(atmosphere.ink.opacity(0.12))
+            .frame(width: 1)
+            .padding(.vertical, 4)
+    }
+
+    private func targetCell(value: String, unit: String, caption: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(caption)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(atmosphere.muted)
+            Text(value)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(atmosphere.ink)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+            Text(unit)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(atmosphere.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
+    }
+
     private var primaryActions: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             Button {
                 session.startScanning()
             } label: {
@@ -210,53 +335,20 @@ struct ContentView: View {
                     .padding(.vertical, 4)
             }
             .buttonStyle(.borderedProminent)
-            .tint(ink)
+            .tint(atmosphere.ink)
             .disabled(session.phase == .scanning || session.phase == .healthKitWriting)
 
-            Button {
-                session.reopenResults()
-            } label: {
-                Label("History", systemImage: "chart.xyaxis.line")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 2)
+            HStack(spacing: 8) {
+                homeSecondaryButton(title: "Coach", systemImage: "sparkles") {
+                    session.presentCoach()
+                }
+                homeSecondaryButton(title: "History", systemImage: "chart.xyaxis.line") {
+                    session.reopenResults()
+                }
+                homeSecondaryButton(title: "Manual", systemImage: "pencil.line") {
+                    session.presentManualEntry()
+                }
             }
-            .buttonStyle(.bordered)
-            .tint(ink)
-
-            Button {
-                session.presentProgress()
-            } label: {
-                Label("Progress", systemImage: "flag.checkered")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 2)
-            }
-            .buttonStyle(.bordered)
-            .tint(ink)
-
-            Button {
-                session.presentCoach()
-            } label: {
-                Label("Coach", systemImage: "sparkles")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 2)
-            }
-            .buttonStyle(.bordered)
-            .tint(ink)
-
-            Button {
-                session.presentManualEntry()
-            } label: {
-                Label("Manual", systemImage: "pencil.line")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 2)
-            }
-            .buttonStyle(.bordered)
-            .tint(ink)
-            .accessibilityHint("Log weight without the scale")
 
             if session.selectedScaleID != nil {
                 Button {
@@ -267,22 +359,34 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(steel)
-                .padding(.top, 4)
+                .foregroundStyle(atmosphere.muted)
+                .padding(.top, 2)
             }
 
             if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
                 Text("Saved to Health")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color(red: 0.18, green: 0.48, blue: 0.34))
+                    .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.30))
             }
 
             if !session.healthKitAvailable {
                 Text("Health unavailable on this device.")
                     .font(.caption)
-                    .foregroundStyle(steel)
+                    .foregroundStyle(atmosphere.muted)
             }
         }
+    }
+
+    private func homeSecondaryButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .labelStyle(.titleAndIcon)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 2)
+        }
+        .buttonStyle(.bordered)
+        .tint(atmosphere.ink)
     }
 
     @ViewBuilder
@@ -290,14 +394,14 @@ struct ContentView: View {
         switch session.phase {
         case .scanning where session.discoveredScales.isEmpty:
             ProgressView()
-                .padding(.top, 28)
-                .tint(ink)
+                .padding(.top, 16)
+                .tint(atmosphere.ink)
         case .bluetoothUnavailable(let message):
             Text(message)
                 .font(.footnote)
                 .foregroundStyle(Color(red: 0.55, green: 0.12, blue: 0.12))
                 .multilineTextAlignment(.center)
-                .padding(.top, 24)
+                .padding(.top, 12)
         default:
             if session.discoveredScales.isEmpty {
                 EmptyView()
@@ -311,15 +415,15 @@ struct ContentView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(scale.name)
                                         .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(ink)
+                                        .foregroundStyle(atmosphere.ink)
                                     Text("RSSI \(scale.rssi) dBm")
                                         .font(.caption)
-                                        .foregroundStyle(steel)
+                                        .foregroundStyle(atmosphere.muted)
                                 }
                                 Spacer()
                                 if session.selectedScaleID == scale.id {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(ink)
+                                        .foregroundStyle(atmosphere.ink)
                                 }
                             }
                             .padding(.vertical, 14)
@@ -329,7 +433,7 @@ struct ContentView: View {
                         }
                     }
                 }
-                .padding(.top, 28)
+                .padding(.top, 8)
             }
         }
     }

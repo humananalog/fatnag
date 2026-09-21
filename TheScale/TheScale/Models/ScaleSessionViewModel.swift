@@ -51,7 +51,9 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Normal weigh-in vs on-sheet calibration (same live sheet).
     @Published private(set) var weighInPurpose: WeighInPurpose = .normal
     @Published private(set) var recentHealthWeights: [HealthWeightSample] = []
-    @Published private(set) var healthBaselineKg: Double?
+    @Published private(set) var healthBaselineKg: Double? {
+        didSet { rebuildWeeklyGoalSurface() }
+    }
     /// Chart series for the post-save history screen (oldest → newest).
     @Published private(set) var historyWeights: [HealthMetricSample] = []
     @Published private(set) var historyBodyFatPercents: [HealthMetricSample] = []
@@ -62,7 +64,10 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var draft: EditableMeasurementDraft?
     @Published var isEditingDraft = false
     @Published var profile: UserBodyProfile {
-        didSet { UserProfileStore.save(profile) }
+        didSet {
+            UserProfileStore.save(profile)
+            rebuildWeeklyGoalSurface()
+        }
     }
     @Published var calibration: ScaleCalibration {
         didSet { ScaleCalibrationStore.save(calibration) }
@@ -87,8 +92,18 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
     @Published var weeklyGoal: WeeklyMiniGoal {
-        didSet { WeeklyMiniGoalStore.save(weeklyGoal) }
+        didSet {
+            WeeklyMiniGoalStore.save(weeklyGoal)
+            rebuildWeeklyGoalSurface()
+        }
     }
+    /// Home weekly-goal hero snapshot (progress %, track band, tomorrow advice, daily targets).
+    @Published private(set) var weeklyGoalSurface: WeeklyGoalSurface = WeeklyGoalSurfaceEngine.build(
+        weeklyGoal: .default,
+        currentKg: nil,
+        profile: .default,
+        digest: nil
+    )
     @Published var hasCompletedOnboarding: Bool {
         didSet { OnboardingStore.hasCompleted = hasCompletedOnboarding }
     }
@@ -104,7 +119,9 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var mondayCardStreamEncouragement = ""
     @Published private(set) var mondayCardStreamMeals = ""
     @Published private(set) var mondayCardStreamDiagnostic = ""
-    @Published private(set) var lastFitnessDigest: FitnessDigest?
+    @Published private(set) var lastFitnessDigest: FitnessDigest? {
+        didSet { rebuildWeeklyGoalSurface() }
+    }
     @Published private(set) var lastFitnessCoachReply: String?
     @Published private(set) var lastFitnessTriggers: [FitnessTrigger] = []
     /// Settings + Coach honesty line for Apple Health read status.
@@ -139,6 +156,7 @@ final class ScaleSessionViewModel: ObservableObject {
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.scanner.delegate = self
         self.lastFitnessCoachReply = GrokFitnessMonitor.loadLastReply()
+        rebuildWeeklyGoalSurface()
         GrokFitnessMonitor.install { [weak self] force in
             guard let self else { return false }
             return await self.runBackgroundHealthWake(
@@ -540,7 +558,10 @@ final class ScaleSessionViewModel: ObservableObject {
 
     /// Lock ISO-week baseline from the latest Health weight when missing or stale.
     func ensureWeeklyGoalBaseline() {
-        guard let baseline = healthBaselineKg else { return }
+        guard let baseline = healthBaselineKg else {
+            rebuildWeeklyGoalSurface()
+            return
+        }
         var next = weeklyGoal
         let cal = Calendar.current
         let weekStart = cal.dateInterval(of: .weekOfYear, for: Date())?.start
@@ -555,6 +576,53 @@ final class ScaleSessionViewModel: ObservableObject {
             next.weekStartKg = baseline
             next.weekStartDate = weekStart
             weeklyGoal = next
+            return
+        }
+        rebuildWeeklyGoalSurface()
+    }
+
+    /// Refresh Health digest + rebuild the home weekly-goal hero.
+    @discardableResult
+    func refreshWeeklyGoalSurface() async -> WeeklyGoalSurface {
+        _ = await refreshFitnessDigestForCoach()
+        rebuildWeeklyGoalSurface()
+        await polishTomorrowAdviceIfAvailable()
+        return weeklyGoalSurface
+    }
+
+    func rebuildWeeklyGoalSurface() {
+        weeklyGoalSurface = WeeklyGoalSurfaceEngine.build(
+            weeklyGoal: weeklyGoal,
+            currentKg: healthBaselineKg ?? displayWeightKg,
+            profile: profile,
+            digest: lastFitnessDigest
+        )
+    }
+
+    /// Optional on-device FM polish for the tomorrow line (never required).
+    private func polishTomorrowAdviceIfAvailable() async {
+        guard FoundationModelAvailability.isAvailable else { return }
+        let digest = lastFitnessDigest
+        let block = digest?.promptBlock(
+            preSleepWindowMinutes: fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes
+        ) ?? ""
+        guard !block.isEmpty, digest?.access == .readable else { return }
+        let fallback = weeklyGoalSurface.tomorrowAdvice
+        let prompt = """
+            Rewrite this as ONE short punchy line for tomorrow (max 28 words).
+            Coach voice, call the user by name if present, no em dashes, no medical diagnosis, no disclaimer.
+            Keep the concrete numbers (steps / kcal / protein) when present.
+            Current line: \(fallback)
+            """
+        if let polished = await FoundationModelCoach.summarizeFitnessDigest(
+            profileName: profile.greetingName,
+            digestBlock: prompt + "\n\n" + block
+        ) {
+            let cleaned = CoachCopySanitize.clean(polished)
+            guard !cleaned.isEmpty, cleaned.count < 220 else { return }
+            var next = weeklyGoalSurface
+            next.tomorrowAdvice = cleaned
+            weeklyGoalSurface = next
         }
     }
 
