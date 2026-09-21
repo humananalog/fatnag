@@ -34,9 +34,10 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .medical:
             return """
-            You are the medical specialist for The Scale, a privacy-first Mi Scale → Apple Health app.
+            You are the health-context specialist for The Scale, a privacy-first Mi Scale → Apple Health app.
             \(Self.voiceRules)
             Prefer trends over single weigh-ins. Be honest when data is thin.
+            You are not a clinician and must not diagnose. Fitness guidance only.
             """
         case .fitness:
             return """
@@ -467,10 +468,10 @@ actor GrokClient {
         (Practical week meal pattern for their diet / IF / persona / Health context. Not a novel. Instructor pattern.)
 
         ===DIAGNOSTIC===
-        (Full diagnostic instructor. Physics / energy-balance / plausible weekly weight-loss rates from the numbers.
+        (Energy-balance instructor block. Physics / plausible weekly weight-loss rates from the numbers.
         How to hit Sunday \(String(format: "%.2f", sundayGoal.targetKg)) kg on \(sundayLabel).
         Use last-week progress + Fitness digest only. Never invent missing Health samples.
-        No medical disclaimer. No soft safety lecture. Be direct about what the numbers imply.)
+        Do not diagnose medical conditions. Fitness coaching only. No disclaimer lecture.)
 
         Local progress summary: \(progress.summaryLine)
         Adherence: \(progress.adherenceLine)
@@ -482,7 +483,8 @@ actor GrokClient {
         let system = """
         You are the Monday weigh-in instructor for The Scale.
         \(CoachAgentRole.orchestrator.systemPrompt)
-        This card is a direct coaching brief. Do NOT append medical disclaimers.
+        This card is a direct coaching brief. Fitness guidance only. You are not a clinician and must not diagnose.
+        Do NOT append medical disclaimers.
         Do NOT soft-pedal with generic safety caps. Talk energy balance and weekly rates from the data.
         Still never invent HealthKit samples that are missing.
         """

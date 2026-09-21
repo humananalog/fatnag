@@ -63,6 +63,9 @@
 		A1B2C3D4E5F60718293A002F /* ScaleAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A102F /* ScaleAppIntents.swift */; };
 		A1B2C3D4E5F60718293A0030 /* HealthKitBackgroundDelivery.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1030 /* HealthKitBackgroundDelivery.swift */; };
 		A1B2C3D4E5F60718293A0031 /* ScaleNotificationContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1031 /* ScaleNotificationContentTests.swift */; };
+		A1B2C3D4E5F60718293A0032 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1032 /* PrivacyInfo.xcprivacy */; };
+		A1B2C3D4E5F60718293A0033 /* ScaleLegal.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1033 /* ScaleLegal.swift */; };
+		A1B2C3D4E5F60718293A0034 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1034 /* PrivacyPolicyView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +90,7 @@
 		A35B878F26684D38829349F0 /* TheScaleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TheScaleApp.swift; sourceTree = "<group>"; };
 		AC8BB567BC5A469595541B70 /* CoreBluetoothScaleScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBluetoothScaleScanner.swift; sourceTree = "<group>"; };
 		D6A9DA851C404433ACD94ECA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1032 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		D9E034D719C949FFB23C0620 /* MiScale2FrameDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiScale2FrameDecoder.swift; sourceTree = "<group>"; };
 		DD9268209C7548B6B832E710 /* HealthKitWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitWriter.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1026 /* HealthScienceMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthScienceMath.swift; sourceTree = "<group>"; };
@@ -138,6 +142,8 @@
 		A1B2C3D4E5F60718293A102F /* ScaleAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleAppIntents.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1030 /* HealthKitBackgroundDelivery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitBackgroundDelivery.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1031 /* ScaleNotificationContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleNotificationContentTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1033 /* ScaleLegal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleLegal.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1034 /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyPolicyView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -169,6 +175,7 @@
 				A1B2C3D4E5F60718293A1011 /* ProgressSheet.swift */,
 				A1B2C3D4E5F60718293A1015 /* CoachChatView.swift */,
 				A1B2C3D4E5F60718293A1029 /* MondayWeeklyCardView.swift */,
+				A1B2C3D4E5F60718293A1034 /* PrivacyPolicyView.swift */,
 				A1B2C3D4E5F60718293A1006 /* SettingsView.swift */,
 			);
 			path = Views;
@@ -246,6 +253,7 @@
 			children = (
 				8E22910827A843D494EA2130 /* Assets.xcassets */,
 				D6A9DA851C404433ACD94ECA /* Info.plist */,
+				A1B2C3D4E5F60718293A1032 /* PrivacyInfo.xcprivacy */,
 				A304519DFF454B2EB888EA92 /* TheScale.entitlements */,
 			);
 			path = Resources;
@@ -303,6 +311,7 @@
 				A1B2C3D4E5F60718293A1021 /* FoundationModelAvailability.swift */,
 				A1B2C3D4E5F60718293A1022 /* FoundationModelCoach.swift */,
 				A1B2C3D4E5F60718293A1028 /* MondayCardEngine.swift */,
+				A1B2C3D4E5F60718293A1033 /* ScaleLegal.swift */,
 			);
 			path = Coaching;
 			sourceTree = "<group>";
@@ -419,6 +428,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F35CAA4A11DE44F69B30D6DA /* Assets.xcassets in Resources */,
+				A1B2C3D4E5F60718293A0032 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -491,6 +501,8 @@
 				A1B2C3D4E5F60718293A002E /* ScaleNotificationRouter.swift in Sources */,
 				A1B2C3D4E5F60718293A002F /* ScaleAppIntents.swift in Sources */,
 				A1B2C3D4E5F60718293A0030 /* HealthKitBackgroundDelivery.swift in Sources */,
+				A1B2C3D4E5F60718293A0033 /* ScaleLegal.swift in Sources */,
+				A1B2C3D4E5F60718293A0034 /* PrivacyPolicyView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -510,11 +522,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.9.0;
+				MARKETING_VERSION = 2.9.1;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -551,7 +563,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -564,7 +576,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.9.0;
+				MARKETING_VERSION = 2.9.1;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -583,11 +595,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.9.0;
+				MARKETING_VERSION = 2.9.1;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -605,7 +617,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -618,7 +630,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.9.0;
+				MARKETING_VERSION = 2.9.1;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

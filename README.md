@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 2.9.0 (build 33) |
+| **Version** | 2.9.1 (build 34) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -12,6 +12,15 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 | **Team** | Human Analog Limited (`XHVW66YM39`) |
 
 No accounts. No analytics. Weigh-ins never leave the phone except into Apple Health. Users never paste an API key.
+
+### App Store release checklist (2.9.1+)
+- Privacy Manifest `PrivacyInfo.xcprivacy` ships in the app bundle
+- In-app + web Privacy Policy (`docs/privacy-policy.md` → host at `ScaleLegal.privacyPolicyURL`; set that URL in App Store Connect)
+- `ITSAppUsesNonExemptEncryption = false` (HTTPS only)
+- Dev tools menu is **DEBUG-only** (stripped from Release / App Store)
+- Enable **Time Sensitive** + **Communication Notifications** on the App ID in Apple Developer before Archive (entitlements are already in the project)
+- Leave `GROK_API_KEY` empty for store IPAs; Worker holds `XAI_API_KEY`
+- Review notes: see `ScaleLegal.appStoreReviewNotes`
 
 ---
 

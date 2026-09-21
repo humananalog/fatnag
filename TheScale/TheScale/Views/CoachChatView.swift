@@ -187,6 +187,7 @@ struct CoachChatView: View {
                     .frame(width: 46, height: 46)
                     .background(ScaleChrome.ember, in: Circle())
             }
+            .accessibilityLabel(chat.isSending ? "Sending" : "Send to Coach")
             .disabled(chat.isSending || chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(.horizontal, 16)

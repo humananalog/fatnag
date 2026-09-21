@@ -213,7 +213,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Notifications", systemImage: "bell.badge")
                 .font(.headline)
-            Text("SOTA local banners: title / subtitle / body, threads, actions (Open Coach, Progress, History, Snooze), Coach communication chrome when it fits, and a small visual. Time Sensitive only for wake pings you asked for. FM can sharpen copy after schedule; never blocks. Focus/DND can still silence banners.")
+            Text("SOTA local banners: title / subtitle / body, threads, actions (Open Coach, Progress, History, Snooze), Coach communication chrome when the Communication Notifications capability is active, and a small visual. Time Sensitive is requested for wake pings you asked for (requires the Time Sensitive capability in your Apple Developer app ID). FM can sharpen copy after schedule; never blocks. Focus/DND can still silence banners.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -667,12 +667,26 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Privacy & Health", systemImage: "lock.shield")
                 .font(.headline)
-            Text("Profile, calibration, memory, persona, and readings stay on this iPhone. Health is read for trend, history, and optional fitness monitoring (HR, sleep, steps, energy, workouts), and written only after you confirm a weigh-in. On-device Apple Intelligence (when available) polishes notifications and private digests without leaving the phone. Grok is opt-in after consent. The shared xAI key lives on the operator's Worker (or a build-time secret), never in Settings.")
+            Text("Profile, calibration, memory, persona, and readings stay on this iPhone. Health is read for trend, history, and optional fitness monitoring (HR, sleep, steps, energy, workouts), and written only after you confirm a weigh-in. On-device Apple Intelligence (when available) polishes notifications and private digests without leaving the phone. Grok is opt-in after consent. Store builds leave the xAI key on the Worker, never in the IPA.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Text("If permissions were denied: Settings → Health → Data Access → The Scale. Notifications: Settings → Notifications → The Scale. Apple Intelligence: Settings → Apple Intelligence & Siri.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+
+            NavigationLink {
+                PrivacyPolicyView()
+            } label: {
+                Label("Privacy Policy", systemImage: "doc.text")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+
+            Link(destination: ScaleLegal.privacyPolicyURL) {
+                Label("Privacy Policy (web)", systemImage: "safari")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -686,11 +700,12 @@ struct SettingsView: View {
             Text(CoachCopySanitize.medicalDisclaimer)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text("Shown once during onboarding. Coach chat does not repeat this.")
+            Text("Shown once during onboarding. Coach chat and notifications do not repeat this.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
 
-            // Discreet Dev affordance: Monday card + SOTA sample notification.
+            #if DEBUG
+            // Debug-only: Monday card + SOTA sample notification. Stripped from App Store builds.
             Menu {
                 Button("Preview Monday card") {
                     dismiss()
@@ -728,6 +743,7 @@ struct SettingsView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
+            #endif
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
