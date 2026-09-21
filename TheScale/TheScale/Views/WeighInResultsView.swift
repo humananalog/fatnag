@@ -13,6 +13,9 @@ struct WeighInResultsView: View {
     @State private var loadError: String?
     @State private var selectedWeightDate: Date?
     @State private var selectedFatDate: Date?
+    /// Leading edge of the scrollable visible window (pinned to recent data on 3M/1Y).
+    @State private var weightScrollX: Date = Date()
+    @State private var fatScrollX: Date = Date()
 
     private let horizontalInset: CGFloat = 24
     private let panelInnerPad: CGFloat = 14
@@ -63,7 +66,11 @@ struct WeighInResultsView: View {
         .preferredColorScheme(.light)
         .sensoryFeedback(.selection, trigger: range)
         .task(id: range) {
+            syncScrollPositions(for: range)
             await reload(for: range)
+        }
+        .onChange(of: showTrend) { _, _ in
+            syncScrollPositions(for: range)
         }
         .onAppear {
             withAnimation(.spring(response: 0.72, dampingFraction: 0.86)) {
@@ -408,8 +415,11 @@ struct WeighInResultsView: View {
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
             .chartXSelection(value: $selectedWeightDate)
-            .historyChartScroll(visibleDomainLength: scrollLength)
-            .chartGestureStyle()
+            .historyChartAxes(accent: atmosphere.accent)
+            .historyChartScroll(
+                visibleDomainLength: scrollLength,
+                scrollPosition: $weightScrollX
+            )
         }
     }
 
@@ -516,8 +526,11 @@ struct WeighInResultsView: View {
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
             .chartXSelection(value: $selectedFatDate)
-            .historyChartScroll(visibleDomainLength: scrollLength)
-            .chartGestureStyle()
+            .historyChartAxes(accent: atmosphere.accent)
+            .historyChartScroll(
+                visibleDomainLength: scrollLength,
+                scrollPosition: $fatScrollX
+            )
         }
     }
 
@@ -563,27 +576,10 @@ struct WeighInResultsView: View {
                     .foregroundStyle(atmosphere.accent.opacity(0.7))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
+                // Chart chrome (axes/legend/scroll) must stay on the Chart itself.
+                // Applying chart* modifiers here after a ViewBuilder if/else wraps the
+                // Chart in ConditionalContent → empty-chart fallback on 3M/1Y.
                 chart()
-                    .chartXAxis {
-                        AxisMarks(values: .automatic(desiredCount: 3)) { _ in
-                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                                .foregroundStyle(atmosphere.accent.opacity(0.12))
-                            // Named anchors only: custom UnitPoint crashes Charts layout noise on iOS 26+.
-                            AxisValueLabel(anchor: .top)
-                                .font(.system(size: 9, weight: .medium, design: .rounded))
-                                .foregroundStyle(atmosphere.accent.opacity(0.55))
-                        }
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
-                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                                .foregroundStyle(atmosphere.accent.opacity(0.12))
-                            AxisValueLabel(anchor: .trailing)
-                                .font(.system(size: 9, weight: .medium, design: .rounded))
-                                .foregroundStyle(atmosphere.accent.opacity(0.55))
-                        }
-                    }
-                    .chartLegend(.hidden)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -685,29 +681,73 @@ struct WeighInResultsView: View {
         loadError = nil
         do {
             try await session.loadHistory(for: range)
+            syncScrollPositions(for: range)
         } catch {
             loadError = error.localizedDescription
+        }
+    }
+
+    private func syncScrollPositions(for range: HealthHistoryRange) {
+        var weightExtras: [Date] = []
+        if showTrend {
+            if let projection = weightProjection {
+                weightExtras.append(contentsOf: projection.path.map(\.date))
+            }
+            if let scientific = scientificProjection {
+                weightExtras.append(contentsOf: scientific.temperedPath.map(\.date))
+                weightExtras.append(contentsOf: scientific.observedPath.map(\.date))
+            }
+        }
+        let weightDomain = HealthChartMath.historyXDomain(range: range, extraDates: weightExtras)
+        let fatDomain = HealthChartMath.historyXDomain(range: range)
+        if let length = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: weightDomain) {
+            weightScrollX = HealthChartMath.scrollLeadingDate(xDomain: weightDomain, visibleLength: length)
+        }
+        if let length = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: fatDomain) {
+            fatScrollX = HealthChartMath.scrollLeadingDate(xDomain: fatDomain, visibleLength: length)
         }
     }
 }
 
 private extension View {
-    /// Soft chart chrome without Metal `.drawingGroup` / heavy blur (avoids fopen cache spam).
-    @ViewBuilder
-    func chartGestureStyle() -> some View {
+    /// Axes + legend applied directly on a Chart (before any scroll ConditionalContent).
+    func historyChartAxes(accent: Color) -> some View {
         self
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                        .foregroundStyle(accent.opacity(0.12))
+                    // Named anchors only: custom UnitPoint crashes Charts layout noise on iOS 26+.
+                    AxisValueLabel(anchor: .top)
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(accent.opacity(0.55))
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                        .foregroundStyle(accent.opacity(0.12))
+                    AxisValueLabel(anchor: .trailing)
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(accent.opacity(0.55))
+                }
+            }
+            .chartLegend(.hidden)
     }
 
-    /// Pan longer History ranges (3M / 1Y) only when `visibleDomainLength` is safe.
-    /// A nil length means the plot domain is too short for `chartXVisibleDomain`
-    /// (sparse series) — fit the full range instead of emitting invalid frames.
+    /// Pan 3M / 1Y after all other chart* modifiers. Optional scroll must be last —
+    /// its ViewBuilder if/else wraps the Chart; further chart* modifiers on that
+    /// wrapper trigger "fallback to empty chart".
     @ViewBuilder
-    func historyChartScroll(visibleDomainLength: TimeInterval?) -> some View {
+    func historyChartScroll(
+        visibleDomainLength: TimeInterval?,
+        scrollPosition: Binding<Date>
+    ) -> some View {
         if let length = visibleDomainLength, length.isFinite, length > 0 {
             self
                 .chartScrollableAxes(.horizontal)
                 .chartXVisibleDomain(length: length)
-                .chartScrollTargetBehavior(.valueAligned(matching: DateComponents(day: 1)))
+                .chartScrollPosition(x: scrollPosition)
         } else {
             self
         }

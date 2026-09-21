@@ -248,6 +248,17 @@ enum HealthChartMath {
         return capped
     }
 
+    /// Leading edge of the visible window so the **most recent** data is on screen.
+    /// Default Charts scroll starts at domain.lowerBound, which looks empty on sparse 3M/1Y.
+    static func scrollLeadingDate(
+        xDomain: ClosedRange<Date>,
+        visibleLength: TimeInterval
+    ) -> Date {
+        guard visibleLength.isFinite, visibleLength > 0 else { return xDomain.lowerBound }
+        let candidate = xDomain.upperBound.addingTimeInterval(-visibleLength)
+        return max(candidate, xDomain.lowerBound)
+    }
+
     /// Collapse non-finite / inverted Y domains into a safe positive span.
     static func sanitizeDomain(_ range: ClosedRange<Double>) -> ClosedRange<Double> {
         var lo = range.lowerBound

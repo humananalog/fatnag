@@ -198,6 +198,18 @@ final class HealthHistoryChartTests: XCTestCase {
         )
     }
 
+    func testScrollLeadingDatePinsToRecentWindow() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let domain = HealthChartMath.historyXDomain(range: .lastThreeMonths, now: now)
+        let length = try XCTUnwrap(
+            HealthChartMath.scrollVisibleDomainLength(for: .lastThreeMonths, xDomain: domain)
+        )
+        let leading = HealthChartMath.scrollLeadingDate(xDomain: domain, visibleLength: length)
+        XCTAssertGreaterThan(leading, domain.lowerBound)
+        let visibleEnd = leading.addingTimeInterval(length)
+        XCTAssertEqual(visibleEnd.timeIntervalSince1970, domain.upperBound.timeIntervalSince1970, accuracy: 1)
+    }
+
     func testSanitizeDomainRejectsNonFiniteAndDegenerate() {
         // ClosedRange cannot be built from NaN bounds; use ±infinity instead.
         let inf = HealthChartMath.sanitizeDomain((-Double.infinity)...Double.infinity)
