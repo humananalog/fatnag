@@ -74,7 +74,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **HealthKit background:** `HKObserverQuery` + `enableBackgroundDelivery` (+ BG refresh/processing backups) so digest/trigger notifications can land without opening the app (iOS still throttles)
 
 ### Progress / goals
-- **Home weekly-goal hero (2.12.0+):** one large completion %, on-track / at-risk / ahead / crushed color, punchy tomorrow advice, and daily targets (steps, max kcal, protein, key micro). Goals only until food logging exists; tap % for Progress.
+- **Home weekly-goal hero (2.12.1+):** large completion %, on-track / at-risk / ahead / crushed color with slow haze + readable panels, punchy tomorrow advice from a local energy-balance evaluator (overeating while active vs under-moving), diet meals when stalled, and daily targets (steps, max kcal, protein, key micro). Goals only until food logging exists; tap % for Progress.
 - Weekly mini-goal (Δ kg), progress bar, offline or live Grok roast
 - **Monday morning card (2.8.0+):** after Confirm-to-Health (or Manual) on Monday local morning (04:00-12:00), full-screen week plan: last-week Δ, Sunday kg target paced to ideal + optional goal date, meals, Grok diagnostic. Cached per ISO week; regenerates on a new Monday weigh-in. Dev preview: Settings → Legal → **Dev**
 - Bad-trend alerts, Monday mini-goal, Coach wake reminders (Settings toggles)
