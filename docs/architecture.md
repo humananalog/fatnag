@@ -31,8 +31,16 @@ Mi Scale 2 ──BLE ads──► The Scale ──write/read──► Apple Heal
 | `Models/` | Session VM, measurement, calibration |
 | `Coaching/` | Grok client, shared config, memory, fitness monitor, FM helpers, targets |
 | `Notifications/` | Bad-trend + Coach wake schedulers |
-| `Views/` | Home, live weigh-in, History, Manual, Coach, Progress, Monday card, Settings, onboarding |
+| `Views/` | Home, live weigh-in, History, Manual, Coach, Progress, Monday card, Settings, 3-step onboarding, soft App Review sheet |
 | `Config/` | `TheScale.xcconfig` → Info.plist `GrokProxyURL` / `GrokAPIKey` |
+
+## Onboarding (2.11.0+)
+
+Three steps for adoption: **You** (name + freeform) → **Body** (height/age/sex/ideal) → **Confirm** (Grok/on-device inferred persona + legal + soft notification opt-in). Permissions last. Inference does not burn weekly Grok credits.
+
+## App Review
+
+After 3+ confirmed Health saves, a soft star sheet may appear when home is idle. 4–5 stars → StoreKit `requestReview()`; ≤3 → quiet opt-out. 90-day cooldown.
 
 ## Network rules
 
