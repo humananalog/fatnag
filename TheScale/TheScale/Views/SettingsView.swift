@@ -123,6 +123,31 @@ struct SettingsView: View {
                 Text("kg").foregroundStyle(.secondary)
             }
 
+            DatePicker(
+                "Goal date",
+                selection: Binding(
+                    get: { session.profile.goalDate ?? Calendar.current.date(byAdding: .month, value: 3, to: Date())! },
+                    set: { session.profile.goalDate = $0 }
+                ),
+                displayedComponents: .date
+            )
+            Toggle(
+                "Use goal date for Monday pacing",
+                isOn: Binding(
+                    get: { session.profile.goalDate != nil },
+                    set: { on in
+                        if on {
+                            if session.profile.goalDate == nil {
+                                session.profile.goalDate = Calendar.current.date(byAdding: .month, value: 3, to: Date())
+                            }
+                        } else {
+                            session.profile.goalDate = nil
+                        }
+                    }
+                )
+            )
+            .font(.footnote)
+
             HStack {
                 Text("Target body fat")
                 Spacer()
@@ -657,6 +682,27 @@ struct SettingsView: View {
             Text("Shown once during onboarding. Coach chat does not repeat this.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+
+            // Discreet Dev affordance: force Monday weekly card without Monday morning weigh-in.
+            Menu {
+                Button("Preview Monday card") {
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        session.forcePresentMondayCard(regenerate: false)
+                    }
+                }
+                Button("Regenerate Monday card") {
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        session.forcePresentMondayCard(regenerate: true)
+                    }
+                }
+            } label: {
+                Text("Dev")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(.tertiary)
+            }
+            .accessibilityLabel("Developer Monday card tools")
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)

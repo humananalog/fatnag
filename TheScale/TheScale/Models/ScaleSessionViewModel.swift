@@ -90,6 +90,13 @@ final class ScaleSessionViewModel: ObservableObject {
     }
     @Published var isProgressPresented = false
     @Published var isCoachPresented = false
+    /// Monday morning post-weigh weekly goal card.
+    @Published private(set) var isMondayCardPresented = false
+    @Published private(set) var mondayCard: MondayCardPayload?
+    @Published private(set) var isMondayCardLoading = false
+    @Published private(set) var mondayCardStreamEncouragement = ""
+    @Published private(set) var mondayCardStreamMeals = ""
+    @Published private(set) var mondayCardStreamDiagnostic = ""
     @Published private(set) var lastFitnessDigest: FitnessDigest?
     @Published private(set) var lastFitnessCoachReply: String?
     @Published private(set) var lastFitnessTriggers: [FitnessTrigger] = []
@@ -341,6 +348,146 @@ final class ScaleSessionViewModel: ObservableObject {
 
     func dismissCoach() {
         isCoachPresented = false
+    }
+
+    func dismissMondayCard() {
+        isMondayCardPresented = false
+        isMondayCardLoading = false
+    }
+
+    /// Dev / preview: force-show the Monday card (optionally regenerate past cache).
+    func forcePresentMondayCard(regenerate: Bool = true) {
+        Task {
+            await presentMondayCardIfNeeded(
+                weighInKg: healthBaselineKg ?? displayWeightKg ?? profile.idealWeightKg,
+                force: true,
+                regenerate: regenerate
+            )
+        }
+    }
+
+    /// After Confirm-to-Health (or Manual) on Monday morning, or Dev force.
+    /// Caches one card per ISO week unless weigh-in signature changes or regenerate.
+    func presentMondayCardIfNeeded(
+        weighInKg: Double,
+        force: Bool,
+        regenerate: Bool,
+        now: Date = Date()
+    ) async {
+        guard force || MondayCardEngine.shouldOfferAfterWeighIn(now: now) else { return }
+
+        let week = MondayWeekKey.current(now: now)
+        let signature = MondayCardEngine.weighInSignature(kg: weighInKg, at: now)
+
+        if !regenerate, let cached = MondayCardStore.load(), cached.weekKey == week.storageKey, cached.isComplete {
+            // Production: reuse week cache unless a new Monday weigh-in signature.
+            // Dev force without regenerate: show whatever is cached for the week.
+            let sameWeighIn = cached.weighInSignature == signature
+            if force || sameWeighIn {
+                applyMondayCardCache(cached)
+                return
+            }
+        }
+
+        isMondayCardLoading = true
+        isMondayCardPresented = true
+        mondayCardStreamEncouragement = ""
+        mondayCardStreamMeals = ""
+        mondayCardStreamDiagnostic = ""
+
+        let digest = await refreshFitnessDigestForCoach()
+        if historyWeights.isEmpty {
+            do { try await loadHistory(for: .lastTwoWeeks) } catch { /* soft */ }
+        }
+
+        let progress = MondayCardEngine.progress(
+            weights: historyWeights.isEmpty ? historyTrendWindowWeights : historyWeights,
+            fats: historyBodyFatPercents,
+            currentKg: weighInKg,
+            priorSundayTargetKg: MondayCardStore.priorSundayTargetKg,
+            digest: digest,
+            now: now
+        )
+        let sunday = MondayCardEngine.sundayGoal(
+            currentKg: weighInKg,
+            idealKg: profile.idealWeightKg,
+            goalDate: profile.goalDate,
+            fallbackWeeklyDeltaKg: weeklyGoal.targetDeltaKg,
+            now: now
+        )
+
+        // Keep Progress mini-goal aligned with this week's Sunday pace.
+        var nextGoal = weeklyGoal
+        nextGoal.targetDeltaKg = sunday.weeklyDeltaKg
+        nextGoal.title = String(format: "Sunday %.2f kg", sunday.targetKg)
+        nextGoal.weekStartKg = weighInKg
+        nextGoal.weekStartDate = Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        weeklyGoal = nextGoal
+
+        let goalDateLine: String = {
+            if let date = profile.goalDate {
+                return String(
+                    format: "Target %.1f kg by %@",
+                    profile.idealWeightKg,
+                    date.formatted(.dateTime.month(.abbreviated).day().year())
+                )
+            }
+            return String(format: "Target weight %.1f kg (no goal date set; using weekly nudge).", profile.idealWeightKg)
+        }()
+
+        var draft = MondayCardPayload(
+            weekKey: week.storageKey,
+            weighInSignature: signature,
+            currentKg: weighInKg,
+            progress: progress,
+            sundayGoal: sunday,
+            encouragement: "",
+            meals: "",
+            diagnostic: "",
+            usedNetwork: false,
+            generatedAt: now
+        )
+        mondayCard = draft
+
+        let brief = makeCoachBrief(digest: digest)
+        let result = await GrokClient.shared.mondayCardStreaming(
+            brief: brief,
+            progress: progress,
+            sundayGoal: sunday,
+            goalDateLine: goalDateLine
+        ) { [weak self] encouragement, meals, diagnostic, _ in
+            guard let self else { return }
+            self.mondayCardStreamEncouragement = encouragement
+            self.mondayCardStreamMeals = meals
+            self.mondayCardStreamDiagnostic = diagnostic
+            if var live = self.mondayCard {
+                live.encouragement = encouragement
+                live.meals = meals
+                live.diagnostic = diagnostic
+                self.mondayCard = live
+            }
+        }
+
+        draft.encouragement = result.encouragement
+        draft.meals = result.meals
+        draft.diagnostic = result.diagnostic
+        draft.usedNetwork = result.usedNetwork
+        draft.generatedAt = Date()
+        mondayCard = draft
+        mondayCardStreamEncouragement = result.encouragement
+        mondayCardStreamMeals = result.meals
+        mondayCardStreamDiagnostic = result.diagnostic
+        MondayCardStore.save(draft)
+        isMondayCardLoading = false
+    }
+
+    private func applyMondayCardCache(_ cached: MondayCardPayload) {
+        mondayCard = cached
+        mondayCardStreamEncouragement = cached.encouragement
+        mondayCardStreamMeals = cached.meals
+        mondayCardStreamDiagnostic = cached.diagnostic
+        isMondayCardPresented = true
+        isMondayCardLoading = false
     }
 
     func updateWeeklyGoalDelta(_ deltaKg: Double) {
@@ -616,6 +763,9 @@ final class ScaleSessionViewModel: ObservableObject {
         isManualEntryPresented = false
         isWeighInPresented = false
         isResultsPresented = true
+        if MondayCardEngine.shouldOfferAfterWeighIn() {
+            await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
+        }
     }
 
     /// Store correction from the live sheet using the current raw BLE kg and Settings reference mass.
@@ -838,7 +988,14 @@ final class ScaleSessionViewModel: ObservableObject {
             }
             await refreshTrendNotifications()
             isWeighInPresented = false
-            isResultsPresented = true
+            let weighKg = draft.weightKg
+            let offerMonday = MondayCardEngine.shouldOfferAfterWeighIn()
+            if offerMonday {
+                isResultsPresented = true
+                await presentMondayCardIfNeeded(weighInKg: weighKg, force: false, regenerate: false)
+            } else {
+                isResultsPresented = true
+            }
         } catch {
             phase = .healthKitFailed(error.localizedDescription)
         }

@@ -31,7 +31,7 @@ Mi Scale 2 ──BLE ads──► The Scale ──write/read──► Apple Heal
 | `Models/` | Session VM, measurement, calibration |
 | `Coaching/` | Grok client, shared config, memory, fitness monitor, FM helpers, targets |
 | `Notifications/` | Bad-trend + Coach wake schedulers |
-| `Views/` | Home, live weigh-in, History, Manual, Coach, Progress, Settings, onboarding |
+| `Views/` | Home, live weigh-in, History, Manual, Coach, Progress, Monday card, Settings, onboarding |
 | `Config/` | `TheScale.xcconfig` → Info.plist `GrokProxyURL` / `GrokAPIKey` |
 
 ## Network rules

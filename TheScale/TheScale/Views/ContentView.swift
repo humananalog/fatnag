@@ -71,6 +71,13 @@ struct ContentView: View {
                 CoachChatView()
                     .environmentObject(session)
             }
+            .fullScreenCover(isPresented: Binding(
+                get: { session.isMondayCardPresented },
+                set: { if !$0 { session.dismissMondayCard() } }
+            )) {
+                MondayWeeklyCardView()
+                    .environmentObject(session)
+            }
             .task {
                 await session.refreshHealthBaseline()
                 session.ensureWeeklyGoalBaseline()

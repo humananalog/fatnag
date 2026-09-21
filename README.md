@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 2.7.4 (build 31) |
+| **Version** | 2.8.0 (build 32) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -63,6 +63,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 
 ### Progress / goals
 - Weekly mini-goal (Δ kg), progress bar, offline or live Grok roast
+- **Monday morning card (2.8.0+):** after Confirm-to-Health (or Manual) on Monday local morning (04:00-12:00), full-screen week plan: last-week Δ, Sunday kg target paced to ideal + optional goal date, meals, Grok diagnostic. Cached per ISO week; regenerates on a new Monday weigh-in. Dev preview: Settings → Legal → **Dev**
 - Bad-trend alerts, Monday mini-goal, Coach wake reminders (Settings toggles)
 
 ---

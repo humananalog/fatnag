@@ -71,6 +71,8 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
     var sex: Sex
     /// Goal weight (kg). Used as the weight chart axis floor + ideal reference line.
     var idealWeightKg: Double
+    /// Optional calendar date for hitting idealWeightKg. Used by Monday Sunday pacing.
+    var goalDate: Date?
     /// Optional goal body fat %. When set, fat chart uses it as floor / reference.
     var idealBodyFatPercent: Double?
     var dietPreference: DietPreference
@@ -113,6 +115,7 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         ageYears: 30,
         sex: .male,
         idealWeightKg: suggestedIdealWeightKg(heightCm: 170),
+        goalDate: nil,
         idealBodyFatPercent: nil,
         dietPreference: .omnivore,
         location: "",
@@ -133,6 +136,7 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         ageYears: Double,
         sex: Sex,
         idealWeightKg: Double? = nil,
+        goalDate: Date? = nil,
         idealBodyFatPercent: Double? = nil,
         dietPreference: DietPreference = .omnivore,
         location: String = "",
@@ -145,6 +149,7 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         self.ageYears = ageYears
         self.sex = sex
         self.idealWeightKg = idealWeightKg ?? Self.suggestedIdealWeightKg(heightCm: heightCm)
+        self.goalDate = goalDate
         self.idealBodyFatPercent = idealBodyFatPercent
         self.dietPreference = dietPreference
         self.location = location
@@ -161,6 +166,7 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         sex = try c.decode(Sex.self, forKey: .sex)
         idealWeightKg = try c.decodeIfPresent(Double.self, forKey: .idealWeightKg)
             ?? Self.suggestedIdealWeightKg(heightCm: heightCm)
+        goalDate = try c.decodeIfPresent(Date.self, forKey: .goalDate)
         idealBodyFatPercent = try c.decodeIfPresent(Double.self, forKey: .idealBodyFatPercent)
         dietPreference = try c.decodeIfPresent(DietPreference.self, forKey: .dietPreference) ?? .omnivore
         location = try c.decodeIfPresent(String.self, forKey: .location) ?? ""
@@ -169,8 +175,24 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         culturalVibe = try c.decodeIfPresent(String.self, forKey: .culturalVibe) ?? ""
     }
 
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(displayName, forKey: .displayName)
+        try c.encode(heightCm, forKey: .heightCm)
+        try c.encode(ageYears, forKey: .ageYears)
+        try c.encode(sex, forKey: .sex)
+        try c.encode(idealWeightKg, forKey: .idealWeightKg)
+        try c.encodeIfPresent(goalDate, forKey: .goalDate)
+        try c.encodeIfPresent(idealBodyFatPercent, forKey: .idealBodyFatPercent)
+        try c.encode(dietPreference, forKey: .dietPreference)
+        try c.encode(location, forKey: .location)
+        try c.encode(ethnicity, forKey: .ethnicity)
+        try c.encode(preferredLanguage, forKey: .preferredLanguage)
+        try c.encode(culturalVibe, forKey: .culturalVibe)
+    }
+
     private enum CodingKeys: String, CodingKey {
-        case displayName, heightCm, ageYears, sex, idealWeightKg, idealBodyFatPercent, dietPreference
+        case displayName, heightCm, ageYears, sex, idealWeightKg, goalDate, idealBodyFatPercent, dietPreference
         case location, ethnicity, preferredLanguage, culturalVibe
     }
 }

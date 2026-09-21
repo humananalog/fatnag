@@ -9,6 +9,8 @@
 
 Writes happen only on **Confirm to Health** or **Manual → Save**. Manual entries set `HKMetadataKeyWasUserEntered`.
 
+**Monday morning card (2.8.0+):** after a successful write, if local time is Monday 04:00-12:00, the app presents the weekly instructor card (progress + Sunday target + meals + Grok diagnostic). Cached per ISO week. Preview anytime: Settings → Legal → **Dev**.
+
 In-app only (no HealthKit quantity): muscle mass, bone mass, water %, visceral index, raw ohms.
 
 Skipped vanity reads (no coaching decision): flights climbed, stand hours, basal energy, etc.

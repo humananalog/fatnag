@@ -426,6 +426,102 @@ actor GrokClient {
         return await chat(userText: prompt, brief: brief, history: [])
     }
 
+    /// Monday post-weigh card: stream encouragement + meals + physics diagnostic.
+    /// No medical disclaimer spam. Direct instructor voice. Never invent Health samples.
+    func mondayCardStreaming(
+        brief: CoachBrief,
+        progress: MondayWeekProgress,
+        sundayGoal: MondaySundayGoal,
+        goalDateLine: String,
+        onUpdate: @MainActor @Sendable (_ encouragement: String, _ meals: String, _ diagnostic: String, _ raw: String) -> Void
+    ) async -> (encouragement: String, meals: String, diagnostic: String, usedNetwork: Bool) {
+        let offline = MondayCardEngine.offlineCopy(
+            name: brief.userName,
+            progress: progress,
+            goal: sundayGoal,
+            diet: brief.diet,
+            memoryBlock: brief.memoryBlock
+        )
+
+        guard GrokPrivacyConsent.isAccepted else {
+            await onUpdate(offline.encouragement, offline.meals, offline.diagnostic, "")
+            return (offline.encouragement, offline.meals, offline.diagnostic, false)
+        }
+        if GrokSharedConfig.configurationIssue != nil || resolveTransport() == nil {
+            await onUpdate(offline.encouragement, offline.meals, offline.diagnostic, "")
+            return (offline.encouragement, offline.meals, offline.diagnostic, false)
+        }
+        guard let transport = resolveTransport() else {
+            await onUpdate(offline.encouragement, offline.meals, offline.diagnostic, "")
+            return (offline.encouragement, offline.meals, offline.diagnostic, false)
+        }
+
+        let sundayLabel = sundayGoal.sundayDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+        let prompt = """
+        Build the Monday morning post-weigh card. Reply ONLY with these three sections, exact headers:
+
+        ===ENCOURAGEMENT===
+        (1-2 lines. Call \(brief.userName.isEmpty ? "them" : brief.userName) by name. Badass, dark humour OK.)
+
+        ===MEALS===
+        (Practical week meal pattern for their diet / IF / persona / Health context. Not a novel. Instructor pattern.)
+
+        ===DIAGNOSTIC===
+        (Full diagnostic instructor. Physics / energy-balance / plausible weekly weight-loss rates from the numbers.
+        How to hit Sunday \(String(format: "%.2f", sundayGoal.targetKg)) kg on \(sundayLabel).
+        Use last-week progress + Fitness digest only. Never invent missing Health samples.
+        No medical disclaimer. No soft safety lecture. Be direct about what the numbers imply.)
+
+        Local progress summary: \(progress.summaryLine)
+        Adherence: \(progress.adherenceLine)
+        Signals: \(progress.signalLines.joined(separator: " · "))
+        Sunday goal: \(String(format: "%.2f", sundayGoal.targetKg)) kg (\(String(format: "%+.2f", sundayGoal.weeklyDeltaKg)) kg/wk). \(sundayGoal.pacingLine)
+        Long-range: \(goalDateLine)
+        """
+
+        let system = """
+        You are the Monday weigh-in instructor for The Scale.
+        \(CoachAgentRole.orchestrator.systemPrompt)
+        This card is a direct coaching brief. Do NOT append medical disclaimers.
+        Do NOT soft-pedal with generic safety caps. Talk energy balance and weekly rates from the data.
+        Still never invent HealthKit samples that are missing.
+        """
+
+        let body: [String: Any] = [
+            "model": "grok-3-mini",
+            "temperature": 0.55,
+            "max_tokens": 520,
+            "stream": true,
+            "messages": [
+                ["role": "system", "content": system + "\n\n" + userMessage(brief: brief)],
+                ["role": "user", "content": prompt]
+            ]
+        ]
+
+        do {
+            var accumulated = ""
+            try await postChatStream(body: body, transport: transport, timeout: 60) { delta in
+                accumulated += delta
+                let parts = MondayCardEngine.parseSections(from: accumulated)
+                await onUpdate(parts.encouragement, parts.meals, parts.diagnostic, accumulated)
+            }
+            let parts = MondayCardEngine.parseSections(from: accumulated)
+            var encouragement = parts.encouragement
+            var meals = parts.meals
+            var diagnostic = parts.diagnostic
+            if encouragement.isEmpty { encouragement = offline.encouragement }
+            if meals.isEmpty { meals = offline.meals }
+            if diagnostic.isEmpty {
+                diagnostic = parts.diagnostic.isEmpty ? offline.diagnostic : CoachCopySanitize.clean(accumulated)
+            }
+            await onUpdate(encouragement, meals, diagnostic, accumulated)
+            return (encouragement, meals, diagnostic, true)
+        } catch {
+            await onUpdate(offline.encouragement, offline.meals, offline.diagnostic, "")
+            return (offline.encouragement, offline.meals, offline.diagnostic, false)
+        }
+    }
+
     private func offlineChat(userText: String, brief: CoachBrief, hint: String) -> CoachReply {
         let base = CoachOfflineFallback.reply(role: .orchestrator, brief: brief)
         let who = brief.userName.isEmpty ? "Operator" : brief.userName

@@ -12,6 +12,7 @@ Hybrid routing: **Grok Worker** for full Coach chat; **Foundation Models** for p
 - **Targets:** Coach-stated goals update profile after `TargetFeasibility` gates.
 - **Time-aware:** local clock in context; evening/night bans gym-lift next-actions.
 - **HealthKit on every turn (2.7.1+ / science 2.7.4+):** Coach refreshes a dated Fitness digest (sleep stages, HRV, RHR, load/steps, workouts + distance, recovery band, optional SpO2/VO2/respiratory/wrist temp) before each ask. Missing metrics stay missing; Coach must not invent them or claim AllTrails access.
+- **Monday weekly card (2.8.0+):** after a Monday-morning Confirm-to-Health (or Manual), Grok streams a one-screen instructor card (progress, Sunday kg goal paced to target weight + optional goal date, meals, energy-balance diagnostic). Cached for the ISO week. No medical disclaimer on the card. Dev: Settings → Legal → **Dev** → Preview / Regenerate.
 
 ### Shared proxy setup
 
