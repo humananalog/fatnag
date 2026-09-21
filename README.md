@@ -40,6 +40,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 ### History / charts / Trend / projection
 - Charts from Apple Health `bodyMass` + `bodyFatPercentage` (ranges 1W-1Y; default 2W)
 - Ideal line from Settings; Y domain never clips real samples
+- X domain always spans the selected range (fixes sparse 3M/1Y + scroll frame spam)
 - **Trend** toggle: OLS on last 14 days, projects to ideal with safe kg/wk caps
 - Tap a point for its value
 

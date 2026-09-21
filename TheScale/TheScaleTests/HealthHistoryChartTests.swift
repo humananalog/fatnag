@@ -144,6 +144,84 @@ final class HealthHistoryChartTests: XCTestCase {
         XCTAssertEqual(series.count, 3)
     }
 
+    func testHistoryXDomainSpansSelectedRangeNotSparseSamples() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let domain = HealthChartMath.historyXDomain(range: .lastThreeMonths, now: now)
+        let start = HealthHistoryRange.lastThreeMonths.startDate(relativeTo: now)
+        XCTAssertEqual(domain.lowerBound.timeIntervalSince1970, start.timeIntervalSince1970, accuracy: 1)
+        XCTAssertGreaterThanOrEqual(domain.upperBound.timeIntervalSince1970, now.timeIntervalSince1970)
+        let span = domain.upperBound.timeIntervalSince(domain.lowerBound)
+        XCTAssertGreaterThan(span, HealthHistoryRange.lastThreeMonths.visibleDomainLength)
+    }
+
+    func testHistoryXDomainYearLongerThanVisibleWindow() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let domain = HealthChartMath.historyXDomain(range: .lastYear, now: now)
+        let span = domain.upperBound.timeIntervalSince(domain.lowerBound)
+        XCTAssertGreaterThan(span, HealthHistoryRange.lastYear.visibleDomainLength)
+    }
+
+    func testHistoryXDomainExtendsForProjectionPastNow() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let future = now.addingTimeInterval(120 * 86_400)
+        let domain = HealthChartMath.historyXDomain(
+            range: .lastMonth,
+            extraDates: [future],
+            now: now
+        )
+        XCTAssertGreaterThanOrEqual(domain.upperBound, future)
+    }
+
+    func testScrollVisibleLengthNilWhenDomainTooShort() {
+        let now = Date()
+        // Artificial short domain (7 days) vs 3M preferred window (45 days).
+        let short = now.addingTimeInterval(-7 * 86_400)...now
+        XCTAssertNil(
+            HealthChartMath.scrollVisibleDomainLength(for: .lastThreeMonths, xDomain: short)
+        )
+    }
+
+    func testScrollVisibleLengthEnabledForFullThreeMonthDomain() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let domain = HealthChartMath.historyXDomain(range: .lastThreeMonths, now: now)
+        let length = HealthChartMath.scrollVisibleDomainLength(for: .lastThreeMonths, xDomain: domain)
+        XCTAssertNotNil(length)
+        let span = domain.upperBound.timeIntervalSince(domain.lowerBound)
+        XCTAssertLessThan(try XCTUnwrap(length), span)
+    }
+
+    func testScrollVisibleLengthNilForShortRanges() {
+        let now = Date()
+        let domain = HealthChartMath.historyXDomain(range: .lastTwoWeeks, now: now)
+        XCTAssertNil(
+            HealthChartMath.scrollVisibleDomainLength(for: .lastTwoWeeks, xDomain: domain)
+        )
+    }
+
+    func testSanitizeDomainRejectsNonFiniteAndDegenerate() {
+        // ClosedRange cannot be built from NaN bounds; use ±infinity instead.
+        let inf = HealthChartMath.sanitizeDomain((-Double.infinity)...Double.infinity)
+        XCTAssertTrue(inf.lowerBound.isFinite)
+        XCTAssertTrue(inf.upperBound.isFinite)
+        XCTAssertGreaterThan(inf.upperBound, inf.lowerBound)
+
+        let degenerate = HealthChartMath.sanitizeDomain(10...10)
+        XCTAssertGreaterThan(degenerate.upperBound, degenerate.lowerBound)
+    }
+
+    func testWeightDomainIgnoresNonFiniteExtras() {
+        let domain = HealthChartMath.weightDomain(
+            values: [80, 81],
+            idealKg: 75,
+            extraValues: [.nan, .infinity]
+        )
+        XCTAssertTrue(domain.lowerBound.isFinite)
+        XCTAssertTrue(domain.upperBound.isFinite)
+        XCTAssertGreaterThan(domain.upperBound, domain.lowerBound)
+        XCTAssertLessThanOrEqual(domain.lowerBound, 75)
+        XCTAssertGreaterThanOrEqual(domain.upperBound, 81)
+    }
+
     func testManualDraftIsMassOnly() {
         let draft = EditableMeasurementDraft.manual(
             weightKg: 77.4,

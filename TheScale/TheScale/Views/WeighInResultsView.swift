@@ -229,16 +229,17 @@ struct WeighInResultsView: View {
             idealKg: session.profile.idealWeightKg,
             extraValues: projectedValues
         )
-        let xDomain = weightXDomain(
-            samples: samples,
+        let xDomain = historyXDomain(
             projection: projection,
             scientific: scientific
         )
+        let scrollLength = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: xDomain)
         let selected = selectedWeightDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
         let floorY = domain.lowerBound
         let targetKg = session.profile.idealWeightKg
+        let lineInterpolation: InterpolationMethod = samples.count >= 2 ? .monotone : .linear
 
         return metricScaffold(
             title: "Weight",
@@ -260,21 +261,24 @@ struct WeighInResultsView: View {
                     }
 
                 // Area first: yStart/yEnd to the plot floor (never fill toward 0 kg).
-                ForEach(samples) { sample in
-                    AreaMark(
-                        x: .value("Date", sample.date),
-                        yStart: .value("Floor", floorY),
-                        yEnd: .value("Weight", sample.value),
-                        series: .value("Series", "Fill")
-                    )
-                    .interpolationMethod(.monotone)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [atmosphere.accent.opacity(0.28), atmosphere.accent.opacity(0.04)],
-                            startPoint: .top,
-                            endPoint: .bottom
+                // Skip AreaMark for a single point — zero-width fill can yield non-finite frames.
+                if samples.count >= 2 {
+                    ForEach(samples) { sample in
+                        AreaMark(
+                            x: .value("Date", sample.date),
+                            yStart: .value("Floor", floorY),
+                            yEnd: .value("Weight", sample.value),
+                            series: .value("Series", "Fill")
                         )
-                    )
+                        .interpolationMethod(lineInterpolation)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [atmosphere.accent.opacity(0.28), atmosphere.accent.opacity(0.04)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    }
                 }
 
                 ForEach(samples) { sample in
@@ -283,7 +287,7 @@ struct WeighInResultsView: View {
                         y: .value("Weight", sample.value),
                         series: .value("Series", "Health")
                     )
-                    .interpolationMethod(.monotone)
+                    .interpolationMethod(lineInterpolation)
                     .foregroundStyle(atmosphere.accent.opacity(0.92))
                     .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
                 }
@@ -404,7 +408,7 @@ struct WeighInResultsView: View {
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
             .chartXSelection(value: $selectedWeightDate)
-            .historyChartScroll(for: range)
+            .historyChartScroll(visibleDomainLength: scrollLength)
             .chartGestureStyle()
         }
     }
@@ -416,10 +420,13 @@ struct WeighInResultsView: View {
             values: samples.map(\.value),
             idealPercent: session.profile.idealBodyFatPercent
         )
+        let xDomain = HealthChartMath.historyXDomain(range: range)
+        let scrollLength = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: xDomain)
         let selected = selectedFatDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
         let floorY = domain.lowerBound
+        let lineInterpolation: InterpolationMethod = samples.count >= 2 ? .monotone : .linear
 
         return metricScaffold(
             title: "Body fat",
@@ -442,21 +449,23 @@ struct WeighInResultsView: View {
                         }
                 }
 
-                ForEach(samples) { sample in
-                    AreaMark(
-                        x: .value("Date", sample.date),
-                        yStart: .value("Floor", floorY),
-                        yEnd: .value("Body fat", sample.value),
-                        series: .value("Series", "Fill")
-                    )
-                    .interpolationMethod(.monotone)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [atmosphere.accent.opacity(0.28), atmosphere.accent.opacity(0.04)],
-                            startPoint: .top,
-                            endPoint: .bottom
+                if samples.count >= 2 {
+                    ForEach(samples) { sample in
+                        AreaMark(
+                            x: .value("Date", sample.date),
+                            yStart: .value("Floor", floorY),
+                            yEnd: .value("Body fat", sample.value),
+                            series: .value("Series", "Fill")
                         )
-                    )
+                        .interpolationMethod(lineInterpolation)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [atmosphere.accent.opacity(0.28), atmosphere.accent.opacity(0.04)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    }
                 }
 
                 ForEach(samples) { sample in
@@ -465,7 +474,7 @@ struct WeighInResultsView: View {
                         y: .value("Body fat", sample.value),
                         series: .value("Series", "Health")
                     )
-                    .interpolationMethod(.monotone)
+                    .interpolationMethod(lineInterpolation)
                     .foregroundStyle(atmosphere.accent.opacity(0.92))
                     .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
                 }
@@ -505,8 +514,9 @@ struct WeighInResultsView: View {
                 }
             }
             .chartYScale(domain: domain)
+            .chartXScale(domain: xDomain)
             .chartXSelection(value: $selectedFatDate)
-            .historyChartScroll(for: range)
+            .historyChartScroll(visibleDomainLength: scrollLength)
             .chartGestureStyle()
         }
     }
@@ -623,26 +633,18 @@ struct WeighInResultsView: View {
         }
     }
 
-    private func weightXDomain(
-        samples: [HealthMetricSample],
+    private func historyXDomain(
         projection: WeightTrendProjection?,
         scientific: ScientificWeightProjection?
     ) -> ClosedRange<Date> {
-        let sampleDates = samples.map(\.date)
         let projectionDates = showTrend ? (projection?.path.map(\.date) ?? []) : []
         let scientificDates = showTrend
             ? ((scientific?.temperedPath.map(\.date) ?? []) + (scientific?.observedPath.map(\.date) ?? []))
             : []
-        let all = sampleDates + projectionDates + scientificDates
-        guard let lo = all.min(), let hi = all.max() else {
-            let now = Date()
-            return now.addingTimeInterval(-7 * 86_400)...now
-        }
-        if lo == hi {
-            return lo.addingTimeInterval(-86_400)...hi.addingTimeInterval(86_400)
-        }
-        let pad = max(hi.timeIntervalSince(lo) * 0.04, 3_600)
-        return lo.addingTimeInterval(-pad)...hi.addingTimeInterval(pad)
+        return HealthChartMath.historyXDomain(
+            range: range,
+            extraDates: projectionDates + scientificDates
+        )
     }
 
     private func trendCaptionScientific(_ projection: ScientificWeightProjection) -> String {
@@ -696,14 +698,15 @@ private extension View {
         self
     }
 
-    /// Pan longer History ranges (3M / 1Y) with Charts scroll APIs from the iOS 17+ Charts stack
-    /// (built against the iOS 27 SDK on this Mac).
+    /// Pan longer History ranges (3M / 1Y) only when `visibleDomainLength` is safe.
+    /// A nil length means the plot domain is too short for `chartXVisibleDomain`
+    /// (sparse series) — fit the full range instead of emitting invalid frames.
     @ViewBuilder
-    func historyChartScroll(for range: HealthHistoryRange) -> some View {
-        if range.prefersHorizontalScroll {
+    func historyChartScroll(visibleDomainLength: TimeInterval?) -> some View {
+        if let length = visibleDomainLength, length.isFinite, length > 0 {
             self
                 .chartScrollableAxes(.horizontal)
-                .chartXVisibleDomain(length: range.visibleDomainLength)
+                .chartXVisibleDomain(length: length)
                 .chartScrollTargetBehavior(.valueAligned(matching: DateComponents(day: 1)))
         } else {
             self

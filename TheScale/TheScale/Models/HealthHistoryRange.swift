@@ -155,16 +155,16 @@ enum HealthChartMath {
         paddingFraction: Double = 0.08,
         extraValues: [Double] = []
     ) -> ClosedRange<Double> {
-        let ideal = max(idealKg, 1)
-        let combined = values + extraValues
+        let ideal = max(finiteOrNil(idealKg) ?? 1, 1)
+        let combined = (values + extraValues).compactMap(finiteOrNil)
         guard let dataMin = combined.min(), let dataMax = combined.max() else {
-            return ideal...(ideal + 5)
+            return sanitizeDomain(ideal...(ideal + 5))
         }
         let floor = min(dataMin, ideal)
         let top = max(dataMax, ideal)
         let span = max(top - floor, 0.5)
         let pad = max(span * paddingFraction, 0.15)
-        return (floor - pad * 0.25)...(top + pad)
+        return sanitizeDomain((floor - pad * 0.25)...(top + pad))
     }
 
     /// Y-axis for body fat %. Prefer ideal as soft floor when set; always include data.
@@ -173,25 +173,93 @@ enum HealthChartMath {
         idealPercent: Double?,
         paddingFraction: Double = 0.12
     ) -> ClosedRange<Double> {
-        guard let dataMin = values.min(), let dataMax = values.max() else {
-            if let ideal = idealPercent {
+        let finiteValues = values.compactMap(finiteOrNil)
+        guard let dataMin = finiteValues.min(), let dataMax = finiteValues.max() else {
+            if let ideal = idealPercent.flatMap(finiteOrNil) {
                 let floor = max(ideal, 0)
-                return floor...(floor + 8)
+                return sanitizeDomain(floor...(floor + 8))
             }
             return 10...30
         }
-        if let ideal = idealPercent {
+        if let ideal = idealPercent.flatMap(finiteOrNil) {
             let floor = max(min(ideal, dataMin), 0)
             let top = max(dataMax, ideal)
             let span = max(top - floor, 1)
             let pad = max(span * paddingFraction, 0.4)
-            return floor...(top + pad)
+            return sanitizeDomain(floor...(top + pad))
         }
         let span = max(dataMax - dataMin, 1)
         let pad = max(span * paddingFraction, 0.5)
         let low = max(dataMin - pad, 0)
         let high = min(dataMax + pad, 75)
-        return low...max(high, low + 1)
+        return sanitizeDomain(low...max(high, low + 1))
+    }
+
+    /// X-axis for History charts.
+    ///
+    /// Always spans the selected filter window (`range.start`…`now`), not just the
+    /// sample extents. Sparse Health data over 3M/1Y used to shrink the plot domain
+    /// below `chartXVisibleDomain`, which made Charts emit
+    /// `Invalid frame dimension (negative or non-finite)`. Projection dates past
+    /// `now` extend the upper bound so Trend lines stay in-frame.
+    static func historyXDomain(
+        range: HealthHistoryRange,
+        extraDates: [Date] = [],
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> ClosedRange<Date> {
+        let start = range.startDate(relativeTo: now, calendar: calendar)
+        var end = now
+        if let furthest = extraDates.max(), furthest > end {
+            end = furthest
+        }
+        var span = end.timeIntervalSince(start)
+        if !span.isFinite || span <= 0 {
+            // Single-instant / inverted fallback: one calendar day centered on now.
+            return now.addingTimeInterval(-43_200)...now.addingTimeInterval(43_200)
+        }
+        // Charts needs a strictly positive domain; keep at least one day.
+        if span < 86_400 {
+            end = start.addingTimeInterval(86_400)
+            span = 86_400
+        }
+        let pad = max(span * 0.02, 3_600)
+        return start...end.addingTimeInterval(pad)
+    }
+
+    /// Visible scroll window for 3M/1Y, or `nil` when scroll must stay off.
+    ///
+    /// `chartXVisibleDomain(length:)` must be **strictly shorter** than the plot
+    /// X domain. Returning `nil` disables scroll instead of feeding Charts a
+    /// length that produces negative leftover geometry.
+    static func scrollVisibleDomainLength(
+        for range: HealthHistoryRange,
+        xDomain: ClosedRange<Date>
+    ) -> TimeInterval? {
+        guard range.prefersHorizontalScroll else { return nil }
+        let span = xDomain.upperBound.timeIntervalSince(xDomain.lowerBound)
+        guard span.isFinite, span > 0 else { return nil }
+        let wanted = range.visibleDomainLength
+        guard wanted.isFinite, wanted > 0 else { return nil }
+        // Require headroom so layout math stays positive after axis/chrome insets.
+        guard span > wanted * 1.05 else { return nil }
+        let capped = min(wanted, span * 0.92)
+        guard capped.isFinite, capped > 0, capped < span else { return nil }
+        return capped
+    }
+
+    /// Collapse non-finite / inverted Y domains into a safe positive span.
+    static func sanitizeDomain(_ range: ClosedRange<Double>) -> ClosedRange<Double> {
+        var lo = range.lowerBound
+        var hi = range.upperBound
+        if !lo.isFinite { lo = 0 }
+        if !hi.isFinite { hi = lo + 1 }
+        if hi <= lo { hi = lo + max(abs(lo) * 0.05, 1) }
+        return lo...hi
+    }
+
+    private static func finiteOrNil(_ value: Double) -> Double? {
+        value.isFinite ? value : nil
     }
 
     static func extrema(in samples: [HealthMetricSample]) -> (highest: HealthMetricSample, lowest: HealthMetricSample)? {
