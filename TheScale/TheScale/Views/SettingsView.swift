@@ -802,6 +802,25 @@ struct SettingsView: View {
                         await refreshNotificationStatus()
                     }
                 }
+                Button("Force soft review prompt") {
+                    ScaleAppReviewPrompt.successfulWeighIns = max(
+                        ScaleAppReviewPrompt.successfulWeighIns,
+                        ScaleAppReviewPrompt.minimumWeighIns
+                    )
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        session.isAppReviewPromptPresented = true
+                    }
+                }
+                Button("Reset review prompt state") {
+                    ScaleAppReviewPrompt.debugReset()
+                    samplePingNote = "Review prompt state cleared."
+                }
+                Button("Reset onboarding (relaunch flow)") {
+                    OnboardingStore.hasCompleted = false
+                    session.hasCompletedOnboarding = false
+                    dismiss()
+                }
             } label: {
                 Text("Dev")
                     .font(.system(size: 10, weight: .medium, design: .rounded))

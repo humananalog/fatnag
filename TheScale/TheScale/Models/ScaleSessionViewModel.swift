@@ -92,6 +92,8 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var hasCompletedOnboarding: Bool {
         didSet { OnboardingStore.hasCompleted = hasCompletedOnboarding }
     }
+    /// Soft star-rating sheet (non-invasive; only after real weigh-in success).
+    @Published var isAppReviewPromptPresented = false
     @Published var isProgressPresented = false
     @Published var isCoachPresented = false
     @Published var isSettingsPresented = false
@@ -324,6 +326,33 @@ final class ScaleSessionViewModel: ObservableObject {
 
     func dismissResults() {
         isResultsPresented = false
+        // Settle home first so the soft sheet never fights the results dismiss.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            considerAppReviewPrompt()
+        }
+    }
+
+    func dismissAppReviewPrompt() {
+        isAppReviewPromptPresented = false
+    }
+
+    /// Soft star prompt after enough successful Health saves — never mid-weigh-in.
+    func considerAppReviewPrompt() {
+        guard ScaleAppReviewPrompt.shouldOfferSoftPrompt() else { return }
+        // Avoid stacking over Coach / Monday / settings.
+        guard !isCoachPresented,
+              !isMondayCardPresented,
+              !isSettingsPresented,
+              !isWeighInPresented,
+              !isResultsPresented,
+              !isProgressPresented
+        else { return }
+        isAppReviewPromptPresented = true
+    }
+
+    private func noteSuccessfulWeighInForReview() {
+        ScaleAppReviewPrompt.recordSuccessfulWeighIn()
     }
 
     func reopenResults() {
@@ -850,6 +879,7 @@ final class ScaleSessionViewModel: ObservableObject {
         try await healthStore.requestAuthorizationIfNeeded()
         try await healthStore.write(draft: draft, profile: profile)
         phase = .healthKitSuccess
+        noteSuccessfulWeighInForReview()
         await refreshHealthBaseline()
         ensureWeeklyGoalBaseline()
         try await loadHistory(for: historyRange)
@@ -1063,6 +1093,7 @@ final class ScaleSessionViewModel: ObservableObject {
             try await healthStore.requestAuthorizationIfNeeded()
             try await healthStore.write(draft: draft, profile: profile)
             phase = .healthKitSuccess
+            noteSuccessfulWeighInForReview()
             isEditingDraft = false
             if draft.includeCompositionInHealth {
                 liveHint = "Saved confirmed weight, BMI, body fat %, and lean mass to Apple Health."

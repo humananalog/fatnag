@@ -86,6 +86,14 @@ struct ContentView: View {
                 MondayWeeklyCardView()
                     .environmentObject(session)
             }
+            .sheet(isPresented: Binding(
+                get: { session.isAppReviewPromptPresented },
+                set: { if !$0 { session.dismissAppReviewPrompt() } }
+            )) {
+                AppReviewPromptView {
+                    session.dismissAppReviewPrompt()
+                }
+            }
             .task {
                 await session.refreshHealthBaseline()
                 session.ensureWeeklyGoalBaseline()

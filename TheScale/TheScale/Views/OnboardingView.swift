@@ -1,23 +1,33 @@
 import SwiftUI
 
-/// First-launch profile: name, body basics, ideal weight, diet, persona, then one medical disclaimer.
+/// Three-step first launch: identity → body → confirm (Grok-filled persona) + legal.
+/// Designed for low friction: freeform instead of persona form fields; permissions last.
 struct OnboardingView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
-    @State private var name: String = ""
+
+    @State private var step = 0
+    @State private var name = ""
+    @State private var freeform = ""
     @State private var heightCm: Double = 170
     @State private var ageYears: Double = 30
     @State private var sex: UserBodyProfile.Sex = .male
     @State private var idealKg: Double = UserBodyProfile.suggestedIdealWeightKg(heightCm: 170)
+    @State private var idealBodyFat: Double? = nil
     @State private var diet: DietPreference = .omnivore
-    @State private var location: String = ""
-    @State private var ethnicity: String = ""
-    @State private var preferredLanguage: String = "English"
-    @State private var culturalVibe: String = ""
-    @State private var step = 0
+    @State private var location = ""
+    @State private var ethnicity = ""
+    @State private var preferredLanguage = "English"
+    @State private var culturalVibe = ""
+    @State private var allowGrokAssist = true
+    @State private var acceptedLegal = false
+    @State private var enableNotifications = true
+    @State private var isInferring = false
+    @State private var inferenceNote: String?
 
-    private let lastStep = 4
+    private let lastStep = 2
     private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
     private let steel = Color(red: 0.42, green: 0.45, blue: 0.50)
+    private let moss = Color(red: 0.12, green: 0.35, blue: 0.28)
 
     var body: some View {
         ZStack {
@@ -31,74 +41,153 @@ struct OnboardingView: View {
             )
             .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 18) {
                 Text("The Scale")
                     .font(.system(size: 36, weight: .semibold, design: .serif))
                     .foregroundStyle(ink)
+
+                stepDots
+
                 Text(stepTitle)
-                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink)
+                Text(stepSubtitle)
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
                     .foregroundStyle(steel)
 
                 Group {
                     switch step {
-                    case 0:
-                        nameStep
-                    case 1:
-                        bodyStep
-                    case 2:
-                        goalsStep
-                    case 3:
-                        personaStep
-                    default:
-                        legalStep
+                    case 0: identityStep
+                    case 1: bodyStep
+                    default: confirmStep
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-                Button(action: advance) {
-                    Text(step < lastStep ? "Continue" : "I understand")
+                if isInferring {
+                Label("Coach is shaping your profile…", systemImage: "sparkles")
+                    .font(.caption)
+                    .foregroundStyle(moss)
+            }
+
+            HStack(spacing: 12) {
+                    if step > 0 {
+                        Button("Back") {
+                            withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
+                                step -= 1
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    Button(action: advance) {
+                        HStack {
+                            if isInferring && step == 1 {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .tint(.white)
+                            }
+                            Text(primaryCTA)
+                        }
                         .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(ink)
+                    .disabled(!canAdvance)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(ink)
-                .disabled(step == 0 && name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding(28)
         }
         .preferredColorScheme(.light)
         .onAppear {
-            name = session.profile.displayName
-            heightCm = session.profile.heightCm
-            ageYears = session.profile.ageYears
-            sex = session.profile.sex
-            idealKg = session.profile.idealWeightKg
-            diet = session.profile.dietPreference
-            location = session.profile.location
-            ethnicity = session.profile.ethnicity
-            preferredLanguage = session.profile.preferredLanguage
-            culturalVibe = session.profile.culturalVibe
+            seedFromSession()
+            if !GrokSharedConfig.isLiveConfigured {
+                allowGrokAssist = false
+            }
+        }
+    }
+
+    private var stepDots: some View {
+        HStack(spacing: 8) {
+            ForEach(0...lastStep, id: \.self) { index in
+                Capsule()
+                    .fill(index <= step ? moss : steel.opacity(0.25))
+                    .frame(width: index == step ? 22 : 8, height: 6)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: step)
+            }
+            Spacer()
+            Text("\(step + 1) / 3")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(steel)
         }
     }
 
     private var stepTitle: String {
         switch step {
-        case 0: return "What should we call you?"
-        case 1: return "Body basics for on-device fat math."
-        case 2: return "Ideal weight + how you eat."
-        case 3: return "Coach persona (optional, editable later)."
-        default: return "One legal note (won't spam your chat)."
+        case 0: return "Who’s on the scale?"
+        case 1: return "Body basics"
+        default: return "Looks right?"
         }
     }
 
-    private var nameStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private var stepSubtitle: String {
+        switch step {
+        case 0:
+            return "Name plus a freeform note. Coach fills the rest — no long form."
+        case 1:
+            return "Only what on-device fat math needs. Ideal weight starts from height."
+        default:
+            return "Edit anything. Legal once. Then you’re in."
+        }
+    }
+
+    private var primaryCTA: String {
+        switch step {
+        case 0: return "Continue"
+        case 1: return isInferring ? "Filling profile…" : "Review profile"
+        default: return "Start weighing"
+        }
+    }
+
+    private var canAdvance: Bool {
+        switch step {
+        case 0:
+            return !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 1:
+            return heightCm >= 100 && ageYears >= 10 && !isInferring
+        default:
+            return acceptedLegal && !isInferring
+        }
+    }
+
+    private var identityStep: some View {
+        VStack(alignment: .leading, spacing: 14) {
             TextField("Your name", text: $name)
                 .textContentType(.givenName)
                 .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .padding(.vertical, 10)
-            Text("Stays on this iPhone. Coach uses it so we don't call you \"user\".")
-                .font(.footnote)
-                .foregroundStyle(steel)
+                .padding(.vertical, 8)
+
+            Text("About you (optional)")
+                .font(.subheadline.weight(.semibold))
+            TextField(
+                "City, diet, language, vibe, goals… e.g. Filipina in Manila, IF, aiming 62 kg",
+                text: $freeform,
+                axis: .vertical
+            )
+            .lineLimit(3...6)
+            .padding(12)
+            .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            if GrokSharedConfig.isLiveConfigured {
+                Toggle("Let Coach pre-fill from my note", isOn: $allowGrokAssist)
+                    .font(.footnote)
+                Text("One setup call. Profile stays on-device. You can change Coach consent later in Settings.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+            } else {
+                Text("Offline build: we’ll infer what we can on-device from your note.")
+                    .font(.caption)
+                    .foregroundStyle(steel)
+            }
         }
     }
 
@@ -112,54 +201,92 @@ struct OnboardingView: View {
                 }
             }
             .pickerStyle(.segmented)
-            Text("Used only for local BIA math. Never uploaded.")
+            fieldRow("Ideal weight", unit: "kg", value: $idealKg, fraction: 1)
+            Text("Used only for local BIA math and pacing. Never sold.")
                 .font(.caption)
                 .foregroundStyle(steel)
         }
         .onChange(of: heightCm) { _, newValue in
-            idealKg = UserBodyProfile.suggestedIdealWeightKg(heightCm: newValue)
-        }
-    }
-
-    private var goalsStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            fieldRow("Ideal weight", unit: "kg", value: $idealKg, fraction: 1)
-            Text("Diet preference")
-                .font(.subheadline.weight(.semibold))
-            Picker("Diet", selection: $diet) {
-                ForEach(DietPreference.allCases) { item in
-                    Text(item.title).tag(item)
-                }
+            if inferenceNote == nil {
+                idealKg = UserBodyProfile.suggestedIdealWeightKg(heightCm: newValue)
             }
-            .pickerStyle(.menu)
-            Text("Optional Grok coaching later can use diet tone. Profile stays local unless you explicitly send a coach request.")
-                .font(.caption)
-                .foregroundStyle(steel)
         }
     }
 
-    private var personaStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            TextField("Location (city / region)", text: $location)
-            TextField("Ethnicity / culture", text: $ethnicity)
-            TextField("Preferred language", text: $preferredLanguage)
-            TextField("Vibe / cultural style", text: $culturalVibe, axis: .vertical)
-                .lineLimit(2...4)
-            Text("Example: Filipina in Manila, or French in HK preferring American culture. Skip anything you don't want Coach to use.")
-                .font(.caption)
-                .foregroundStyle(steel)
-        }
-    }
+    private var confirmStep: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if let inferenceNote {
+                    Text(inferenceNote)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(moss)
+                }
 
-    private var legalStep: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(CoachCopySanitize.medicalDisclaimer)
-                .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundStyle(ink)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("You'll find the same note quietly under Settings → Legal. Coach answers won't paste it again.")
+                confirmField("Location", text: $location)
+                confirmField("Ethnicity / culture", text: $ethnicity)
+                confirmField("Language", text: $preferredLanguage)
+                confirmField("Vibe", text: $culturalVibe, axis: true)
+
+                Text("Diet")
+                    .font(.subheadline.weight(.semibold))
+                Picker("Diet", selection: $diet) {
+                    ForEach(DietPreference.allCases) { item in
+                        Text(item.title).tag(item)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                HStack {
+                    Text("Target body fat % (optional)")
+                    Spacer()
+                    TextField(
+                        "%",
+                        value: Binding(
+                            get: { idealBodyFat ?? 0 },
+                            set: { idealBodyFat = $0 > 0.5 ? $0 : nil }
+                        ),
+                        format: .number.precision(.fractionLength(1))
+                    )
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 64)
+                }
+                .font(.body)
+
+                Toggle("Bad-trend + weekly goal notifications", isOn: $enableNotifications)
+                    .font(.footnote)
+
+                Toggle(
+                    "Allow live Grok Coach later",
+                    isOn: Binding(
+                        get: { allowGrokAssist },
+                        set: { allowGrokAssist = $0 }
+                    )
+                )
                 .font(.footnote)
+                .disabled(!GrokSharedConfig.isLiveConfigured)
+
+                Toggle("I understand the fitness disclaimer", isOn: $acceptedLegal)
+                    .font(.footnote.weight(.semibold))
+                Text(CoachCopySanitize.medicalDisclaimer)
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func confirmField(_ title: String, text: Binding<String>, axis: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(steel)
+            if axis {
+                TextField(title, text: text, axis: .vertical)
+                    .lineLimit(2...4)
+            } else {
+                TextField(title, text: text)
+            }
         }
     }
 
@@ -180,28 +307,106 @@ struct OnboardingView: View {
         .font(.body)
     }
 
+    private func seedFromSession() {
+        name = session.profile.displayName
+        heightCm = session.profile.heightCm
+        ageYears = session.profile.ageYears
+        sex = session.profile.sex
+        idealKg = session.profile.idealWeightKg
+        idealBodyFat = session.profile.idealBodyFatPercent
+        diet = session.profile.dietPreference
+        location = session.profile.location
+        ethnicity = session.profile.ethnicity
+        preferredLanguage = session.profile.preferredLanguage
+        culturalVibe = session.profile.culturalVibe
+        enableNotifications = session.notificationPreferences.notifyOnBadTrend
+    }
+
     private func advance() {
-        if step < lastStep {
+        switch step {
+        case 0:
             withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
-                step += 1
+                step = 1
             }
-            return
+        case 1:
+            Task { await runInferenceThenConfirm() }
+        default:
+            finish()
         }
+    }
+
+    private func runInferenceThenConfirm() async {
+        guard !isInferring else { return }
+        isInferring = true
+        inferenceNote = nil
+        let draft = await GrokClient.shared.inferOnboardingProfile(
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            freeform: freeform.trimmingCharacters(in: .whitespacesAndNewlines),
+            heightCm: heightCm,
+            ageYears: ageYears,
+            sex: sex,
+            idealKg: idealKg,
+            allowNetwork: allowGrokAssist && GrokSharedConfig.isLiveConfigured
+        )
+        applyInference(draft)
+        isInferring = false
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
+            step = 2
+        }
+    }
+
+    private func applyInference(_ draft: OnboardingInferenceDraft) {
+        if let d = draft.diet { diet = d }
+        if let loc = draft.location, !loc.isEmpty { location = loc }
+        if let eth = draft.ethnicity, !eth.isEmpty { ethnicity = eth }
+        if let lang = draft.preferredLanguage, !lang.isEmpty { preferredLanguage = lang }
+        if let vibe = draft.culturalVibe, !vibe.isEmpty { culturalVibe = vibe }
+        if let w = draft.idealWeightKg { idealKg = w }
+        if let bf = draft.idealBodyFatPercent { idealBodyFat = bf }
+
+        if draft.sourceLabel == "empty"
+            || (freeform.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !draft.usedNetwork) {
+            inferenceNote = "No note to parse — defaults ready. Edit anything below."
+        } else if draft.usedNetwork {
+            inferenceNote = "Coach filled these from your note. Edit freely."
+        } else {
+            inferenceNote = "Filled on-device from your note. Edit freely."
+        }
+    }
+
+    private func finish() {
         session.profile = UserBodyProfile(
             displayName: name.trimmingCharacters(in: .whitespacesAndNewlines),
             heightCm: heightCm,
             ageYears: ageYears,
             sex: sex,
             idealWeightKg: idealKg,
-            idealBodyFatPercent: session.profile.idealBodyFatPercent,
+            idealBodyFatPercent: idealBodyFat,
             dietPreference: diet,
             location: location.trimmingCharacters(in: .whitespacesAndNewlines),
             ethnicity: ethnicity.trimmingCharacters(in: .whitespacesAndNewlines),
             preferredLanguage: preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines),
             culturalVibe: culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines)
         )
+
+        if GrokSharedConfig.isLiveConfigured {
+            GrokPrivacyConsent.isAccepted = allowGrokAssist
+        }
+
+        var prefs = session.notificationPreferences
+        prefs.notifyOnBadTrend = enableNotifications
+        prefs.weeklyGoalReminders = enableNotifications
+        session.notificationPreferences = prefs
+
         OnboardingStore.hasCompleted = true
         session.hasCompletedOnboarding = true
+
+        if enableNotifications {
+            Task {
+                _ = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
+                await session.refreshTrendNotifications()
+            }
+        }
     }
 }
 
