@@ -68,7 +68,19 @@ Documented in code (`HealthScienceMath`, `TargetFeasibility`, `HealthChartMath`)
 
 ## Notification surfaces
 
-All local (`UNUserNotificationCenter`). Toggles live in Settings.
+All local (`UNUserNotificationCenter`). Toggles live in Settings. **2.9.0+** ships iOS 27-era chrome:
+
+| Surface | Title / subtitle / body | Category actions | Thread | Interruption |
+|---------|-------------------------|------------------|--------|--------------|
+| Coach wake | Name + wake · clock/before · Coach line | Open Coach, Snooze 10 min | `thescale.coach` | **Time Sensitive** |
+| Coach reminder | Name + reminder · fire time · Coach line | Open Coach, Snooze | `thescale.coach` | Active |
+| Bad trend | Name + scale check · kg · reason | Open History, Progress, Snooze | `thescale.trend` | Active |
+| Monday mini-goal | Name + weekly · goal title · nudge | Open Progress, Coach | `thescale.trend` | Passive |
+| Fitness interval | Name + check · interval · open hint | Open Coach | `thescale.fitness` | Passive |
+| Watch / pre-sleep HR | Name + signal · kind · message | Open Coach, Snooze | `thescale.fitness` | Active |
+| Dev sample | Name + sample · kg · QA line | Open Coach, Progress | `thescale.sample` | Active |
+
+Also: Communication-style Coach avatar when appropriate (`INSendMessageIntent` / `UNNotificationAttributedMessageContext`), PNG attachment visuals, `relevanceScore`, `targetContentIdentifier`, App Intents (`OpenCoachIntent`, `OpenProgressIntent`, `OpenHistoryIntent`). Foreground: wake gets banner+sound+list+badge; interval/weekly stay quieter (banner+list).
 
 | Trigger | Gate | Copy |
 |---------|------|------|
@@ -89,19 +101,36 @@ All local (`UNUserNotificationCenter`). Toggles live in Settings.
 
 **Coach reminder verify (quick):**
 
-1. Settings → Notifications: status should be **allowed** (or tap Request permission / System Settings).
+1. Settings → Notifications: status should show **allowed** plus banner/sound/badge/time-sensitive lines (or tap Request permission / System Settings).
 2. Coach: `remind me in 2 minutes`.
 3. Expect an in-chat confirm with the **exact local fire time**, and Settings → Coach reminders lists the pending row.
-4. Lock phone or leave app; banner should land ~2 minutes later (Focus/DND can silence it).
+4. Lock phone or leave app; banner should land ~2 minutes later (Focus/DND can silence it). Long-press for Open Coach / Snooze.
 5. For morning: `remind me at 8am` (or `remind me tomorrow morning at 8am`). Confirm the locked local time in chat + Settings pending list.
 
-### Fitness monitoring
+**Dev sample SOTA ping:** Settings → Legal → **Dev** → **Fire sample SOTA notification**. Expect ~1.5s later: titled sample with subtitle kg, visual, Coach chrome, actions.
+
+### Fitness monitoring + HealthKit background (2.9.0+)
 
 - Settings: enable, interval (manual / 6h / 12h / daily / morning+evening), pre-sleep HR window + bpm threshold.
 - Elevated or missing HR ~30 min before sleep (HRV-aware when present); sparse HR despite movement/distance → Watch-not-worn nudge.
-- Automated Grok checks send one orchestrator answer with digest + memory + persona.
-- `BGAppRefresh` is best-effort; repeating local nudges ask you to open the app. Foreground resume runs due checks.
+- Automated Grok checks send one orchestrator answer with digest + memory + persona when interval is due.
+- **Background wiring (real, not open-app-only):**
+  1. `UIBackgroundModes`: `healthkit`, `fetch`, `processing`.
+  2. Entitlement: `com.apple.developer.healthkit.background-delivery`.
+  3. `HealthKitBackgroundDelivery` calls `enableBackgroundDelivery` + `HKObserverQuery` for workouts (immediate), sleep (immediate), body mass (immediate), steps/energy/HR/HRV/RHR (hourly — Apple’s floor for steps).
+  4. Observer wake → `runBackgroundHealthWake`: refresh digest, evaluate Watch-wear / pre-sleep triggers, schedule local notifications (cooldowns apply), refresh bad-trend when weight samples change. Full Grok/FM coach reply only when forced or interval-due.
+  5. Backups: `BGAppRefreshTask` (`app.thescale.ios.fitness-check`) + `BGProcessingTask` (`app.thescale.ios.fitness-processing`).
+- **Honesty:** iOS coalesces and throttles HealthKit background delivery and BG tasks. Not guaranteed realtime. Observers still fire without the UI being open; Focus/DND can silence banners.
 - If Grok is offline, FM can summarize a private digest for the in-app path.
+
+**Verify background Health wake:**
+
+1. Pull `main` **2.9.0**, Clean Build, Run on iPhone 15.
+2. Settings → Allow Health access; enable **Health ↔ Grok monitoring** + notify on triggers.
+3. Confirm Settings shows **Health background: N observers** (not “not armed”).
+4. Start a workout on Apple Watch (or log one that writes to Health), then **lock the phone** and leave The Scale in background / killed.
+5. When Health syncs the workout (or sleep / steps burst), expect The Scale to wake briefly and, if algorithms fire, a local notification (Watch-wear / interval / etc.) **without opening the app**.
+6. Optional Xcode: Debug → Simulate Background Fetch; or console filter `HealthKitBackground`.
 
 ## Legal
 
@@ -121,6 +150,6 @@ Medical disclaimer: onboarding + Settings → Legal only. Notification and Coach
 1. Enable Apple Intelligence; wait for model.
 2. App Settings → Apple Intelligence: on-device ready.
 3. Bad-trend weigh-in **or** Coach: `ping me tomorrow morning before 7:30 to wake up`.
-4. Delivered notification: uses name, Coach voice, no em dashes, no AI markers.
+4. Delivered notification: uses name, Coach voice, no em dashes, no AI markers. Long-press shows actions; wake may show as Communication-style Coach.
 
 Parent overview: [README](../README.md). AI routing: [coach-and-ai.md](coach-and-ai.md).

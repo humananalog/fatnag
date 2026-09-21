@@ -25,15 +25,23 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView()
-                            .environmentObject(session)
+                    Button {
+                        session.presentSettings()
                     } label: {
                         Image(systemName: "gearshape")
                             .font(.body.weight(.medium))
                             .foregroundStyle(ink.opacity(0.85))
                     }
                     .accessibilityLabel("Settings")
+                }
+            }
+            .sheet(isPresented: Binding(
+                get: { session.isSettingsPresented },
+                set: { if !$0 { session.dismissSettings() } }
+            )) {
+                NavigationStack {
+                    SettingsView()
+                        .environmentObject(session)
                 }
             }
             .fullScreenCover(isPresented: Binding(
@@ -82,6 +90,12 @@ struct ContentView: View {
                 await session.refreshHealthBaseline()
                 session.ensureWeeklyGoalBaseline()
                 await session.refreshTrendNotifications()
+                ScaleNotificationRouter.openDestination = { destination in
+                    session.handleNotificationDestination(destination)
+                }
+                ScaleNotificationRouter.openAppNotificationSettings = {
+                    session.presentSettings()
+                }
             }
         }
         .preferredColorScheme(.light)

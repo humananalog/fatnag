@@ -18,7 +18,9 @@ enum TrendNotificationScheduler {
             return false
         case .notDetermined:
             do {
-                return try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                return try await center.requestAuthorization(
+                    options: [.alert, .sound, .badge, .providesAppNotificationSettings]
+                )
             } catch {
                 return false
             }
@@ -27,7 +29,8 @@ enum TrendNotificationScheduler {
         }
     }
 
-    /// Evaluate after a Health save / history load. Cancels stale bad-trend pings when things improve.
+    /// Evaluate after a Health save / history load / background wake.
+    /// Cancels stale bad-trend pings when things improve.
     static func refresh(
         prefs: NotificationPreferences,
         profileName: String,
@@ -54,12 +57,14 @@ enum TrendNotificationScheduler {
                     algorithmicReason: reason,
                     extraContext: String(
                         format: "currentKg=%@ idealKg=%.1f",
-                        currentKg.map { String(format: "%.1f" , $0) } ?? "nil",
+                        currentKg.map { String(format: "%.1f", $0) } ?? "nil",
                         idealKg
                     )
                 )
                 if judgment.shouldNotify {
+                    let kgBit = currentKg.map { String(format: "%.1f kg", $0) } ?? "weight"
                     let fallbackTitle = "\(name): scale check"
+                    let fallbackSubtitle = kgBit + " · above pace"
                     let polished = await FoundationModelCoach.refineNotificationCopy(
                         profileName: name,
                         kind: "bad-trend",
@@ -67,11 +72,16 @@ enum TrendNotificationScheduler {
                         fallbackBody: reason,
                         context: reason
                     )
-                    let content = UNMutableNotificationContent()
-                    content.title = polished.title
-                    content.body = polished.body
-                    content.sound = .default
-                    // Fire once ~18h later so we don’t nag mid-weigh-in.
+                    let content = ScaleNotificationContentFactory.make(
+                        .init(
+                            kind: .badTrend,
+                            title: polished.title,
+                            subtitle: fallbackSubtitle,
+                            body: polished.body,
+                            visualHeadline: kgBit,
+                            visualDetail: String(format: "Ideal %.1f kg", idealKg)
+                        )
+                    )
                     let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 18 * 3600, repeats: false)
                     let request = UNNotificationRequest(identifier: badTrendId, content: content, trigger: trigger)
                     try? await center.add(request)
@@ -91,7 +101,8 @@ enum TrendNotificationScheduler {
             date.hour = 8
             date.minute = 15
             let fallbackTitle = "\(name): weekly mini-goal"
-            let fallbackBody = weeklyGoal.title + " Open Progress when you’re ready."
+            let fallbackSubtitle = weeklyGoal.title
+            let fallbackBody = "\(weeklyGoal.title) Open Progress when you're ready."
             let polished = await FoundationModelCoach.refineNotificationCopy(
                 profileName: name,
                 kind: "weekly-goal",
@@ -99,10 +110,16 @@ enum TrendNotificationScheduler {
                 fallbackBody: fallbackBody,
                 context: "Weekly mini-goal: \(weeklyGoal.title)"
             )
-            let content = UNMutableNotificationContent()
-            content.title = polished.title
-            content.body = polished.body
-            content.sound = .default
+            let content = ScaleNotificationContentFactory.make(
+                .init(
+                    kind: .weeklyGoal,
+                    title: polished.title,
+                    subtitle: fallbackSubtitle,
+                    body: polished.body,
+                    visualHeadline: String(format: "%+.1f kg", weeklyGoal.targetDeltaKg),
+                    visualDetail: "Monday mini-goal"
+                )
+            )
             let trigger = UNCalendarNotificationTrigger(dateMatching: date, repeats: true)
             let request = UNNotificationRequest(identifier: weeklyGoalId, content: content, trigger: trigger)
             try? await center.add(request)

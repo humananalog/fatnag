@@ -95,12 +95,28 @@ enum CoachReminderScheduler {
             ? wakeReminderId
             : notificationIdPrefix + UUID().uuidString
 
-        let content = UNMutableNotificationContent()
-        content.title = fallbackTitle
-        content.body = fallbackBody
-        content.sound = .default
-        content.threadIdentifier = "thescale.coach-reminder"
-        content.interruptionLevel = .timeSensitive
+        let kind: ScaleNotificationKind = liveRequest.kind == .wakeUp ? .coachWake : .coachReminder
+        let subtitle: String = {
+            if liveRequest.kind == .wakeUp, let deadline = liveRequest.beforeDeadline {
+                let t = DateFormatter.localizedString(
+                    from: deadline,
+                    dateStyle: .none,
+                    timeStyle: .short
+                )
+                return "Before \(t)"
+            }
+            return fireAt.formatted(date: .omitted, time: .shortened)
+        }()
+        let content = ScaleNotificationContentFactory.make(
+            .init(
+                kind: kind,
+                title: fallbackTitle,
+                subtitle: subtitle,
+                body: fallbackBody,
+                visualHeadline: liveRequest.kind == .wakeUp ? "Wake" : "Reminder",
+                visualDetail: subtitle
+            )
+        )
 
         let trigger = makeTrigger(for: fireAt, now: now)
         let unRequest = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
@@ -194,20 +210,35 @@ enum CoachReminderScheduler {
 
     static func authorizationStatusLine() async -> String {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
-        switch settings.authorizationStatus {
-        case .authorized:
-            return "Notifications: allowed"
-        case .provisional:
-            return "Notifications: provisional (quiet delivery)"
-        case .ephemeral:
-            return "Notifications: ephemeral"
-        case .denied:
-            return "Notifications: denied. Open system Settings to allow alerts."
-        case .notDetermined:
-            return "Notifications: not asked yet. Coach will prompt on the next reminder."
-        @unknown default:
-            return "Notifications: unknown status"
-        }
+        let auth: String = {
+            switch settings.authorizationStatus {
+            case .authorized: return "allowed"
+            case .provisional: return "provisional (quiet)"
+            case .ephemeral: return "ephemeral"
+            case .denied: return "denied · open system Settings"
+            case .notDetermined: return "not asked yet"
+            @unknown default: return "unknown"
+            }
+        }()
+        let style: String = {
+            switch settings.alertStyle {
+            case .banner: return "banner"
+            case .alert: return "alert"
+            case .none: return "no banners"
+            @unknown default: return "style?"
+            }
+        }()
+        let sound = settings.soundSetting == .enabled ? "sound on" : "sound off"
+        let badge = settings.badgeSetting == .enabled ? "badge on" : "badge off"
+        let timeSensitive: String = {
+            switch settings.timeSensitiveSetting {
+            case .enabled: return "time-sensitive on"
+            case .disabled: return "time-sensitive off"
+            case .notSupported: return "time-sensitive n/a"
+            @unknown default: return "time-sensitive?"
+            }
+        }()
+        return "Notifications: \(auth) · \(style) · \(sound) · \(badge) · \(timeSensitive)"
     }
 
     /// If `fireAt` is already past, push forward so UNUserNotificationCenter can deliver.
@@ -264,12 +295,28 @@ enum CoachReminderScheduler {
         guard polished.usedFoundationModel else { return }
         guard polished.title != fallbackTitle || polished.body != fallbackBody else { return }
 
-        let content = UNMutableNotificationContent()
-        content.title = polished.title
-        content.body = polished.body
-        content.sound = .default
-        content.threadIdentifier = "thescale.coach-reminder"
-        content.interruptionLevel = .timeSensitive
+        let kind: ScaleNotificationKind = request.kind == .wakeUp ? .coachWake : .coachReminder
+        let subtitle: String = {
+            if request.kind == .wakeUp, let deadline = request.beforeDeadline {
+                let t = DateFormatter.localizedString(
+                    from: deadline,
+                    dateStyle: .none,
+                    timeStyle: .short
+                )
+                return "Before \(t)"
+            }
+            return request.fireAt.formatted(date: .omitted, time: .shortened)
+        }()
+        let content = ScaleNotificationContentFactory.make(
+            .init(
+                kind: kind,
+                title: polished.title,
+                subtitle: subtitle,
+                body: polished.body,
+                visualHeadline: request.kind == .wakeUp ? "Wake" : "Reminder",
+                visualDetail: subtitle
+            )
+        )
         let replacement = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         do {
             try await UNUserNotificationCenter.current().add(replacement)

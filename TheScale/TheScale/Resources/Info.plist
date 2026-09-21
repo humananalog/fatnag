@@ -35,10 +35,13 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>app.thescale.ios.fitness-check</string>
+		<string>app.thescale.ios.fitness-processing</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
+		<string>processing</string>
+		<string>healthkit</string>
 	</array>
 	<key>GrokProxyURL</key>
 	<string>$(GROK_PROXY_URL)</string>

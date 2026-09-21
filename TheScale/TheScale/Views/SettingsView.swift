@@ -8,6 +8,8 @@ struct SettingsView: View {
     @State private var confirmReset = false
     @State private var notificationAuthLine = "Notifications: checking..."
     @State private var pendingCoachReminders: [PendingCoachReminder] = []
+    @State private var healthBackgroundLine = "Health background: checking..."
+    @State private var samplePingNote: String?
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable {
@@ -211,7 +213,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Notifications", systemImage: "bell.badge")
                 .font(.headline)
-            Text("Ping only when trends look bad, plus an optional Monday mini-goal nudge. Coach can also schedule one-shot local reminders (wake / timed). On-device Foundation Models can sharpen copy after the schedule lands; they never block delivery. Focus/DND can still silence banners.")
+            Text("SOTA local banners: title / subtitle / body, threads, actions (Open Coach, Progress, History, Snooze), Coach communication chrome when it fits, and a small visual. Time Sensitive only for wake pings you asked for. FM can sharpen copy after schedule; never blocks. Focus/DND can still silence banners.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -331,7 +333,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Health ↔ Grok monitoring", systemImage: "heart.text.square")
                 .font(.headline)
-            Text("Reads HR, RHR, HRV (SDNN), respiratory rate, wrist temperature, SpO2, VO2 max, sleep (stages when available), steps, active energy, Exercise Time, walking/running distance, and workouts from Apple Health (after permission). Coach refreshes this dated digest on every ask. Third-party apps (AllTrails, Strava, etc.) only appear after they write into Apple Health. The Scale never reads those apps directly. iOS background is best-effort; local notifications nudge you to open the app.")
+            Text("Reads HR, RHR, HRV (SDNN), respiratory rate, wrist temperature, SpO2, VO2 max, sleep (stages when available), steps, active energy, Exercise Time, walking/running distance, and workouts from Apple Health (after permission). Coach refreshes this dated digest on every ask. Third-party apps (AllTrails, Strava, etc.) only appear after they write into Apple Health. The Scale never reads those apps directly. Background: HKObserverQuery + enableBackgroundDelivery wake the process for key types; BGAppRefresh / BGProcessing are backups. iOS still throttles. Local notifications can land without opening the app.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -339,6 +341,10 @@ struct SettingsView: View {
                 .font(.caption.weight(.semibold))
             Text(session.healthAccessStatusLine)
                 .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text(healthBackgroundLine)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
@@ -473,6 +479,7 @@ struct SettingsView: View {
         .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .task {
             _ = await session.refreshFitnessDigestForCoach()
+            healthBackgroundLine = HealthKitBackgroundDelivery.shared.statusLine()
         }
     }
 
@@ -683,7 +690,7 @@ struct SettingsView: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
 
-            // Discreet Dev affordance: force Monday weekly card without Monday morning weigh-in.
+            // Discreet Dev affordance: Monday card + SOTA sample notification.
             Menu {
                 Button("Preview Monday card") {
                     dismiss()
@@ -697,12 +704,30 @@ struct SettingsView: View {
                         session.forcePresentMondayCard(regenerate: true)
                     }
                 }
+                Button("Fire sample SOTA notification") {
+                    Task {
+                        let ok = await GrokFitnessMonitor.fireSampleSOTANotification(
+                            profileName: session.profile.greetingName,
+                            currentKg: session.healthBaselineKg
+                        )
+                        samplePingNote = ok
+                            ? "Sample ping scheduled (~1.5s). Lock phone or leave app."
+                            : "Sample ping failed. Allow notifications first."
+                        await refreshNotificationStatus()
+                    }
+                }
             } label: {
                 Text("Dev")
                     .font(.system(size: 10, weight: .medium, design: .rounded))
                     .foregroundStyle(.tertiary)
             }
-            .accessibilityLabel("Developer Monday card tools")
+            .accessibilityLabel("Developer tools")
+
+            if let samplePingNote {
+                Text(samplePingNote)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)

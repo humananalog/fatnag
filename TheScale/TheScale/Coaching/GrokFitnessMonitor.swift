@@ -3,40 +3,79 @@ import Foundation
 import UserNotifications
 
 /// Schedules fitness digests + Grok checks. Honest about iOS background limits:
-/// BGAppRefresh is best-effort; local notifications + foreground resume are the reliable path.
+/// `HKObserverQuery` + background delivery wake the app for Health writes;
+/// `BGAppRefresh` / `BGProcessing` are best-effort backups. Local notifications
+/// still deliver when the UI never opens.
 @MainActor
 enum GrokFitnessMonitor {
-    static let bgTaskId = "app.thescale.ios.fitness-check"
+    static let bgRefreshTaskId = "app.thescale.ios.fitness-check"
+    static let bgProcessingTaskId = "app.thescale.ios.fitness-processing"
+    /// Legacy alias used by older call sites / docs.
+    static let bgTaskId = bgRefreshTaskId
     static let intervalNotifyId = "thescale.fitness-interval"
     static let triggerNotifyPrefix = "thescale.fitness-trigger."
     static let lastCoachReplyKey = "thescale.lastFitnessCoachReply"
+    static let sampleNotifyId = "thescale.sample-sota"
 
     static func registerBackgroundTask() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: bgTaskId, using: nil) { task in
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: bgRefreshTaskId, using: nil) { task in
             guard let refresh = task as? BGAppRefreshTask else {
                 task.setTaskCompleted(success: false)
                 return
             }
             let work = Task { @MainActor in
+                await HealthKitBackgroundDelivery.shared.handleTaskWake(reason: .appRefresh)
                 let ok = await Self.runAutomatedCheckIfDue(force: false)
+                Self.scheduleBackgroundRefresh(prefs: FitnessMonitorPreferencesStore.load())
+                Self.scheduleBackgroundProcessing(prefs: FitnessMonitorPreferencesStore.load())
                 refresh.setTaskCompleted(success: ok)
             }
             refresh.expirationHandler = { work.cancel() }
+        }
+
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: bgProcessingTaskId, using: nil) { task in
+            guard let processing = task as? BGProcessingTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            let work = Task { @MainActor in
+                await HealthKitBackgroundDelivery.shared.handleTaskWake(reason: .processingTask)
+                let ok = await Self.runAutomatedCheckIfDue(force: true)
+                Self.scheduleBackgroundProcessing(prefs: FitnessMonitorPreferencesStore.load())
+                processing.setTaskCompleted(success: ok)
+            }
+            processing.expirationHandler = { work.cancel() }
         }
     }
 
     static func scheduleBackgroundRefresh(prefs: FitnessMonitorPreferences) {
         guard prefs.enabled, prefs.interval != .manualOnly else {
-            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgTaskId)
+            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgRefreshTaskId)
             return
         }
-        let request = BGAppRefreshTaskRequest(identifier: bgTaskId)
+        let request = BGAppRefreshTaskRequest(identifier: bgRefreshTaskId)
         let delay = prefs.interval.nominalSeconds ?? (24 * 3600)
         request.earliestBeginDate = Date().addingTimeInterval(min(delay, 12 * 3600))
         do {
             try BGTaskScheduler.shared.submit(request)
         } catch {
-            // iOS may refuse; interval notifications still cover the UX.
+            // iOS may refuse; HealthKit observers + interval notifications still cover the UX.
+        }
+    }
+
+    static func scheduleBackgroundProcessing(prefs: FitnessMonitorPreferences) {
+        guard prefs.enabled else {
+            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: bgProcessingTaskId)
+            return
+        }
+        let request = BGProcessingTaskRequest(identifier: bgProcessingTaskId)
+        request.requiresNetworkConnectivity = GrokPrivacyConsent.isAccepted && GrokSharedConfig.isLiveConfigured
+        request.requiresExternalPower = false
+        request.earliestBeginDate = Date().addingTimeInterval(6 * 3600)
+        do {
+            try BGTaskScheduler.shared.submit(request)
+        } catch {
+            // Best-effort; observer wakes remain primary.
         }
     }
 
@@ -52,17 +91,26 @@ enum GrokFitnessMonitor {
         guard allowed else { return }
 
         let name = profileName.isEmpty ? "Hey" : profileName
+        let fallbackTitle = "\(name): fitness check"
+        let fallbackSubtitle = prefs.interval.title
+        let fallbackBody = "Health updated in the background. Open Coach if you want the full read. iOS throttles wakes."
         let polished = await FoundationModelCoach.refineNotificationCopy(
             profileName: name,
             kind: "fitness-interval",
-            fallbackTitle: "\(name): fitness check",
-            fallbackBody: "Open The Scale so Coach can read the latest Health digest. iOS background is best-effort.",
+            fallbackTitle: fallbackTitle,
+            fallbackBody: fallbackBody,
             context: "Scheduled Health↔Coach interval: \(prefs.interval.title)"
         )
-        let content = UNMutableNotificationContent()
-        content.title = polished.title
-        content.body = polished.body
-        content.sound = .default
+        let content = ScaleNotificationContentFactory.make(
+            .init(
+                kind: .fitnessInterval,
+                title: polished.title,
+                subtitle: fallbackSubtitle,
+                body: polished.body,
+                visualHeadline: "Check-in",
+                visualDetail: prefs.interval.title
+            )
+        )
 
         switch prefs.interval {
         case .manualOnly:
@@ -90,8 +138,6 @@ enum GrokFitnessMonitor {
 
     @discardableResult
     static func runAutomatedCheckIfDue(force: Bool) async -> Bool {
-        // Requires a live session; ContentView / app hooks call the ViewModel path.
-        // This entry is for BGTask when we stash a weak runner.
         await runner?(force) ?? false
     }
 
@@ -145,6 +191,19 @@ enum GrokFitnessMonitor {
                 prefs.lastPreSleepAlertAt = now
             }
 
+            let kind: ScaleNotificationKind = {
+                switch trigger.kind {
+                case .watchLikelyNotWorn: return .watchWear
+                case .preSleepHRElevated, .preSleepHRMissing: return .preSleepHR
+                }
+            }()
+            let subtitle: String = {
+                switch trigger.kind {
+                case .watchLikelyNotWorn: return "Watch wear"
+                case .preSleepHRElevated: return "Pre-sleep HR high"
+                case .preSleepHRMissing: return "Pre-sleep HR missing"
+                }
+            }()
             let polished = await FoundationModelCoach.refineNotificationCopy(
                 profileName: name,
                 kind: trigger.kind.rawValue,
@@ -152,10 +211,16 @@ enum GrokFitnessMonitor {
                 fallbackBody: trigger.message,
                 context: trigger.message
             )
-            let content = UNMutableNotificationContent()
-            content.title = polished.title
-            content.body = polished.body
-            content.sound = .default
+            let content = ScaleNotificationContentFactory.make(
+                .init(
+                    kind: kind,
+                    title: polished.title,
+                    subtitle: subtitle,
+                    body: polished.body,
+                    visualHeadline: subtitle,
+                    visualDetail: name
+                )
+            )
             let id = triggerNotifyPrefix + trigger.kind.rawValue
             let request = UNNotificationRequest(
                 identifier: id,
@@ -163,6 +228,27 @@ enum GrokFitnessMonitor {
                 trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
             )
             try? await center.add(request)
+        }
+    }
+
+    /// Discreet Dev QA: fire a full SOTA sample notification in ~1.5s.
+    static func fireSampleSOTANotification(profileName: String, currentKg: Double?) async -> Bool {
+        let allowed = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
+        guard allowed else { return false }
+        let content = ScaleNotificationContentFactory.makeSample(
+            profileName: profileName,
+            currentKg: currentKg
+        )
+        let request = UNNotificationRequest(
+            identifier: sampleNotifyId,
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1.5, repeats: false)
+        )
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+            return true
+        } catch {
+            return false
         }
     }
 }

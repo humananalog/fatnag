@@ -79,6 +79,10 @@ final class ScaleSessionViewModel: ObservableObject {
                     profileName: profile.greetingName
                 )
                 GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: fitnessMonitorPreferences)
+                GrokFitnessMonitor.scheduleBackgroundProcessing(prefs: fitnessMonitorPreferences)
+                if fitnessMonitorPreferences.enabled {
+                    await armHealthKitBackgroundDelivery()
+                }
             }
         }
     }
@@ -90,6 +94,7 @@ final class ScaleSessionViewModel: ObservableObject {
     }
     @Published var isProgressPresented = false
     @Published var isCoachPresented = false
+    @Published var isSettingsPresented = false
     /// Monday morning post-weigh weekly goal card.
     @Published private(set) var isMondayCardPresented = false
     @Published private(set) var mondayCard: MondayCardPayload?
@@ -134,7 +139,14 @@ final class ScaleSessionViewModel: ObservableObject {
         self.lastFitnessCoachReply = GrokFitnessMonitor.loadLastReply()
         GrokFitnessMonitor.install { [weak self] force in
             guard let self else { return false }
-            return await self.runFitnessMonitorCheck(force: force)
+            return await self.runBackgroundHealthWake(
+                reason: force ? .processingTask : .appRefresh,
+                forceFullCoach: force
+            )
+        }
+        HealthKitBackgroundDelivery.shared.onHealthUpdate = { [weak self] reason in
+            guard let self else { return }
+            _ = await self.runBackgroundHealthWake(reason: reason, forceFullCoach: false)
         }
     }
 
@@ -579,9 +591,31 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
 
-    /// Settings: re-prompt Health permissions and refresh status line.
+    func presentSettings() {
+        isSettingsPresented = true
+    }
+
+    func dismissSettings() {
+        isSettingsPresented = false
+    }
+
+    func handleNotificationDestination(_ destination: ScaleNotificationDestination) {
+        switch destination {
+        case .coach:
+            presentCoach()
+        case .progress:
+            presentProgress()
+        case .history:
+            reopenResults()
+        case .settings:
+            presentSettings()
+        }
+    }
+
+    /// Settings: re-prompt Health permissions, refresh digest, arm background delivery.
     func requestHealthAccessFromSettings() async {
         _ = await refreshFitnessDigestForCoach(reRequestAuth: true)
+        await armHealthKitBackgroundDelivery()
     }
 
     /// Parse Coach chat for stated weight / body-fat targets, gate medically, update profile when safe.
@@ -651,66 +685,111 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Pull Health fitness signals, evaluate triggers, optionally call Grok.
     @discardableResult
     func runFitnessMonitorCheck(force: Bool) async -> Bool {
+        await runBackgroundHealthWake(
+            reason: force ? .manual : .appRefresh,
+            forceFullCoach: force
+        )
+    }
+
+    /// Background-capable Health sweep: works from HKObserverQuery / BG tasks without UI.
+    /// Always evaluates Watch-wear / pre-sleep triggers when monitoring is on (cooldowns still apply).
+    /// Full Coach/Grok digests run when forced or when the interval is due.
+    @discardableResult
+    func runBackgroundHealthWake(
+        reason: HealthKitBackgroundDelivery.HealthKitBackgroundWakeReason,
+        forceFullCoach: Bool
+    ) async -> Bool {
         var prefs = fitnessMonitorPreferences
-        guard prefs.enabled || force else { return false }
-        if !force, !FitnessTriggerMonitor.isAutomatedCheckDue(prefs: prefs) {
-            return false
-        }
+        let monitoringOn = prefs.enabled || forceFullCoach
+        let wantTrend =
+            notificationPreferences.notifyOnBadTrend || notificationPreferences.weeklyGoalReminders
+        guard monitoringOn || wantTrend else { return false }
 
         do {
             try await healthStore.requestAuthorizationIfNeeded()
-            let digest = try await healthStore.fetchFitnessDigest(
-                preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes,
-                now: Date()
-            )
-            lastFitnessDigest = digest
-            healthAccessStatusLine = digest.settingsStatusLine
-            let triggers = FitnessTriggerMonitor.evaluate(digest: digest, thresholds: prefs.thresholds)
-            lastFitnessTriggers = triggers
+            await armHealthKitBackgroundDelivery()
 
-            await GrokFitnessMonitor.notifyTriggers(
-                triggers,
-                prefs: &prefs,
-                profileName: profile.greetingName
-            )
-
-            let triggerSummary: String = {
-                if triggers.isEmpty {
-                    return "Scheduled progress check (no critical local triggers)."
-                }
-                return triggers.map(\.message).joined(separator: " | ")
-            }()
-
-            if GrokPrivacyConsent.isAccepted, GrokSharedConfig.isLiveConfigured {
-                let reply = await GrokClient.shared.fitnessCheck(
-                    brief: makeCoachBrief(digest: digest),
-                    triggerSummary: triggerSummary
+            if monitoringOn {
+                let digest = try await healthStore.fetchFitnessDigest(
+                    preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes,
+                    now: Date()
                 )
-                lastFitnessCoachReply = reply.text
-                GrokFitnessMonitor.storeLastReply(reply.text)
-            } else if let fmSummary = await FoundationModelCoach.summarizeFitnessDigest(
-                profileName: profile.greetingName,
-                digestBlock: digest.promptBlock(preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes)
-                    + "\nTriggers: \(triggerSummary)"
-            ) {
-                lastFitnessCoachReply = fmSummary
-                GrokFitnessMonitor.storeLastReply(fmSummary)
-            } else if let top = triggers.first {
-                lastFitnessCoachReply = top.message
-                GrokFitnessMonitor.storeLastReply(top.message)
+                lastFitnessDigest = digest
+                healthAccessStatusLine = digest.settingsStatusLine
+                let triggers = FitnessTriggerMonitor.evaluate(
+                    digest: digest,
+                    thresholds: prefs.thresholds
+                )
+                lastFitnessTriggers = triggers
+
+                await GrokFitnessMonitor.notifyTriggers(
+                    triggers,
+                    prefs: &prefs,
+                    profileName: profile.greetingName
+                )
+
+                let intervalDue = FitnessTriggerMonitor.isAutomatedCheckDue(prefs: prefs)
+                let doFullCoach = forceFullCoach || intervalDue
+                if doFullCoach {
+                    let triggerSummary: String = {
+                        if triggers.isEmpty {
+                            return "Scheduled progress check (no critical local triggers). Wake=\(reason.rawValue)."
+                        }
+                        return triggers.map(\.message).joined(separator: " | ")
+                    }()
+
+                    if GrokPrivacyConsent.isAccepted, GrokSharedConfig.isLiveConfigured {
+                        let reply = await GrokClient.shared.fitnessCheck(
+                            brief: makeCoachBrief(digest: digest),
+                            triggerSummary: triggerSummary
+                        )
+                        lastFitnessCoachReply = reply.text
+                        GrokFitnessMonitor.storeLastReply(reply.text)
+                    } else if let fmSummary = await FoundationModelCoach.summarizeFitnessDigest(
+                        profileName: profile.greetingName,
+                        digestBlock: digest.promptBlock(
+                            preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes
+                        ) + "\nTriggers: \(triggerSummary)"
+                    ) {
+                        lastFitnessCoachReply = fmSummary
+                        GrokFitnessMonitor.storeLastReply(fmSummary)
+                    } else if let top = triggers.first {
+                        lastFitnessCoachReply = top.message
+                        GrokFitnessMonitor.storeLastReply(top.message)
+                    }
+                    prefs.lastAutomatedCheckAt = Date()
+                }
+
+                fitnessMonitorPreferences = prefs
+                await GrokFitnessMonitor.scheduleIntervalNotification(
+                    prefs: prefs,
+                    profileName: profile.greetingName
+                )
+                GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: prefs)
+                GrokFitnessMonitor.scheduleBackgroundProcessing(prefs: prefs)
             }
 
-            prefs.lastAutomatedCheckAt = Date()
-            fitnessMonitorPreferences = prefs
-            await GrokFitnessMonitor.scheduleIntervalNotification(
-                prefs: prefs,
-                profileName: profile.greetingName
-            )
-            GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: prefs)
+            if wantTrend {
+                let end = Date()
+                let start = end.addingTimeInterval(-14 * 86_400)
+                let weights = try await healthStore.fetchWeights(from: start, to: end)
+                if let newest = weights.last?.value {
+                    healthBaselineKg = newest
+                }
+                historyTrendWindowWeights = weights
+                await refreshTrendNotifications()
+            }
+
             return true
         } catch {
             return false
         }
+    }
+
+    /// Start HKObserverQuery + enableBackgroundDelivery after Health auth.
+    func armHealthKitBackgroundDelivery() async {
+        guard healthKitAvailable else { return }
+        await HealthKitBackgroundDelivery.shared.start()
     }
 
     func refreshTrendNotifications() async {

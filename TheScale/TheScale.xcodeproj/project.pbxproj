@@ -56,6 +56,13 @@
 		A1B2C3D4E5F60718293A0022 /* FoundationModelCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1022 /* FoundationModelCoach.swift */; };
 		A1B2C3D4E5F60718293A0023 /* FoundationModelCoachTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1023 /* FoundationModelCoachTests.swift */; };
 		A1B2C3D4E5F60718293A0024 /* FitnessDigestCoachTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1024 /* FitnessDigestCoachTests.swift */; };
+		A1B2C3D4E5F60718293A002B /* ScaleNotificationCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A102B /* ScaleNotificationCatalog.swift */; };
+		A1B2C3D4E5F60718293A002C /* ScaleNotificationContentFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A102C /* ScaleNotificationContentFactory.swift */; };
+		A1B2C3D4E5F60718293A002D /* ScaleNotificationVisuals.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A102D /* ScaleNotificationVisuals.swift */; };
+		A1B2C3D4E5F60718293A002E /* ScaleNotificationRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A102E /* ScaleNotificationRouter.swift */; };
+		A1B2C3D4E5F60718293A002F /* ScaleAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A102F /* ScaleAppIntents.swift */; };
+		A1B2C3D4E5F60718293A0030 /* HealthKitBackgroundDelivery.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1030 /* HealthKitBackgroundDelivery.swift */; };
+		A1B2C3D4E5F60718293A0031 /* ScaleNotificationContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1031 /* ScaleNotificationContentTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -124,6 +131,13 @@
 		A1B2C3D4E5F60718293A1022 /* FoundationModelCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelCoach.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1023 /* FoundationModelCoachTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundationModelCoachTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1024 /* FitnessDigestCoachTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessDigestCoachTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A102B /* ScaleNotificationCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleNotificationCatalog.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A102C /* ScaleNotificationContentFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleNotificationContentFactory.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A102D /* ScaleNotificationVisuals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleNotificationVisuals.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A102E /* ScaleNotificationRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleNotificationRouter.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A102F /* ScaleAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleAppIntents.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1030 /* HealthKitBackgroundDelivery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitBackgroundDelivery.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A1031 /* ScaleNotificationContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleNotificationContentTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -260,6 +274,7 @@
 				A1B2C3D4E5F60718293A1024 /* FitnessDigestCoachTests.swift */,
 				A1B2C3D4E5F60718293A1027 /* HealthScienceMathTests.swift */,
 				A1B2C3D4E5F60718293A102A /* MondayCardTests.swift */,
+				A1B2C3D4E5F60718293A1031 /* ScaleNotificationContentTests.swift */,
 			);
 			path = TheScaleTests;
 			sourceTree = "<group>";
@@ -268,6 +283,7 @@
 			isa = PBXGroup;
 			children = (
 				DD9268209C7548B6B832E710 /* HealthKitWriter.swift */,
+				A1B2C3D4E5F60718293A1030 /* HealthKitBackgroundDelivery.swift */,
 				A1B2C3D4E5F60718293A1026 /* HealthScienceMath.swift */,
 			);
 			path = Health;
@@ -297,6 +313,11 @@
 				A1B2C3D4E5F60718293A100F /* TrendNotificationScheduler.swift */,
 				A1B2C3D4E5F60718293A101F /* CoachReminderScheduler.swift */,
 				A1B2C3D4E5F60718293A1025 /* ScaleNotificationDelegate.swift */,
+				A1B2C3D4E5F60718293A102B /* ScaleNotificationCatalog.swift */,
+				A1B2C3D4E5F60718293A102C /* ScaleNotificationContentFactory.swift */,
+				A1B2C3D4E5F60718293A102D /* ScaleNotificationVisuals.swift */,
+				A1B2C3D4E5F60718293A102E /* ScaleNotificationRouter.swift */,
+				A1B2C3D4E5F60718293A102F /* ScaleAppIntents.swift */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -419,6 +440,7 @@
 				A1B2C3D4E5F60718293A0024 /* FitnessDigestCoachTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0027 /* HealthScienceMathTests.swift in Sources */,
 				A1B2C3D4E5F60718293A002A /* MondayCardTests.swift in Sources */,
+				A1B2C3D4E5F60718293A0031 /* ScaleNotificationContentTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -463,6 +485,12 @@
 				A1B2C3D4E5F60718293A0022 /* FoundationModelCoach.swift in Sources */,
 				A1B2C3D4E5F60718293A0028 /* MondayCardEngine.swift in Sources */,
 				A1B2C3D4E5F60718293A0029 /* MondayWeeklyCardView.swift in Sources */,
+				A1B2C3D4E5F60718293A002B /* ScaleNotificationCatalog.swift in Sources */,
+				A1B2C3D4E5F60718293A002C /* ScaleNotificationContentFactory.swift in Sources */,
+				A1B2C3D4E5F60718293A002D /* ScaleNotificationVisuals.swift in Sources */,
+				A1B2C3D4E5F60718293A002E /* ScaleNotificationRouter.swift in Sources */,
+				A1B2C3D4E5F60718293A002F /* ScaleAppIntents.swift in Sources */,
+				A1B2C3D4E5F60718293A0030 /* HealthKitBackgroundDelivery.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -482,11 +510,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 33;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.7.4;
+				MARKETING_VERSION = 2.9.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -523,7 +551,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 33;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -536,7 +564,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.7.4;
+				MARKETING_VERSION = 2.9.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -555,11 +583,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 33;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.7.4;
+				MARKETING_VERSION = 2.9.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -577,7 +605,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 33;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -590,7 +618,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.7.4;
+				MARKETING_VERSION = 2.9.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

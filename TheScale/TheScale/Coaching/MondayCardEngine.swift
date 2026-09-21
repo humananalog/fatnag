@@ -210,7 +210,7 @@ enum MondayCardEngine {
         let fatDelta: Double? = {
             guard let end = fats.last(where: { $0.date <= now })?.value else { return nil }
             if let start = priorFats.first?.value { return end - start }
-            if let older = fats.last(where: { $0.date < weekAgo })?.value { return end - older.value }
+            if let older = fats.last(where: { $0.date < weekAgo })?.value { return end - older }
             return nil
         }()
 
