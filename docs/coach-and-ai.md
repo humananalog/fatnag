@@ -13,6 +13,7 @@ Hybrid routing: **Grok Worker** for full Coach chat; **Foundation Models** for p
 - **Time-aware:** local clock in context; evening/night bans gym-lift next-actions.
 - **HealthKit on every turn (2.7.1+ / science 2.7.4+):** Coach refreshes a dated Fitness digest (sleep stages, HRV, RHR, load/steps, workouts + distance, recovery band, optional SpO2/VO2/respiratory/wrist temp) before each ask. Missing metrics stay missing; Coach must not invent them or claim AllTrails access.
 - **Monday weekly card (2.8.0+):** after a Monday-morning Confirm-to-Health (or Manual), Grok streams a one-screen instructor card (progress, Sunday kg goal paced to target weight + optional goal date, meals, energy-balance diagnostic). Cached for the ISO week. No medical disclaimer on the card. Dev: Settings → Legal → **Dev** → Preview / Regenerate.
+- **SOTA notifications + HealthKit background (2.9.0+):** local banners use title/subtitle/body, categories/actions, threads, optional Communication Coach chrome + PNG visuals. `HKObserverQuery` + `enableBackgroundDelivery` (and BG refresh/processing backups) refresh digests and fire Watch-wear / pre-sleep / trend pings without opening the app. iOS still throttles.
 
 ### Shared proxy setup
 
