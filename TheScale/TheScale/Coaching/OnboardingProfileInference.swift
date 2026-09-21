@@ -56,6 +56,23 @@ enum OnboardingLocalInference {
         )
     }
 
+    /// Prefer remote fields when present; keep local as floor.
+    static func merge(local: OnboardingInferenceDraft, remote: OnboardingInferenceDraft) -> OnboardingInferenceDraft {
+        OnboardingInferenceDraft(
+            diet: remote.diet ?? local.diet,
+            location: remote.location ?? local.location,
+            ethnicity: remote.ethnicity ?? local.ethnicity,
+            preferredLanguage: remote.preferredLanguage ?? local.preferredLanguage,
+            culturalVibe: remote.culturalVibe ?? local.culturalVibe,
+            idealWeightKg: remote.idealWeightKg ?? local.idealWeightKg,
+            idealBodyFatPercent: remote.idealBodyFatPercent ?? local.idealBodyFatPercent,
+            usedNetwork: remote.usedNetwork || local.usedNetwork,
+            sourceLabel: remote.sourceLabel == "none" || remote.sourceLabel == "empty"
+                ? local.sourceLabel
+                : (remote.sourceLabel.isEmpty ? local.sourceLabel : remote.sourceLabel)
+        )
+    }
+
     private static func dietHint(from lower: String) -> DietPreference? {
         if lower.contains("vegan") { return .vegan }
         if lower.contains("vegetarian") || lower.contains("veggie") { return .vegetarian }

@@ -36,7 +36,7 @@ Mi Scale 2 ──BLE ads──► The Scale ──write/read──► Apple Heal
 
 ## Onboarding (2.11.0+)
 
-Three steps for adoption: **You** (name + freeform) → **Body** (height/age/sex/ideal) → **Confirm** (Grok/on-device inferred persona + legal + soft notification opt-in). Permissions last. Inference does not burn weekly Grok credits.
+Three steps for adoption: **You** (name + freeform) → **Body** (height/age/sex/ideal) → **Confirm** (on-device FM / heuristics inferred persona + legal + soft notification opt-in). Permissions last. **2.11.1:** Foundation Models only for pre-fill (no Grok). DEBUG: home **DEBUG** capsule.
 
 ## App Review
 

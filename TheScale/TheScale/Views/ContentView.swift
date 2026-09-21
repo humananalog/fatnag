@@ -3,6 +3,9 @@ import SwiftUI
 /// Home: sparse brand + scan + History + Progress. Profile / Grok consent / calibration in Settings.
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
+    #if DEBUG
+    @State private var showDebugTools = false
+    #endif
 
     private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
     private let steel = Color(red: 0.42, green: 0.45, blue: 0.50)
@@ -24,6 +27,22 @@ struct ContentView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                #if DEBUG
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showDebugTools = true
+                    } label: {
+                        Text("DEBUG")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.orange.opacity(0.92), in: Capsule())
+                    }
+                    .accessibilityIdentifier("home.debug")
+                    .accessibilityLabel("Debug tools")
+                }
+                #endif
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         session.presentSettings()
@@ -35,6 +54,12 @@ struct ContentView: View {
                     .accessibilityLabel("Settings")
                 }
             }
+            #if DEBUG
+            .sheet(isPresented: $showDebugTools) {
+                DebugToolsView()
+                    .environmentObject(session)
+            }
+            #endif
             .sheet(isPresented: Binding(
                 get: { session.isSettingsPresented },
                 set: { if !$0 { session.dismissSettings() } }

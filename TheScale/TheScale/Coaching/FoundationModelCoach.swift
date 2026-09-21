@@ -27,6 +27,30 @@ struct MemoryExtractionDraft: Equatable, Sendable {
     var facts: [String]
 }
 
+@Generable(description: "Onboarding profile fields inferred on-device from a freeform note")
+struct OnboardingProfileFMDraft: Equatable, Sendable {
+    @Guide(description: "Diet preference: omnivore, pescatarian, vegetarian, vegan, other, or empty if unknown.")
+    var diet: String
+
+    @Guide(description: "City or region only, or empty if unknown.")
+    var location: String
+
+    @Guide(description: "Short ethnicity or culture label, or empty.")
+    var ethnicity: String
+
+    @Guide(description: "Preferred language name, or empty.")
+    var preferredLanguage: String
+
+    @Guide(description: "One short coach-facing vibe line (max ~120 chars), or empty.")
+    var culturalVibe: String
+
+    @Guide(description: "Ideal weight in kg if stated, otherwise 0.")
+    var idealWeightKg: Double
+
+    @Guide(description: "Ideal body fat percent if stated, otherwise 0.")
+    var idealBodyFatPercent: Double
+}
+
 // MARK: - Coach
 
 /// On-device Foundation Models helpers. Privacy-first; never sends Health off-device.
@@ -183,6 +207,82 @@ enum FoundationModelCoach {
         } catch {
             return []
         }
+    }
+
+    // MARK: Onboarding
+
+    /// On-device profile fill for first-run. Never leaves the phone. Falls back to heuristics when FM is off.
+    static func inferOnboardingProfile(
+        name: String,
+        freeform: String,
+        heightCm: Double,
+        ageYears: Double,
+        sex: UserBodyProfile.Sex,
+        idealKg: Double,
+        allowOnDeviceModel: Bool = true
+    ) async -> OnboardingInferenceDraft {
+        let local = OnboardingLocalInference.infer(from: freeform, name: name)
+        guard allowOnDeviceModel, FoundationModelAvailability.isAvailable else {
+            return local
+        }
+        let trimmed = freeform.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 4 else { return local }
+
+        do {
+            let session = LanguageModelSession(instructions: """
+                You structure onboarding profiles for The Scale, a private fitness app.
+                Stay on-device. Infer only what the user's note supports. Prefer empty / 0 over guessing.
+                Never invent height, age, or sex. Never add medical advice.
+                """)
+            let prompt = """
+                Extract profile fields from this freeform note for \(name.isEmpty ? "the user" : name).
+                Known body (do not invent; may use when interpreting goals): height \(Int(heightCm.rounded())) cm, age \(Int(ageYears.rounded())), sex \(sex.rawValue), stated ideal \(String(format: "%.1f", idealKg)) kg.
+                Freeform note:
+                \(trimmed)
+                """
+            var options = GenerationOptions()
+            options.temperature = 0.2
+            options.maximumResponseTokens = 220
+            let response = try await session.respond(
+                to: prompt,
+                generating: OnboardingProfileFMDraft.self,
+                options: options
+            )
+            let remote = draft(from: response.content)
+            return OnboardingLocalInference.merge(local: local, remote: remote)
+        } catch {
+            return local
+        }
+    }
+
+    static func draft(from fm: OnboardingProfileFMDraft) -> OnboardingInferenceDraft {
+        let dietRaw = fm.diet.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let diet = DietPreference(rawValue: dietRaw)
+        func clean(_ s: String) -> String? {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            if t.isEmpty || t.lowercased() == "empty" || t.lowercased() == "unknown" || t.lowercased() == "null" {
+                return nil
+            }
+            return t
+        }
+        var idealW: Double? = fm.idealWeightKg
+        if let w = idealW, w < 35 || w > 250 { idealW = nil }
+        if idealW == 0 { idealW = nil }
+        var idealBF: Double? = fm.idealBodyFatPercent
+        if let bf = idealBF, bf < 4 || bf > 45 { idealBF = nil }
+        if idealBF == 0 { idealBF = nil }
+
+        return OnboardingInferenceDraft(
+            diet: diet,
+            location: clean(fm.location),
+            ethnicity: clean(fm.ethnicity),
+            preferredLanguage: clean(fm.preferredLanguage),
+            culturalVibe: clean(fm.culturalVibe),
+            idealWeightKg: idealW,
+            idealBodyFatPercent: idealBF,
+            usedNetwork: false,
+            sourceLabel: "foundation-model"
+        )
     }
 
     // MARK: Helpers

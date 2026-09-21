@@ -1,6 +1,88 @@
 import XCTest
 @testable import TheScale
 
+@MainActor
+final class OnboardingFlowTests: XCTestCase {
+    func testThreeStepSequenceWithInjectedInference() async {
+        let flow = OnboardingFlowModel()
+        XCTAssertEqual(flow.step, .identity)
+        XCTAssertFalse(flow.canAdvance)
+
+        flow.name = "Alex"
+        flow.freeform = "Filipina in Manila, vegetarian, Tagalog, aiming 62 kg"
+        XCTAssertTrue(flow.canAdvance)
+
+        await flow.advance(infer: { _ in
+            XCTFail("Inference should not run on identity → body")
+            return .empty
+        })
+        XCTAssertEqual(flow.step, .body)
+
+        flow.heightCm = 162
+        flow.ageYears = 28
+        flow.sex = .female
+        flow.idealKg = 65
+
+        await flow.advance { model in
+            XCTAssertEqual(model.name, "Alex")
+            return OnboardingInferenceDraft(
+                diet: .vegetarian,
+                location: "Manila",
+                ethnicity: "Filipina",
+                preferredLanguage: "Tagalog",
+                culturalVibe: "Filipina in Manila, vegetarian",
+                idealWeightKg: 62,
+                idealBodyFatPercent: nil,
+                usedNetwork: false,
+                sourceLabel: "foundation-model"
+            )
+        }
+
+        XCTAssertEqual(flow.step, .confirm)
+        XCTAssertEqual(flow.diet, .vegetarian)
+        XCTAssertEqual(flow.location, "Manila")
+        XCTAssertEqual(flow.preferredLanguage, "Tagalog")
+        XCTAssertEqual(flow.idealKg, 62)
+        XCTAssertEqual(flow.inferenceNote, "On-device Coach filled these from your note. Edit freely.")
+
+        XCTAssertFalse(flow.canAdvance)
+        flow.acceptedLegal = true
+        XCTAssertTrue(flow.canAdvance)
+
+        let profile = flow.buildProfile()
+        XCTAssertEqual(profile.displayName, "Alex")
+        XCTAssertEqual(profile.dietPreference, .vegetarian)
+        XCTAssertEqual(profile.location, "Manila")
+        XCTAssertEqual(profile.idealWeightKg, 62)
+    }
+
+    func testBackNavigation() async {
+        let flow = OnboardingFlowModel()
+        flow.name = "Sam"
+        await flow.advance(infer: { _ in .empty })
+        XCTAssertEqual(flow.step, .body)
+        flow.goBack()
+        XCTAssertEqual(flow.step, .identity)
+    }
+
+    func testHeuristicsUsedWhenFMDisabled() async {
+        let flow = OnboardingFlowModel()
+        flow.name = "Alex"
+        flow.freeform = "pescatarian in Hong Kong, body fat to 18%"
+        flow.allowOnDevicePrefill = false
+        flow.heightCm = 170
+        flow.ageYears = 30
+
+        await flow.advance(infer: nil) // identity → body without infer
+        // Manually run default inference path with FM disallowed via allowOnDevicePrefill
+        await flow.runInference()
+        XCTAssertEqual(flow.diet, .pescatarian)
+        XCTAssertEqual(flow.location, "Hong Kong")
+        XCTAssertEqual(flow.idealBodyFat, 18)
+        XCTAssertNotEqual(flow.inferenceNote, "On-device Coach filled these from your note. Edit freely.")
+    }
+}
+
 final class OnboardingInferenceTests: XCTestCase {
     func testLocalInfersDietLocationLanguage() {
         let draft = OnboardingLocalInference.infer(
@@ -25,18 +107,24 @@ final class OnboardingInferenceTests: XCTestCase {
         XCTAssertEqual(draft.idealBodyFatPercent, 18)
     }
 
-    func testParseGrokJSON() {
-        let raw = """
-        Here you go:
-        {"diet":"vegan","location":"Singapore","ethnicity":"Chinese","preferredLanguage":"English","culturalVibe":"SG office athlete","idealWeightKg":65.5,"idealBodyFatPercent":null}
-        """
-        let draft = GrokClient.parseOnboardingInferenceJSON(raw, usedNetwork: true)
+    func testFMDraftMapping() {
+        let fm = OnboardingProfileFMDraft(
+            diet: "vegan",
+            location: "Singapore",
+            ethnicity: "Chinese",
+            preferredLanguage: "English",
+            culturalVibe: "SG office athlete",
+            idealWeightKg: 65.5,
+            idealBodyFatPercent: 0
+        )
+        let draft = FoundationModelCoach.draft(from: fm)
         XCTAssertEqual(draft.diet, .vegan)
         XCTAssertEqual(draft.location, "Singapore")
         XCTAssertEqual(draft.ethnicity, "Chinese")
         XCTAssertEqual(draft.idealWeightKg, 65.5)
         XCTAssertNil(draft.idealBodyFatPercent)
-        XCTAssertTrue(draft.usedNetwork)
+        XCTAssertEqual(draft.sourceLabel, "foundation-model")
+        XCTAssertFalse(draft.usedNetwork)
     }
 
     func testMergePrefersRemoteWhenPresent() {
@@ -59,17 +147,17 @@ final class OnboardingInferenceTests: XCTestCase {
             culturalVibe: nil,
             idealWeightKg: 60,
             idealBodyFatPercent: 20,
-            usedNetwork: true,
-            sourceLabel: "grok"
+            usedNetwork: false,
+            sourceLabel: "foundation-model"
         )
-        let merged = GrokClient.mergeInference(local: local, remote: remote)
+        let merged = OnboardingLocalInference.merge(local: local, remote: remote)
         XCTAssertEqual(merged.diet, .vegan)
         XCTAssertEqual(merged.location, "Manila")
         XCTAssertEqual(merged.ethnicity, "Filipina")
         XCTAssertEqual(merged.preferredLanguage, "Tagalog")
         XCTAssertEqual(merged.culturalVibe, "local")
         XCTAssertEqual(merged.idealWeightKg, 60)
-        XCTAssertTrue(merged.usedNetwork)
+        XCTAssertEqual(merged.sourceLabel, "foundation-model")
     }
 
     @MainActor
