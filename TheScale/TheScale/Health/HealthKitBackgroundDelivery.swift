@@ -69,20 +69,21 @@ final class HealthKitBackgroundDelivery: @unchecked Sendable {
         return items
     }
 
-    /// Enable background delivery + start observer queries. Safe to call repeatedly.
+    /// Enable background delivery + start observer queries once per app lifetime.
+    /// Safe to call repeatedly: later calls are no-ops until `stop()` resets.
+    /// Observer wakes must not re-register delivery (that spammed Console on every fire).
     func start() async {
         guard HKHealthStore.isHealthDataAvailable() else { return }
-        let already = state.withLock { $0.isStarted }
-        if already {
-            await enableAllDeliveries()
-            return
+        let claimed = state.withLock { state -> Bool in
+            guard !state.isStarted else { return false }
+            state.isStarted = true
+            return true
         }
+        guard claimed else { return }
 
         await enableAllDeliveries()
         startObserverQueries()
-
-        state.withLock { $0.isStarted = true }
-        log.info("HealthKit background delivery started for \(self.observedTypes.count, privacy: .public) types")
+        log.info("HealthKit background delivery armed for \(self.observedTypes.count, privacy: .public) types")
     }
 
     func stop() {
@@ -113,16 +114,18 @@ final class HealthKitBackgroundDelivery: @unchecked Sendable {
     }
 
     private func enableAllDeliveries() async {
+        var armed = 0
         for item in observedTypes {
             do {
                 try await store.enableBackgroundDelivery(for: item.type, frequency: item.frequency)
-                log.debug("Enabled background delivery \(item.reason.rawValue, privacy: .public)")
+                armed += 1
             } catch {
                 log.error(
                     "enableBackgroundDelivery failed \(item.reason.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
             }
         }
+        log.info("Background delivery registered for \(armed, privacy: .public)/\(self.observedTypes.count, privacy: .public) types")
     }
 
     private func startObserverQueries() {
