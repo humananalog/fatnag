@@ -112,6 +112,9 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var isProgressPresented = false
     @Published var isCoachPresented = false
     @Published var isSettingsPresented = false
+    @Published var isMealPlanPresented = false
+    @Published private(set) var mealPlan: MealPlanPayload?
+    @Published private(set) var isMealPlanLoading = false
     /// Monday morning post-weigh weekly goal card.
     @Published private(set) var isMondayCardPresented = false
     @Published private(set) var mondayCard: MondayCardPayload?
@@ -156,6 +159,7 @@ final class ScaleSessionViewModel: ObservableObject {
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.scanner.delegate = self
         self.lastFitnessCoachReply = GrokFitnessMonitor.loadLastReply()
+        self.mealPlan = MealPlanStore.load()
         rebuildWeeklyGoalSurface()
         GrokFitnessMonitor.install { [weak self] force in
             guard let self else { return false }
@@ -407,6 +411,61 @@ final class ScaleSessionViewModel: ObservableObject {
 
     func dismissCoach() {
         isCoachPresented = false
+    }
+
+    func presentMealPlan() {
+        isMealPlanPresented = true
+    }
+
+    func dismissMealPlan() {
+        isMealPlanPresented = false
+        isMealPlanLoading = false
+    }
+
+    /// Load cached meal plan if key matches; otherwise generate (offline or Grok).
+    @discardableResult
+    func ensureMealPlan() async -> MealPlanPayload {
+        await refreshMealPlan(force: false)
+    }
+
+    /// `force` regenerates even when the cache key still matches.
+    @discardableResult
+    func refreshMealPlan(force: Bool) async -> MealPlanPayload {
+        rebuildWeeklyGoalSurface()
+        let surface = weeklyGoalSurface
+        let day = MealPlanEngine.dayKey()
+        let key = MealPlanEngine.cacheKey(
+            dayKey: day,
+            maxKcal: surface.targets.maxCalories,
+            proteinGrams: surface.targets.proteinGrams,
+            diet: profile.dietPreference,
+            weeklyDeltaKg: weeklyGoal.targetDeltaKg
+        )
+
+        if !force,
+           let cached = mealPlan ?? MealPlanStore.load(),
+           cached.cacheKey == key,
+           cached.isComplete {
+            mealPlan = cached
+            return cached
+        }
+
+        isMealPlanLoading = true
+        defer { isMealPlanLoading = false }
+
+        let brief = makeCoachBrief()
+        let micro = "\(surface.targets.microName) \(surface.targets.microTargetLine)"
+        let plan = await GrokClient.shared.mealPlan(
+            brief: brief,
+            maxKcal: surface.targets.maxCalories,
+            proteinGrams: surface.targets.proteinGrams,
+            microHint: micro,
+            dayKey: day,
+            weeklyDeltaKg: weeklyGoal.targetDeltaKg
+        )
+        mealPlan = plan
+        MealPlanStore.save(plan)
+        return plan
     }
 
     func dismissMondayCard() {

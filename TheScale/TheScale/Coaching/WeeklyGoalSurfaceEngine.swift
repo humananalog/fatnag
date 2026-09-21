@@ -67,66 +67,66 @@ struct WeeklyGoalAtmosphere: Equatable {
     let muted: Color
     let panel: Color
 
-    /// Shared near-black for maximum contrast on pastel fields.
-    private static let deepInk = Color(red: 0.07, green: 0.08, blue: 0.10)
-    private static let deepMuted = Color(red: 0.18, green: 0.20, blue: 0.24)
+    /// Shared near-black for maximum contrast on pastel / haze fields.
+    private static let deepInk = Color(red: 0.04, green: 0.05, blue: 0.07)
+    private static let deepMuted = Color(red: 0.12, green: 0.13, blue: 0.16)
 
     static func forBand(_ band: WeeklyTrackBand) -> WeeklyGoalAtmosphere {
         switch band {
         case .crushed:
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.90, green: 0.97, blue: 0.92),
-                mid: Color(red: 0.72, green: 0.90, blue: 0.78),
-                bottom: Color(red: 0.55, green: 0.80, blue: 0.64),
-                hazeA: Color(red: 0.45, green: 0.78, blue: 0.58).opacity(0.35),
-                hazeB: Color(red: 0.70, green: 0.92, blue: 0.80).opacity(0.40),
+                top: Color(red: 0.88, green: 0.96, blue: 0.90),
+                mid: Color(red: 0.68, green: 0.88, blue: 0.74),
+                bottom: Color(red: 0.48, green: 0.76, blue: 0.58),
+                hazeA: Color(red: 0.35, green: 0.72, blue: 0.50).opacity(0.38),
+                hazeB: Color(red: 0.62, green: 0.90, blue: 0.74).opacity(0.42),
                 ink: deepInk,
-                muted: deepMuted.opacity(0.88),
-                panel: Color.white.opacity(0.72)
+                muted: deepMuted,
+                panel: Color.clear
             )
         case .ahead:
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.90, green: 0.96, blue: 0.95),
-                mid: Color(red: 0.70, green: 0.88, blue: 0.86),
-                bottom: Color(red: 0.52, green: 0.76, blue: 0.74),
-                hazeA: Color(red: 0.40, green: 0.72, blue: 0.70).opacity(0.32),
-                hazeB: Color(red: 0.68, green: 0.90, blue: 0.88).opacity(0.38),
+                top: Color(red: 0.88, green: 0.95, blue: 0.94),
+                mid: Color(red: 0.64, green: 0.84, blue: 0.82),
+                bottom: Color(red: 0.44, green: 0.70, blue: 0.68),
+                hazeA: Color(red: 0.32, green: 0.66, blue: 0.64).opacity(0.36),
+                hazeB: Color(red: 0.60, green: 0.86, blue: 0.84).opacity(0.40),
                 ink: deepInk,
-                muted: deepMuted.opacity(0.88),
-                panel: Color.white.opacity(0.72)
+                muted: deepMuted,
+                panel: Color.clear
             )
         case .onTrack:
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.92, green: 0.95, blue: 0.98),
-                mid: Color(red: 0.76, green: 0.86, blue: 0.94),
-                bottom: Color(red: 0.58, green: 0.72, blue: 0.86),
-                hazeA: Color(red: 0.42, green: 0.62, blue: 0.82).opacity(0.30),
-                hazeB: Color(red: 0.72, green: 0.84, blue: 0.94).opacity(0.40),
+                top: Color(red: 0.90, green: 0.94, blue: 0.98),
+                mid: Color(red: 0.70, green: 0.82, blue: 0.92),
+                bottom: Color(red: 0.50, green: 0.66, blue: 0.82),
+                hazeA: Color(red: 0.34, green: 0.54, blue: 0.76).opacity(0.34),
+                hazeB: Color(red: 0.66, green: 0.80, blue: 0.92).opacity(0.40),
                 ink: deepInk,
-                muted: deepMuted.opacity(0.88),
-                panel: Color.white.opacity(0.74)
+                muted: deepMuted,
+                panel: Color.clear
             )
         case .atRisk:
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.99, green: 0.93, blue: 0.90),
-                mid: Color(red: 0.96, green: 0.78, blue: 0.70),
-                bottom: Color(red: 0.90, green: 0.58, blue: 0.50),
-                hazeA: Color(red: 0.88, green: 0.42, blue: 0.34).opacity(0.28),
-                hazeB: Color(red: 0.96, green: 0.72, blue: 0.62).opacity(0.36),
+                top: Color(red: 0.99, green: 0.92, blue: 0.88),
+                mid: Color(red: 0.94, green: 0.72, blue: 0.62),
+                bottom: Color(red: 0.86, green: 0.50, blue: 0.42),
+                hazeA: Color(red: 0.82, green: 0.36, blue: 0.28).opacity(0.32),
+                hazeB: Color(red: 0.94, green: 0.66, blue: 0.54).opacity(0.38),
                 ink: deepInk,
-                muted: deepMuted.opacity(0.90),
-                panel: Color.white.opacity(0.76)
+                muted: deepMuted,
+                panel: Color.clear
             )
         case .unknown:
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.95, green: 0.96, blue: 0.97),
-                mid: Color(red: 0.86, green: 0.88, blue: 0.90),
-                bottom: Color(red: 0.72, green: 0.76, blue: 0.80),
-                hazeA: Color(red: 0.50, green: 0.56, blue: 0.62).opacity(0.28),
-                hazeB: Color(red: 0.78, green: 0.82, blue: 0.86).opacity(0.36),
+                top: Color(red: 0.94, green: 0.95, blue: 0.96),
+                mid: Color(red: 0.82, green: 0.84, blue: 0.88),
+                bottom: Color(red: 0.66, green: 0.70, blue: 0.76),
+                hazeA: Color(red: 0.42, green: 0.48, blue: 0.56).opacity(0.30),
+                hazeB: Color(red: 0.74, green: 0.78, blue: 0.84).opacity(0.36),
                 ink: deepInk,
-                muted: deepMuted.opacity(0.88),
-                panel: Color.white.opacity(0.74)
+                muted: deepMuted,
+                panel: Color.clear
             )
         }
     }
@@ -376,9 +376,9 @@ enum WeeklyGoalSurfaceEngine {
         // Energy diagnosis wins over generic step pep talks.
         switch energy.diagnosis {
         case .overeatingWhileActive(let intake, let spend, let maxK, _, let obs, let days):
-            return "\(who), you're moving (~\(spend) kcal out) but the scale barely budged (\(String(format: "%+.2f", obs)) kg / \(String(format: "%.0f", days))d). That's intake (~\(intake) implied), not steps. Get your act together: under \(maxK) kcal tomorrow. \(mealLine)"
+            return "\(who), you're moving (~\(spend) kcal out) but the scale barely budged (\(String(format: "%+.2f", obs)) kg / \(String(format: "%.0f", days))d). That's intake (~\(intake) implied), not steps. Get your act together: under \(maxK) kcal tomorrow. Open Meal plan."
         case .underMoving(_, let exp, let obs, _):
-            return "\(who), movement was soft and weight went \(String(format: "%+.2f", obs)) kg (wanted \(String(format: "%+.2f", exp))). Tomorrow: \(targets.steps) steps and under \(targets.maxCalories) kcal. \(mealLine)"
+            return "\(who), movement was soft and weight went \(String(format: "%+.2f", obs)) kg (wanted \(String(format: "%+.2f", exp))). Tomorrow: under \(targets.maxCalories) kcal, then walk. Open Meal plan."
         case .aheadOfEnergy, .onPace, .insufficientData:
             break
         }
@@ -406,7 +406,7 @@ enum WeeklyGoalSurfaceEngine {
             }()
             return "\(who), on track for \(weeklyGoal.title). Tomorrow under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. \(dietBit)"
         case .atRisk:
-            return "\(who), pace is slipping. Fix is the kitchen: max \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. \(mealLine)"
+            return "\(who), pace is slipping. Fix is the kitchen: max \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. Open Meal plan."
         case .unknown:
             return "\(who), step on the scale once, then tomorrow under \(targets.maxCalories) kcal. Baseline first, vibes second."
         }

@@ -563,6 +563,90 @@ actor GrokClient {
         }
     }
 
+    /// Next-24h meal plan for home carousel. Compact JSON only. Token-efficient.
+    /// Caller should check cache first; this always hits network when live (burns 1 credit).
+    func mealPlan(
+        brief: CoachBrief,
+        maxKcal: Int,
+        proteinGrams: Int,
+        microHint: String,
+        dayKey: String,
+        weeklyDeltaKg: Double
+    ) async -> MealPlanPayload {
+        let offline = MealPlanEngine.offlinePlan(
+            name: brief.userName,
+            diet: brief.diet,
+            maxKcal: maxKcal,
+            proteinGrams: proteinGrams,
+            dayKey: dayKey,
+            weeklyDeltaKg: weeklyDeltaKg
+        )
+
+        guard GrokPrivacyConsent.isAccepted else { return offline }
+        if GrokSharedConfig.configurationIssue != nil || resolveTransport() == nil {
+            return offline
+        }
+        guard let transport = resolveTransport() else { return offline }
+
+        if let _ = await consumeQuota(.mealPlan) {
+            var locked = offline
+            locked.sourceNote = "Weekly Grok limit hit. Offline meal pattern for now."
+            return locked
+        }
+
+        let who = brief.userName.isEmpty ? "the user" : brief.userName
+        let system = """
+        You write tight meal plans for The Scale. Fitness coaching only. Never diagnose.
+        No medical disclaimer. No em dashes. JSON only.
+        """
+        let prompt = """
+        Next 24h meals for \(who). Diet: \(brief.diet.title). Daily max \(maxKcal) kcal, protein \(proteinGrams) g, micro focus: \(microHint).
+        Weekly weight nudge \(String(format: "%+.1f", weeklyDeltaKg)) kg.
+        Reply ONLY JSON:
+        {"meals":[{"title":"Breakfast","time":"~8:00","ingredients":["a","b","c"],"macro":"Protein 35 g","micro":"Iron ~3 mg","kcal":420}]}
+        4 meals covering ~24h. Stay under \(maxKcal) total. Match diet. Main ingredients only.
+        """
+
+        let body: [String: Any] = [
+            "model": Self.liveModel,
+            "temperature": 0.4,
+            "max_tokens": 380,
+            "stream": false,
+            "messages": [
+                ["role": "system", "content": system],
+                ["role": "user", "content": prompt]
+            ]
+        ]
+
+        do {
+            let data = try await postChat(body: body, transport: transport, timeout: 35)
+            let raw = Self.parseContent(from: data) ?? ""
+            if let meals = MealPlanEngine.parseGrokJSON(raw), meals.count >= 3 {
+                let key = MealPlanEngine.cacheKey(
+                    dayKey: dayKey,
+                    maxKcal: maxKcal,
+                    proteinGrams: proteinGrams,
+                    diet: brief.diet,
+                    weeklyDeltaKg: weeklyDeltaKg
+                )
+                return MealPlanPayload(
+                    cacheKey: key,
+                    dayKey: dayKey,
+                    maxKcal: maxKcal,
+                    proteinGrams: proteinGrams,
+                    dietRaw: brief.diet.rawValue,
+                    meals: meals,
+                    generatedAt: Date(),
+                    usedNetwork: true,
+                    sourceNote: "Grok · live"
+                )
+            }
+            return offline
+        } catch {
+            return offline
+        }
+    }
+
     private func offlineChat(userText: String, brief: CoachBrief, hint: String) -> CoachReply {
         let base = CoachOfflineFallback.reply(role: .orchestrator, brief: brief)
         let who = brief.userName.isEmpty ? "Operator" : brief.userName

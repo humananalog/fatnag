@@ -82,12 +82,14 @@ enum CoachQuotaKind: String, Sendable {
     case chat
     case mondayCard
     case fitnessCheck
+    case mealPlan
 
     var title: String {
         switch self {
         case .chat: return "Coach chat"
         case .mondayCard: return "Monday card"
         case .fitnessCheck: return "Fitness check"
+        case .mealPlan: return "Meal plan"
         }
     }
 }

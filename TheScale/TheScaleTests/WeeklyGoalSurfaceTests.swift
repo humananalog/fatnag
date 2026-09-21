@@ -169,9 +169,8 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         XCTAssertEqual(surface.band, .atRisk)
         XCTAssertTrue(surface.tomorrowAdvice.lowercased().contains("act together")
                       || surface.tomorrowAdvice.lowercased().contains("intake"))
+        XCTAssertTrue(surface.tomorrowAdvice.lowercased().contains("meal plan"))
         XCTAssertFalse(surface.tomorrowAdvice.contains("8600"))
-        XCTAssertNotNil(surface.mealSuggestion)
-        XCTAssertTrue(surface.mealSuggestion?.contains("kcal") == true)
     }
 
     func testUnderMovingWhenSoftActivityAndStall() {

@@ -9,8 +9,8 @@ struct CoachChatView: View {
     @State private var showPrivacyGate = false
     @FocusState private var focused: Bool
 
-    private let messageFont = Font.system(size: 18, weight: .medium, design: .rounded)
-    private let inputFont = Font.system(size: 17, weight: .medium, design: .rounded)
+    private let messageFont = Font.system(size: 22, weight: .medium, design: .rounded)
+    private let inputFont = Font.system(size: 20, weight: .medium, design: .rounded)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -77,10 +77,10 @@ struct CoachChatView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("Coach")
-                    .font(.system(size: 22, weight: .semibold, design: .serif))
+                    .font(.system(size: 26, weight: .semibold, design: .serif))
                     .foregroundStyle(.white)
                 Text(statusLine)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(ScaleChrome.signal.opacity(0.85))
             }
             Spacer()
