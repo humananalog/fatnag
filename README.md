@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 2.9.1 (build 34) |
+| **Version** | 2.13.0 (build 44) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -74,7 +74,8 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **HealthKit background:** `HKObserverQuery` + `enableBackgroundDelivery` (+ BG refresh/processing backups) so digest/trigger notifications can land without opening the app (iOS still throttles)
 
 ### Progress / goals
-- **Home weekly-goal hero (2.12.2+):** one composition (no home cards) with % + track haze, energy-balance tomorrow advice, Meals carousel (Grok, day-keyed cache), daily targets. Coach chat type bumped. Tap % for Progress.
+- **Home day coach (2.13.0):** Today-ahead advice (local clock), macro-goal ETA vs planned date, passive BLE auto-open live card (no Find Scale primary), 10s auto-confirm, weigh-in analysis card (congratulate / reward / punish). Meal plan respects IF 16-8 + time of day; retro snake spinner while generating. Chart point comments (256 chars, on-device, last 30 days). Flat home (cards only for meal carousel).
+- **Home weekly-goal hero (2.12.2+):** one composition (no home cards) with % + track haze, energy-balance advice, Meals carousel (Grok, day-keyed cache), daily targets. Coach chat type bumped. Tap % for Progress.
 - Weekly mini-goal (Δ kg), progress bar, offline or live Grok roast
 - **Monday morning card (2.8.0+):** after Confirm-to-Health (or Manual) on Monday local morning (04:00-12:00), full-screen week plan: last-week Δ, Sunday kg target paced to ideal + optional goal date, meals, Grok diagnostic. Cached per ISO week; regenerates on a new Monday weigh-in. Dev preview: Settings → Legal → **Dev**
 - Bad-trend alerts, Monday mini-goal, Coach wake reminders (Settings toggles)
