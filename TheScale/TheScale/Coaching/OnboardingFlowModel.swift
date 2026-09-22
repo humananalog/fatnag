@@ -8,7 +8,8 @@ final class OnboardingFlowModel: ObservableObject {
         case body = 1
         case anatomy = 2
         case dream = 3
-        case confirm = 4
+        case lifestyle = 4
+        case confirm = 5
     }
 
     @Published var step: Step = .identity
@@ -30,7 +31,12 @@ final class OnboardingFlowModel: ObservableObject {
     @Published var goalDate: Date = Calendar.current.date(byAdding: .month, value: 3, to: Date()) ?? Date()
     @Published var unitSystem: PreferredUnitSystem = .metric
     @Published var diet: DietPreference = .omnivore
+    /// True once the user touches the diet picker (or saves later in Settings / gap sheet).
+    @Published var dietConfirmed = false
     @Published var location = ""
+    /// When on, location informs local markets, staples, and nearby fitness.
+    @Published var useLocalContext = true
+    @Published var foodAvoidances = ""
     @Published var ethnicity = ""
     @Published var preferredLanguage = "English"
     @Published var culturalVibe = ""
@@ -88,6 +94,8 @@ final class OnboardingFlowModel: ObservableObject {
                 && !isInferring
         case .dream:
             return paceVerdict.status == .accepted && !isInferring
+        case .lifestyle:
+            return !isInferring
         case .confirm:
             return acceptedLegal && !isInferring
         }
@@ -99,6 +107,7 @@ final class OnboardingFlowModel: ObservableObject {
         case .body: return "Continue"
         case .anatomy: return isInferring ? "Filling profile…" : "Set dream weight"
         case .dream: return "Lock target"
+        case .lifestyle: return "Continue"
         case .confirm: return "Start weighing"
         }
     }
@@ -120,7 +129,10 @@ final class OnboardingFlowModel: ObservableObject {
         }
         unitSystem = units
         diet = profile.dietPreference
+        dietConfirmed = profile.dietPreferenceConfirmed
         location = profile.location
+        useLocalContext = profile.useLocalContext
+        foodAvoidances = profile.foodAvoidances
         ethnicity = profile.ethnicity
         preferredLanguage = profile.preferredLanguage
         culturalVibe = profile.culturalVibe
@@ -173,6 +185,8 @@ final class OnboardingFlowModel: ObservableObject {
                 return
             }
             refreshPaceAndDifficulty()
+            step = .lifestyle
+        case .lifestyle:
             step = .confirm
         case .confirm:
             break
@@ -203,7 +217,10 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func applyInference(_ draft: OnboardingInferenceDraft) {
-        if let d = draft.diet { diet = d }
+        if let d = draft.diet {
+            diet = d
+            dietConfirmed = true
+        }
         if let loc = draft.location, !loc.isEmpty { location = loc }
         if let eth = draft.ethnicity, !eth.isEmpty { ethnicity = eth }
         if let lang = draft.preferredLanguage, !lang.isEmpty { preferredLanguage = lang }
@@ -227,9 +244,14 @@ final class OnboardingFlowModel: ObservableObject {
         }
     }
 
+    func markDietConfirmed() {
+        dietConfirmed = true
+    }
+
     func buildProfile() -> UserBodyProfile {
         let clampedAge = min(UserBodyProfile.maximumAgeYears, max(UserBodyProfile.minimumAgeYears, ageYears))
         refreshPaceAndDifficulty()
+        let avoid = foodAvoidances.trimmingCharacters(in: .whitespacesAndNewlines)
         return UserBodyProfile(
             displayName: name.trimmingCharacters(in: .whitespacesAndNewlines),
             heightCm: heightCm,
@@ -247,6 +269,10 @@ final class OnboardingFlowModel: ObservableObject {
             ethnicity: ethnicity.trimmingCharacters(in: .whitespacesAndNewlines),
             preferredLanguage: preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines),
             culturalVibe: culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines),
+            foodAvoidances: avoid,
+            foodAvoidancesConfirmed: !avoid.isEmpty,
+            useLocalContext: useLocalContext,
+            dietPreferenceConfirmed: dietConfirmed,
             intermittentFasting: intermittentFasting?.isActive == true ? intermittentFasting : nil
         )
     }

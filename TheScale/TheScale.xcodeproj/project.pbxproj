@@ -92,6 +92,7 @@
 		A1B2C3D4E5F60718293A003C /* ScaleAppReviewPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A103C /* ScaleAppReviewPrompt.swift */; };
 		A1B2C3D4E5F60718293A003D /* AppReviewPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A103D /* AppReviewPromptView.swift */; };
 		A1B2C3D4E5F60718293A003E /* OnboardingInferenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A103E /* OnboardingInferenceTests.swift */; };
+		A1B2C3D4E5F60718293A00PG3 /* ProfileGapPromptEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PG3 /* ProfileGapPromptEngineTests.swift */; };
 		A1B2C3D4E5F60718293A003F /* OnboardingFlowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A103F /* OnboardingFlowModel.swift */; };
 		A1B2C3D4E5F60718293A0040 /* DebugToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1040 /* DebugToolsView.swift */; };
 		A1B2C3D4E5F60718293A00DW1 /* GoalPaceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10DW1 /* GoalPaceGuard.swift */; };
@@ -101,6 +102,10 @@
 		A1B2C3D4E5F60718293A00UX1 /* AgeSwipeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10UX1 /* AgeSwipeControl.swift */; };
 		A1B2C3D4E5F60718293A00UX2 /* HorizonArcBankView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10UX2 /* HorizonArcBankView.swift */; };
 		A1B2C3D4E5F60718293A00WH1 /* WeighInHeroMomentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10WH1 /* WeighInHeroMomentView.swift */; };
+		A1B2C3D4E5F60718293A00PG1 /* ProfileGapPromptEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */; };
+		A1B2C3D4E5F60718293A00PG2 /* ProfileGapPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PG2 /* ProfileGapPromptView.swift */; };
+		A1B2C3D4E5F60718293A00SF1 /* ScaleStorefront.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10SF1 /* ScaleStorefront.swift */; };
+		A1B2C3D4E5F60718293A00SF2 /* ScaleStorefrontTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10SF2 /* ScaleStorefrontTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -200,6 +205,7 @@
 		A1B2C3D4E5F60718293A103C /* ScaleAppReviewPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleAppReviewPrompt.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A103D /* AppReviewPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppReviewPromptView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A103E /* OnboardingInferenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingInferenceTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10PG3 /* ProfileGapPromptEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGapPromptEngineTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A103F /* OnboardingFlowModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowModel.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1040 /* DebugToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugToolsView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10DW1 /* GoalPaceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalPaceGuard.swift; sourceTree = "<group>"; };
@@ -209,6 +215,10 @@
 		A1B2C3D4E5F60718293A10UX1 /* AgeSwipeControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeSwipeControl.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10UX2 /* HorizonArcBankView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HorizonArcBankView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10WH1 /* WeighInHeroMomentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeighInHeroMomentView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGapPromptEngine.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10PG2 /* ProfileGapPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGapPromptView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10SF1 /* ScaleStorefront.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleStorefront.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10SF2 /* ScaleStorefrontTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleStorefrontTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -241,6 +251,7 @@
 				A1B2C3D4E5F60718293A10UX1 /* AgeSwipeControl.swift */,
 				A1B2C3D4E5F60718293A10UX2 /* HorizonArcBankView.swift */,
 				A1B2C3D4E5F60718293A10WH1 /* WeighInHeroMomentView.swift */,
+				A1B2C3D4E5F60718293A10PG2 /* ProfileGapPromptView.swift */,
 				A1B2C3D4E5F60718293A1040 /* DebugToolsView.swift */,
 				A1B2C3D4E5F60718293A103D /* AppReviewPromptView.swift */,
 				A1B2C3D4E5F60718293A1011 /* ProgressSheet.swift */,
@@ -364,6 +375,8 @@
 				A1B2C3D4E5F60718293A1031 /* ScaleNotificationContentTests.swift */,
 				A1B2C3D4E5F60718293A1039 /* CoachQuotaTests.swift */,
 				A1B2C3D4E5F60718293A103E /* OnboardingInferenceTests.swift */,
+				A1B2C3D4E5F60718293A10PG3 /* ProfileGapPromptEngineTests.swift */,
+				A1B2C3D4E5F60718293A10SF2 /* ScaleStorefrontTests.swift */,
 				A1B2C3D4E5F60718293A10DW4 /* DreamOnboardingTests.swift */,
 			);
 			path = TheScaleTests;
@@ -405,8 +418,10 @@
 				A1B2C3D4E5F60718293A1035 /* ScalePlan.swift */,
 				A1B2C3D4E5F60718293A1036 /* CoachWeeklyQuota.swift */,
 				A1B2C3D4E5F60718293A1037 /* ScaleSubscriptionStore.swift */,
+				A1B2C3D4E5F60718293A10SF1 /* ScaleStorefront.swift */,
 				A1B2C3D4E5F60718293A103B /* OnboardingProfileInference.swift */,
 				A1B2C3D4E5F60718293A103F /* OnboardingFlowModel.swift */,
+				A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */,
 				A1B2C3D4E5F60718293A10DW1 /* GoalPaceGuard.swift */,
 				A1B2C3D4E5F60718293A10DW2 /* GoalDifficultyFlavor.swift */,
 				A1B2C3D4E5F60718293A103C /* ScaleAppReviewPrompt.swift */,
@@ -555,6 +570,8 @@
 				A1B2C3D4E5F60718293A0031 /* ScaleNotificationContentTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0039 /* CoachQuotaTests.swift in Sources */,
 				A1B2C3D4E5F60718293A003E /* OnboardingInferenceTests.swift in Sources */,
+				A1B2C3D4E5F60718293A00PG3 /* ProfileGapPromptEngineTests.swift in Sources */,
+				A1B2C3D4E5F60718293A00SF2 /* ScaleStorefrontTests.swift in Sources */,
 				A1B2C3D4E5F60718293A00DW4 /* DreamOnboardingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -621,6 +638,7 @@
 				A1B2C3D4E5F60718293A0035 /* ScalePlan.swift in Sources */,
 				A1B2C3D4E5F60718293A0036 /* CoachWeeklyQuota.swift in Sources */,
 				A1B2C3D4E5F60718293A0037 /* ScaleSubscriptionStore.swift in Sources */,
+				A1B2C3D4E5F60718293A00SF1 /* ScaleStorefront.swift in Sources */,
 				A1B2C3D4E5F60718293A0038 /* PaywallView.swift in Sources */,
 				A1B2C3D4E5F60718293A003B /* OnboardingProfileInference.swift in Sources */,
 				A1B2C3D4E5F60718293A003F /* OnboardingFlowModel.swift in Sources */,
@@ -630,6 +648,8 @@
 				A1B2C3D4E5F60718293A00UX1 /* AgeSwipeControl.swift in Sources */,
 				A1B2C3D4E5F60718293A00UX2 /* HorizonArcBankView.swift in Sources */,
 				A1B2C3D4E5F60718293A00WH1 /* WeighInHeroMomentView.swift in Sources */,
+				A1B2C3D4E5F60718293A00PG1 /* ProfileGapPromptEngine.swift in Sources */,
+				A1B2C3D4E5F60718293A00PG2 /* ProfileGapPromptView.swift in Sources */,
 				A1B2C3D4E5F60718293A003C /* ScaleAppReviewPrompt.swift in Sources */,
 				A1B2C3D4E5F60718293A003D /* AppReviewPromptView.swift in Sources */,
 				A1B2C3D4E5F60718293A0040 /* DebugToolsView.swift in Sources */,
@@ -656,7 +676,7 @@
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.25.0;
+				MARKETING_VERSION = 2.26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -706,7 +726,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.25.0;
+				MARKETING_VERSION = 2.26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -729,7 +749,7 @@
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.25.0;
+				MARKETING_VERSION = 2.26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -760,7 +780,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.25.0;
+				MARKETING_VERSION = 2.26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

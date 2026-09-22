@@ -97,6 +97,14 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
     var preferredLanguage: String
     /// Vibe / cultural style notes (e.g. Filipina in Manila; French in HK preferring American culture).
     var culturalVibe: String
+    /// Allergies and hard nos for meal plans (peanuts, shellfish, no pork). Blank is fine.
+    var foodAvoidances: String
+    /// True after the user saves avoidances (including an explicit blank = none).
+    var foodAvoidancesConfirmed: Bool
+    /// When true, location informs local food / supermarket / nearby fitness suggestions.
+    var useLocalContext: Bool
+    /// False until the user explicitly picks a diet in onboarding or Settings.
+    var dietPreferenceConfirmed: Bool
     /// Structured intermittent fasting window (`eatingWindowStart` / `eatingWindowEnd`). Nil = none.
     var intermittentFasting: FastingWindow?
 
@@ -113,10 +121,22 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         let eth = ethnicity.trimmingCharacters(in: .whitespacesAndNewlines)
         let lang = preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let vibe = culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !loc.isEmpty { lines.append("Location: \(loc)") }
+        if !loc.isEmpty {
+            let localBit = useLocalContext
+                ? " (use for local markets, meal staples, nearby fitness)"
+                : ""
+            lines.append("Location: \(loc)\(localBit)")
+        }
         if !eth.isEmpty { lines.append("Ethnicity / culture: \(eth)") }
         if !lang.isEmpty { lines.append("Preferred language: \(lang)") }
         if !vibe.isEmpty { lines.append("Vibe / cultural style: \(vibe)") }
+        lines.append("Diet preference: \(dietPreference.title)\(dietPreferenceConfirmed ? "" : " (unconfirmed)")")
+        let avoid = foodAvoidances.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !avoid.isEmpty {
+            lines.append("Food avoidances / allergies: \(avoid)")
+        } else if foodAvoidancesConfirmed {
+            lines.append("Food avoidances / allergies: none stated")
+        }
         if let ifWindow = intermittentFasting, ifWindow.isActive {
             let open = MealPlanEngine.formatHour(ifWindow.eatingStartHour)
             let close = MealPlanEngine.formatHour(ifWindow.eatingEndHour)
@@ -158,6 +178,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         ethnicity: "",
         preferredLanguage: "English",
         culturalVibe: "",
+        foodAvoidances: "",
+        foodAvoidancesConfirmed: false,
+        useLocalContext: true,
+        dietPreferenceConfirmed: false,
         intermittentFasting: nil
     )
 
@@ -184,6 +208,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         ethnicity: String = "",
         preferredLanguage: String = "English",
         culturalVibe: String = "",
+        foodAvoidances: String = "",
+        foodAvoidancesConfirmed: Bool = false,
+        useLocalContext: Bool = true,
+        dietPreferenceConfirmed: Bool = false,
         intermittentFasting: FastingWindow? = nil
     ) {
         self.displayName = displayName
@@ -202,6 +230,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         self.ethnicity = ethnicity
         self.preferredLanguage = preferredLanguage
         self.culturalVibe = culturalVibe
+        self.foodAvoidances = foodAvoidances
+        self.foodAvoidancesConfirmed = foodAvoidancesConfirmed
+        self.useLocalContext = useLocalContext
+        self.dietPreferenceConfirmed = dietPreferenceConfirmed
         self.intermittentFasting = intermittentFasting
     }
 
@@ -224,6 +256,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         ethnicity = try c.decodeIfPresent(String.self, forKey: .ethnicity) ?? ""
         preferredLanguage = try c.decodeIfPresent(String.self, forKey: .preferredLanguage) ?? "English"
         culturalVibe = try c.decodeIfPresent(String.self, forKey: .culturalVibe) ?? ""
+        foodAvoidances = try c.decodeIfPresent(String.self, forKey: .foodAvoidances) ?? ""
+        foodAvoidancesConfirmed = try c.decodeIfPresent(Bool.self, forKey: .foodAvoidancesConfirmed) ?? false
+        useLocalContext = try c.decodeIfPresent(Bool.self, forKey: .useLocalContext) ?? true
+        dietPreferenceConfirmed = try c.decodeIfPresent(Bool.self, forKey: .dietPreferenceConfirmed) ?? false
         intermittentFasting = try c.decodeIfPresent(FastingWindow.self, forKey: .intermittentFasting)
     }
 
@@ -245,13 +281,19 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         try c.encode(ethnicity, forKey: .ethnicity)
         try c.encode(preferredLanguage, forKey: .preferredLanguage)
         try c.encode(culturalVibe, forKey: .culturalVibe)
+        try c.encode(foodAvoidances, forKey: .foodAvoidances)
+        try c.encode(foodAvoidancesConfirmed, forKey: .foodAvoidancesConfirmed)
+        try c.encode(useLocalContext, forKey: .useLocalContext)
+        try c.encode(dietPreferenceConfirmed, forKey: .dietPreferenceConfirmed)
         try c.encodeIfPresent(intermittentFasting, forKey: .intermittentFasting)
     }
 
     private enum CodingKeys: String, CodingKey {
         case displayName, heightCm, ageYears, sex, idealWeightKg, goalDate, idealBodyFatPercent
         case startingWeightKg, startingBodyFatPercent, healthContextNotes, goalDifficultyTitle
-        case dietPreference, location, ethnicity, preferredLanguage, culturalVibe, intermittentFasting
+        case dietPreference, location, ethnicity, preferredLanguage, culturalVibe
+        case foodAvoidances, foodAvoidancesConfirmed, useLocalContext, dietPreferenceConfirmed
+        case intermittentFasting
     }
 }
 

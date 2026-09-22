@@ -284,7 +284,7 @@ struct PaywallView: View {
                         .background(ivory.opacity(0.14), in: Capsule())
                 }
                 Spacer(minLength: 8)
-                Text(plan.priceLabel)
+                Text(store.priceLabel(for: plan))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(isPro ? gold : mist)
                     .lineLimit(1)
@@ -365,6 +365,16 @@ struct PaywallView: View {
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundStyle(mist.opacity(0.75))
                 .multilineTextAlignment(.center)
+            Text(store.commerceLane.title)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(mist.opacity(0.55))
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("paywall.commerceLane")
+            if store.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(mist)
+            }
         }
         .frame(maxWidth: .infinity)
     }

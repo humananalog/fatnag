@@ -131,6 +131,8 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var lastWeighInAnalysis: WeighInAnalysisCard?
     /// Full-screen hero moment shown right after a weigh-in before History.
     @Published private(set) var isWeighInHeroPresented = false
+    /// Soft one-question sheet for blank lifestyle fields (diet / location / avoid).
+    @Published private(set) var pendingProfileGap: ProfileGapKind?
     /// Offer Monday card after the hero moment dismisses.
     private var pendingMondayAfterHero = false
     private var pendingMondayWeighKg: Double?
@@ -420,6 +422,63 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
 
+    /// Soft lifestyle gap sheet at calm moments (after meals dismiss, after results).
+    func considerProfileGapPrompt() {
+        guard pendingProfileGap == nil else { return }
+        guard !isCoachPresented,
+              !isMondayCardPresented,
+              !isSettingsPresented,
+              !isWeighInPresented,
+              !isWeighInHeroPresented,
+              !isResultsPresented,
+              !isProgressPresented,
+              !isMealPlanPresented,
+              !isAppReviewPromptPresented,
+              !isManualEntryPresented
+        else { return }
+        guard let gap = ProfileGapPromptEngine.nextGap(profile: profile) else { return }
+        pendingProfileGap = gap
+    }
+
+    func skipProfileGap() {
+        guard let kind = pendingProfileGap else { return }
+        ProfileGapPromptEngine.recordSkipped(kind)
+        pendingProfileGap = nil
+    }
+
+    func dismissProfileGapSheet() {
+        if pendingProfileGap != nil {
+            skipProfileGap()
+        }
+    }
+
+    func saveProfileGap(
+        location: String,
+        useLocalContext: Bool,
+        foodAvoidances: String,
+        diet: DietPreference
+    ) {
+        guard let kind = pendingProfileGap else { return }
+        var next = profile
+        switch kind {
+        case .location:
+            next.location = location.trimmingCharacters(in: .whitespacesAndNewlines)
+            next.useLocalContext = useLocalContext
+        case .foodAvoidances:
+            next.foodAvoidances = foodAvoidances.trimmingCharacters(in: .whitespacesAndNewlines)
+            next.foodAvoidancesConfirmed = true
+        case .diet:
+            next.dietPreference = diet
+            next.dietPreferenceConfirmed = true
+        }
+        profile = next
+        ProfileGapPromptEngine.recordSaved(kind)
+        pendingProfileGap = nil
+        if kind == .diet || kind == .foodAvoidances || kind == .location {
+            clearMealPlanCache()
+        }
+    }
+
     #if DEBUG
     /// Preview / debug injection for hero moment UI.
     func previewInjectWeighInHero(_ card: WeighInAnalysisCard) {
@@ -434,6 +493,9 @@ final class ScaleSessionViewModel: ObservableObject {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 700_000_000)
             considerAppReviewPrompt()
+            if !isAppReviewPromptPresented {
+                considerProfileGapPrompt()
+            }
         }
     }
 
@@ -509,6 +571,10 @@ final class ScaleSessionViewModel: ObservableObject {
     func dismissMealPlan() {
         isMealPlanPresented = false
         isMealPlanLoading = false
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            considerProfileGapPrompt()
+        }
     }
 
     /// Load cached meal plan if key matches; otherwise generate (offline or Grok).

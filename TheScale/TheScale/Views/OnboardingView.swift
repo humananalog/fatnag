@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// First launch: identity → body → anatomy → dream → confirm.
+/// First launch: identity → body → anatomy → dream → lifestyle → confirm.
 /// Every step is one screenfit page on iPhone 15. Hard facts. Short lines.
 struct OnboardingView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
@@ -51,6 +51,7 @@ struct OnboardingView: View {
                         case .body: bodyStep(compact: compact)
                         case .anatomy: anatomyStep(compact: compact)
                         case .dream: dreamStep(compact: compact)
+                        case .lifestyle: lifestyleStep(compact: compact)
                         case .confirm: confirmStep(compact: compact)
                         }
                     }
@@ -127,6 +128,7 @@ struct OnboardingView: View {
         case .body: return "Body"
         case .anatomy: return "Frame"
         case .dream: return "Dream weight"
+        case .lifestyle: return "Food & place"
         case .confirm: return "Lock in"
         }
     }
@@ -137,7 +139,8 @@ struct OnboardingView: View {
         case .body: return "18+. Required for BIA and Keel."
         case .anatomy: return "Height, weight, optional BF%. Units live-convert."
         case .dream: return "Drag the disc. Impossible pace gets a hard no."
-        case .confirm: return "Edit. Legal once. Then weigh."
+        case .lifestyle: return "Optional. Leave blank; we may ask gently later."
+        case .confirm: return "Legal once. Then weigh."
         }
     }
 
@@ -411,6 +414,75 @@ struct OnboardingView: View {
         }
     }
 
+    // MARK: - Lifestyle (optional diet / location / avoid)
+
+    private func lifestyleStep(compact: Bool) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: compact ? 10 : 12) {
+                Text("Diet preference")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(steel)
+                    .accessibilityIdentifier("onboarding.lifestyle.dietLabel")
+
+                Picker("Diet", selection: Binding(
+                    get: { flow.diet },
+                    set: { flow.diet = $0; flow.markDietConfirmed() }
+                )) {
+                    ForEach(DietPreference.allCases) { item in
+                        Text(item.title).tag(item)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("onboarding.diet")
+
+                Text("Location")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(steel)
+                    .padding(.top, 4)
+
+                TextField("City or area (e.g. Manila, Central HK)", text: $flow.location)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("onboarding.location")
+
+                Toggle(isOn: $flow.useLocalContext) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Use for local food and fitness")
+                            .font(.footnote.weight(.semibold))
+                        Text("Picks nearby markets, meal staples, and fitness options when on.")
+                            .font(.caption2)
+                            .foregroundStyle(steel)
+                    }
+                }
+                .accessibilityIdentifier("onboarding.useLocalContext")
+
+                Text("Avoid")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(steel)
+                    .padding(.top, 4)
+
+                TextField("Allergies and hard nos (peanuts, shellfish…)", text: $flow.foodAvoidances, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("onboarding.foodAvoidances")
+
+                Text("Blank is fine. We may ask once in a while at key moments, never every day.")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("onboarding.lifestyle.softHint")
+
+                if let fasting = flow.intermittentFasting, fasting.isActive {
+                    Text(
+                        "\(fasting.protocolLabel) · \(MealPlanEngine.formatHour(fasting.eatingStartHour))-\(MealPlanEngine.formatHour(fasting.eatingEndHour))"
+                    )
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(moss)
+                    .accessibilityIdentifier("onboarding.ifWindow")
+                }
+            }
+        }
+    }
+
     // MARK: - Confirm
 
     private func confirmStep(compact: Bool) -> some View {
@@ -433,27 +505,9 @@ struct OnboardingView: View {
                     .accessibilityIdentifier("onboarding.inferenceNote")
             }
 
-            HStack(spacing: 8) {
-                confirmMini("Loc", text: $flow.location, id: "onboarding.location")
-                confirmMini("Lang", text: $flow.preferredLanguage, id: "onboarding.language")
-            }
+            lifestyleSummaryChip
 
-            Picker("Diet", selection: $flow.diet) {
-                ForEach(DietPreference.allCases) { item in
-                    Text(item.title).tag(item)
-                }
-            }
-            .pickerStyle(.menu)
-            .accessibilityIdentifier("onboarding.diet")
-
-            if let fasting = flow.intermittentFasting, fasting.isActive {
-                Text(
-                    "\(fasting.protocolLabel) · \(MealPlanEngine.formatHour(fasting.eatingStartHour))-\(MealPlanEngine.formatHour(fasting.eatingEndHour))"
-                )
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(steel)
-                .accessibilityIdentifier("onboarding.ifWindow")
-            }
+            confirmMini("Lang", text: $flow.preferredLanguage, id: "onboarding.language")
 
             Text(
                 "Dream \(UnitFormat.massString(flow.idealKg, system: flow.unitSystem)) by \(flow.goalDate.formatted(date: .abbreviated, time: .omitted))"
@@ -483,6 +537,19 @@ struct OnboardingView: View {
 
             Spacer(minLength: 0)
         }
+    }
+
+    private var lifestyleSummaryChip: some View {
+        let loc = flow.location.trimmingCharacters(in: .whitespacesAndNewlines)
+        let avoid = flow.foodAvoidances.trimmingCharacters(in: .whitespacesAndNewlines)
+        let dietBit = flow.dietConfirmed ? flow.diet.title : "Diet TBD"
+        let locBit = loc.isEmpty ? "Location TBD" : loc
+        let avoidBit = avoid.isEmpty ? "No avoids yet" : "Avoid: \(avoid)"
+        return Text("\(dietBit) · \(locBit) · \(avoidBit)")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(steel)
+            .lineLimit(2)
+            .accessibilityIdentifier("onboarding.confirm.lifestyleSummary")
     }
 
     // MARK: - Shared
@@ -556,6 +623,10 @@ struct OnboardingView: View {
         case .dream:
             flow.refreshPaceAndDifficulty()
             guard flow.paceVerdict.status == .accepted else { return }
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
+                flow.step = .lifestyle
+            }
+        case .lifestyle:
             withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
                 flow.step = .confirm
             }

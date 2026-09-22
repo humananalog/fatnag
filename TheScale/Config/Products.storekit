@@ -7,7 +7,10 @@
 
   ],
   "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "XHVW66YM39",
     "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 756864000.0,
     "_locale" : "en_US",
     "_storefront" : "USA",
     "_storeKitErrors" : [

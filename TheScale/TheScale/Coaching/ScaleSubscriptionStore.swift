@@ -1,7 +1,7 @@
 import Foundation
 import StoreKit
 
-/// StoreKit 2 subscription + DEBUG tier override. Effective plan drives weekly Grok limits.
+/// StoreKit 2 subscription + optional DEBUG override. Effective plan drives weekly Grok limits.
 @MainActor
 final class ScaleSubscriptionStore: ObservableObject {
     static let shared = ScaleSubscriptionStore()
@@ -12,6 +12,8 @@ final class ScaleSubscriptionStore: ObservableObject {
     @Published private(set) var isLoading = false
     /// Bumps when weekly Grok credits change so Settings / Coach refresh status lines.
     @Published private(set) var quotaEpoch: Int = 0
+    /// Last product-load note for Settings / paywall diagnostics.
+    @Published private(set) var productsStatusLine: String = "Products not loaded yet."
 
     /// DEBUG / TestFlight QA: force a plan without StoreKit.
     #if DEBUG
@@ -30,6 +32,13 @@ final class ScaleSubscriptionStore: ObservableObject {
             Task { await refreshPlanFromEntitlements() }
         }
     }
+
+    /// Clear forced plan and reload real StoreKit products (local config or sandbox).
+    func useRealStoreKit() {
+        debugOverride = nil
+        purchaseError = nil
+        Task { await refresh() }
+    }
     #endif
 
     private var updatesTask: Task<Void, Never>?
@@ -41,6 +50,21 @@ final class ScaleSubscriptionStore: ObservableObject {
 
     var quotaSnapshot: CoachWeeklyQuota.Snapshot {
         CoachWeeklyQuota.snapshot(plan: plan)
+    }
+
+    var commerceLane: ScaleCommerceLane {
+        #if DEBUG
+        if debugOverride != nil { return .debugOverride }
+        return .localStoreKitConfig
+        #else
+        // TestFlight and App Store both use ASC products under Human Analog.
+        // Sandbox Apple IDs apply on TestFlight; production receipts after App Store release.
+        return .appStoreProduction
+        #endif
+    }
+
+    var commerceStatusLine: String {
+        "\(commerceLane.title). \(productsStatusLine)"
     }
 
     func noteQuotaChange() {
@@ -55,13 +79,22 @@ final class ScaleSubscriptionStore: ObservableObject {
     }
 
     func loadProducts() async {
-        let ids = Set(ScalePlan.allCases.compactMap(\.storeProductID))
+        let ids = ScaleStorefront.allPaidProductIDs
         guard !ids.isEmpty else { return }
         do {
-            products = try await Product.products(for: ids)
+            let loaded = try await Product.products(for: ids)
                 .sorted { $0.price < $1.price }
+            products = loaded
+            if loaded.isEmpty {
+                productsStatusLine = "0 products for \(ids.sorted().joined(separator: ", ")). Check Human Analog ASC or \(ScaleStorefront.localStoreKitConfigPath)."
+            } else {
+                let labels = loaded.map { "\($0.id)=\($0.displayPrice)" }.joined(separator: ", ")
+                productsStatusLine = "Loaded \(loaded.count): \(labels)"
+            }
         } catch {
+            products = []
             purchaseError = error.localizedDescription
+            productsStatusLine = "Product load failed: \(error.localizedDescription)"
         }
     }
 
@@ -70,10 +103,29 @@ final class ScaleSubscriptionStore: ObservableObject {
         return products.first { $0.id == id }
     }
 
+    /// Prefer live StoreKit price; fall back to marketing label.
+    func priceLabel(for plan: ScalePlan) -> String {
+        if plan == .free { return plan.priceLabel }
+        if let product = product(for: plan) {
+            return "\(product.displayPrice) / month"
+        }
+        return plan.priceLabel
+    }
+
     @discardableResult
     func purchase(_ plan: ScalePlan) async -> Bool {
+        #if DEBUG
+        if debugOverride != nil {
+            purchaseError = "DEBUG plan override is on. Tap “Use StoreKit” in Settings, then buy again."
+            return false
+        }
+        #endif
         guard let product = product(for: plan) else {
-            purchaseError = "\(plan.displayName) isn’t available in StoreKit yet. Add product \(plan.storeProductID ?? "") in App Store Connect (or use the StoreKit config in DEBUG)."
+            purchaseError = """
+            \(plan.displayName) isn’t available yet. Product \(plan.storeProductID ?? "?"). \
+            Human Analog team \(ScaleStorefront.developmentTeamID): add it in App Store Connect \
+            (or run Debug with \(ScaleStorefront.localStoreKitConfigPath) on the scheme).
+            """
             return false
         }
         purchaseError = nil

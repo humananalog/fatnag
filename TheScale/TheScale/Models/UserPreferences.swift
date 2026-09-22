@@ -21,6 +21,32 @@ enum DietPreference: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// Soft profile gaps we may ask about later (never spam).
+enum ProfileGapKind: String, Codable, CaseIterable, Sendable {
+    case location
+    case foodAvoidances
+    case diet
+
+    var title: String {
+        switch self {
+        case .location: return "Where do you shop and train?"
+        case .foodAvoidances: return "Anything to avoid?"
+        case .diet: return "Confirm your diet"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .location:
+            return "City helps meal prep (markets, staples) and nearby fitness options. Optional."
+        case .foodAvoidances:
+            return "Allergies and hard nos (peanuts, shellfish, no dairy). Leave blank if none."
+        case .diet:
+            return "Keel uses this for meal plans. Change anytime in Settings."
+        }
+    }
+}
+
 /// Notification + coaching prefs (UserDefaults). Never leaves the phone except optional Grok calls.
 struct NotificationPreferences: Equatable, Codable, Sendable {
     /// Only ping when weight trend is bad vs ideal / last week (gain while above ideal, or stall).

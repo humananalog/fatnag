@@ -16,7 +16,7 @@ struct SettingsView: View {
 
     private enum Field: Hashable {
         case name, height, age, targetWeight, bodyFat
-        case location, ethnicity, language, vibe
+        case location, ethnicity, language, vibe, avoidances
         case reference, offset
         case preSleepWindow, preSleepHR
     }
@@ -196,19 +196,58 @@ struct SettingsView: View {
                     .buttonStyle(.bordered)
                 }
 
+                Text(subscription.commerceStatusLine)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.commerceStatus")
+
                 #if DEBUG
+                Text("DEBUG commerce")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(steel)
+                Text(subscription.commerceLane.detail)
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    subscription.useRealStoreKit()
+                } label: {
+                    Label("Use StoreKit (Human Analog)", systemImage: "cart")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(ink)
+                .accessibilityIdentifier("settings.useStoreKit")
+
                 Picker(
                     "DEBUG plan override",
                     selection: Binding(
-                        get: { subscription.debugOverride ?? subscription.plan },
-                        set: { subscription.debugOverride = $0 }
+                        get: { subscription.debugOverride?.rawValue ?? "storekit" },
+                        set: { raw in
+                            if raw == "storekit" {
+                                subscription.useRealStoreKit()
+                            } else if let plan = ScalePlan(rawValue: raw) {
+                                subscription.debugOverride = plan
+                            }
+                        }
                     )
                 ) {
+                    Text("StoreKit").tag("storekit")
                     ForEach(ScalePlan.allCases) { plan in
-                        Text(plan.displayName).tag(plan)
+                        Text(plan.displayName).tag(plan.rawValue)
                     }
                 }
                 .pickerStyle(.segmented)
+                .accessibilityIdentifier("settings.debugPlanOverride")
+
+                Button("Reload StoreKit products") {
+                    Task { await subscription.refresh() }
+                }
+                .font(.caption)
+                .accessibilityIdentifier("settings.reloadProducts")
+
                 Button("DEBUG reset weekly quota") {
                     CoachWeeklyQuota.debugReset()
                     subscription.noteQuotaChange()
@@ -361,12 +400,20 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("settings.gender")
 
-                Picker("Diet", selection: $session.profile.dietPreference) {
+                Picker("Diet", selection: Binding(
+                    get: { session.profile.dietPreference },
+                    set: {
+                        session.profile.dietPreference = $0
+                        session.profile.dietPreferenceConfirmed = true
+                        session.clearMealPlanCache()
+                    }
+                )) {
                     ForEach(DietPreference.allCases) { diet in
                         Text(diet.title).tag(diet)
                     }
                 }
                 .pickerStyle(.menu)
+                .accessibilityIdentifier("settings.diet")
             }
         }
     }
@@ -394,6 +441,30 @@ struct SettingsView: View {
 
                 TextField("Location (e.g. Manila, Hong Kong)", text: $session.profile.location)
                     .focused($focusedField, equals: .location)
+                Toggle(isOn: $session.profile.useLocalContext) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Use for local food and fitness")
+                            .font(.footnote.weight(.semibold))
+                        Text("Markets, meal staples, and nearby fitness when on.")
+                            .font(.caption2)
+                            .foregroundStyle(steel)
+                    }
+                }
+                .accessibilityIdentifier("settings.useLocalContext")
+                TextField(
+                    "Avoid (allergies, hard nos)",
+                    text: Binding(
+                        get: { session.profile.foodAvoidances },
+                        set: {
+                            session.profile.foodAvoidances = $0
+                            session.profile.foodAvoidancesConfirmed = true
+                        }
+                    ),
+                    axis: .vertical
+                )
+                .focused($focusedField, equals: .avoidances)
+                .lineLimit(2...4)
+                .accessibilityIdentifier("settings.foodAvoidances")
                 TextField("Ethnicity / culture", text: $session.profile.ethnicity)
                     .focused($focusedField, equals: .ethnicity)
                 TextField("Preferred language", text: $session.profile.preferredLanguage)

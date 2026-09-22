@@ -62,6 +62,10 @@ final class OnboardingFlowTests: XCTestCase {
         flow.refreshPaceAndDifficulty()
         XCTAssertTrue(flow.canAdvance)
         await flow.advance(infer: nil)
+        XCTAssertEqual(flow.step, .lifestyle)
+
+        XCTAssertTrue(flow.canAdvance)
+        await flow.advance(infer: nil)
         XCTAssertEqual(flow.step, .confirm)
 
         XCTAssertFalse(flow.canAdvance)
@@ -73,6 +77,7 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(profile.sex, .female)
         XCTAssertEqual(profile.ageYears, 28)
         XCTAssertEqual(profile.dietPreference, .vegetarian)
+        XCTAssertTrue(profile.dietPreferenceConfirmed)
         XCTAssertEqual(profile.location, "Manila")
         XCTAssertEqual(profile.idealWeightKg, 62)
         XCTAssertEqual(profile.startingWeightKg, 70)

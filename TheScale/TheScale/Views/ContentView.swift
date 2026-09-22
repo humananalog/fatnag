@@ -162,6 +162,13 @@ struct ContentView: View {
                     session.dismissAppReviewPrompt()
                 }
             }
+            .sheet(isPresented: Binding(
+                get: { session.pendingProfileGap != nil },
+                set: { if !$0 { session.dismissProfileGapSheet() } }
+            )) {
+                ProfileGapPromptView()
+                    .environmentObject(session)
+            }
             .task {
                 await bootstrapHome()
             }
