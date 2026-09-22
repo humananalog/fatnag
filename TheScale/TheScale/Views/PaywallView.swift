@@ -8,7 +8,7 @@ private struct PaywallScrollOffsetKey: PreferenceKey {
     }
 }
 
-/// Luxury one-pager. Hero is a static background; content scrolls over it and fades as you go down.
+/// Luxury paywall sheet. Full-bleed hero fades into a dark tier panel. Width-safe.
 struct PaywallView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @ObservedObject private var store = ScaleSubscriptionStore.shared
@@ -19,162 +19,225 @@ struct PaywallView: View {
     var highlighted: ScalePlan = .pro
 
     @State private var scrollY: CGFloat = 0
+    @State private var appeared = false
 
-    private let ink = Color(red: 0.06, green: 0.07, blue: 0.09)
+    private let ink = Color(red: 0.05, green: 0.055, blue: 0.07)
     private let ivory = Color(red: 0.96, green: 0.95, blue: 0.92)
     private let mist = Color(red: 0.72, green: 0.70, blue: 0.66)
-    private let gold = Color(red: 0.78, green: 0.62, blue: 0.38)
-    private let goldDeep = Color(red: 0.55, green: 0.42, blue: 0.22)
-    private let heroHeight: CGFloat = 420
+    private let gold = Color(red: 0.82, green: 0.66, blue: 0.40)
+    private let goldDeep = Color(red: 0.48, green: 0.36, blue: 0.18)
 
     private var heroName: String {
         session.profile.sex == .female ? "PaywallHeroFemale" : "PaywallHeroMale"
     }
 
-    /// 1 at top → fades toward 0 as content scrolls down over the hero.
-    private var contentFade: Double {
-        let progress = min(max(Double(-scrollY) / 280.0, 0), 1)
-        return max(0.28, 1.0 - progress * 0.72)
-    }
-
-    private var heroScrim: Double {
+    /// Softens hero as you scroll the sheet content up.
+    private var heroDim: Double {
         let progress = min(max(Double(-scrollY) / 220.0, 0), 1)
-        return 0.35 + progress * 0.55
+        return 0.18 + progress * 0.55
     }
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .top) {
-                // STATIC hero background (does not scroll)
-                Image(heroName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .ignoresSafeArea()
-                    .accessibilityHidden(true)
+            GeometryReader { geo in
+                let width = geo.size.width
+                let heroHeight = min(max(geo.size.height * 0.46, 280), 420)
 
-                ink.opacity(heroScrim)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
+                ZStack(alignment: .top) {
+                    ink.ignoresSafeArea()
 
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        Color.clear
-                            .frame(height: heroHeight * 0.55)
-                            .background(
-                                GeometryReader { geo in
-                                    Color.clear.preference(
-                                        key: PaywallScrollOffsetKey.self,
-                                        value: geo.frame(in: .named("paywallScroll")).minY
-                                    )
-                                }
-                            )
-
+                    ScrollView(.vertical, showsIndicators: false) {
                         VStack(spacing: 0) {
-                            copyBlock
-                                .padding(.horizontal, 24)
-                                .padding(.top, 8)
-                            if let lockMessage, !lockMessage.isEmpty {
-                                lockChip(lockMessage)
-                                    .padding(.horizontal, 24)
-                                    .padding(.top, 14)
-                            }
-                            usageStrip
-                                .padding(.horizontal, 24)
-                                .padding(.top, 16)
-                            tierStack
-                                .padding(.horizontal, 20)
-                                .padding(.top, 18)
-                            footer
-                                .padding(.horizontal, 24)
-                                .padding(.top, 20)
-                                .padding(.bottom, 36)
+                            heroBlock(width: width, height: heroHeight)
+                                .background(
+                                    GeometryReader { proxy in
+                                        Color.clear.preference(
+                                            key: PaywallScrollOffsetKey.self,
+                                            value: proxy.frame(in: .named("paywallScroll")).minY
+                                        )
+                                    }
+                                )
+
+                            panelContent
+                                .frame(width: width)
+                                .background(ink)
                         }
-                        .padding(.top, 20)
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    ink.opacity(0.15),
-                                    ink.opacity(0.92),
-                                    ink
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .opacity(contentFade)
                     }
+                    .coordinateSpace(name: "paywallScroll")
+                    .onPreferenceChange(PaywallScrollOffsetKey.self) { scrollY = $0 }
                 }
-                .coordinateSpace(name: "paywallScroll")
-                .onPreferenceChange(PaywallScrollOffsetKey.self) { scrollY = $0 }
+                .frame(width: width, height: geo.size.height)
+                .clipped()
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
-                        .foregroundStyle(ivory.opacity(0.9))
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(ivory.opacity(0.92))
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .task { await store.refresh() }
             .preferredColorScheme(.dark)
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.55)) {
+                    appeared = true
+                }
+            }
         }
     }
 
-    private var copyBlock: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Stay sharp.")
-                .font(.system(size: 34, weight: .semibold, design: .serif))
-                .foregroundStyle(ivory)
+    // MARK: - Hero
 
-            Text("Credits do not buy pleasure. Credits buy better outcomes.")
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                .foregroundStyle(gold.opacity(0.95))
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("paywall.creditsLine")
+    private func heroBlock(width: CGFloat, height: CGFloat) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            Image(heroName)
+                .resizable()
+                .scaledToFill()
+                .frame(width: width, height: height)
+                .clipped()
+                .accessibilityHidden(true)
 
+            // Top vignette for Close readability
+            LinearGradient(
+                colors: [ink.opacity(0.55), .clear],
+                startPoint: .top,
+                endPoint: .center
+            )
+            .frame(height: height * 0.42)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .allowsHitTesting(false)
+
+            // Bottom dissolve into the panel
+            LinearGradient(
+                colors: [
+                    .clear,
+                    ink.opacity(0.35),
+                    ink.opacity(0.88),
+                    ink
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: height * 0.58)
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            .allowsHitTesting(false)
+
+            ink.opacity(heroDim)
+                .allowsHitTesting(false)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text("THE SCALE")
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .tracking(2.4)
+                    .foregroundStyle(gold.opacity(0.95))
+
+                Text("Stay sharp.")
+                    .font(.system(size: 36, weight: .semibold, design: .serif))
+                    .foregroundStyle(ivory)
+                    .shadow(color: .black.opacity(0.35), radius: 8, y: 2)
+
+                Text("Credits do not buy pleasure. Credits buy better outcomes.")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(gold.opacity(0.95))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("paywall.creditsLine")
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 28)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 12)
+        }
+        .frame(width: width, height: height)
+        .clipped()
+    }
+
+    // MARK: - Panel
+
+    private var panelContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
             Text("Live Keel when you go soft. Pro is the pressure path.")
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(mist)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 24)
+                .padding(.top, 4)
+
+            if let lockMessage, !lockMessage.isEmpty {
+                lockChip(lockMessage)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+            }
+
+            usageStrip
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
+
+            tierStack
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+
+            footer
+                .padding(.horizontal, 24)
+                .padding(.top, 22)
+                .padding(.bottom, 40)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .opacity(appeared ? 1 : 0.4)
     }
 
     private func lockChip(_ message: String) -> some View {
         Text(message)
             .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(Color(red: 0.95, green: 0.82, blue: 0.55))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .foregroundStyle(Color(red: 0.95, green: 0.84, blue: 0.58))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(goldDeep.opacity(0.28), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(
+                LinearGradient(
+                    colors: [goldDeep.opacity(0.42), goldDeep.opacity(0.22)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(gold.opacity(0.35), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(gold.opacity(0.40), lineWidth: 1)
             )
     }
 
     private var usageStrip: some View {
         let snap = store.quotaSnapshot
-        return HStack(spacing: 8) {
-            Text("\(snap.used)/\(snap.limit) this week")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(ivory.opacity(0.9))
-            Text("·")
-                .foregroundStyle(mist.opacity(0.7))
-            Text(store.plan.displayName)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(gold)
-            Spacer(minLength: 0)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text("\(snap.used)/\(snap.limit) this week")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ivory.opacity(0.92))
+                Text("·")
+                    .foregroundStyle(mist.opacity(0.65))
+                Text(store.plan.displayName)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(gold)
+                Spacer(minLength: 0)
+            }
             ProgressView(value: Double(snap.percentUsed), total: 100)
                 .tint(snap.isExhausted ? Color.orange : gold)
-                .frame(width: 72)
+                .scaleEffect(x: 1, y: 1.15, anchor: .center)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(ivory.opacity(0.05), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(ivory.opacity(0.08), lineWidth: 1)
+        )
     }
 
     private var tierStack: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             ForEach(ScalePlan.allCases) { plan in
                 tierRow(plan)
             }
@@ -191,6 +254,8 @@ struct PaywallView: View {
                 Text(plan.displayName)
                     .font(.system(size: isPro ? 22 : 18, weight: .bold, design: .rounded))
                     .foregroundStyle(ivory)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                 if isPro && !isCurrent {
                     Text("Best")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -210,6 +275,8 @@ struct PaywallView: View {
                 Text(plan.priceLabel)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(isPro ? gold : mist)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             Text("\(plan.weeklyGrokCredits)/wk · \(plan.paywallArgument)")
@@ -231,38 +298,51 @@ struct PaywallView: View {
                     Text(isPro ? "Go Pro" : "Choose \(plan.displayName)")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, isPro ? 14 : 11)
+                        .padding(.vertical, isPro ? 14 : 12)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(isPro ? ink : ivory)
                 .background {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(isPro ? gold : ivory.opacity(0.12))
+                    if isPro {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [gold, gold.opacity(0.82)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    } else {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(ivory.opacity(0.12))
+                    }
                 }
             }
         }
-        .padding(isPro ? 18 : 14)
+        .padding(isPro ? 18 : 15)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            isPro ? gold.opacity(0.10) : ivory.opacity(0.04),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
+        .background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(isPro ? gold.opacity(0.12) : ivory.opacity(0.045))
+        }
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(
-                    isPro ? gold.opacity(0.85) : ivory.opacity(0.12),
+                    isPro ? gold.opacity(0.88) : ivory.opacity(0.12),
                     lineWidth: isPro ? 1.5 : 1
                 )
         )
+        .shadow(color: isPro ? gold.opacity(0.18) : .clear, radius: 18, y: 8)
     }
 
     private var footer: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             if let err = store.purchaseError {
                 Text(err)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color(red: 0.95, green: 0.45, blue: 0.42))
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Button("Restore purchases") {
                 Task { await store.restore() }
@@ -272,6 +352,7 @@ struct PaywallView: View {
             Text("Cancel anytime in App Store subscriptions.")
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundStyle(mist.opacity(0.75))
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
     }

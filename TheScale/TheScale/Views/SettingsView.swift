@@ -61,6 +61,7 @@ struct SettingsView: View {
                 highlighted: subscription.plan.upgradeTarget ?? .plus
             )
             .environmentObject(session)
+            .presentationDragIndicator(.visible)
         }
         .scrollDismissesKeyboard(.interactively)
         .background(

@@ -55,6 +55,7 @@ struct CoachChatView: View {
                 highlighted: chat.paywallHighlight
             )
             .environmentObject(session)
+            .presentationDragIndicator(.visible)
         }
     }
 
