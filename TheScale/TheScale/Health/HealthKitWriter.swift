@@ -169,6 +169,10 @@ final class HealthKitWriter: HealthWriting {
                 sortDescriptors: [sort]
             ) { _, samples, error in
                 if let error {
+                    if Self.isNoDataError(error) {
+                        continuation.resume(returning: [])
+                        return
+                    }
                     continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
                     return
                 }
@@ -212,38 +216,39 @@ final class HealthKitWriter: HealthWriting {
         try await requestAuthorizationIfNeeded()
 
         let dayStart = Calendar.current.startOfDay(for: now)
-        async let steps = sumQuantity(.stepCount, unit: .count(), from: dayStart, to: now)
-        async let energy = sumQuantity(
+        // Per-type soft sums: one empty dietary type must not kill steps/move gauges.
+        async let steps = softSumQuantity(.stepCount, unit: .count(), from: dayStart, to: now)
+        async let energy = softSumQuantity(
             .activeEnergyBurned,
             unit: .kilocalorie(),
             from: dayStart,
             to: now
         )
-        async let dietaryEnergy = sumQuantity(
+        async let dietaryEnergy = softSumQuantity(
             .dietaryEnergyConsumed,
             unit: .kilocalorie(),
             from: dayStart,
             to: now
         )
-        async let dietaryProtein = sumQuantity(
+        async let dietaryProtein = softSumQuantity(
             .dietaryProtein,
             unit: .gram(),
             from: dayStart,
             to: now
         )
-        async let dietaryFiber = sumQuantity(
+        async let dietaryFiber = softSumQuantity(
             .dietaryFiber,
             unit: .gram(),
             from: dayStart,
             to: now
         )
-        async let dietaryIron = sumQuantity(
+        async let dietaryIron = softSumQuantity(
             .dietaryIron,
             unit: .gramUnit(with: .milli),
             from: dayStart,
             to: now
         )
-        async let dietaryPotassium = sumQuantity(
+        async let dietaryPotassium = softSumQuantity(
             .dietaryPotassium,
             unit: .gramUnit(with: .milli),
             from: dayStart,
@@ -258,19 +263,18 @@ final class HealthKitWriter: HealthWriting {
             dietFiberV,
             dietIronV,
             dietPotassiumV
-        ) = try await (
+        ) = await (
             steps, energy, dietaryEnergy, dietaryProtein, dietaryFiber, dietaryIron, dietaryPotassium
         )
 
-        // Nil sum = no samples today. Coalesce activity to 0 so gauges show a real zero, not "Open".
         return HomeDailyMetrics(
-            stepsToday: stepsV ?? 0,
-            activeEnergyKcalToday: energyV ?? 0,
-            dietaryEnergyKcalToday: dietEnergyV ?? 0,
-            dietaryProteinGramsToday: dietProteinV ?? 0,
-            dietaryFiberGramsToday: dietFiberV ?? 0,
-            dietaryIronMgToday: dietIronV ?? 0,
-            dietaryPotassiumMgToday: dietPotassiumV ?? 0,
+            stepsToday: stepsV,
+            activeEnergyKcalToday: energyV,
+            dietaryEnergyKcalToday: dietEnergyV,
+            dietaryProteinGramsToday: dietProteinV,
+            dietaryFiberGramsToday: dietFiberV,
+            dietaryIronMgToday: dietIronV,
+            dietaryPotassiumMgToday: dietPotassiumV,
             generatedAt: now
         )
     }
@@ -556,6 +560,11 @@ final class HealthKitWriter: HealthWriting {
                 options: .cumulativeSum
             ) { _, stats, error in
                 if let error {
+                    // Empty day / no samples for this type: treat as nil, never fail the whole digest.
+                    if Self.isNoDataError(error) {
+                        continuation.resume(returning: nil)
+                        return
+                    }
                     continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
                     return
                 }
@@ -564,6 +573,34 @@ final class HealthKitWriter: HealthWriting {
             }
             store.execute(query)
         }
+    }
+
+    /// Soft sum for home gauges: never throws. Missing / denied / empty → 0.
+    private func softSumQuantity(
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        from start: Date,
+        to end: Date
+    ) async -> Double {
+        do {
+            return try await sumQuantity(identifier, unit: unit, from: start, to: end) ?? 0
+        } catch {
+            #if DEBUG
+            print("[TheScale] softSum \(identifier.rawValue) soft-fail: \(error.localizedDescription)")
+            #endif
+            return 0
+        }
+    }
+
+    /// HealthKit often surfaces empty ranges as `HKError.errorNoData` instead of empty stats.
+    nonisolated private static func isNoDataError(_ error: Error) -> Bool {
+        let ns = error as NSError
+        if ns.domain == HKError.errorDomain, ns.code == HKError.Code.errorNoData.rawValue {
+            return true
+        }
+        let message = error.localizedDescription.lowercased()
+        return message.contains("no data available for the specified predicate")
+            || message.contains("no data available")
     }
 
     private func latestQuantity(
@@ -596,6 +633,10 @@ final class HealthKitWriter: HealthWriting {
                 sortDescriptors: nil
             ) { _, samples, error in
                 if let error {
+                    if Self.isNoDataError(error) {
+                        continuation.resume(returning: 0)
+                        return
+                    }
                     continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
                     return
                 }
@@ -627,6 +668,10 @@ final class HealthKitWriter: HealthWriting {
                 sortDescriptors: [sort]
             ) { _, samples, error in
                 if let error {
+                    if Self.isNoDataError(error) {
+                        continuation.resume(returning: [])
+                        return
+                    }
                     continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
                     return
                 }
@@ -693,6 +738,11 @@ final class HealthKitWriter: HealthWriting {
                 sortDescriptors: [sort]
             ) { _, samples, error in
                 if let error {
+                    if Self.isNoDataError(error) {
+                        let empty = HealthScienceMath.buildSleepSnapshot(samples: [], now: now)
+                        continuation.resume(returning: empty)
+                        return
+                    }
                     continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
                     return
                 }
@@ -729,6 +779,10 @@ final class HealthKitWriter: HealthWriting {
                 sortDescriptors: [sort]
             ) { _, samples, error in
                 if let error {
+                    if Self.isNoDataError(error) {
+                        continuation.resume(returning: [])
+                        return
+                    }
                     continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
                     return
                 }
