@@ -39,7 +39,29 @@ final class ScaleSubscriptionStore: ObservableObject {
         purchaseError = nil
         Task { await refresh() }
     }
+
+    /// Instant Free / Plus / Pro for DEBUG paywall and Settings. No StoreKit sheet.
+    @discardableResult
+    func applyDevPlan(_ plan: ScalePlan) -> Bool {
+        purchaseError = nil
+        debugOverride = plan
+        self.plan = plan
+        noteQuotaChange()
+        return true
+    }
+
+    /// True while a DEBUG override is driving the effective plan.
+    var isDevPlanOverrideActive: Bool { debugOverride != nil }
     #endif
+
+    /// DEBUG builds always allow on-the-fly tier taps from the paywall.
+    var allowsInstantDevTier: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
 
     private var updatesTask: Task<Void, Never>?
 
@@ -115,11 +137,9 @@ final class ScaleSubscriptionStore: ObservableObject {
     @discardableResult
     func purchase(_ plan: ScalePlan) async -> Bool {
         #if DEBUG
-        if debugOverride != nil {
-            purchaseError = "DEBUG plan override is on. Tap “Use StoreKit” in Settings, then buy again."
-            return false
-        }
-        #endif
+        // Dev: paywall tier taps apply instantly (no StoreKit sheet).
+        return applyDevPlan(plan)
+        #else
         guard let product = product(for: plan) else {
             purchaseError = """
             \(plan.displayName) isn’t available yet. Product \(plan.storeProductID ?? "?"). \
@@ -146,6 +166,7 @@ final class ScaleSubscriptionStore: ObservableObject {
             purchaseError = error.localizedDescription
             return false
         }
+        #endif
     }
 
     func restore() async {
