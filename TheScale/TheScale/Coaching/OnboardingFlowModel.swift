@@ -1,12 +1,14 @@
 import Foundation
 
-/// Testable 3-step onboarding state. UI binds to this; inference is injectable.
+/// Testable multi-step onboarding state. UI binds to this; inference is injectable.
 @MainActor
 final class OnboardingFlowModel: ObservableObject {
     enum Step: Int, CaseIterable, Equatable {
         case identity = 0
         case body = 1
-        case confirm = 2
+        case anatomy = 2
+        case dream = 3
+        case confirm = 4
     }
 
     @Published var step: Step = .identity
@@ -17,8 +19,16 @@ final class OnboardingFlowModel: ObservableObject {
     @Published var ageYears: Double = 0
     /// Nil until the user picks male or female on the body step.
     @Published var sex: UserBodyProfile.Sex?
+    /// Current / starting weight (kg). Required on anatomy.
+    @Published var currentWeightKg: Double = 75
+    /// Optional self-reported body fat %.
+    @Published var startingBodyFatPercent: Double?
+    /// Medical situations, drugs, bad habits.
+    @Published var healthContextNotes = ""
     @Published var idealKg: Double = UserBodyProfile.suggestedIdealWeightKg(heightCm: 170)
     @Published var idealBodyFat: Double?
+    @Published var goalDate: Date = Calendar.current.date(byAdding: .month, value: 3, to: Date()) ?? Date()
+    @Published var unitSystem: PreferredUnitSystem = .metric
     @Published var diet: DietPreference = .omnivore
     @Published var location = ""
     @Published var ethnicity = ""
@@ -31,6 +41,8 @@ final class OnboardingFlowModel: ObservableObject {
     @Published var enableNotifications = true
     @Published var isInferring = false
     @Published var inferenceNote: String?
+    @Published var paceRefusalNote: String?
+    @Published var difficultyBand: GoalDifficultyBand?
 
     var isAdultAge: Bool {
         ageYears >= UserBodyProfile.minimumAgeYears && ageYears <= 120
@@ -46,12 +58,30 @@ final class OnboardingFlowModel: ObservableObject {
         return "Enter a valid age."
     }
 
+    var dreamBoundsKg: ClosedRange<Double> {
+        GoalPaceGuard.dreamWeightBoundsKg(currentKg: currentWeightKg, heightCm: heightCm)
+    }
+
+    var paceVerdict: GoalPaceVerdict {
+        GoalPaceGuard.evaluate(
+            currentKg: currentWeightKg,
+            targetKg: idealKg,
+            goalDate: goalDate
+        )
+    }
+
     var canAdvance: Bool {
         switch step {
         case .identity:
             return !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .body:
-            return heightCm >= 100 && isAdultAge && hasChosenGender && !isInferring
+            return isAdultAge && hasChosenGender && !isInferring
+        case .anatomy:
+            return heightCm >= 100 && heightCm <= 250
+                && currentWeightKg >= 30 && currentWeightKg <= 300
+                && !isInferring
+        case .dream:
+            return paceVerdict.status == .accepted && !isInferring
         case .confirm:
             return acceptedLegal && !isInferring
         }
@@ -60,16 +90,29 @@ final class OnboardingFlowModel: ObservableObject {
     var primaryCTA: String {
         switch step {
         case .identity: return "Continue"
-        case .body: return isInferring ? "Filling profile…" : "Review profile"
+        case .body: return "Continue"
+        case .anatomy: return isInferring ? "Filling profile…" : "Set dream weight"
+        case .dream: return "Lock target"
         case .confirm: return "Start weighing"
         }
     }
 
-    func seed(from profile: UserBodyProfile, notifications: NotificationPreferences) {
+    var stepCountLabel: String {
+        "\(step.rawValue + 1) / \(Step.allCases.count)"
+    }
+
+    func seed(from profile: UserBodyProfile, notifications: NotificationPreferences, units: PreferredUnitSystem) {
         name = profile.displayName
         heightCm = profile.heightCm
         idealKg = profile.idealWeightKg
         idealBodyFat = profile.idealBodyFatPercent
+        currentWeightKg = profile.startingWeightKg ?? max(profile.idealWeightKg + 8, 60)
+        startingBodyFatPercent = profile.startingBodyFatPercent
+        healthContextNotes = profile.healthContextNotes
+        if let date = profile.goalDate {
+            goalDate = date
+        }
+        unitSystem = units
         diet = profile.dietPreference
         location = profile.location
         ethnicity = profile.ethnicity
@@ -81,9 +124,16 @@ final class OnboardingFlowModel: ObservableObject {
         if OnboardingStore.hasCompleted {
             ageYears = profile.ageYears
             sex = profile.sex
+            if let title = profile.goalDifficultyTitle {
+                let level = GoalDifficultyFlavor.maleTitles.firstIndex(of: title)
+                    ?? GoalDifficultyFlavor.femaleTitles.firstIndex(of: title)
+                    ?? 0
+                difficultyBand = GoalDifficultyFlavor.band(sex: profile.sex, level: level, ratio: nil)
+            }
         } else {
             ageYears = 0
             sex = nil
+            difficultyBand = nil
         }
         if !FoundationModelAvailability.isAvailable {
             allowOnDevicePrefill = false
@@ -91,6 +141,7 @@ final class OnboardingFlowModel: ObservableObject {
         if !GrokSharedConfig.isLiveConfigured {
             allowGrokCoachLater = false
         }
+        refreshPaceAndDifficulty()
     }
 
     func goBack() {
@@ -98,13 +149,24 @@ final class OnboardingFlowModel: ObservableObject {
         step = prev
     }
 
-    /// Advances one step. On body → confirm, runs inference first.
+    /// Advances one step. On anatomy → dream, runs inference first.
     func advance(infer: ((OnboardingFlowModel) async -> OnboardingInferenceDraft)? = nil) async {
         switch step {
         case .identity:
             step = .body
         case .body:
+            step = .anatomy
+        case .anatomy:
             await runInference(infer: infer)
+            clampIdealToBounds()
+            refreshPaceAndDifficulty()
+            step = .dream
+        case .dream:
+            guard paceVerdict.status == .accepted else {
+                paceRefusalNote = paceVerdict.keelNote
+                return
+            }
+            refreshPaceAndDifficulty()
             step = .confirm
         case .confirm:
             break
@@ -123,7 +185,7 @@ final class OnboardingFlowModel: ObservableObject {
         } else {
             draft = await FoundationModelCoach.inferOnboardingProfile(
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                freeform: freeform.trimmingCharacters(in: .whitespacesAndNewlines),
+                freeform: combinedFreeformForInference(),
                 heightCm: heightCm,
                 ageYears: ageYears,
                 sex: sex ?? .male,
@@ -143,10 +205,13 @@ final class OnboardingFlowModel: ObservableObject {
         if let fasting = draft.intermittentFasting, fasting.isActive {
             intermittentFasting = fasting
         }
-        if let w = draft.idealWeightKg { idealKg = w }
+        if let w = draft.idealWeightKg {
+            idealKg = w
+            clampIdealToBounds()
+        }
         if let bf = draft.idealBodyFatPercent { idealBodyFat = bf }
 
-        let emptyNote = freeform.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let emptyNote = combinedFreeformForInference().trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if draft.sourceLabel == "empty" || (emptyNote && draft.sourceLabel != "foundation-model") {
             inferenceNote = "No note to parse. Defaults ready. Edit anything below."
         } else if draft.sourceLabel == "foundation-model" {
@@ -158,13 +223,19 @@ final class OnboardingFlowModel: ObservableObject {
 
     func buildProfile() -> UserBodyProfile {
         let clampedAge = min(120, max(UserBodyProfile.minimumAgeYears, ageYears))
+        refreshPaceAndDifficulty()
         return UserBodyProfile(
             displayName: name.trimmingCharacters(in: .whitespacesAndNewlines),
             heightCm: heightCm,
             ageYears: clampedAge,
             sex: sex ?? .male,
             idealWeightKg: idealKg,
+            goalDate: goalDate,
             idealBodyFatPercent: idealBodyFat,
+            startingWeightKg: currentWeightKg,
+            startingBodyFatPercent: startingBodyFatPercent,
+            healthContextNotes: healthContextNotes.trimmingCharacters(in: .whitespacesAndNewlines),
+            goalDifficultyTitle: difficultyBand?.title,
             dietPreference: diet,
             location: location.trimmingCharacters(in: .whitespacesAndNewlines),
             ethnicity: ethnicity.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -174,9 +245,70 @@ final class OnboardingFlowModel: ObservableObject {
         )
     }
 
+    /// Live unit toggle: convert already-entered values on the fly. Canonical storage stays metric.
+    func applyUnitSystem(_ next: PreferredUnitSystem) {
+        guard next != unitSystem else { return }
+        unitSystem = next
+        // Values are stored in metric; display bindings convert. No numeric rewrite needed.
+        // Re-clamp dream weight into bounds after toggle for UX.
+        clampIdealToBounds()
+        refreshPaceAndDifficulty()
+    }
+
     func updateIdealFromHeightIfNeeded() {
-        if inferenceNote == nil {
+        if inferenceNote == nil, step == .anatomy {
             idealKg = UserBodyProfile.suggestedIdealWeightKg(heightCm: heightCm)
+            clampIdealToBounds()
         }
+    }
+
+    func refreshPaceAndDifficulty() {
+        let verdict = paceVerdict
+        if verdict.status == .rejected {
+            paceRefusalNote = verdict.keelNote
+        } else {
+            paceRefusalNote = nil
+        }
+        guard let sex else {
+            difficultyBand = nil
+            return
+        }
+        difficultyBand = GoalDifficultyFlavor.rate(
+            sex: sex,
+            currentKg: currentWeightKg,
+            targetKg: idealKg,
+            goalDate: goalDate
+        )
+    }
+
+    func clampIdealToBounds() {
+        let bounds = dreamBoundsKg
+        idealKg = min(max(idealKg, bounds.lowerBound), bounds.upperBound)
+    }
+
+    /// Seed weekly mini-goal from dream weight + date (AggressiveWeeklyTargetEngine).
+    func buildWeeklyMiniGoal(now: Date = Date()) -> WeeklyMiniGoal {
+        let aggressive = AggressiveWeeklyTargetEngine.compute(
+            currentKg: currentWeightKg,
+            idealKg: idealKg,
+            goalDate: goalDate,
+            priorSundayTargetKg: nil,
+            now: now
+        )
+        let bandTitle = difficultyBand?.title ?? "Goal"
+        return WeeklyMiniGoal(
+            targetDeltaKg: aggressive.weeklyDeltaKg,
+            weekStartKg: currentWeightKg,
+            weekStartDate: now,
+            title: "\(bandTitle): \(aggressive.pacingLine)"
+        )
+    }
+
+    private func combinedFreeformForInference() -> String {
+        let parts = [
+            freeform.trimmingCharacters(in: .whitespacesAndNewlines),
+            healthContextNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        ].filter { !$0.isEmpty }
+        return parts.joined(separator: ". ")
     }
 }

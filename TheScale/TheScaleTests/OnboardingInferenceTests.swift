@@ -24,6 +24,15 @@ final class OnboardingFlowTests: XCTestCase {
         flow.idealKg = 65
         XCTAssertTrue(flow.canAdvance)
 
+        await flow.advance(infer: { _ in
+            XCTFail("Inference should not run on body → anatomy")
+            return .empty
+        })
+        XCTAssertEqual(flow.step, .anatomy)
+
+        flow.currentWeightKg = 70
+        XCTAssertTrue(flow.canAdvance)
+
         await flow.advance { model in
             XCTAssertEqual(model.name, "Alex")
             return OnboardingInferenceDraft(
@@ -40,12 +49,20 @@ final class OnboardingFlowTests: XCTestCase {
             )
         }
 
-        XCTAssertEqual(flow.step, .confirm)
+        XCTAssertEqual(flow.step, .dream)
         XCTAssertEqual(flow.diet, .vegetarian)
         XCTAssertEqual(flow.location, "Manila")
         XCTAssertEqual(flow.preferredLanguage, "Tagalog")
         XCTAssertEqual(flow.idealKg, 62)
         XCTAssertEqual(flow.inferenceNote, "On-device Coach filled these from your note. Edit freely.")
+
+        // Stretch the date so pace is accepted.
+        flow.goalDate = Calendar.current.date(byAdding: .month, value: 6, to: Date())!
+        flow.currentWeightKg = 70
+        flow.refreshPaceAndDifficulty()
+        XCTAssertTrue(flow.canAdvance)
+        await flow.advance(infer: nil)
+        XCTAssertEqual(flow.step, .confirm)
 
         XCTAssertFalse(flow.canAdvance)
         flow.acceptedLegal = true
@@ -58,6 +75,7 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(profile.dietPreference, .vegetarian)
         XCTAssertEqual(profile.location, "Manila")
         XCTAssertEqual(profile.idealWeightKg, 62)
+        XCTAssertEqual(profile.startingWeightKg, 70)
     }
 
     func testBodyStepRequiresAdultAgeAndGender() {
@@ -104,8 +122,10 @@ final class OnboardingFlowTests: XCTestCase {
         flow.allowOnDevicePrefill = false
         flow.heightCm = 170
         flow.ageYears = 30
+        flow.sex = .male
 
-        await flow.advance(infer: nil) // identity → body without infer
+        await flow.advance(infer: nil) // identity → body
+        await flow.advance(infer: nil) // body → anatomy
         // Manually run default inference path with FM disallowed via allowOnDevicePrefill
         await flow.runInference()
         XCTAssertEqual(flow.diet, .pescatarian)

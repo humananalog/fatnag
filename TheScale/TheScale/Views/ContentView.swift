@@ -377,42 +377,77 @@ struct ContentView: View {
     }
 
     private var targetsRow: some View {
-        let t = surface.targets
-        return VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 20) {
-                targetCell(value: "\(t.steps)", unit: "steps", caption: "Target")
-                targetCell(value: "\(t.maxCalories)", unit: "kcal max", caption: "Energy")
-            }
-            HStack(alignment: .top, spacing: 20) {
-                targetCell(value: "\(t.proteinGrams) g", unit: t.proteinLabel, caption: "Hit")
-                targetCell(value: t.microName, unit: t.microTargetLine, caption: "Micro")
+        let rows = surface.todayProgress
+        return VStack(alignment: .leading, spacing: 14) {
+            Text("Today's metrics")
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .foregroundStyle(atmosphere.ink.opacity(0.7))
+                .textCase(.uppercase)
+                .tracking(1.0)
+                .accessibilityIdentifier("home.todayMetrics.title")
+
+            ForEach(Array(rows.enumerated()), id: \.element.kind) { _, row in
+                dailyMetricRow(row)
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "Targets. \(t.steps) steps. Max \(t.maxCalories) calories. Protein \(t.proteinGrams) grams. \(t.microName) \(t.microTargetLine). \(t.honestyLine)."
-        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("home.todayMetrics")
     }
 
-    private func targetCell(value: String, unit: String, caption: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(caption.uppercased())
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .foregroundStyle(atmosphere.ink.opacity(0.65))
-                .tracking(0.7)
-            Text(value)
-                .font(.system(size: 26, weight: .bold, design: .rounded))
+    private func dailyMetricRow(_ row: DailyMetricProgress) -> some View {
+        let fill = min(max(row.fraction, 0), 1)
+        let barColor: Color = {
+            switch row.status {
+            case .complete: return Color(red: 0.12, green: 0.42, blue: 0.30)
+            case .over: return Color(red: 0.72, green: 0.22, blue: 0.18)
+            case .inProgress: return atmosphere.ink.opacity(0.85)
+            case .unknown: return atmosphere.ink.opacity(0.25)
+            }
+        }()
+        let statusLabel: String = {
+            switch row.status {
+            case .complete: return "Done"
+            case .over: return "Over"
+            case .inProgress: return "\(Int((min(row.fraction, 1) * 100).rounded()))%"
+            case .unknown: return "Open"
+            }
+        }()
+
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(row.title.uppercased())
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .foregroundStyle(atmosphere.ink.opacity(0.65))
+                    .tracking(0.7)
+                Spacer(minLength: 8)
+                Text(statusLabel)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(barColor)
+                    .monospacedDigit()
+            }
+            Text(row.currentLine)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(atmosphere.ink)
-                .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
+                .shadow(color: .white.opacity(0.35), radius: 0, y: 1)
                 .lineLimit(2)
-                .minimumScaleFactor(0.75)
-            Text(unit)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(atmosphere.ink.opacity(0.72))
-                .fixedSize(horizontal: false, vertical: true)
+                .minimumScaleFactor(0.8)
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(atmosphere.ink.opacity(0.12))
+                    Capsule()
+                        .fill(barColor)
+                        .frame(width: max(4, geo.size.width * fill))
+                }
+            }
+            .frame(height: 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(row.accessibilitySummary)
+        .accessibilityIdentifier("home.todayMetrics.\(row.kind.rawValue)")
     }
 
     private var primaryActions: some View {

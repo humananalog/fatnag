@@ -306,6 +306,16 @@ struct FitnessDigest: Equatable, Sendable {
     /// Mean active energy (kcal/day) over the last ~7 days when Health has samples.
     var activeEnergyKcalLast7dAverage: Double?
     var appleExerciseMinutesToday: Double?
+    /// Dietary energy logged in Apple Health today (kcal), when Nutrition writes exist.
+    var dietaryEnergyKcalToday: Double?
+    /// Dietary protein logged in Apple Health today (g).
+    var dietaryProteinGramsToday: Double?
+    /// Dietary fiber (g) logged today.
+    var dietaryFiberGramsToday: Double?
+    /// Dietary iron (mg) logged today.
+    var dietaryIronMgToday: Double?
+    /// Dietary potassium (mg) logged today.
+    var dietaryPotassiumMgToday: Double?
     var restingHeartRateBpm: Double?
     var latestHeartRateBpm: Double?
     var heartRateSampleCountToday: Int
@@ -346,6 +356,11 @@ struct FitnessDigest: Equatable, Sendable {
         activeEnergyKcalToday: nil,
         activeEnergyKcalLast7dAverage: nil,
         appleExerciseMinutesToday: nil,
+        dietaryEnergyKcalToday: nil,
+        dietaryProteinGramsToday: nil,
+        dietaryFiberGramsToday: nil,
+        dietaryIronMgToday: nil,
+        dietaryPotassiumMgToday: nil,
         restingHeartRateBpm: nil,
         latestHeartRateBpm: nil,
         heartRateSampleCountToday: 0,
@@ -481,6 +496,16 @@ struct FitnessDigest: Equatable, Sendable {
             lines.append(String(format: "Apple Exercise Time today: %.0f min", exercise))
         } else {
             lines.append("Apple Exercise Time today: missing")
+        }
+        if let dietKcal = dietaryEnergyKcalToday {
+            lines.append(String(format: "Dietary energy today: %.0f kcal", dietKcal))
+        } else {
+            lines.append("Dietary energy today: missing (food not logged in Health)")
+        }
+        if let protein = dietaryProteinGramsToday {
+            lines.append(String(format: "Dietary protein today: %.0f g", protein))
+        } else {
+            lines.append("Dietary protein today: missing")
         }
         if let rhr = restingHeartRateBpm {
             lines.append(String(format: "Resting HR: %.0f bpm", rhr))

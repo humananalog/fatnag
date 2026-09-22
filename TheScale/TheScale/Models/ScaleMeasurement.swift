@@ -78,6 +78,14 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
     var goalDate: Date?
     /// Optional goal body fat %. When set, fat chart uses it as floor / reference.
     var idealBodyFatPercent: Double?
+    /// Self-reported starting weight from onboarding (kg). Seeds weekly goal engines before Health has a sample.
+    var startingWeightKg: Double?
+    /// Optional self-reported body fat % at onboarding.
+    var startingBodyFatPercent: Double?
+    /// Medical situations, drugs, alcohol / habits. On-device Coach context only.
+    var healthContextNotes: String
+    /// Flavor tier title from dream-weight difficulty (e.g. Hell, Brat Mode). Caps still win over flavor.
+    var goalDifficultyTitle: String?
     var dietPreference: DietPreference
     /// City / region for culturally aware coaching (on-device).
     var location: String
@@ -114,6 +122,16 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
                 "Intermittent fasting: \(ifWindow.protocolLabel) (\(ifWindow.fastingHours)h fast). Eating window \(open)-\(close) local (eatingWindowStart=\(ifWindow.eatingWindowStart), eatingWindowEnd=\(ifWindow.eatingWindowEnd))."
             )
         }
+        let health = healthContextNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !health.isEmpty {
+            lines.append("Health context (user-stated; not a diagnosis): \(health)")
+        }
+        if let difficulty = goalDifficultyTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !difficulty.isEmpty {
+            lines.append("Goal difficulty flavor: \(difficulty). Respect safe weekly biology caps over flavor.")
+        }
+        if let start = startingWeightKg {
+            lines.append(String(format: "Onboarding starting weight: %.1f kg", start))
+        }
         guard !lines.isEmpty else { return "" }
         return """
         Persona (match tone and examples to this; do not stereotype or exoticize):
@@ -129,6 +147,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         idealWeightKg: suggestedIdealWeightKg(heightCm: 170),
         goalDate: nil,
         idealBodyFatPercent: nil,
+        startingWeightKg: nil,
+        startingBodyFatPercent: nil,
+        healthContextNotes: "",
+        goalDifficultyTitle: nil,
         dietPreference: .omnivore,
         location: "",
         ethnicity: "",
@@ -151,6 +173,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         idealWeightKg: Double? = nil,
         goalDate: Date? = nil,
         idealBodyFatPercent: Double? = nil,
+        startingWeightKg: Double? = nil,
+        startingBodyFatPercent: Double? = nil,
+        healthContextNotes: String = "",
+        goalDifficultyTitle: String? = nil,
         dietPreference: DietPreference = .omnivore,
         location: String = "",
         ethnicity: String = "",
@@ -165,6 +191,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         self.idealWeightKg = idealWeightKg ?? Self.suggestedIdealWeightKg(heightCm: heightCm)
         self.goalDate = goalDate
         self.idealBodyFatPercent = idealBodyFatPercent
+        self.startingWeightKg = startingWeightKg
+        self.startingBodyFatPercent = startingBodyFatPercent
+        self.healthContextNotes = healthContextNotes
+        self.goalDifficultyTitle = goalDifficultyTitle
         self.dietPreference = dietPreference
         self.location = location
         self.ethnicity = ethnicity
@@ -183,6 +213,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
             ?? Self.suggestedIdealWeightKg(heightCm: heightCm)
         goalDate = try c.decodeIfPresent(Date.self, forKey: .goalDate)
         idealBodyFatPercent = try c.decodeIfPresent(Double.self, forKey: .idealBodyFatPercent)
+        startingWeightKg = try c.decodeIfPresent(Double.self, forKey: .startingWeightKg)
+        startingBodyFatPercent = try c.decodeIfPresent(Double.self, forKey: .startingBodyFatPercent)
+        healthContextNotes = try c.decodeIfPresent(String.self, forKey: .healthContextNotes) ?? ""
+        goalDifficultyTitle = try c.decodeIfPresent(String.self, forKey: .goalDifficultyTitle)
         dietPreference = try c.decodeIfPresent(DietPreference.self, forKey: .dietPreference) ?? .omnivore
         location = try c.decodeIfPresent(String.self, forKey: .location) ?? ""
         ethnicity = try c.decodeIfPresent(String.self, forKey: .ethnicity) ?? ""
@@ -200,6 +234,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         try c.encode(idealWeightKg, forKey: .idealWeightKg)
         try c.encodeIfPresent(goalDate, forKey: .goalDate)
         try c.encodeIfPresent(idealBodyFatPercent, forKey: .idealBodyFatPercent)
+        try c.encodeIfPresent(startingWeightKg, forKey: .startingWeightKg)
+        try c.encodeIfPresent(startingBodyFatPercent, forKey: .startingBodyFatPercent)
+        try c.encode(healthContextNotes, forKey: .healthContextNotes)
+        try c.encodeIfPresent(goalDifficultyTitle, forKey: .goalDifficultyTitle)
         try c.encode(dietPreference, forKey: .dietPreference)
         try c.encode(location, forKey: .location)
         try c.encode(ethnicity, forKey: .ethnicity)
@@ -209,8 +247,9 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case displayName, heightCm, ageYears, sex, idealWeightKg, goalDate, idealBodyFatPercent, dietPreference
-        case location, ethnicity, preferredLanguage, culturalVibe, intermittentFasting
+        case displayName, heightCm, ageYears, sex, idealWeightKg, goalDate, idealBodyFatPercent
+        case startingWeightKg, startingBodyFatPercent, healthContextNotes, goalDifficultyTitle
+        case dietPreference, location, ethnicity, preferredLanguage, culturalVibe, intermittentFasting
     }
 }
 

@@ -35,9 +35,39 @@ struct DailyGoalTargets: Equatable, Sendable {
 
     var honestyLine: String {
         intakeTracked
-            ? "Logged vs target"
+            ? "Logged vs target (Apple Health nutrition)"
             : "Goals only · food not logged yet"
     }
+}
+
+/// One home row: today's progress against a daily target.
+struct DailyMetricProgress: Equatable, Sendable {
+    enum Kind: String, Equatable, Sendable {
+        case steps
+        case energy
+        case protein
+        case micro
+    }
+
+    enum Status: String, Equatable, Sendable {
+        /// Hit or under-cap for the day.
+        case complete
+        /// Partial progress with Health samples.
+        case inProgress
+        /// No sample yet (or nutrition missing).
+        case unknown
+        /// Over a calorie max.
+        case over
+    }
+
+    var kind: Kind
+    var title: String
+    /// e.g. "4,200 / 8,500"
+    var currentLine: String
+    /// 0...1.2 for bar fill (may exceed 1 when over).
+    var fraction: Double
+    var status: Status
+    var accessibilitySummary: String
 }
 
 /// One-screen weekly goal snapshot for Home.
@@ -51,6 +81,8 @@ struct WeeklyGoalSurface: Equatable, Sendable {
     var mealSuggestion: String?
     var energySnapshot: WeeklyEnergyBalanceSnapshot?
     var targets: DailyGoalTargets
+    /// Today completion for steps / kcal / protein / micro (HealthKit + targets).
+    var todayProgress: [DailyMetricProgress]
     /// ETA to ideal weight at current pace vs planned goal date.
     var macroGoalETA: MacroGoalETA
     /// Fraction of ISO week elapsed (0...1), for pace math.
@@ -247,6 +279,8 @@ enum WeeklyGoalSurfaceEngine {
             calendar: calendar
         )
 
+        let progress = todayMetricProgress(targets: targets, digest: digest)
+
         return WeeklyGoalSurface(
             completionPercent: percent,
             band: band,
@@ -256,6 +290,7 @@ enum WeeklyGoalSurfaceEngine {
             mealSuggestion: showMeals,
             energySnapshot: energy,
             targets: targets,
+            todayProgress: progress,
             macroGoalETA: eta,
             weekElapsedFraction: elapsed,
             expectedPaceFraction: expected,
@@ -364,6 +399,8 @@ enum WeeklyGoalSurfaceEngine {
         let proteinPerKg = weeklyDeltaKg < -0.15 || targetMode == .hardcoreCatchUp ? 1.8 : 1.6
         let protein = Int((weight * proteinPerKg).rounded())
         let micro = microPriority(profile: profile, weeklyDeltaKg: weeklyDeltaKg, diet: profile.dietPreference)
+        let intakeTracked = (digest?.dietaryEnergyKcalToday ?? 0) > 0
+            || (digest?.dietaryProteinGramsToday ?? 0) > 0
 
         return DailyGoalTargets(
             steps: steps,
@@ -372,8 +409,179 @@ enum WeeklyGoalSurfaceEngine {
             proteinLabel: "Protein",
             microName: micro.name,
             microTargetLine: micro.line,
-            intakeTracked: false
+            intakeTracked: intakeTracked
         )
+    }
+
+    /// Today completion rows for home (steps from Health; nutrition when logged).
+    static func todayMetricProgress(
+        targets: DailyGoalTargets,
+        digest: FitnessDigest?
+    ) -> [DailyMetricProgress] {
+        let stepsCurrent = digest?.stepsToday
+        let steps = progressRow(
+            kind: .steps,
+            title: "Steps",
+            current: stepsCurrent,
+            target: Double(targets.steps),
+            higherIsBetter: true,
+            formatCurrent: { Int($0.rounded()).formatted() },
+            formatTarget: { Int($0.rounded()).formatted() }
+        )
+
+        let energyCurrent = digest?.dietaryEnergyKcalToday
+        let energy: DailyMetricProgress
+        if let energyCurrent, energyCurrent > 0 {
+            energy = progressRow(
+                kind: .energy,
+                title: "Energy",
+                current: energyCurrent,
+                target: Double(targets.maxCalories),
+                higherIsBetter: false,
+                formatCurrent: { "\(Int($0.rounded()))" },
+                formatTarget: { "\(Int($0.rounded())) max" }
+            )
+        } else if let burn = digest?.activeEnergyKcalToday, burn > 0 {
+            // No food log: show move burn vs a soft floor so home still has today progress.
+            let moveTarget = max(250.0, Double(targets.maxCalories) * 0.22)
+            energy = progressRow(
+                kind: .energy,
+                title: "Move",
+                current: burn,
+                target: moveTarget,
+                higherIsBetter: true,
+                formatCurrent: { "\(Int($0.rounded()))" },
+                formatTarget: { "\(Int($0.rounded())) burn" }
+            )
+        } else {
+            energy = DailyMetricProgress(
+                kind: .energy,
+                title: "Energy",
+                currentLine: "- / \(targets.maxCalories) max",
+                fraction: 0,
+                status: .unknown,
+                accessibilitySummary: "Energy not logged today. Cap \(targets.maxCalories) calories."
+            )
+        }
+
+        let proteinCurrent = digest?.dietaryProteinGramsToday
+        let protein: DailyMetricProgress
+        if let proteinCurrent, proteinCurrent > 0 {
+            protein = progressRow(
+                kind: .protein,
+                title: targets.proteinLabel,
+                current: proteinCurrent,
+                target: Double(targets.proteinGrams),
+                higherIsBetter: true,
+                formatCurrent: { "\(Int($0.rounded()))" },
+                formatTarget: { "\(Int($0.rounded())) g" }
+            )
+        } else {
+            protein = DailyMetricProgress(
+                kind: .protein,
+                title: targets.proteinLabel,
+                currentLine: "- / \(targets.proteinGrams) g",
+                fraction: 0,
+                status: .unknown,
+                accessibilitySummary: "Protein not logged today. Hit \(targets.proteinGrams) grams."
+            )
+        }
+
+        let microTarget = microNumericTarget(name: targets.microName, line: targets.microTargetLine)
+        let microCurrent: Double? = {
+            switch targets.microName.lowercased() {
+            case "fiber": return digest?.dietaryFiberGramsToday
+            case "iron": return digest?.dietaryIronMgToday
+            case "potassium": return digest?.dietaryPotassiumMgToday
+            default: return nil
+            }
+        }()
+        let microUnit = targets.microName.lowercased() == "fiber" ? "g" : "mg"
+        let micro: DailyMetricProgress
+        if let microCurrent, microCurrent > 0, let microTarget, microTarget > 0 {
+            micro = progressRow(
+                kind: .micro,
+                title: targets.microName,
+                current: microCurrent,
+                target: microTarget,
+                higherIsBetter: true,
+                formatCurrent: { "\(Int($0.rounded()))" },
+                formatTarget: { "\(Int($0.rounded())) \(microUnit)" }
+            )
+        } else {
+            micro = DailyMetricProgress(
+                kind: .micro,
+                title: targets.microName,
+                currentLine: "- · \(targets.microTargetLine)",
+                fraction: 0,
+                status: .unknown,
+                accessibilitySummary: "\(targets.microName) not logged today. \(targets.microTargetLine)."
+            )
+        }
+
+        return [steps, energy, protein, micro]
+    }
+
+    private static func progressRow(
+        kind: DailyMetricProgress.Kind,
+        title: String,
+        current: Double?,
+        target: Double,
+        higherIsBetter: Bool,
+        formatCurrent: (Double) -> String,
+        formatTarget: (Double) -> String
+    ) -> DailyMetricProgress {
+        guard let current, target > 0 else {
+            return DailyMetricProgress(
+                kind: kind,
+                title: title,
+                currentLine: "- / \(formatTarget(target))",
+                fraction: 0,
+                status: .unknown,
+                accessibilitySummary: "\(title) unknown today."
+            )
+        }
+        let raw = current / target
+        let fraction = min(max(raw, 0), 1.2)
+        let status: DailyMetricProgress.Status
+        if higherIsBetter {
+            status = raw >= 1 ? .complete : .inProgress
+        } else if raw > 1.02 {
+            status = .over
+        } else if raw >= 0.85 {
+            status = .complete
+        } else {
+            status = .inProgress
+        }
+        let line = "\(formatCurrent(current)) / \(formatTarget(target))"
+        let pct = Int((min(raw, 1.2) * 100).rounded())
+        return DailyMetricProgress(
+            kind: kind,
+            title: title,
+            currentLine: line,
+            fraction: fraction,
+            status: status,
+            accessibilitySummary: "\(title) \(pct) percent today. \(line)."
+        )
+    }
+
+    /// Parse "≥ 30 g" / "≥ 18 mg" / "≥ 3,500 mg" style micro lines.
+    static func microNumericTarget(name: String, line: String) -> Double? {
+        let cleaned = line.replacingOccurrences(of: ",", with: "")
+        guard let regex = try? NSRegularExpression(pattern: #"(\d+(?:\.\d+)?)"#) else { return nil }
+        let range = NSRange(cleaned.startIndex..<cleaned.endIndex, in: cleaned)
+        guard let match = regex.firstMatch(in: cleaned, range: range),
+              let r = Range(match.range(at: 1), in: cleaned),
+              let value = Double(cleaned[r])
+        else {
+            switch name.lowercased() {
+            case "fiber": return 30
+            case "iron": return 18
+            case "potassium": return 3500
+            default: return nil
+            }
+        }
+        return value
     }
 
     private static func microPriority(

@@ -65,7 +65,7 @@ enum HealthKitWriterError: LocalizedError {
 final class HealthKitWriter: HealthWriting {
     private static let authorizationRequestedKey = "thescale.healthKitAuthorizationRequested"
     /// Bump when `readTypes` gains new identifiers so upgrades re-prompt (HRV, sleep stages, …).
-    private static let readAuthSchemaVersion = 3
+    private static let readAuthSchemaVersion = 4
     private static let readAuthSchemaKey = "thescale.healthKitReadAuthSchema"
     private static let lastWorkoutLookbackDays = 90
     private static let recentWorkoutLimit = 5
@@ -103,7 +103,12 @@ final class HealthKitWriter: HealthWriting {
             .stepCount,
             .activeEnergyBurned,
             .appleExerciseTime,
-            .distanceWalkingRunning
+            .distanceWalkingRunning,
+            .dietaryEnergyConsumed,
+            .dietaryProtein,
+            .dietaryFiber,
+            .dietaryIron,
+            .dietaryPotassium
         ]
         for id in quantityIds {
             if let type = HKObjectType.quantityType(forIdentifier: id) {
@@ -307,6 +312,36 @@ final class HealthKitWriter: HealthWriting {
             from: last7d,
             to: now
         )
+        async let dietaryEnergy = sumQuantity(
+            .dietaryEnergyConsumed,
+            unit: .kilocalorie(),
+            from: dayStart,
+            to: now
+        )
+        async let dietaryProtein = sumQuantity(
+            .dietaryProtein,
+            unit: .gram(),
+            from: dayStart,
+            to: now
+        )
+        async let dietaryFiber = sumQuantity(
+            .dietaryFiber,
+            unit: .gram(),
+            from: dayStart,
+            to: now
+        )
+        async let dietaryIron = sumQuantity(
+            .dietaryIron,
+            unit: .gramUnit(with: .milli),
+            from: dayStart,
+            to: now
+        )
+        async let dietaryPotassium = sumQuantity(
+            .dietaryPotassium,
+            unit: .gramUnit(with: .milli),
+            from: dayStart,
+            to: now
+        )
 
         let (
             stepsV,
@@ -326,10 +361,16 @@ final class HealthKitWriter: HealthWriting {
             sleepInfo,
             workoutSummaries,
             dist24m,
-            dist7m
+            dist7m,
+            dietEnergyV,
+            dietProteinV,
+            dietFiberV,
+            dietIronV,
+            dietPotassiumV
         ) = try await (
             steps, energy, energy7d, exerciseMin, resting, latestHR, hrToday, hrvRecent, hrvWeekSamples,
-            respiratory, wristTemp, spo2, vo2, workouts, sleep, recent, dist24hMeters, dist7dMeters
+            respiratory, wristTemp, spo2, vo2, workouts, sleep, recent, dist24hMeters, dist7dMeters,
+            dietaryEnergy, dietaryProtein, dietaryFiber, dietaryIron, dietaryPotassium
         )
 
         var preSleepAvg: Double?
@@ -391,6 +432,11 @@ final class HealthKitWriter: HealthWriting {
             activeEnergyKcalToday: energyV,
             activeEnergyKcalLast7dAverage: energy7dAvg,
             appleExerciseMinutesToday: exerciseV,
+            dietaryEnergyKcalToday: dietEnergyV,
+            dietaryProteinGramsToday: dietProteinV,
+            dietaryFiberGramsToday: dietFiberV,
+            dietaryIronMgToday: dietIronV,
+            dietaryPotassiumMgToday: dietPotassiumV,
             restingHeartRateBpm: restingV,
             latestHeartRateBpm: latestHRV,
             heartRateSampleCountToday: hrSamples.count,
