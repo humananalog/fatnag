@@ -537,6 +537,7 @@ struct WeighInResultsView: View {
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
             .chartXSelection(value: $selectedWeightDate)
+            .chartTapXSelection()
             .historyChartAxes(accent: atmosphere.accent)
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
@@ -648,6 +649,7 @@ struct WeighInResultsView: View {
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
             .chartXSelection(value: $selectedFatDate)
+            .chartTapXSelection()
             .historyChartAxes(accent: atmosphere.accent)
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
@@ -855,6 +857,17 @@ private extension View {
                 }
             }
             .chartLegend(.hidden)
+    }
+
+    /// Tap/select activates the comment point immediately (default chartXSelection waits on long press).
+    /// SpatialTap keeps horizontal chart scroll free for 3M/1Y pans.
+    func chartTapXSelection() -> some View {
+        chartGesture { proxy in
+            SpatialTapGesture()
+                .onEnded { value in
+                    proxy.selectXValue(at: value.location.x)
+                }
+        }
     }
 
     /// Pan 3M / 1Y after all other chart* modifiers. Optional scroll must be last —
