@@ -5,7 +5,7 @@ import UserNotifications
 final class ScaleNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
     static let shared = ScaleNotificationDelegate()
 
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
@@ -22,14 +22,15 @@ final class ScaleNotificationDelegate: NSObject, UNUserNotificationCenterDelegat
         }
     }
 
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        await ScaleNotificationRouter.handle(response: response)
+        let transferred = UncheckedTransfer(response)
+        await ScaleNotificationRouter.handle(response: transferred.value)
     }
 
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         openSettingsFor notification: UNNotification?
     ) {
@@ -37,4 +38,10 @@ final class ScaleNotificationDelegate: NSObject, UNUserNotificationCenterDelegat
             ScaleNotificationRouter.handleOpenSettings()
         }
     }
+}
+
+/// Transfers a non-Sendable UNNotificationResponse into MainActor work.
+private struct UncheckedTransfer<T>: @unchecked Sendable {
+    let value: T
+    init(_ value: T) { self.value = value }
 }

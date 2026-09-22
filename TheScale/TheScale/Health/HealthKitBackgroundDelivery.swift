@@ -149,10 +149,11 @@ final class HealthKitBackgroundDelivery: @unchecked Sendable {
                     completionHandler()
                     return
                 }
-                let finish = completionHandler
-                Task { [weak self] in
+                // HK completion handlers are not Sendable; transfer explicitly into the Task.
+                let finish = UncheckedContinuationBox(completionHandler)
+                Task {
                     await self?.handleObserverFire(reason: reason)
-                    finish()
+                    finish.value()
                 }
             }
             store.execute(query)
@@ -182,4 +183,10 @@ final class HealthKitBackgroundDelivery: @unchecked Sendable {
         state.withLock { $0.lastWakeAt = Date() }
         await onHealthUpdate?(reason)
     }
+}
+
+/// Moves a non-Sendable HK completion handler into a Task without Swift 6 send errors.
+private struct UncheckedContinuationBox<T>: @unchecked Sendable {
+    let value: T
+    init(_ value: T) { self.value = value }
 }
