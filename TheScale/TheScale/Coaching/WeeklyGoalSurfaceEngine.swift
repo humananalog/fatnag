@@ -46,10 +46,13 @@ struct WeeklyGoalSurface: Equatable, Sendable {
     var band: WeeklyTrackBand
     var weekTitle: String
     var detailLine: String
-    var tomorrowAdvice: String
+    /// What's ahead for the rest of TODAY (local clock), not tomorrow-after-weigh-in.
+    var todayAdvice: String
     var mealSuggestion: String?
     var energySnapshot: WeeklyEnergyBalanceSnapshot?
     var targets: DailyGoalTargets
+    /// ETA to ideal weight at current pace vs planned goal date.
+    var macroGoalETA: MacroGoalETA
     /// Fraction of ISO week elapsed (0...1), for pace math.
     var weekElapsedFraction: Double
     var expectedPaceFraction: Double
@@ -132,7 +135,7 @@ struct WeeklyGoalAtmosphere: Equatable {
     }
 }
 
-/// Pure weekly-goal home math: progress %, track band, daily targets, tomorrow advice.
+/// Pure weekly-goal home math: progress %, track band, daily targets, today-ahead advice.
 enum WeeklyGoalSurfaceEngine {
     /// ~7700 kcal ≈ 1 kg adipose (coaching ballpark, not a medical claim).
     static let kcalPerKg: Double = 7700
@@ -199,7 +202,7 @@ enum WeeklyGoalSurfaceEngine {
             proteinGrams: targets.proteinGrams
         )
 
-        let advice = tomorrowAdvice(
+        let advice = todayAdvice(
             name: profile.greetingName,
             band: band,
             weeklyGoal: weeklyGoal,
@@ -207,7 +210,9 @@ enum WeeklyGoalSurfaceEngine {
             digest: digest,
             diet: profile.dietPreference,
             energy: energy,
-            mealLine: meals
+            mealLine: meals,
+            now: now,
+            calendar: calendar
         )
 
         let showMeals: String? = {
@@ -219,15 +224,26 @@ enum WeeklyGoalSurfaceEngine {
             }
         }()
 
+        let eta = MacroGoalETA.compute(
+            currentKg: currentKg,
+            idealKg: profile.idealWeightKg,
+            plannedDate: profile.goalDate,
+            recentWeights: recentWeights,
+            weeklyDeltaKg: weeklyGoal.targetDeltaKg,
+            now: now,
+            calendar: calendar
+        )
+
         return WeeklyGoalSurface(
             completionPercent: percent,
             band: band,
             weekTitle: weeklyGoal.title,
             detailLine: detail,
-            tomorrowAdvice: advice,
+            todayAdvice: advice,
             mealSuggestion: showMeals,
             energySnapshot: energy,
             targets: targets,
+            macroGoalETA: eta,
             weekElapsedFraction: elapsed,
             expectedPaceFraction: expected
         )
@@ -357,9 +373,9 @@ enum WeeklyGoalSurfaceEngine {
         return ("Potassium", "Aim ≥ 3,500 mg from food")
     }
 
-    // MARK: - Tomorrow advice
+    // MARK: - Today-ahead advice
 
-    static func tomorrowAdvice(
+    static func todayAdvice(
         name: String,
         band: WeeklyTrackBand,
         weeklyGoal: WeeklyMiniGoal,
@@ -367,34 +383,42 @@ enum WeeklyGoalSurfaceEngine {
         digest: FitnessDigest?,
         diet: DietPreference,
         energy: WeeklyEnergyBalanceSnapshot,
-        mealLine: String
+        mealLine: String,
+        now: Date = Date(),
+        calendar: Calendar = .current
     ) -> String {
         let who = name.isEmpty ? "Operator" : name
         let recovery = digest?.recovery?.band
         let sleep = digest?.sleepHoursLastNight
+        let hour = calendar.component(.hour, from: now)
+        let dayPart: String = {
+            if hour < 11 { return "this morning" }
+            if hour < 17 { return "this afternoon" }
+            return "tonight"
+        }()
 
         // Energy diagnosis wins over generic step pep talks.
         switch energy.diagnosis {
         case .overeatingWhileActive(let intake, let spend, let maxK, _, let obs, let days):
-            return "\(who), you're moving (~\(spend) kcal out) but the scale barely budged (\(String(format: "%+.2f", obs)) kg / \(String(format: "%.0f", days))d). That's intake (~\(intake) implied), not steps. Get your act together: under \(maxK) kcal tomorrow. Open Meal plan."
+            return "\(who), you're moving (~\(spend) kcal out) but the scale barely budged (\(String(format: "%+.2f", obs)) kg / \(String(format: "%.0f", days))d). That's intake (~\(intake) implied), not steps. Get your act together: under \(maxK) kcal \(dayPart). Open Meal plan."
         case .underMoving(_, let exp, let obs, _):
-            return "\(who), movement was soft and weight went \(String(format: "%+.2f", obs)) kg (wanted \(String(format: "%+.2f", exp))). Tomorrow: under \(targets.maxCalories) kcal, then walk. Open Meal plan."
+            return "\(who), movement was soft and weight went \(String(format: "%+.2f", obs)) kg (wanted \(String(format: "%+.2f", exp))). \(dayPart.capitalized): under \(targets.maxCalories) kcal, then walk. Open Meal plan."
         case .aheadOfEnergy, .onPace, .insufficientData:
             break
         }
 
         if recovery == .red {
-            return "\(who), recovery's in the red. Tomorrow: easy day, protein \(targets.proteinGrams) g, early lights-out, stay under \(targets.maxCalories) kcal. Ego lifts can wait."
+            return "\(who), recovery's in the red. \(dayPart.capitalized): easy day, protein \(targets.proteinGrams) g, early lights-out, stay under \(targets.maxCalories) kcal. Ego lifts can wait."
         }
         if let sleep, sleep < 6.0 {
-            return "\(who), \(String(format: "%.1f", sleep)) h sleep is thin. Tomorrow protect bedtime first, then stay under \(targets.maxCalories) kcal with \(targets.proteinGrams) g protein."
+            return "\(who), \(String(format: "%.1f", sleep)) h sleep is thin. Protect bedtime \(dayPart), stay under \(targets.maxCalories) kcal with \(targets.proteinGrams) g protein."
         }
 
         switch band {
         case .crushed:
-            return "\(who), week already won. Tomorrow maintain under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. Don't celebrate with chaos."
+            return "\(who), week already won. \(dayPart.capitalized) maintain under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. Don't celebrate with chaos."
         case .ahead:
-            return "\(who), you're ahead of pace. Tomorrow keep it boring: \(targets.proteinGrams) g protein, max \(targets.maxCalories) kcal."
+            return "\(who), you're ahead of pace. \(dayPart.capitalized) keep it boring: \(targets.proteinGrams) g protein, max \(targets.maxCalories) kcal."
         case .onTrack:
             let dietBit: String = {
                 switch diet {
@@ -404,11 +428,11 @@ enum WeeklyGoalSurfaceEngine {
                 case .omnivore, .other: return "Palm-size protein each meal."
                 }
             }()
-            return "\(who), on track for \(weeklyGoal.title). Tomorrow under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. \(dietBit)"
+            return "\(who), on track for \(weeklyGoal.title). \(dayPart.capitalized) under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. \(dietBit)"
         case .atRisk:
-            return "\(who), pace is slipping. Fix is the kitchen: max \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. Open Meal plan."
+            return "\(who), pace is slipping. Fix is the kitchen \(dayPart): max \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. Open Meal plan."
         case .unknown:
-            return "\(who), step on the scale once, then tomorrow under \(targets.maxCalories) kcal. Baseline first, vibes second."
+            return "\(who), step on the scale once, then stay under \(targets.maxCalories) kcal \(dayPart). Baseline first, vibes second."
         }
     }
 }

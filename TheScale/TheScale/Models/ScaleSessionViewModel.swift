@@ -115,6 +115,11 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var isMealPlanPresented = false
     @Published private(set) var mealPlan: MealPlanPayload?
     @Published private(set) var isMealPlanLoading = false
+    /// Hero coach card after a successful weigh-in (congratulate / reward / punish).
+    @Published private(set) var lastWeighInAnalysis: WeighInAnalysisCard?
+    /// True while 10s auto-confirm countdown is armed on the live sheet.
+    @Published var autoConfirmArmed = false
+    @Published var autoConfirmSecondsRemaining = 10
     /// Monday morning post-weigh weekly goal card.
     @Published private(set) var isMondayCardPresented = false
     @Published private(set) var mondayCard: MondayCardPayload?
@@ -272,6 +277,23 @@ final class ScaleSessionViewModel: ObservableObject {
         Task { await refreshHealthBaseline() }
     }
 
+    /// Passive BLE listen on home: no "Find Scale" primary. Auto-opens live card on signal.
+    func startPassiveListening() {
+        guard !isWeighInPresented else { return }
+        switch phase {
+        case .scanning, .listening, .measuring, .awaitingImpedance, .ready, .reviewing, .healthKitWriting:
+            return
+        default:
+            break
+        }
+        weighInPurpose = .normal
+        if phase == .idle || phase == .healthKitSuccess {
+            phase = .scanning
+            liveHint = "Scale nearby? Step on barefoot. Live card opens on BLE."
+        }
+        scanner.startScanning()
+    }
+
     func stop() {
         cancelImpedanceWait()
         scanner.stop()
@@ -338,12 +360,30 @@ final class ScaleSessionViewModel: ObservableObject {
     func dismissWeighIn() {
         isWeighInPresented = false
         isEditingDraft = false
+        autoConfirmArmed = false
         weighInPurpose = .normal
         if case .healthKitSuccess = phase {
             // Keep success state on home / results.
         } else if case .reviewing = phase {
             phase = .ready
         }
+        // Resume passive listen so the next step-on still auto-opens.
+        startPassiveListening()
+    }
+
+    func cancelAutoConfirm() {
+        autoConfirmArmed = false
+        autoConfirmSecondsRemaining = 10
+    }
+
+    func armAutoConfirm(seconds: Int = 10) {
+        guard weighInPurpose == .normal, !isEditingDraft else { return }
+        autoConfirmSecondsRemaining = seconds
+        autoConfirmArmed = true
+    }
+
+    func dismissWeighInAnalysis() {
+        lastWeighInAnalysis = nil
     }
 
     func dismissResults() {
@@ -434,12 +474,16 @@ final class ScaleSessionViewModel: ObservableObject {
         rebuildWeeklyGoalSurface()
         let surface = weeklyGoalSurface
         let day = MealPlanEngine.dayKey()
+        let fasting = FastingWindowResolver.current(memoryBlock: CoachMemoryStore.promptBlock())
+        let now = Date()
         let key = MealPlanEngine.cacheKey(
             dayKey: day,
             maxKcal: surface.targets.maxCalories,
             proteinGrams: surface.targets.proteinGrams,
             diet: profile.dietPreference,
-            weeklyDeltaKg: weeklyGoal.targetDeltaKg
+            weeklyDeltaKg: weeklyGoal.targetDeltaKg,
+            fasting: fasting,
+            now: now
         )
 
         if !force,
@@ -461,7 +505,9 @@ final class ScaleSessionViewModel: ObservableObject {
             proteinGrams: surface.targets.proteinGrams,
             microHint: micro,
             dayKey: day,
-            weeklyDeltaKg: weeklyGoal.targetDeltaKg
+            weeklyDeltaKg: weeklyGoal.targetDeltaKg,
+            fasting: fasting,
+            now: now
         )
         mealPlan = plan
         MealPlanStore.save(plan)
@@ -659,7 +705,7 @@ final class ScaleSessionViewModel: ObservableObject {
         )
     }
 
-    /// Optional on-device FM polish for the tomorrow line (never required).
+    /// Optional on-device FM polish for the today-ahead line (never required).
     private func polishTomorrowAdviceIfAvailable() async {
         guard FoundationModelAvailability.isAvailable else { return }
         let digest = lastFitnessDigest
@@ -668,7 +714,7 @@ final class ScaleSessionViewModel: ObservableObject {
         ) ?? ""
         let energyLine = weeklyGoalSurface.energySnapshot?.summaryLine ?? ""
         let meals = weeklyGoalSurface.mealSuggestion ?? ""
-        let fallback = weeklyGoalSurface.tomorrowAdvice
+        let fallback = weeklyGoalSurface.todayAdvice
         let overeating: Bool = {
             if case .overeatingWhileActive = weeklyGoalSurface.energySnapshot?.diagnosis { return true }
             return false
@@ -676,7 +722,7 @@ final class ScaleSessionViewModel: ObservableObject {
         let prompt: String
         if overeating {
             prompt = """
-                Rewrite as ONE blunt Coach line for tomorrow (max 36 words).
+                Rewrite as ONE blunt Coach line for TODAY (max 36 words).
                 Name the user if present. No em dashes. No medical diagnosis. No disclaimer.
                 Lead with intake / get your act together, NOT a step target.
                 Keep the calorie cap number. Optionally weave one short meal idea from: \(meals)
@@ -685,7 +731,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 """
         } else {
             prompt = """
-                Rewrite this as ONE short punchy line for tomorrow (max 28 words).
+                Rewrite this as ONE short punchy line for TODAY (max 28 words).
                 Coach voice, call the user by name if present, no em dashes, no medical diagnosis, no disclaimer.
                 Prefer calorie / protein / sleep fixes over inventing a new step goal when intake is the issue.
                 Current line: \(fallback)
@@ -702,7 +748,7 @@ final class ScaleSessionViewModel: ObservableObject {
             let cleaned = CoachCopySanitize.clean(polished)
             guard !cleaned.isEmpty, cleaned.count < 280 else { return }
             var next = weeklyGoalSurface
-            next.tomorrowAdvice = cleaned
+            next.todayAdvice = cleaned
             weeklyGoalSurface = next
         }
     }
@@ -728,7 +774,13 @@ final class ScaleSessionViewModel: ObservableObject {
             weekDeltaKg: weekDelta,
             weeklyGoal: weeklyGoal,
             personaBlock: profile.coachPersonaBlock,
-            memoryBlock: CoachMemoryStore.promptBlock(),
+            memoryBlock: {
+                let mem = CoachMemoryStore.promptBlock()
+                let comments = ChartCommentStore.analysisPayload()
+                if mem.isEmpty { return comments }
+                if comments.isEmpty { return mem }
+                return mem + "\n" + comments
+            }(),
             fitnessDigestBlock: activeDigest.promptBlock(preSleepWindowMinutes: window),
             localNow: Date()
         )
@@ -1262,7 +1314,25 @@ final class ScaleSessionViewModel: ObservableObject {
             }
             await refreshTrendNotifications()
             isWeighInPresented = false
+            autoConfirmArmed = false
             let weighKg = draft.weightKg
+            let previous = recentHealthWeights.dropFirst().first?.weightKg ?? healthBaselineKg
+            // Prefer prior sample before this write when available.
+            let priorKg: Double? = {
+                if let first = recentHealthWeights.first, abs(first.weightKg - weighKg) < 0.05 {
+                    return recentHealthWeights.dropFirst().first?.weightKg
+                }
+                return previous
+            }()
+            lastWeighInAnalysis = WeighInAnalysisEngine.build(
+                name: profile.greetingName,
+                weighedKg: weighKg,
+                previousKg: priorKg,
+                weeklyGoal: weeklyGoal,
+                idealKg: profile.idealWeightKg,
+                chartCommentsBlock: ChartCommentStore.analysisPayload()
+            )
+            rebuildWeeklyGoalSurface()
             let offerMonday = MondayCardEngine.shouldOfferAfterWeighIn()
             if offerMonday {
                 isResultsPresented = true
@@ -1461,9 +1531,38 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
             discoveredScales.append(scale)
         }
         discoveredScales.sort { $0.rssi > $1.rssi }
+
+        // Auto-focus strongest scale when passively listening (no Find Scale tap).
+        if selectedScaleID == nil,
+           !isWeighInPresented,
+           weighInPurpose == .normal,
+           (phase == .scanning || phase == .idle || phase == .healthKitSuccess),
+           let best = discoveredScales.first {
+            selectScale(best)
+        }
     }
 
     private func handleDecode(_ measurement: ScaleMeasurement) {
+        // Auto-open live card on first BLE weight signal when idle/scanning.
+        if !isWeighInPresented, weighInPurpose == .normal, !isEditingDraft {
+            switch phase {
+            case .scanning, .idle, .healthKitSuccess, .listening:
+                if selectedScaleID == nil, let best = discoveredScales.first {
+                    selectedScaleID = best.id
+                    scanner.focus(on: best.id)
+                }
+                if selectedScaleID != nil || !discoveredScales.isEmpty {
+                    if selectedScaleID == nil, let best = discoveredScales.first {
+                        selectedScaleID = best.id
+                        scanner.focus(on: best.id)
+                    }
+                    isWeighInPresented = true
+                }
+            default:
+                break
+            }
+        }
+
         if case .listening = phase {
             phase = .measuring
         }

@@ -621,6 +621,14 @@ struct LiveWeighInSheet: View {
                 compositionSummary
             }
 
+            if session.autoConfirmArmed, !isEditing, !isCalibration {
+                Text("Auto-confirm in \(session.autoConfirmSecondsRemaining)s")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(atmosphere.accent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             HStack(spacing: 10) {
                 Button {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
@@ -629,7 +637,9 @@ struct LiveWeighInSheet: View {
                             bodyFatFieldFocused = false
                             leanFieldFocused = false
                             session.isEditingDraft = false
+                            session.armAutoConfirm()
                         } else {
+                            session.cancelAutoConfirm()
                             beginEdit()
                         }
                     }
@@ -642,10 +652,21 @@ struct LiveWeighInSheet: View {
                 }
                 .buttonStyle(ScaleSecondaryButtonStyle(accent: atmosphere.accent))
 
+                if session.autoConfirmArmed, !isEditing {
+                    Button {
+                        session.cancelAutoConfirm()
+                    } label: {
+                        Label("Cancel", systemImage: "hand.raised")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(ScaleSecondaryButtonStyle(accent: atmosphere.accent))
+                }
+
                 Button {
                     weightFieldFocused = false
                     bodyFatFieldFocused = false
                     leanFieldFocused = false
+                    session.cancelAutoConfirm()
                     if session.draft == nil {
                         session.beginReview()
                         session.isEditingDraft = false
@@ -671,6 +692,42 @@ struct LiveWeighInSheet: View {
         .padding(panelInnerPad)
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .onChange(of: session.phase) { _, newPhase in
+            if newPhase == .ready, !isCalibration, !session.isEditingDraft {
+                session.armAutoConfirm()
+            }
+        }
+        .onChange(of: session.isEditingDraft) { _, editing in
+            if editing {
+                session.cancelAutoConfirm()
+            } else if session.phase == .ready, !isCalibration {
+                session.armAutoConfirm()
+            }
+        }
+        .onAppear {
+            if session.phase == .ready, !isCalibration, !session.isEditingDraft {
+                session.armAutoConfirm()
+            }
+        }
+        .task(id: session.autoConfirmArmed) {
+            guard session.autoConfirmArmed else { return }
+            while session.autoConfirmArmed, session.autoConfirmSecondsRemaining > 0 {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard session.autoConfirmArmed else { return }
+                session.autoConfirmSecondsRemaining -= 1
+            }
+            guard session.autoConfirmArmed,
+                  session.autoConfirmSecondsRemaining <= 0,
+                  !session.isEditingDraft,
+                  session.phase == .ready || session.phase == .reviewing
+            else { return }
+            session.cancelAutoConfirm()
+            if session.isWeightOnlyReading || session.draft?.includeCompositionInHealth == false {
+                confirmWeightOnly = true
+            } else {
+                await session.saveDraftToHealth()
+            }
+        }
     }
 
     @ViewBuilder

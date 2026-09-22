@@ -18,8 +18,8 @@ struct MealPlanCarouselView: View {
 
                     if session.isMealPlanLoading {
                         Spacer()
-                        ProgressView("Building meals…")
-                            .tint(ink)
+                        RetroSnakeSpinnerView()
+                            .frame(maxWidth: .infinity)
                         Spacer()
                     } else if let plan = session.mealPlan, !plan.meals.isEmpty {
                         TabView {
@@ -68,7 +68,7 @@ struct MealPlanCarouselView: View {
 
     private var headerCopy: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Next 24 hours")
+            Text("What's ahead")
                 .font(.system(size: 28, weight: .semibold, design: .serif))
                 .foregroundStyle(ink)
             if let plan = session.mealPlan {
@@ -76,7 +76,7 @@ struct MealPlanCarouselView: View {
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(steel)
             } else {
-                Text("Grounded in your deficit and diet prefs.")
+                Text("Grounded in your deficit, diet prefs, and fasting window.")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(steel)
             }

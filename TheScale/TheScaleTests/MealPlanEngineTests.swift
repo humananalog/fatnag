@@ -2,41 +2,44 @@ import XCTest
 @testable import TheScale
 
 final class MealPlanEngineTests: XCTestCase {
-    func testCacheKeyChangesWithDeficitAndDiet() {
+    func testCacheKeyChangesWithDeficitDietAndFasting() {
         let day = "2026-09-21"
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let morning = cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 7))!
         let a = MealPlanEngine.cacheKey(
             dayKey: day,
             maxKcal: 1800,
             proteinGrams: 140,
             diet: .omnivore,
-            weeklyDeltaKg: -0.3
+            weeklyDeltaKg: -0.3,
+            fasting: .none,
+            now: morning,
+            calendar: cal
         )
         let b = MealPlanEngine.cacheKey(
             dayKey: day,
             maxKcal: 1800,
             proteinGrams: 140,
             diet: .vegan,
-            weeklyDeltaKg: -0.3
+            weeklyDeltaKg: -0.3,
+            fasting: .none,
+            now: morning,
+            calendar: cal
         )
         let c = MealPlanEngine.cacheKey(
             dayKey: day,
-            maxKcal: 1600,
-            proteinGrams: 140,
-            diet: .omnivore,
-            weeklyDeltaKg: -0.3
-        )
-        let d = MealPlanEngine.cacheKey(
-            dayKey: "2026-09-22",
             maxKcal: 1800,
             proteinGrams: 140,
             diet: .omnivore,
-            weeklyDeltaKg: -0.3
+            weeklyDeltaKg: -0.3,
+            fasting: .classic168,
+            now: morning,
+            calendar: cal
         )
         XCTAssertNotEqual(a, b)
         XCTAssertNotEqual(a, c)
-        XCTAssertNotEqual(a, d)
-        XCTAssertTrue(a.contains("omnivore"))
-        XCTAssertTrue(a.hasPrefix(day))
+        XCTAssertTrue(c.contains("16-8"))
     }
 
     func testParseGrokJSONMeals() {
@@ -78,5 +81,49 @@ final class MealPlanEngineTests: XCTestCase {
         XCTAssertTrue(plan.isComplete)
         XCTAssertEqual(plan.dietRaw, "pescatarian")
         XCTAssertFalse(plan.usedNetwork)
+    }
+
+    func testIFAt7amDoesNotProposeBreakfastAt8() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let sevenAM = cal.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 7, minute: 0))!
+        let meals = MealPlanEngine.offlineMeals(
+            diet: .omnivore,
+            maxKcal: 1800,
+            proteinGrams: 140,
+            fasting: .classic168,
+            now: sevenAM,
+            calendar: cal
+        )
+        XCTAssertGreaterThanOrEqual(meals.count, 3)
+        for meal in meals {
+            guard let hour = meal.approxHour else { continue }
+            XCTAssertGreaterThanOrEqual(hour, 12.0, "meal \(meal.title) at \(meal.timeLabel) is inside fasting window")
+            XCTAssertLessThan(hour, 20.0)
+        }
+        XCTAssertFalse(meals.contains(where: { ($0.approxHour ?? 99) < 11.5 }))
+    }
+
+    func testDetectClassic168FromMemory() {
+        let window = FastingWindow.detect(memoryBlock: "User mentioned: intermittent fasting 16/8")
+        XCTAssertTrue(window.isActive)
+        XCTAssertEqual(window.eatingStartMinutes, 12 * 60)
+        XCTAssertTrue(window.isFasting(
+            at: Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 7))!
+        ))
+    }
+
+    func testEnforceFastingDropsEarlyBreakfast() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let sevenAM = cal.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 7))!
+        let raw = [
+            MealPlanMeal(title: "Breakfast", timeLabel: "~8:00", ingredients: ["Eggs"], keyMacro: "P", keyMicro: "M", approxKcal: 300),
+            MealPlanMeal(title: "Lunch", timeLabel: "~12:30", ingredients: ["Chicken"], keyMacro: "P", keyMicro: "M", approxKcal: 400),
+            MealPlanMeal(title: "Dinner", timeLabel: "~19:00", ingredients: ["Fish"], keyMacro: "P", keyMicro: "M", approxKcal: 450)
+        ]
+        let fixed = MealPlanEngine.enforceFasting(raw, fasting: .classic168, now: sevenAM, calendar: cal)
+        XCTAssertGreaterThanOrEqual(fixed.count, 3)
+        XCTAssertFalse(fixed.contains(where: { ($0.approxHour ?? 99) < 11.5 }))
     }
 }

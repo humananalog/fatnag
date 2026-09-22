@@ -571,7 +571,9 @@ actor GrokClient {
         proteinGrams: Int,
         microHint: String,
         dayKey: String,
-        weeklyDeltaKg: Double
+        weeklyDeltaKg: Double,
+        fasting: FastingWindow = .none,
+        now: Date = Date()
     ) async -> MealPlanPayload {
         let offline = MealPlanEngine.offlinePlan(
             name: brief.userName,
@@ -579,7 +581,9 @@ actor GrokClient {
             maxKcal: maxKcal,
             proteinGrams: proteinGrams,
             dayKey: dayKey,
-            weeklyDeltaKg: weeklyDeltaKg
+            weeklyDeltaKg: weeklyDeltaKg,
+            fasting: fasting,
+            now: now
         )
 
         guard GrokPrivacyConsent.isAccepted else { return offline }
@@ -595,16 +599,28 @@ actor GrokClient {
         }
 
         let who = brief.userName.isEmpty ? "the user" : brief.userName
+        let localTime = now.formatted(date: .omitted, time: .shortened)
+        let fastingLine: String = {
+            if fasting.isActive {
+                let open = MealPlanEngine.formatHour(fasting.eatingStartHour)
+                let close = MealPlanEngine.formatHour(fasting.eatingEndHour)
+                let fastingNow = fasting.isFasting(at: now) ? "CURRENTLY FASTING" : "inside eating window"
+                return "Intermittent fasting active (\(fasting.cacheToken)). Eating window \(open)-\(close) local. Status now: \(fastingNow). Do NOT propose meals during the fasting window. First meal at or after window open."
+            }
+            return "No intermittent fasting window set."
+        }()
+        let memory = brief.memoryBlock.isEmpty ? "" : "\n\(brief.memoryBlock)"
         let system = """
         You write tight meal plans for The Scale. Fitness coaching only. Never diagnose.
-        No medical disclaimer. No em dashes. JSON only.
+        No medical disclaimer. No em dashes. JSON only. Honour fasting windows strictly.
         """
         let prompt = """
-        Next 24h meals for \(who). Diet: \(brief.diet.title). Daily max \(maxKcal) kcal, protein \(proteinGrams) g, micro focus: \(microHint).
+        Next meals for \(who) from local now \(localTime) through ~24h. Diet: \(brief.diet.title). Daily max \(maxKcal) kcal, protein \(proteinGrams) g, micro focus: \(microHint).
         Weekly weight nudge \(String(format: "%+.1f", weeklyDeltaKg)) kg.
+        \(fastingLine)\(memory)
         Reply ONLY JSON:
-        {"meals":[{"title":"Breakfast","time":"~8:00","ingredients":["a","b","c"],"macro":"Protein 35 g","micro":"Iron ~3 mg","kcal":420}]}
-        4 meals covering ~24h. Stay under \(maxKcal) total. Match diet. Main ingredients only.
+        {"meals":[{"title":"Break-fast","time":"~12:00","ingredients":["a","b","c"],"macro":"Protein 35 g","micro":"Iron ~3 mg","kcal":420}]}
+        3-4 meals. Stay under \(maxKcal) total. Match diet. Main ingredients only. Times must be inside any eating window and at/after local now.
         """
 
         let body: [String: Any] = [
@@ -621,14 +637,19 @@ actor GrokClient {
         do {
             let data = try await postChat(body: body, transport: transport, timeout: 35)
             let raw = Self.parseContent(from: data) ?? ""
-            if let meals = MealPlanEngine.parseGrokJSON(raw), meals.count >= 3 {
+            if let parsed = MealPlanEngine.parseGrokJSON(raw) {
+                let meals = MealPlanEngine.enforceFasting(parsed, fasting: fasting, now: now)
+                guard meals.count >= 3 else { return offline }
                 let key = MealPlanEngine.cacheKey(
                     dayKey: dayKey,
                     maxKcal: maxKcal,
                     proteinGrams: proteinGrams,
                     diet: brief.diet,
-                    weeklyDeltaKg: weeklyDeltaKg
+                    weeklyDeltaKg: weeklyDeltaKg,
+                    fasting: fasting,
+                    now: now
                 )
+                let note = fasting.isActive ? "Grok · live · IF respected" : "Grok · live"
                 return MealPlanPayload(
                     cacheKey: key,
                     dayKey: dayKey,
@@ -638,7 +659,7 @@ actor GrokClient {
                     meals: meals,
                     generatedAt: Date(),
                     usedNetwork: true,
-                    sourceNote: "Grok · live"
+                    sourceNote: note
                 )
             }
             return offline

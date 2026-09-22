@@ -16,6 +16,11 @@ struct WeighInResultsView: View {
     /// Leading edge of the scrollable visible window (pinned to recent data on 3M/1Y).
     @State private var weightScrollX: Date = Date()
     @State private var fatScrollX: Date = Date()
+    @State private var commentDraft = ""
+    @State private var showCommentEditor = false
+    @State private var commentMetric: ChartCommentMetric = .weight
+    @State private var commentSampleDay: Date = Date()
+    @State private var commentRefresh = 0
 
     private let horizontalInset: CGFloat = 24
     private let panelInnerPad: CGFloat = 14
@@ -54,6 +59,11 @@ struct WeighInResultsView: View {
             } else {
                 chartsColumn
             }
+
+            if selectedWeightSample != nil || selectedFatSample != nil {
+                chartSelectionFooter
+                    .padding(.top, 8)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.horizontal, horizontalInset)
@@ -84,6 +94,111 @@ struct WeighInResultsView: View {
             ManualWeighInView()
                 .environmentObject(session)
         }
+        .sheet(isPresented: $showCommentEditor) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(commentMetric == .weight ? "Weight comment" : "Body fat comment")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                    Text(commentSampleDay, format: .dateTime.month().day().year())
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    TextField("What happened that day?", text: $commentDraft, axis: .vertical)
+                        .lineLimit(3...5)
+                        .textFieldStyle(.roundedBorder)
+                    Text("\(commentDraft.count)/\(ChartCommentStore.maxLength)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(20)
+                .navigationTitle("Add comments")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showCommentEditor = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            ChartCommentStore.upsert(
+                                sampleDay: commentSampleDay,
+                                metric: commentMetric,
+                                text: String(commentDraft.prefix(ChartCommentStore.maxLength))
+                            )
+                            commentRefresh += 1
+                            showCommentEditor = false
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        }
+    }
+
+    private var selectedWeightSample: HealthMetricSample? {
+        selectedWeightDate.flatMap {
+            HealthChartMath.nearestSample(in: HealthChartMath.chartSeries(session.historyWeights), to: $0)
+        }
+    }
+
+    private var selectedFatSample: HealthMetricSample? {
+        selectedFatDate.flatMap {
+            HealthChartMath.nearestSample(in: HealthChartMath.chartSeries(session.historyBodyFatPercents), to: $0)
+        }
+    }
+
+    private var chartSelectionFooter: some View {
+        let weight = selectedWeightSample
+        let fat = selectedFatSample
+        let _ = commentRefresh
+        return VStack(spacing: 8) {
+            if let weight {
+                let existing = ChartCommentStore.comment(on: weight.date, metric: .weight)?.text
+                Text(String(format: "%.1f kg · %@", weight.value, weight.date.formatted(date: .abbreviated, time: .omitted)))
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(atmosphere.accent)
+                if let existing, !existing.isEmpty {
+                    Text(existing)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(atmosphere.accent.opacity(0.75))
+                        .lineLimit(2)
+                }
+            } else if let fat {
+                let existing = ChartCommentStore.comment(on: fat.date, metric: .bodyFat)?.text
+                Text(String(format: "%.1f%% · %@", fat.value, fat.date.formatted(date: .abbreviated, time: .omitted)))
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(atmosphere.accent)
+                if let existing, !existing.isEmpty {
+                    Text(existing)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(atmosphere.accent.opacity(0.75))
+                        .lineLimit(2)
+                }
+            }
+
+            Button {
+                if let weight {
+                    commentMetric = .weight
+                    commentSampleDay = weight.date
+                    commentDraft = ChartCommentStore.comment(on: weight.date, metric: .weight)?.text ?? ""
+                } else if let fat {
+                    commentMetric = .bodyFat
+                    commentSampleDay = fat.date
+                    commentDraft = ChartCommentStore.comment(on: fat.date, metric: .bodyFat)?.text ?? ""
+                }
+                showCommentEditor = true
+            } label: {
+                Text("Add comments")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(atmosphere.accent)
+        }
+        .padding(.horizontal, 4)
+        .padding(.bottom, 4)
     }
 
     private var historyTitle: String {
@@ -110,10 +225,17 @@ struct WeighInResultsView: View {
                     .foregroundStyle(atmosphere.accent)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                Text("Apple Health")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.75))
-                    .lineLimit(1)
+                if let analysis = session.lastWeighInAnalysis {
+                    Text(analysis.headline)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(atmosphere.accent.opacity(0.8))
+                        .lineLimit(1)
+                } else {
+                    Text("Apple Health")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(atmosphere.accent.opacity(0.75))
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 8)

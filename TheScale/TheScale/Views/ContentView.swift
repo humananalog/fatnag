@@ -70,11 +70,19 @@ struct ContentView: View {
                         brandRow
                             .padding(.top, 4)
 
+                        if let analysis = session.lastWeighInAnalysis {
+                            weighInAnalysisBlock(analysis)
+                                .padding(.top, 18)
+                        }
+
                         weeklyHero
                             .padding(.top, 20)
 
-                        tomorrowBlock
+                        todayBlock
                             .padding(.top, 26)
+
+                        etaLine
+                            .padding(.top, 14)
 
                         targetsRow
                             .padding(.top, 28)
@@ -200,6 +208,7 @@ struct ContentView: View {
             .task {
                 session.ensureWeeklyGoalBaseline()
                 session.rebuildWeeklyGoalSurface()
+                session.startPassiveListening()
                 await session.refreshHealthBaseline()
                 session.ensureWeeklyGoalBaseline()
                 await session.refreshWeeklyGoalSurface()
@@ -304,20 +313,55 @@ struct ContentView: View {
         .accessibilityHint("Opens Progress")
     }
 
-    private var tomorrowBlock: some View {
+    private var todayBlock: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Tomorrow")
+            Text("Today")
                 .font(.system(size: 12, weight: .heavy, design: .rounded))
                 .foregroundStyle(atmosphere.ink.opacity(0.7))
                 .textCase(.uppercase)
                 .tracking(1.0)
 
-            Text(surface.tomorrowAdvice)
+            Text(surface.todayAdvice)
                 .font(.system(size: 24, weight: .bold, design: .serif))
                 .foregroundStyle(atmosphere.ink)
                 .shadow(color: .white.opacity(0.45), radius: 0, y: 1)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var etaLine: some View {
+        Text(surface.macroGoalETA.line)
+            .font(.system(size: 14, weight: .semibold, design: .rounded))
+            .foregroundStyle(atmosphere.ink.opacity(0.78))
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityLabel(surface.macroGoalETA.line)
+    }
+
+    private func weighInAnalysisBlock(_ card: WeighInAnalysisCard) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(card.tone == .punish ? "COACH CHECK" : "WEIGH-IN")
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .tracking(0.8)
+                    .foregroundStyle(atmosphere.ink.opacity(0.65))
+                Spacer()
+                Button("Dismiss") {
+                    session.dismissWeighInAnalysis()
+                }
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(atmosphere.ink.opacity(0.7))
+            }
+            Text(card.headline)
+                .font(.system(size: 26, weight: .bold, design: .serif))
+                .foregroundStyle(atmosphere.ink)
+                .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
+            Text(card.body)
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(atmosphere.ink.opacity(0.82))
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -364,17 +408,12 @@ struct ContentView: View {
 
     private var primaryActions: some View {
         VStack(spacing: 12) {
-            Button {
-                session.startScanning()
-            } label: {
-                Text(session.phase == .scanning ? "Scanning…" : "Find Scale")
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(atmosphere.ink)
-            .disabled(session.phase == .scanning || session.phase == .healthKitWriting)
+            Text(session.phase == .scanning || session.selectedScaleID != nil
+                 ? "Listening for your scale…"
+                 : "Step on the scale. Live card opens automatically.")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(atmosphere.ink.opacity(0.78))
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 8) {
                 homeSecondaryButton(title: "Coach", systemImage: "sparkles") {
@@ -397,18 +436,6 @@ struct ContentView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(atmosphere.ink.opacity(0.8))
-
-            if session.selectedScaleID != nil {
-                Button {
-                    session.reopenWeighIn()
-                } label: {
-                    Text("Weigh in")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(atmosphere.ink.opacity(0.72))
-            }
 
             if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
                 Text("Saved to Health")

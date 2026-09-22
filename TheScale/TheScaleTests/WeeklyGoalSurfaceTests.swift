@@ -110,7 +110,7 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         XCTAssertEqual(targets.microName, "Iron")
     }
 
-    func testTomorrowAdviceAvoidsEmDashAndNamesUser() {
+    func testTodayAdviceAvoidsEmDashAndNamesUser() {
         var goal = WeeklyMiniGoal.default
         goal.targetDeltaKg = -0.3
         goal.weekStartKg = 82
@@ -125,9 +125,11 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
             ),
             digest: nil
         )
-        XCTAssertTrue(surface.tomorrowAdvice.contains("Alex"))
-        XCTAssertFalse(surface.tomorrowAdvice.contains("—"))
-        XCTAssertFalse(surface.tomorrowAdvice.lowercased().contains("diagnos"))
+        XCTAssertTrue(surface.todayAdvice.contains("Alex"))
+        XCTAssertFalse(surface.todayAdvice.contains("—"))
+        XCTAssertFalse(surface.todayAdvice.lowercased().contains("diagnos"))
+        XCTAssertFalse(surface.todayAdvice.lowercased().contains("tomorrow"))
+        XCTAssertFalse(surface.macroGoalETA.line.isEmpty)
     }
 
     func testOvereatingWhileActiveBeatsStepAdvice() {
@@ -167,10 +169,10 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
             return XCTFail("expected overeatingWhileActive, got \(String(describing: surface.energySnapshot?.diagnosis))")
         }
         XCTAssertEqual(surface.band, .atRisk)
-        XCTAssertTrue(surface.tomorrowAdvice.lowercased().contains("act together")
-                      || surface.tomorrowAdvice.lowercased().contains("intake"))
-        XCTAssertTrue(surface.tomorrowAdvice.lowercased().contains("meal plan"))
-        XCTAssertFalse(surface.tomorrowAdvice.contains("8600"))
+        XCTAssertTrue(surface.todayAdvice.lowercased().contains("act together")
+                      || surface.todayAdvice.lowercased().contains("intake"))
+        XCTAssertTrue(surface.todayAdvice.lowercased().contains("meal plan"))
+        XCTAssertFalse(surface.todayAdvice.contains("8600"))
     }
 
     func testUnderMovingWhenSoftActivityAndStall() {
@@ -225,5 +227,43 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         let bmr = WeeklyGoalSurfaceEngine.mifflinBMR(profile: profile, weightKg: 80)
         // 10*80 + 6.25*178 - 5*30 + 5 = 800 + 1112.5 - 150 + 5 = 1767.5
         XCTAssertEqual(bmr, 1767.5, accuracy: 0.1)
+    }
+
+    func testMacroGoalETAUsesObservedPace() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 8))!
+        let weights = [
+            HealthWeightSample(weightKg: 84.0, date: cal.date(from: DateComponents(year: 2026, month: 9, day: 8, hour: 8))!),
+            HealthWeightSample(weightKg: 83.0, date: now)
+        ]
+        let eta = MacroGoalETA.compute(
+            currentKg: 83.0,
+            idealKg: 78.0,
+            plannedDate: cal.date(from: DateComponents(year: 2026, month: 12, day: 1))!,
+            recentWeights: weights,
+            weeklyDeltaKg: -0.3,
+            now: now,
+            calendar: cal
+        )
+        XCTAssertNotNil(eta.etaDate)
+        XCTAssertTrue(eta.line.contains("ETA"))
+        XCTAssertFalse(eta.line.contains("—"))
+    }
+
+    func testWeighInAnalysisPunishOnGainWhileCutting() {
+        var goal = WeeklyMiniGoal.default
+        goal.targetDeltaKg = -0.4
+        let card = WeighInAnalysisEngine.build(
+            name: "Alex",
+            weighedKg: 84.5,
+            previousKg: 84.0,
+            weeklyGoal: goal,
+            idealKg: 78
+        )
+        XCTAssertEqual(card.tone, .punish)
+        XCTAssertTrue(card.headline.contains("Alex") || card.body.lowercased().contains("scale"))
+        XCTAssertFalse(card.body.contains("—"))
+        XCTAssertFalse(card.body.lowercased().contains("diagnos"))
     }
 }
