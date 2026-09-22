@@ -170,12 +170,12 @@ struct ContentView: View {
 
     private var homeScroll: some View {
         GeometryReader { geo in
-            let compact = geo.size.height < 780
+            let compact = geo.size.height < 720
             ScrollView(.vertical, showsIndicators: false) {
                 homeColumn(compact: compact)
                     .padding(.horizontal, 22)
-                    .padding(.top, 4)
-                    .padding(.bottom, 12)
+                    .padding(.top, 8)
+                    .padding(.bottom, 28)
                     .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .top)
             }
             .refreshable {
@@ -187,7 +187,7 @@ struct ContentView: View {
     }
 
     private func homeColumn(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: compact ? 10 : 14) {
+        VStack(alignment: .leading, spacing: compact ? 18 : 24) {
             brandRow
 
             if let analysis = session.lastWeighInAnalysis {
@@ -195,7 +195,8 @@ struct ContentView: View {
             }
 
             HorizonArcBankView(
-                weeklyPercent: surface.completionPercent,
+                sundayTargetKg: surface.sundayTargetKg,
+                weeklyDeltaKg: surface.weeklyDeltaKg,
                 bandLabel: surface.band.statusLabel,
                 weekTitle: surface.weekTitle,
                 metrics: surface.todayProgress,
@@ -207,26 +208,41 @@ struct ContentView: View {
             )
             .onTapGesture { session.presentProgress() }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(surface.todayAdvice)
-                    .font(.system(size: compact ? 17 : 20, weight: .bold, design: .serif))
-                    .foregroundStyle(atmosphere.ink)
-                    .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
-                    .accessibilityIdentifier("home.todayAdvice")
-
-                Text(surface.macroGoalETA.line)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(atmosphere.ink.opacity(0.72))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
+            adviceBlock(compact: compact)
 
             primaryActions(compact: compact)
             discoveryBlock
-            Spacer(minLength: 0)
+            Spacer(minLength: compact ? 12 : 24)
         }
+    }
+
+    private func adviceBlock(compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("INSIGHT")
+                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .tracking(1.0)
+                .foregroundStyle(atmosphere.ink.opacity(0.55))
+
+            Text(surface.todayAdvice)
+                .font(.system(size: compact ? 18 : 21, weight: .bold, design: .serif))
+                .foregroundStyle(atmosphere.ink)
+                .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
+                .lineLimit(6)
+                .fixedSize(horizontal: false, vertical: true)
+                .minimumScaleFactor(0.9)
+                .accessibilityIdentifier("home.todayAdvice")
+
+            Text(surface.macroGoalETA.line)
+                .font(.system(size: compact ? 14 : 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(atmosphere.ink.opacity(0.72))
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .minimumScaleFactor(0.85)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, compact ? 14 : 18)
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .combine)
     }
 
     #if DEBUG

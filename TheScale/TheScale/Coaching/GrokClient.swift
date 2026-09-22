@@ -643,14 +643,15 @@ actor GrokClient {
 
         let who = brief.userName.isEmpty ? "the user" : brief.userName
         let localTime = now.formatted(date: .omitted, time: .shortened)
+        let plateCount = MealPlanEngine.preferredMealCount(for: fasting)
         let fastingLine: String = {
             if fasting.isActive {
                 let open = MealPlanEngine.formatHour(fasting.eatingStartHour)
                 let close = MealPlanEngine.formatHour(fasting.eatingEndHour)
                 let fastingNow = fasting.isFasting(at: now) ? "CURRENTLY FASTING" : "inside eating window"
-                return "Intermittent fasting active (\(fasting.cacheToken)). Eating window \(open)-\(close) local. Status now: \(fastingNow). Do NOT propose meals during the fasting window. First meal at or after window open."
+                return "Intermittent fasting active (\(fasting.cacheToken)). Eating window \(open)-\(close) local. Status now: \(fastingNow). Do NOT propose meals during the fasting window. First meal at or after window open. Exactly \(plateCount) meal\(plateCount == 1 ? "" : "s") inside the window."
             }
-            return "No intermittent fasting window set."
+            return "No intermittent fasting window set. Exactly \(plateCount) meals."
         }()
         let memory = brief.memoryBlock.isEmpty ? "" : "\n\(brief.memoryBlock)"
         let portionRule = brief.unitSystem == .metric
@@ -668,7 +669,7 @@ actor GrokClient {
         \(portionRule)
         Reply ONLY JSON:
         {"meals":[{"title":"Break-fast","time":"~12:00","ingredients":["Chicken breast 140 g","Greens 120 g"],"macro":"Protein 35 g","micro":"Iron ~3 mg","kcal":420}]}
-        3-4 meals. Stay under \(maxKcal) total. Match diet. Main ingredients with portions. Times must be inside any eating window and at/after local now.
+        Exactly \(plateCount) meal\(plateCount == 1 ? "" : "s"). Stay under \(maxKcal) total. Match diet. Main ingredients with portions. Times must be inside any eating window and at/after local now. No extra snacks.
         """
 
         let body: [String: Any] = [
@@ -685,12 +686,12 @@ actor GrokClient {
         do {
             let data = try await postChat(body: body, transport: transport, timeout: 35)
             let raw = Self.parseContent(from: data) ?? ""
-            if let parsed = MealPlanEngine.parseGrokJSON(raw) {
+            if let parsed = MealPlanEngine.parseGrokJSON(raw, minimumCount: plateCount) {
                 let meals = MealPlanEngine.localizePortions(
                     MealPlanEngine.enforceFasting(parsed, fasting: fasting, now: now),
                     units: brief.unitSystem
                 )
-                guard meals.count >= 3 else {
+                guard meals.count >= plateCount else {
                     return await localMealPlanFallback(
                         brief: brief,
                         maxKcal: maxKcal,
@@ -723,7 +724,8 @@ actor GrokClient {
                     meals: meals,
                     generatedAt: Date(),
                     usedNetwork: true,
-                    sourceNote: note
+                    sourceNote: note,
+                    targetMealCount: plateCount
                 )
             }
             return await localMealPlanFallback(
@@ -782,7 +784,8 @@ actor GrokClient {
                 MealPlanEngine.enforceFasting(fmMeals, fasting: fasting, now: now),
                 units: brief.unitSystem
             )
-            if scheduled.count >= 3 {
+            let plateCount = MealPlanEngine.preferredMealCount(for: fasting)
+            if scheduled.count >= plateCount {
                 let key = MealPlanEngine.cacheKey(
                     dayKey: dayKey,
                     maxKcal: maxKcal,
@@ -802,7 +805,8 @@ actor GrokClient {
                     meals: scheduled,
                     generatedAt: now,
                     usedNetwork: false,
-                    sourceNote: "\(reason) Apple Intelligence.\(fastingBit)"
+                    sourceNote: "\(reason) Apple Intelligence.\(fastingBit)",
+                    targetMealCount: plateCount
                 )
             }
         }

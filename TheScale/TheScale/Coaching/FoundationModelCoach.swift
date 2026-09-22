@@ -50,7 +50,7 @@ struct MealPlanFMMealDraft: Equatable, Sendable {
 
 @Generable(description: "Next meals for the day with metric portions")
 struct MealPlanFMDraft: Equatable, Sendable {
-    @Guide(description: "3 or 4 meals remaining in the eating window.")
+    @Guide(description: "Upcoming meals for the eating window. Match the requested plate count (often 2 for 16-8).")
     var meals: [MealPlanFMMealDraft]
 }
 
@@ -263,6 +263,7 @@ enum FoundationModelCoach {
             return "No fasting window."
         }()
         let mem = memoryBlock.trimmingCharacters(in: .whitespacesAndNewlines)
+        let plateCount = MealPlanEngine.preferredMealCount(for: fasting)
         do {
             let session = LanguageModelSession(instructions: """
                 You write practical meal menus for The Scale on-device.
@@ -271,12 +272,12 @@ enum FoundationModelCoach {
                 Honour diet preference and fasting windows.
                 """)
             let prompt = """
-                Build 3-4 upcoming meals for \(who) from local now \(localTime).
+                Build exactly \(plateCount) upcoming meal\(plateCount == 1 ? "" : "s") for \(who) from local now \(localTime).
                 Diet: \(diet.title). Daily max \(maxKcal) kcal. Protein \(proteinGrams) g. Micro focus: \(microHint).
                 Weekly weight nudge \(String(format: "%+.1f", weeklyDeltaKg)) kg (keep a mild deficit if negative).
                 \(fastingLine)
                 \(mem.isEmpty ? "" : "Memory:\n\(mem)")
-                Ingredients must include metric grams or millilitres.
+                Ingredients must include metric grams or millilitres. Do not invent extra snacks.
                 """
             var options = GenerationOptions()
             options.temperature = 0.5
@@ -288,7 +289,7 @@ enum FoundationModelCoach {
             )
             let drafts = response.content.meals
             var meals: [MealPlanMeal] = []
-            for draft in drafts.prefix(5) {
+            for draft in drafts.prefix(plateCount) {
                 let ingredients = draft.ingredients
                     .map { CoachCopySanitize.clean($0) }
                     .filter { !$0.isEmpty }
@@ -312,7 +313,7 @@ enum FoundationModelCoach {
                     )
                 )
             }
-            return meals.count >= 3 ? meals : nil
+            return meals.count >= plateCount ? meals : nil
         } catch {
             return nil
         }

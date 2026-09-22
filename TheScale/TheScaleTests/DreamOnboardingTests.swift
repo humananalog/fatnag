@@ -219,6 +219,8 @@ final class DailyMetricProgressTests: XCTestCase {
         var goal = WeeklyMiniGoal.default
         goal.weekStartKg = 80
         goal.weekStartDate = Date()
+        goal.title = "Sunday 79.70 kg"
+        goal.targetDeltaKg = -0.3
         let surface = WeeklyGoalSurfaceEngine.build(
             weeklyGoal: goal,
             currentKg: 79.8,
@@ -231,6 +233,28 @@ final class DailyMetricProgressTests: XCTestCase {
         XCTAssertEqual(surface.dailyTargetChips.count, 3)
         XCTAssertTrue(surface.dailyTargetChips.map(\.title).contains("Energy"))
         XCTAssertTrue(surface.dailyTargetChips.map(\.title).contains("Protein"))
+        XCTAssertEqual(surface.sundayTargetKg ?? -1, 79.70, accuracy: 0.01)
+        XCTAssertEqual(surface.weeklyDeltaKg, -0.3, accuracy: 0.001)
+    }
+
+    func testSundayTargetParsesTitleAndFallsBackToWeekStart() {
+        var titled = WeeklyMiniGoal.default
+        titled.title = "Sunday 82.40 kg"
+        XCTAssertEqual(
+            WeeklyGoalSurfaceEngine.sundayTargetKg(from: titled, currentKg: 83.0) ?? -1,
+            82.40,
+            accuracy: 0.01
+        )
+
+        var untitled = WeeklyMiniGoal.default
+        untitled.title = "Nudge -0.3 kg this week"
+        untitled.weekStartKg = 84.0
+        untitled.targetDeltaKg = -0.5
+        XCTAssertEqual(
+            WeeklyGoalSurfaceEngine.sundayTargetKg(from: untitled, currentKg: 84.0) ?? -1,
+            83.50,
+            accuracy: 0.01
+        )
     }
 
     func testRobustNutritionRequiresRealMealSignal() {

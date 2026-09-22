@@ -125,7 +125,7 @@ final class MealPlanEngineTests: XCTestCase {
             now: sevenAM,
             calendar: cal
         )
-        XCTAssertGreaterThanOrEqual(meals.count, 3)
+        XCTAssertEqual(meals.count, 2)
         for meal in meals {
             guard let hour = meal.approxHour else { continue }
             XCTAssertGreaterThanOrEqual(hour, 12.0, "meal \(meal.title) at \(meal.timeLabel) is inside fasting window")
@@ -166,15 +166,14 @@ final class MealPlanEngineTests: XCTestCase {
             now: sevenAM,
             calendar: cal
         )
-        XCTAssertGreaterThanOrEqual(meals.count, 3)
+        XCTAssertEqual(meals.count, 2)
+        XCTAssertEqual(MealPlanEngine.preferredMealCount(for: .classic168), 2)
         let hours = meals.compactMap(\.approxHour)
         XCTAssertEqual(hours.first ?? -1, 12.0, accuracy: 0.26)
         XCTAssertGreaterThanOrEqual(hours.last ?? 0, 18.5)
         XCTAssertLessThan(hours.last ?? 99, 20.0)
-        // Spread across the window, not clustered at open.
-        if hours.count >= 3 {
-            XCTAssertGreaterThan((hours.last ?? 0) - (hours.first ?? 0), 5.0)
-        }
+        // Two plates bookend the 8h window.
+        XCTAssertGreaterThan((hours.last ?? 0) - (hours.first ?? 0), 5.0)
     }
 
     func testEnforceFastingDropsEarlyBreakfast() {
@@ -187,8 +186,24 @@ final class MealPlanEngineTests: XCTestCase {
             MealPlanMeal(title: "Dinner", timeLabel: "~19:00", ingredients: ["Fish"], keyMacro: "P", keyMicro: "M", approxKcal: 450)
         ]
         let fixed = MealPlanEngine.enforceFasting(raw, fasting: .classic168, now: sevenAM, calendar: cal)
-        XCTAssertGreaterThanOrEqual(fixed.count, 3)
+        XCTAssertEqual(fixed.count, 2)
         XCTAssertFalse(fixed.contains(where: { ($0.approxHour ?? 99) < 11.5 }))
+    }
+
+    func testPreferredMealCountMatchesProtocol() {
+        XCTAssertEqual(MealPlanEngine.preferredMealCount(for: .none), 3)
+        XCTAssertEqual(MealPlanEngine.preferredMealCount(for: .classic168), 2)
+        XCTAssertEqual(MealPlanEngine.preferredMealCount(for: .classic186), 2)
+        XCTAssertEqual(MealPlanEngine.preferredMealCount(for: .classic204), 2)
+        XCTAssertEqual(
+            MealPlanEngine.preferredMealCount(for: FastingWindow.make(
+                startMinutes: 17 * 60,
+                endMinutes: 19 * 60,
+                protocolLabel: "omad",
+                fastingHours: 22
+            )),
+            1
+        )
     }
 
     func testSpacedHoursEven() {

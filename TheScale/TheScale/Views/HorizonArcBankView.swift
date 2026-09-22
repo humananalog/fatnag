@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Home day board: large weekly hero, activity gauges (steps / move), and
+/// Home day board: large Sunday weight target, lean activity gauges, and
 /// daily nutrition **targets** unless Apple Health has a robust food log.
 struct HorizonArcBankView: View {
-    var weeklyPercent: Int
+    var sundayTargetKg: Double?
+    var weeklyDeltaKg: Double
     var bandLabel: String
     var weekTitle: String
     var metrics: [DailyMetricProgress]
@@ -14,8 +15,8 @@ struct HorizonArcBankView: View {
     var compact: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: compact ? 12 : 16) {
-            weeklyHero
+        VStack(alignment: .leading, spacing: compact ? 18 : 22) {
+            sundayHero
             if !metrics.isEmpty {
                 activityGauges
             }
@@ -27,49 +28,72 @@ struct HorizonArcBankView: View {
         .accessibilityIdentifier("home.horizonArcBank")
     }
 
-    private var weeklyHero: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("\(weeklyPercent)")
-                    .font(.system(size: compact ? 56 : 68, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(ink)
-                    .shadow(color: .white.opacity(0.55), radius: 0, y: 1)
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
-                    .accessibilityIdentifier("home.weekPercent")
+    private var sundayHero: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("SUNDAY TARGET")
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .tracking(1.2)
+                .foregroundStyle(ink.opacity(0.55))
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(bandLabel.uppercased())
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .tracking(0.7)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if let kg = sundayTargetKg {
+                    Text(String(format: "%.2f", kg))
+                        .font(.system(size: compact ? 64 : 76, weight: .bold, design: .rounded))
+                        .monospacedDigit()
                         .foregroundStyle(ink)
-                    Text("% of week")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .shadow(color: .white.opacity(0.55), radius: 0, y: 1)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+                        .accessibilityIdentifier("home.sundayTargetKg")
+                    Text("kg")
+                        .font(.system(size: compact ? 24 : 28, weight: .bold, design: .rounded))
                         .foregroundStyle(steel)
+                } else {
+                    Text(weekTitle.isEmpty ? "Set goal" : weekTitle)
+                        .font(.system(size: compact ? 36 : 44, weight: .bold, design: .rounded))
+                        .foregroundStyle(ink)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(2)
+                        .accessibilityIdentifier("home.sundayTargetKg")
                 }
                 Spacer(minLength: 0)
             }
 
-            Text(weekTitle)
-                .font(.system(size: compact ? 15 : 17, weight: .bold, design: .rounded))
-                .foregroundStyle(ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+            HStack(spacing: 10) {
+                Text(bandLabel)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(ink)
+                Text(deltaChip)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(steel)
+            }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Week goal \(weeklyPercent) percent, \(bandLabel). \(weekTitle)")
+        .accessibilityLabel(sundayAccessibilityLabel)
         .accessibilityIdentifier("home.weekHero")
     }
 
+    private var deltaChip: String {
+        let sign = weeklyDeltaKg >= 0 ? "+" : ""
+        return String(format: "%@%.2f kg this week", sign, weeklyDeltaKg)
+    }
+
+    private var sundayAccessibilityLabel: String {
+        if let kg = sundayTargetKg {
+            return String(format: "Sunday target %.2f kilograms. %@ . %@", kg, bandLabel, deltaChip)
+        }
+        return "\(weekTitle). \(bandLabel). \(deltaChip)"
+    }
+
     private var activityGauges: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("TODAY")
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .tracking(1.0)
                 .foregroundStyle(ink.opacity(0.55))
 
-            HStack(alignment: .top, spacing: 14) {
+            HStack(alignment: .top, spacing: 16) {
                 ForEach(metrics, id: \.kind) { row in
                     gaugeCard(row)
                 }
@@ -83,17 +107,10 @@ struct HorizonArcBankView: View {
         let color = statusColor(row.status)
 
         return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(row.title.uppercased())
-                    .font(.system(size: 12, weight: .heavy, design: .rounded))
-                    .tracking(0.7)
-                    .foregroundStyle(ink.opacity(0.7))
-                Spacer(minLength: 4)
-                Text(statusChip(row))
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(color)
-            }
+            Text(row.title.uppercased())
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .tracking(0.7)
+                .foregroundStyle(ink.opacity(0.7))
 
             ZStack {
                 HorizonArcTrack()
@@ -102,11 +119,11 @@ struct HorizonArcBankView: View {
                     .trim(from: 0, to: min(CGFloat(fraction), 1))
                     .stroke(color, style: StrokeStyle(lineWidth: 8, lineCap: .round))
             }
-            .frame(height: compact ? 40 : 48)
+            .frame(height: compact ? 44 : 52)
             .frame(maxWidth: .infinity)
 
             Text(row.currentLine)
-                .font(.system(size: compact ? 18 : 20, weight: .bold, design: .rounded))
+                .font(.system(size: compact ? 17 : 19, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(ink)
                 .shadow(color: .white.opacity(0.35), radius: 0, y: 1)
@@ -120,22 +137,22 @@ struct HorizonArcBankView: View {
     }
 
     private var dailyTargets: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("DAILY TARGETS")
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .tracking(1.0)
                 .foregroundStyle(ink.opacity(0.55))
                 .accessibilityIdentifier("home.dailyTargets.title")
 
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
                 ForEach(targetChips) { chip in
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(chip.title.uppercased())
                             .font(.system(size: 11, weight: .heavy, design: .rounded))
                             .tracking(0.5)
                             .foregroundStyle(ink.opacity(0.55))
                         Text(chip.valueLine)
-                            .font(.system(size: compact ? 15 : 16, weight: .bold, design: .rounded))
+                            .font(.system(size: compact ? 15 : 17, weight: .bold, design: .rounded))
                             .foregroundStyle(ink)
                             .lineLimit(2)
                             .minimumScaleFactor(0.8)
@@ -146,16 +163,6 @@ struct HorizonArcBankView: View {
                 }
             }
             .accessibilityIdentifier("home.dailyTargets")
-        }
-    }
-
-    private func statusChip(_ row: DailyMetricProgress) -> String {
-        switch row.status {
-        case .complete: return "Done"
-        case .over: return "Over"
-        case .unknown: return "Open"
-        case .inProgress:
-            return "\(Int((min(row.fraction, 1) * 100).rounded()))%"
         }
     }
 

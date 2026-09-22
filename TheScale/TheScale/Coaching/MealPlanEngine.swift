@@ -46,20 +46,65 @@ struct MealPlanPayload: Equatable, Codable, Sendable {
     var generatedAt: Date
     var usedNetwork: Bool
     var sourceNote: String
+    /// Expected plate count for this fasting / diet profile (1-4).
+    var targetMealCount: Int
 
-    var isComplete: Bool { meals.count >= 3 }
+    var isComplete: Bool { meals.count >= max(1, targetMealCount) }
+
+    enum CodingKeys: String, CodingKey {
+        case cacheKey, dayKey, maxKcal, proteinGrams, dietRaw, meals, generatedAt, usedNetwork, sourceNote, targetMealCount
+    }
+
+    init(
+        cacheKey: String,
+        dayKey: String,
+        maxKcal: Int,
+        proteinGrams: Int,
+        dietRaw: String,
+        meals: [MealPlanMeal],
+        generatedAt: Date,
+        usedNetwork: Bool,
+        sourceNote: String,
+        targetMealCount: Int
+    ) {
+        self.cacheKey = cacheKey
+        self.dayKey = dayKey
+        self.maxKcal = maxKcal
+        self.proteinGrams = proteinGrams
+        self.dietRaw = dietRaw
+        self.meals = meals
+        self.generatedAt = generatedAt
+        self.usedNetwork = usedNetwork
+        self.sourceNote = sourceNote
+        self.targetMealCount = targetMealCount
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        cacheKey = try c.decode(String.self, forKey: .cacheKey)
+        dayKey = try c.decode(String.self, forKey: .dayKey)
+        maxKcal = try c.decode(Int.self, forKey: .maxKcal)
+        proteinGrams = try c.decode(Int.self, forKey: .proteinGrams)
+        dietRaw = try c.decode(String.self, forKey: .dietRaw)
+        meals = try c.decode([MealPlanMeal].self, forKey: .meals)
+        generatedAt = try c.decode(Date.self, forKey: .generatedAt)
+        usedNetwork = try c.decode(Bool.self, forKey: .usedNetwork)
+        sourceNote = try c.decode(String.self, forKey: .sourceNote)
+        targetMealCount = try c.decodeIfPresent(Int.self, forKey: .targetMealCount) ?? max(meals.count, 2)
+    }
 }
 
 enum MealPlanStore {
-    private static let key = "thescale.mealPlan.v2"
+    private static let key = "thescale.mealPlan.v3"
 
     static func load() -> MealPlanPayload? {
         if let data = UserDefaults.standard.data(forKey: key),
            let payload = try? JSONDecoder().decode(MealPlanPayload.self, from: data) {
             return payload
         }
-        // Migrate once from v1 (no fasting token) → treat as miss so IF regenerates.
+        // Drop stale v1/v2 caches so IF meal-count fix regenerates (16-8 → 2 plates).
         UserDefaults.standard.removeObject(forKey: "thescale.mealPlan.v1")
+        UserDefaults.standard.removeObject(forKey: "thescale.mealPlan.v2")
         return nil
     }
 
@@ -72,12 +117,32 @@ enum MealPlanStore {
     static func clear() {
         UserDefaults.standard.removeObject(forKey: key)
         UserDefaults.standard.removeObject(forKey: "thescale.mealPlan.v1")
+        UserDefaults.standard.removeObject(forKey: "thescale.mealPlan.v2")
     }
 }
 
 /// Cache key + offline meals + compact Grok JSON parse for the home meal plan.
 enum MealPlanEngine {
-    /// Day + deficit + diet + protein + fasting window. Changing any forces a new plan.
+    /// How many plates fit the eating window. 16-8 / 18-6 → 2. OMAD → 1. Open day → 3.
+    static func preferredMealCount(for fasting: FastingWindow) -> Int {
+        guard fasting.isActive else { return 3 }
+        switch fasting.protocolLabel.lowercased() {
+        case "omad":
+            return 1
+        case "20-4", "18-6", "16-8":
+            return 2
+        case "14-10":
+            return 3
+        default:
+            let hours = fasting.eatingHours
+            if hours <= 3 { return 1 }
+            if hours <= 8 { return 2 }
+            if hours <= 11 { return 3 }
+            return 4
+        }
+    }
+
+    /// Day + deficit + diet + protein + fasting window + meal count. Changing any forces a new plan.
     /// Hour bucket (4h) keeps morning vs afternoon plans distinct without hourly token burn.
     static func cacheKey(
         dayKey: String,
@@ -92,7 +157,8 @@ enum MealPlanEngine {
         let deltaBucket = Int((weeklyDeltaKg * 10).rounded())
         let hour = calendar.component(.hour, from: now)
         let hourBucket = (hour / 4) * 4
-        return "\(dayKey)|\(maxKcal)|\(proteinGrams)|\(diet.rawValue)|\(deltaBucket)|\(fasting.cacheToken)|h\(hourBucket)"
+        let meals = preferredMealCount(for: fasting)
+        return "\(dayKey)|\(maxKcal)|\(proteinGrams)|\(diet.rawValue)|\(deltaBucket)|\(fasting.cacheToken)|m\(meals)|h\(hourBucket)"
     }
 
     static func dayKey(now: Date = Date(), calendar: Calendar = .current) -> String {
@@ -157,6 +223,7 @@ enum MealPlanEngine {
         let fastingNote = fasting.isActive
             ? " IF \(fasting.cacheToken) respected."
             : ""
+        let targetCount = preferredMealCount(for: fasting)
         let note = sourceNoteOverride ?? "On-device menu for \(who) with metric-sized portions.\(fastingNote) Refresh when Keel credits remain."
         return MealPlanPayload(
             cacheKey: key,
@@ -167,7 +234,8 @@ enum MealPlanEngine {
             meals: meals,
             generatedAt: now,
             usedNetwork: false,
-            sourceNote: note
+            sourceNote: note,
+            targetMealCount: targetCount
         )
     }
 
@@ -179,8 +247,14 @@ enum MealPlanEngine {
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> [MealPlanMeal] {
-        let templates = baseTemplates(diet: diet, maxKcal: maxKcal, proteinGrams: proteinGrams)
-        return scheduleMeals(templates, fasting: fasting, now: now, calendar: calendar)
+        let count = preferredMealCount(for: fasting)
+        let templates = selectTemplates(
+            diet: diet,
+            maxKcal: maxKcal,
+            proteinGrams: proteinGrams,
+            count: count
+        )
+        return scheduleMeals(templates, fasting: fasting, now: now, calendar: calendar, mealCount: count)
     }
 
     /// Drop meals still inside the fasting window or already past; space survivors across the eating window.
@@ -188,10 +262,12 @@ enum MealPlanEngine {
         _ templates: [MealPlanMeal],
         fasting: FastingWindow,
         now: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        mealCount: Int? = nil
     ) -> [MealPlanMeal] {
         let nowHour = Double(calendar.component(.hour, from: now))
             + Double(calendar.component(.minute, from: now)) / 60.0
+        let targetCount = max(1, mealCount ?? preferredMealCount(for: fasting))
 
         if !fasting.isActive {
             // Still skip meals already past by >45 min so a 7pm open doesn't push breakfast.
@@ -199,12 +275,15 @@ enum MealPlanEngine {
                 guard let h = meal.approxHour else { return true }
                 return h >= nowHour - 0.75
             }
-            return upcoming.count >= 3 ? upcoming : Array(templates.suffix(max(3, upcoming.count)))
+            if upcoming.count >= targetCount {
+                return Array(upcoming.prefix(targetCount))
+            }
+            return Array(templates.suffix(min(targetCount, templates.count)))
         }
 
         let open = fasting.eatingStartHour
         let close = fasting.eatingEndHour
-        // Usable span inside the 8h (or protocol) window: from max(open, now) to just before close.
+        // Usable span inside the protocol window: from max(open, now) to just before close.
         let usableStart = nowHour < open ? open : max(open, nowHour)
         let usableEnd = close - 0.25
         guard usableEnd > usableStart + 0.5 else {
@@ -223,10 +302,19 @@ enum MealPlanEngine {
             ]
         }
 
-        let mealCount = min(4, max(3, templates.count))
-        let slots = spacedHours(count: mealCount, from: usableStart, to: usableEnd)
+        let count = min(targetCount, max(1, templates.count))
+        let slots = spacedHours(count: count, from: usableStart, to: usableEnd)
 
         let titles: [String] = {
+            if count == 1 {
+                return ["One plate"]
+            }
+            if count == 2 {
+                if fasting.isFasting(at: now, calendar: calendar) || nowHour < open {
+                    return ["Break-fast", "Late plate"]
+                }
+                return ["Next plate", "Close window"]
+            }
             if fasting.isFasting(at: now, calendar: calendar) || nowHour < open {
                 return ["Break-fast", "Mid window", "Late plate", "Close window"]
             }
@@ -271,17 +359,51 @@ enum MealPlanEngine {
         now: Date,
         calendar: Calendar = .current
     ) -> [MealPlanMeal] {
+        let target = preferredMealCount(for: fasting)
         guard fasting.isActive else {
-            return scheduleMeals(meals, fasting: .none, now: now, calendar: calendar)
+            return scheduleMeals(meals, fasting: .none, now: now, calendar: calendar, mealCount: target)
         }
         let allowed = meals.filter { meal in
             guard let h = meal.approxHour else { return true }
             return fasting.allowsMeal(atHour: h)
         }
-        if allowed.count >= 3 {
-            return scheduleMeals(allowed, fasting: fasting, now: now, calendar: calendar)
+        if allowed.count >= target {
+            return scheduleMeals(allowed, fasting: fasting, now: now, calendar: calendar, mealCount: target)
         }
-        return scheduleMeals(meals, fasting: fasting, now: now, calendar: calendar)
+        return scheduleMeals(meals, fasting: fasting, now: now, calendar: calendar, mealCount: target)
+    }
+
+    /// Pick and resize templates so plate count matches IF (2 for 16-8, 1 for OMAD, …).
+    static func selectTemplates(
+        diet: DietPreference,
+        maxKcal: Int,
+        proteinGrams: Int,
+        count: Int
+    ) -> [MealPlanMeal] {
+        let all = baseTemplates(diet: diet, maxKcal: maxKcal, proteinGrams: proteinGrams)
+        let n = max(1, min(4, count))
+        let picked: [MealPlanMeal] = {
+            switch n {
+            case 1:
+                return [all[3]]
+            case 2:
+                return [all[1], all[3]]
+            case 3:
+                return [all[0], all[1], all[3]]
+            default:
+                return all
+            }
+        }()
+        let per = max(280, maxKcal / n)
+        let pMeal = max(20, proteinGrams / n)
+        return picked.map { meal in
+            var copy = meal
+            copy.approxKcal = per
+            if copy.keyMacro.lowercased().contains("protein") {
+                copy.keyMacro = "Protein \(pMeal) g"
+            }
+            return copy
+        }
     }
 
     private static func baseTemplates(
@@ -543,7 +665,8 @@ enum MealPlanEngine {
     }
 
     /// Parse compact Grok JSON: `{ "meals": [ { "title", "time", "ingredients", "macro", "micro", "kcal" } ] }`
-    static func parseGrokJSON(_ raw: String) -> [MealPlanMeal]? {
+    /// `minimumCount` defaults to 2 so IF 16-8 plans are accepted.
+    static func parseGrokJSON(_ raw: String, minimumCount: Int = 2) -> [MealPlanMeal]? {
         let cleaned = CoachCopySanitize.clean(raw)
         guard let data = extractJSONObjectData(from: cleaned),
               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -578,7 +701,7 @@ enum MealPlanEngine {
                 )
             )
         }
-        return meals.count >= 3 ? meals : nil
+        return meals.count >= max(1, minimumCount) ? meals : nil
     }
 
     private static func extractJSONObjectData(from text: String) -> Data? {

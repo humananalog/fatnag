@@ -82,6 +82,10 @@ struct WeeklyGoalSurface: Equatable, Sendable {
     var completionPercent: Int
     var band: WeeklyTrackBand
     var weekTitle: String
+    /// Absolute Sunday weigh-in target (kg). Hero number on Home.
+    var sundayTargetKg: Double?
+    /// Signed weekly delta (kg), e.g. -0.35.
+    var weeklyDeltaKg: Double
     var detailLine: String
     /// What's ahead for the rest of TODAY (local clock), not tomorrow-after-weigh-in.
     var todayAdvice: String
@@ -290,11 +294,14 @@ enum WeeklyGoalSurfaceEngine {
 
         let progress = todayMetricProgress(targets: targets, digest: digest)
         let chips = Self.dailyTargetChips(targets: targets, showNutritionTargets: !targets.intakeTracked)
+        let sundayKg = sundayTargetKg(from: weeklyGoal, currentKg: currentKg)
 
         return WeeklyGoalSurface(
             completionPercent: percent,
             band: band,
             weekTitle: weeklyGoal.title,
+            sundayTargetKg: sundayKg,
+            weeklyDeltaKg: weeklyGoal.targetDeltaKg,
             detailLine: detail,
             todayAdvice: advice,
             mealSuggestion: showMeals,
@@ -307,6 +314,37 @@ enum WeeklyGoalSurfaceEngine {
             expectedPaceFraction: expected,
             targetMode: targetMode
         )
+    }
+
+    /// Absolute Sunday target kg from title, week-start + delta, or current + delta.
+    static func sundayTargetKg(from weeklyGoal: WeeklyMiniGoal, currentKg: Double?) -> Double? {
+        if let parsed = parseSundayKg(from: weeklyGoal.title) {
+            return parsed
+        }
+        if let start = weeklyGoal.weekStartKg {
+            return round2(start + weeklyGoal.targetDeltaKg)
+        }
+        if let current = currentKg {
+            return round2(current + weeklyGoal.targetDeltaKg)
+        }
+        return nil
+    }
+
+    /// Parse `"Sunday 82.40 kg"` / `"sunday 82,4 kg"` style titles.
+    static func parseSundayKg(from title: String) -> Double? {
+        let lower = title.lowercased()
+        guard lower.contains("sunday") else { return nil }
+        let cleaned = title.replacingOccurrences(of: ",", with: ".")
+        guard let regex = try? NSRegularExpression(pattern: #"(\d+(?:\.\d+)?)\s*kg"#),
+              let match = regex.firstMatch(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)),
+              let range = Range(match.range(at: 1), in: cleaned),
+              let value = Double(cleaned[range])
+        else { return nil }
+        return value
+    }
+
+    private static func round2(_ value: Double) -> Double {
+        (value * 100).rounded() / 100
     }
 
     // MARK: - Pace / band
