@@ -121,6 +121,8 @@ final class ScaleSessionViewModel: ObservableObject {
     }
     /// Soft star-rating sheet (non-invasive; only after real weigh-in success).
     @Published var isAppReviewPromptPresented = false
+    /// Selected system TabView destination (native Liquid Glass tab bar).
+    @Published var homeTab: HomeGlassDestination = .weigh
     @Published var isProgressPresented = false
     @Published var isCoachPresented = false
     @Published var isSettingsPresented = false
@@ -545,25 +547,44 @@ final class ScaleSessionViewModel: ObservableObject {
         isManualEntryPresented = false
     }
 
+    /// Switch the system tab bar (and keep legacy presented flags in sync for gates).
+    func selectHomeTab(_ tab: HomeGlassDestination) {
+        let leavingMeals = homeTab == .meals && tab != .meals
+        homeTab = tab
+        isProgressPresented = tab == .progress
+        isCoachPresented = tab == .keel
+        isMealPlanPresented = tab == .meals
+        isSettingsPresented = tab == .settings
+        if tab == .progress {
+            ensureWeeklyGoalBaseline()
+        }
+        if leavingMeals {
+            isMealPlanLoading = false
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                considerProfileGapPrompt()
+            }
+        }
+    }
+
     func presentProgress() {
-        isProgressPresented = true
-        ensureWeeklyGoalBaseline()
+        selectHomeTab(.progress)
     }
 
     func dismissProgress() {
-        isProgressPresented = false
+        selectHomeTab(.weigh)
     }
 
     func presentCoach() {
-        isCoachPresented = true
+        selectHomeTab(.keel)
     }
 
     func dismissCoach() {
-        isCoachPresented = false
+        selectHomeTab(.weigh)
     }
 
     func presentMealPlan() {
-        isMealPlanPresented = true
+        selectHomeTab(.meals)
     }
 
     /// Drop cached meals so the next ensure rebuilds (e.g. IF window changed).
@@ -573,12 +594,7 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func dismissMealPlan() {
-        isMealPlanPresented = false
-        isMealPlanLoading = false
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            considerProfileGapPrompt()
-        }
+        selectHomeTab(.weigh)
     }
 
     /// Load cached meal plan if key matches; otherwise generate (offline or Grok).
@@ -1045,11 +1061,11 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func presentSettings() {
-        isSettingsPresented = true
+        selectHomeTab(.settings)
     }
 
     func dismissSettings() {
-        isSettingsPresented = false
+        selectHomeTab(.weigh)
     }
 
     func handleNotificationDestination(_ destination: ScaleNotificationDestination) {
@@ -1059,10 +1075,12 @@ final class ScaleSessionViewModel: ObservableObject {
         case .progress:
             presentProgress()
         case .history:
+            selectHomeTab(.weigh)
             reopenResults()
         case .settings:
             presentSettings()
         case .weigh:
+            selectHomeTab(.weigh)
             if selectedScaleID != nil {
                 reopenWeighIn()
             } else {

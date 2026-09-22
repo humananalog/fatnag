@@ -69,7 +69,7 @@ struct CoachChatView: View {
 
     private var header: some View {
         HStack {
-            Button { dismiss() } label: {
+            Button { session.dismissCoach() } label: {
                 Image(systemName: "xmark")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.85))

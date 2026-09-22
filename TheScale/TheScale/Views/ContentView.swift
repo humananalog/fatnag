@@ -65,6 +65,126 @@ struct ContentView: View {
     }
 
     var body: some View {
+        TabView(selection: Binding(
+            get: { session.homeTab },
+            set: { session.selectHomeTab($0) }
+        )) {
+            Tab(HomeGlassDestination.weigh.title, systemImage: HomeGlassDestination.weigh.systemImage, value: HomeGlassDestination.weigh) {
+                weighTabRoot
+            }
+            Tab(HomeGlassDestination.progress.title, systemImage: HomeGlassDestination.progress.systemImage, value: HomeGlassDestination.progress) {
+                ProgressSheet()
+                    .environmentObject(session)
+            }
+            Tab(HomeGlassDestination.keel.title, systemImage: HomeGlassDestination.keel.systemImage, value: HomeGlassDestination.keel) {
+                CoachChatView()
+                    .environmentObject(session)
+            }
+            Tab(HomeGlassDestination.meals.title, systemImage: HomeGlassDestination.meals.systemImage, value: HomeGlassDestination.meals) {
+                MealPlanCarouselView()
+                    .environmentObject(session)
+            }
+            Tab(HomeGlassDestination.settings.title, systemImage: HomeGlassDestination.settings.systemImage, value: HomeGlassDestination.settings) {
+                NavigationStack {
+                    SettingsView()
+                        .environmentObject(session)
+                }
+            }
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .tabViewBottomAccessory {
+            if session.homeTab == .weigh {
+                Button {
+                    if session.selectedScaleID != nil {
+                        session.reopenWeighIn()
+                    } else {
+                        session.presentManualEntry()
+                    }
+                } label: {
+                    Label("Weigh now", systemImage: "scalemass.fill")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color(red: 0.12, green: 0.42, blue: 0.30))
+                .accessibilityLabel("Weigh now")
+            }
+        }
+        .preferredColorScheme(.light)
+        #if DEBUG
+        .sheet(isPresented: $showDebugTools) {
+            DebugToolsView()
+                .environmentObject(session)
+        }
+        #endif
+        .sheet(isPresented: $showNotificationCenter) {
+            NotificationCenterSheet()
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { session.isWeighInPresented },
+            set: { if !$0 { session.dismissWeighIn() } }
+        )) {
+            LiveWeighInSheet()
+                .environmentObject(session)
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { session.isWeighInHeroPresented },
+            set: { if !$0 { session.dismissWeighInHero() } }
+        )) {
+            WeighInHeroMomentView()
+                .environmentObject(session)
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { session.isResultsPresented },
+            set: { if !$0 { session.dismissResults() } }
+        )) {
+            WeighInResultsView()
+                .environmentObject(session)
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { session.isManualEntryPresented && !session.isResultsPresented },
+            set: { if !$0 { session.dismissManualEntry() } }
+        )) {
+            ManualWeighInView()
+                .environmentObject(session)
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { session.isMondayCardPresented },
+            set: { if !$0 { session.dismissMondayCard() } }
+        )) {
+            MondayWeeklyCardView()
+                .environmentObject(session)
+        }
+        .sheet(isPresented: Binding(
+            get: { session.isAppReviewPromptPresented },
+            set: { if !$0 { session.dismissAppReviewPrompt() } }
+        )) {
+            AppReviewPromptView {
+                session.dismissAppReviewPrompt()
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { session.pendingProfileGap != nil },
+            set: { if !$0 { session.dismissProfileGapSheet() } }
+        )) {
+            ProfileGapPromptView()
+                .environmentObject(session)
+        }
+        .task {
+            await bootstrapHome()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task {
+                await session.refreshHomeGauges(force: false)
+                await session.considerMorningWeighDrill()
+                await refreshPendingNotifBadge()
+            }
+        }
+    }
+
+    /// Home / Weigh tab: weekly-goal composition under the system liquid-glass tab bar.
+    private var weighTabRoot: some View {
         NavigationStack {
             ZStack {
                 WeeklyGoalHazeBackground(atmosphere: atmosphere)
@@ -73,115 +193,9 @@ struct ContentView: View {
                 debugOverlay
                 #endif
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                HomeGlassBar { destination in
-                    handleGlassDestination(destination)
-                }
-            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
-            #if DEBUG
-            .sheet(isPresented: $showDebugTools) {
-                DebugToolsView()
-                    .environmentObject(session)
-            }
-            #endif
-            .sheet(isPresented: $showNotificationCenter) {
-                NotificationCenterSheet()
-            }
-            .sheet(isPresented: Binding(
-                get: { session.isSettingsPresented },
-                set: { if !$0 { session.dismissSettings() } }
-            )) {
-                NavigationStack {
-                    SettingsView()
-                        .environmentObject(session)
-                }
-            }
-            .sheet(isPresented: Binding(
-                get: { session.isMealPlanPresented },
-                set: { if !$0 { session.dismissMealPlan() } }
-            )) {
-                MealPlanCarouselView()
-                    .environmentObject(session)
-            }
-            .fullScreenCover(isPresented: Binding(
-                get: { session.isWeighInPresented },
-                set: { if !$0 { session.dismissWeighIn() } }
-            )) {
-                LiveWeighInSheet()
-                    .environmentObject(session)
-            }
-            .fullScreenCover(isPresented: Binding(
-                get: { session.isWeighInHeroPresented },
-                set: { if !$0 { session.dismissWeighInHero() } }
-            )) {
-                WeighInHeroMomentView()
-                    .environmentObject(session)
-            }
-            .fullScreenCover(isPresented: Binding(
-                get: { session.isResultsPresented },
-                set: { if !$0 { session.dismissResults() } }
-            )) {
-                WeighInResultsView()
-                    .environmentObject(session)
-            }
-            .fullScreenCover(isPresented: Binding(
-                get: { session.isManualEntryPresented && !session.isResultsPresented },
-                set: { if !$0 { session.dismissManualEntry() } }
-            )) {
-                ManualWeighInView()
-                    .environmentObject(session)
-            }
-            .sheet(isPresented: Binding(
-                get: { session.isProgressPresented },
-                set: { if !$0 { session.dismissProgress() } }
-            )) {
-                ProgressSheet()
-                    .environmentObject(session)
-            }
-            .fullScreenCover(isPresented: Binding(
-                get: { session.isCoachPresented },
-                set: { if !$0 { session.dismissCoach() } }
-            )) {
-                CoachChatView()
-                    .environmentObject(session)
-            }
-            .fullScreenCover(isPresented: Binding(
-                get: { session.isMondayCardPresented },
-                set: { if !$0 { session.dismissMondayCard() } }
-            )) {
-                MondayWeeklyCardView()
-                    .environmentObject(session)
-            }
-            .sheet(isPresented: Binding(
-                get: { session.isAppReviewPromptPresented },
-                set: { if !$0 { session.dismissAppReviewPrompt() } }
-            )) {
-                AppReviewPromptView {
-                    session.dismissAppReviewPrompt()
-                }
-            }
-            .sheet(isPresented: Binding(
-                get: { session.pendingProfileGap != nil },
-                set: { if !$0 { session.dismissProfileGapSheet() } }
-            )) {
-                ProfileGapPromptView()
-                    .environmentObject(session)
-            }
-            .task {
-                await bootstrapHome()
-            }
-            .onChange(of: scenePhase) { _, phase in
-                guard phase == .active else { return }
-                Task {
-                    await session.refreshHomeGauges(force: false)
-                    await session.considerMorningWeighDrill()
-                    await refreshPendingNotifBadge()
-                }
-            }
         }
-        .preferredColorScheme(.light)
     }
 
     private var homeScroll: some View {
@@ -229,25 +243,6 @@ struct ContentView: View {
             homeStatusLine(compact: compact)
             discoveryBlock
             Spacer(minLength: compact ? 12 : 24)
-        }
-    }
-
-    private func handleGlassDestination(_ destination: HomeGlassDestination) {
-        switch destination {
-        case .weigh:
-            if session.selectedScaleID != nil {
-                session.reopenWeighIn()
-            } else {
-                session.presentManualEntry()
-            }
-        case .progress:
-            session.presentProgress()
-        case .keel:
-            session.presentCoach()
-        case .meals:
-            session.presentMealPlan()
-        case .settings:
-            session.presentSettings()
         }
     }
 

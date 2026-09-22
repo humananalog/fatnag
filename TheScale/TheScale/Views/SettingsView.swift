@@ -834,7 +834,7 @@ struct SettingsView: View {
                 Button {
                     dismissKeyboard()
                     session.beginCalibrationWeighIn()
-                    dismiss()
+                    session.dismissSettings()
                 } label: {
                     Label("Weigh reference on live sheet", systemImage: "scalemass")
                         .frame(maxWidth: .infinity)
@@ -983,7 +983,7 @@ struct SettingsView: View {
             Button("Erase everything", role: .destructive) {
                 ScaleDataRights.eraseAllLocalData(session: session)
                 dataRightsNote = "Local data erased. Complete onboarding again when ready."
-                dismiss()
+                session.dismissSettings()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -1034,13 +1034,13 @@ struct SettingsView: View {
             #if DEBUG
             Menu {
                 Button("Preview Monday card") {
-                    dismiss()
+                    session.dismissSettings()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         session.forcePresentMondayCard(regenerate: false)
                     }
                 }
                 Button("Regenerate Monday card") {
-                    dismiss()
+                    session.dismissSettings()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         session.forcePresentMondayCard(regenerate: true)
                     }
@@ -1062,7 +1062,7 @@ struct SettingsView: View {
                         ScaleAppReviewPrompt.successfulWeighIns,
                         ScaleAppReviewPrompt.minimumWeighIns
                     )
-                    dismiss()
+                    session.dismissSettings()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         session.isAppReviewPromptPresented = true
                     }
@@ -1074,7 +1074,7 @@ struct SettingsView: View {
                 Button("Reset onboarding (relaunch flow)") {
                     OnboardingStore.hasCompleted = false
                     session.hasCompletedOnboarding = false
-                    dismiss()
+                    session.dismissSettings()
                 }
             } label: {
                 Text("Dev")

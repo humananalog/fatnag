@@ -37,7 +37,7 @@ struct ProgressSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("Weigh") { session.selectHomeTab(.weigh) }
                 }
             }
             .onAppear {
@@ -148,7 +148,6 @@ struct ProgressSheet: View {
             .disabled(isCoaching)
 
             Button {
-                dismiss()
                 session.presentCoach()
             } label: {
                 Label("Open multi-agent chat", systemImage: "bubble.left.and.bubble.right")

@@ -88,7 +88,7 @@ struct MealPlanCarouselView: View {
                     .disabled(session.isMealPlanLoading)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("Weigh") { session.selectHomeTab(.weigh) }
                 }
             }
             .task {
