@@ -76,7 +76,7 @@ enum CoachReminderScheduler {
 
         // Auth / polish delays must not leave a past fire date (iOS then never delivers).
         let fireAt = ensureFutureFireDate(request.fireAt, now: now)
-        var liveRequest = CoachReminderRequest(
+        let liveRequest = CoachReminderRequest(
             kind: request.kind,
             fireAt: fireAt,
             beforeDeadline: request.beforeDeadline,

@@ -95,8 +95,7 @@ struct NotificationCenterSheet: View {
 
     private func reload() async {
         isLoading = true
-        let center = UNUserNotificationCenter.current()
-        let settings = await center.notificationSettings()
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
         switch settings.authorizationStatus {
         case .authorized: authLine = "Notifications on. Time Sensitive allowed when system grants it."
         case .provisional: authLine = "Provisional delivery. Enable Alerts in Settings for full pings."
@@ -105,10 +104,11 @@ struct NotificationCenterSheet: View {
         case .ephemeral: authLine = "Ephemeral authorization active."
         @unknown default: authLine = "Notification status unknown."
         }
-        async let p = center.pendingNotificationRequests()
-        async let d = center.deliveredNotifications()
-        pending = await p
-        delivered = await d.sorted { $0.date > $1.date }
+        // Sequential UNUserNotificationCenter reads: center is not Sendable; avoid async-let races.
+        let pendingReqs = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        let deliveredNotes = await UNUserNotificationCenter.current().deliveredNotifications()
+        pending = pendingReqs
+        delivered = deliveredNotes.sorted { $0.date > $1.date }
         isLoading = false
     }
 }
