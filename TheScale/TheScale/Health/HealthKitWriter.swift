@@ -215,45 +215,14 @@ final class HealthKitWriter: HealthWriting {
         guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
         try await requestAuthorizationIfNeeded()
 
-        let dayStart = Calendar.current.startOfDay(for: now)
-        // Per-type soft sums: one empty dietary type must not kill steps/move gauges.
-        async let steps = softSumQuantity(.stepCount, unit: .count(), from: dayStart, to: now)
-        async let energy = softSumQuantity(
-            .activeEnergyBurned,
-            unit: .kilocalorie(),
-            from: dayStart,
-            to: now
-        )
-        async let dietaryEnergy = softSumQuantity(
-            .dietaryEnergyConsumed,
-            unit: .kilocalorie(),
-            from: dayStart,
-            to: now
-        )
-        async let dietaryProtein = softSumQuantity(
-            .dietaryProtein,
-            unit: .gram(),
-            from: dayStart,
-            to: now
-        )
-        async let dietaryFiber = softSumQuantity(
-            .dietaryFiber,
-            unit: .gram(),
-            from: dayStart,
-            to: now
-        )
-        async let dietaryIron = softSumQuantity(
-            .dietaryIron,
-            unit: .gramUnit(with: .milli),
-            from: dayStart,
-            to: now
-        )
-        async let dietaryPotassium = softSumQuantity(
-            .dietaryPotassium,
-            unit: .gramUnit(with: .milli),
-            from: dayStart,
-            to: now
-        )
+        // Same calendar-day statistics path as FitnessDigest (Fitness-app aligned).
+        async let steps = softDaySum(.stepCount, unit: .count(), now: now)
+        async let energy = softDaySum(.activeEnergyBurned, unit: .kilocalorie(), now: now)
+        async let dietaryEnergy = softDaySum(.dietaryEnergyConsumed, unit: .kilocalorie(), now: now)
+        async let dietaryProtein = softDaySum(.dietaryProtein, unit: .gram(), now: now)
+        async let dietaryFiber = softDaySum(.dietaryFiber, unit: .gram(), now: now)
+        async let dietaryIron = softDaySum(.dietaryIron, unit: .gramUnit(with: .milli), now: now)
+        async let dietaryPotassium = softDaySum(.dietaryPotassium, unit: .gramUnit(with: .milli), now: now)
 
         let (
             stepsV,
@@ -297,12 +266,11 @@ final class HealthKitWriter: HealthWriting {
         let spo2Unit = HKUnit.percent()
         let vo2Unit = HKUnit.literUnit(with: .milli).unitDivided(by: .gramUnit(with: .kilo).unitMultiplied(by: .minute()))
 
-        async let steps = sumQuantity(.stepCount, unit: .count(), from: dayStart, to: now)
-        async let energy = sumQuantity(
+        async let steps = daySumQuantity(.stepCount, unit: .count(), now: now)
+        async let energy = daySumQuantity(
             .activeEnergyBurned,
             unit: .kilocalorie(),
-            from: dayStart,
-            to: now
+            now: now
         )
         async let energy7d = sumQuantity(
             .activeEnergyBurned,
@@ -310,11 +278,10 @@ final class HealthKitWriter: HealthWriting {
             from: last7d,
             to: now
         )
-        async let exerciseMin = sumQuantity(
+        async let exerciseMin = daySumQuantity(
             .appleExerciseTime,
             unit: .minute(),
-            from: dayStart,
-            to: now
+            now: now
         )
         async let resting = latestQuantity(
             .restingHeartRate,
@@ -386,35 +353,30 @@ final class HealthKitWriter: HealthWriting {
             from: last7d,
             to: now
         )
-        async let dietaryEnergy = sumQuantity(
+        async let dietaryEnergy = daySumQuantity(
             .dietaryEnergyConsumed,
             unit: .kilocalorie(),
-            from: dayStart,
-            to: now
+            now: now
         )
-        async let dietaryProtein = sumQuantity(
+        async let dietaryProtein = daySumQuantity(
             .dietaryProtein,
             unit: .gram(),
-            from: dayStart,
-            to: now
+            now: now
         )
-        async let dietaryFiber = sumQuantity(
+        async let dietaryFiber = daySumQuantity(
             .dietaryFiber,
             unit: .gram(),
-            from: dayStart,
-            to: now
+            now: now
         )
-        async let dietaryIron = sumQuantity(
+        async let dietaryIron = daySumQuantity(
             .dietaryIron,
             unit: .gramUnit(with: .milli),
-            from: dayStart,
-            to: now
+            now: now
         )
-        async let dietaryPotassium = sumQuantity(
+        async let dietaryPotassium = daySumQuantity(
             .dietaryPotassium,
             unit: .gramUnit(with: .milli),
-            from: dayStart,
-            to: now
+            now: now
         )
 
         let (
@@ -552,7 +514,9 @@ final class HealthKitWriter: HealthWriting {
         guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else {
             throw HealthKitWriterError.missingType(identifier.rawValue)
         }
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        // Overlapping samples (Watch hourly buckets straddling midnight) must count toward today.
+        // `.strictStartDate` under-counted vs Fitness / digest walks (e.g. 20 steps vs real day).
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [])
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKStatisticsQuery(
                 quantityType: type,
@@ -575,7 +539,66 @@ final class HealthKitWriter: HealthWriting {
         }
     }
 
-    /// Soft sum for home gauges: never throws. Missing / denied / empty → 0.
+    /// Local-calendar day cumulative sum (Fitness-app style day bucket).
+    /// Prefer this for "today" steps / move / diet so home gauges match digest.
+    private func daySumQuantity(
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        now: Date,
+        calendar: Calendar = .current
+    ) async throws -> Double? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else {
+            throw HealthKitWriterError.missingType(identifier.rawValue)
+        }
+        let dayStart = calendar.startOfDay(for: now)
+        guard let nextMidnight = calendar.date(byAdding: .day, value: 1, to: dayStart) else {
+            return try await sumQuantity(identifier, unit: unit, from: dayStart, to: now)
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKStatisticsCollectionQuery(
+                quantityType: type,
+                quantitySamplePredicate: HKQuery.predicateForSamples(
+                    withStart: dayStart.addingTimeInterval(-12 * 3600),
+                    end: nextMidnight,
+                    options: []
+                ),
+                options: .cumulativeSum,
+                anchorDate: dayStart,
+                intervalComponents: DateComponents(day: 1)
+            )
+            query.initialResultsHandler = { _, collection, error in
+                if let error {
+                    if Self.isNoDataError(error) {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                    continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
+                    return
+                }
+                let value = collection?.statistics(for: dayStart)?.sumQuantity()?.doubleValue(for: unit)
+                continuation.resume(returning: value)
+            }
+            store.execute(query)
+        }
+    }
+
+    /// Soft day sum for home gauges: never throws. Missing / denied / empty → 0.
+    private func softDaySum(
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        now: Date
+    ) async -> Double {
+        do {
+            return try await daySumQuantity(identifier, unit: unit, now: now) ?? 0
+        } catch {
+            #if DEBUG
+            print("[TheScale] softDaySum \(identifier.rawValue) soft-fail: \(error.localizedDescription)")
+            #endif
+            return 0
+        }
+    }
+
+    /// Soft sum for arbitrary windows: never throws. Missing / denied / empty → 0.
     private func softSumQuantity(
         _ identifier: HKQuantityTypeIdentifier,
         unit: HKUnit,

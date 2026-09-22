@@ -340,12 +340,14 @@ final class ScaleSessionViewModel: ObservableObject {
         }
         isWeighInPresented = true
         Task { await refreshHealthBaseline() }
+        syncWeighInLiveActivity(starting: true)
     }
 
     func reopenWeighIn() {
         guard selectedScaleID != nil else { return }
         weighInPurpose = .normal
         isWeighInPresented = true
+        syncWeighInLiveActivity(starting: true)
     }
 
     /// Primary calibration path: same live sheet as weigh-in, after the user sets reference mass.
@@ -377,6 +379,7 @@ final class ScaleSessionViewModel: ObservableObject {
             )
         }
         Task { await refreshHealthBaseline() }
+        syncWeighInLiveActivity(starting: true)
     }
 
     func dismissWeighIn() {
@@ -384,6 +387,7 @@ final class ScaleSessionViewModel: ObservableObject {
         isEditingDraft = false
         autoConfirmArmed = false
         weighInPurpose = .normal
+        WeighInLiveActivityController.end()
         if case .healthKitSuccess = phase {
             // Keep success state on home / results.
         } else if case .reviewing = phase {
@@ -1012,6 +1016,7 @@ final class ScaleSessionViewModel: ObservableObject {
             #if DEBUG
             print("[TheScale] Coach digest refresh: \(digest.debugSummaryLine)")
             #endif
+            await considerMorningWeighDrill(digest: digest)
             return digest
         } catch {
             let digest = FitnessDigest.readFailed(message: error.localizedDescription)
@@ -1022,6 +1027,21 @@ final class ScaleSessionViewModel: ObservableObject {
             #endif
             return digest
         }
+    }
+
+    /// After leaving sleep: one sergeant weigh ping (prefs + once/morning).
+    func considerMorningWeighDrill(digest: FitnessDigest? = nil) async {
+        let snap = digest ?? lastFitnessDigest
+        let weighedToday: Bool = {
+            guard let last = historyWeights.last?.date else { return false }
+            return Calendar.current.isDateInToday(last)
+        }()
+        await MorningWeighDrillScheduler.consider(
+            prefs: notificationPreferences,
+            profileName: profile.greetingName,
+            sleepWake: snap?.sleepWake,
+            alreadyWeighedToday: weighedToday
+        )
     }
 
     func presentSettings() {
@@ -1042,6 +1062,12 @@ final class ScaleSessionViewModel: ObservableObject {
             reopenResults()
         case .settings:
             presentSettings()
+        case .weigh:
+            if selectedScaleID != nil {
+                reopenWeighIn()
+            } else {
+                presentManualEntry()
+            }
         }
     }
 
@@ -1251,6 +1277,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 : historyTrendWindowWeights,
             weeklyGoal: weeklyGoal
         )
+        await considerMorningWeighDrill()
     }
 
     /// Load Apple Health weight + body fat samples for the results charts.
@@ -1288,8 +1315,10 @@ final class ScaleSessionViewModel: ObservableObject {
         ensureWeeklyGoalBaseline()
         try await loadHistory(for: historyRange)
         await refreshTrendNotifications()
+        MorningWeighDrillScheduler.markSatisfied()
         isManualEntryPresented = false
         isWeighInPresented = false
+        WeighInLiveActivityController.end()
         isResultsPresented = true
         if MondayCardEngine.shouldOfferAfterWeighIn() {
             await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
@@ -1516,7 +1545,9 @@ final class ScaleSessionViewModel: ObservableObject {
                 historyTrendWindowWeights = []
             }
             await refreshTrendNotifications()
+            MorningWeighDrillScheduler.markSatisfied()
             isWeighInPresented = false
+            WeighInLiveActivityController.end()
             autoConfirmArmed = false
             let weighKg = draft.weightKg
             let previous = recentHealthWeights.dropFirst().first?.weightKg ?? healthBaselineKg
@@ -1594,6 +1625,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 phase = .measuring
             }
             liveHint = "Live weight updating…"
+            syncWeighInLiveActivity(starting: false)
             return
         }
 
@@ -1678,6 +1710,24 @@ final class ScaleSessionViewModel: ObservableObject {
     private func cancelImpedanceWait() {
         impedanceWaitTask?.cancel()
         impedanceWaitTask = nil
+    }
+
+    /// Dynamic Island / Lock Screen Live Activity for the in-progress weigh-in.
+    private func syncWeighInLiveActivity(starting: Bool) {
+        guard isWeighInPresented else {
+            WeighInLiveActivityController.end()
+            return
+        }
+        let name = discoveredScales.first(where: { $0.id == selectedScaleID })?.name
+            ?? (weighInPurpose == .calibration ? "Calibration" : "Scale")
+        if starting {
+            WeighInLiveActivityController.start(scaleName: name, statusLine: liveHint)
+        }
+        WeighInLiveActivityController.update(
+            weightKg: displayWeightKg,
+            statusLine: liveHint,
+            isSettled: latestMeasurement?.isStabilized == true
+        )
     }
 
     private var shouldSurfaceTransientHints: Bool {

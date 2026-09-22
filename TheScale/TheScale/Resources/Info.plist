@@ -38,7 +38,9 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>The Scale saves confirmed weight, BMI, body fat percentage, and lean body mass to Apple Health when you tap Confirm. Nothing is uploaded.</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>The Scale can notify you when weight trends look bad versus your ideal, when Watch/sleep-HR signals look off, for optional weekly mini-goals, for Coach-scheduled wake or timed reminders, and for scheduled fitness-check nudges. No marketing spam.</string>
+	<string>The Scale can notify you when weight trends look bad versus your ideal, when you leave bedtime for a morning weigh drill, when Watch/sleep-HR signals look off, for optional weekly mini-goals, for Coach-scheduled wake or timed reminders, and for scheduled fitness-check nudges. No marketing spam.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>app.thescale.ios.fitness-check</string>

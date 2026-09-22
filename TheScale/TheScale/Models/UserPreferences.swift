@@ -53,11 +53,44 @@ struct NotificationPreferences: Equatable, Codable, Sendable {
     var notifyOnBadTrend: Bool
     /// Soft weekly mini-goal reminders (Monday morning).
     var weeklyGoalReminders: Bool
+    /// After leaving sleep / bedtime, one sergeant ping to weigh (once per morning).
+    var morningWeighDrill: Bool
 
     static let `default` = NotificationPreferences(
         notifyOnBadTrend: true,
-        weeklyGoalReminders: true
+        weeklyGoalReminders: true,
+        morningWeighDrill: true
     )
+
+    init(
+        notifyOnBadTrend: Bool,
+        weeklyGoalReminders: Bool,
+        morningWeighDrill: Bool
+    ) {
+        self.notifyOnBadTrend = notifyOnBadTrend
+        self.weeklyGoalReminders = weeklyGoalReminders
+        self.morningWeighDrill = morningWeighDrill
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case notifyOnBadTrend
+        case weeklyGoalReminders
+        case morningWeighDrill
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        notifyOnBadTrend = try c.decodeIfPresent(Bool.self, forKey: .notifyOnBadTrend) ?? true
+        weeklyGoalReminders = try c.decodeIfPresent(Bool.self, forKey: .weeklyGoalReminders) ?? true
+        morningWeighDrill = try c.decodeIfPresent(Bool.self, forKey: .morningWeighDrill) ?? true
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(notifyOnBadTrend, forKey: .notifyOnBadTrend)
+        try c.encode(weeklyGoalReminders, forKey: .weeklyGoalReminders)
+        try c.encode(morningWeighDrill, forKey: .morningWeighDrill)
+    }
 }
 
 enum NotificationPreferencesStore {
@@ -473,9 +506,23 @@ struct FitnessDigest: Equatable, Sendable {
     }
 
     /// Overlay lean home-gauge totals without wiping Coach-only fields (HRV, sleep, …).
+    /// Never clobber a fresher full-digest total with a suspiciously lower lean read.
     mutating func applyHomeDailyMetrics(_ metrics: HomeDailyMetrics) {
-        stepsToday = metrics.stepsToday
-        activeEnergyKcalToday = metrics.activeEnergyKcalToday
+        let digestAge = Date().timeIntervalSince(generatedAt)
+        if let existing = stepsToday, existing > 0,
+           metrics.stepsToday < existing * 0.15,
+           digestAge < 15 * 60 {
+            // Keep digest steps.
+        } else {
+            stepsToday = metrics.stepsToday
+        }
+        if let existing = activeEnergyKcalToday, existing > 0,
+           metrics.activeEnergyKcalToday < existing * 0.15,
+           digestAge < 15 * 60 {
+            // Keep digest move energy.
+        } else {
+            activeEnergyKcalToday = metrics.activeEnergyKcalToday
+        }
         // Keep dietary nil when zero so Move-burn fallback still works when no food log.
         dietaryEnergyKcalToday = metrics.dietaryEnergyKcalToday > 0 ? metrics.dietaryEnergyKcalToday : nil
         dietaryProteinGramsToday = metrics.dietaryProteinGramsToday > 0 ? metrics.dietaryProteinGramsToday : nil

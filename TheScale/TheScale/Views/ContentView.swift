@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 /// Slow-motion diffused haze behind the weekly-goal hero. Subtle, not noisy.
 struct WeeklyGoalHazeBackground: View {
@@ -52,6 +53,8 @@ struct ContentView: View {
     #if DEBUG
     @State private var showDebugTools = false
     #endif
+    @State private var showNotificationCenter = false
+    @State private var pendingNotifCount = 0
 
     private var surface: WeeklyGoalSurface {
         session.weeklyGoalSurface
@@ -63,32 +66,27 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            ZStack(alignment: .bottom) {
                 WeeklyGoalHazeBackground(atmosphere: atmosphere)
                 homeScroll
+                HomeGlassBar { destination in
+                    handleGlassDestination(destination)
+                }
                 #if DEBUG
                 debugOverlay
                 #endif
             }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        session.presentSettings()
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(atmosphere.ink)
-                    }
-                    .accessibilityLabel("Settings")
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             #if DEBUG
             .sheet(isPresented: $showDebugTools) {
                 DebugToolsView()
                     .environmentObject(session)
             }
             #endif
+            .sheet(isPresented: $showNotificationCenter) {
+                NotificationCenterSheet()
+            }
             .sheet(isPresented: Binding(
                 get: { session.isSettingsPresented },
                 set: { if !$0 { session.dismissSettings() } }
@@ -176,6 +174,8 @@ struct ContentView: View {
                 guard phase == .active else { return }
                 Task {
                     await session.refreshHomeGauges(force: false)
+                    await session.considerMorningWeighDrill()
+                    await refreshPendingNotifBadge()
                 }
             }
         }
@@ -189,7 +189,7 @@ struct ContentView: View {
                 homeColumn(compact: compact)
                     .padding(.horizontal, 22)
                     .padding(.top, 8)
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 96)
                     .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .top)
             }
             .refreshable {
@@ -224,9 +224,51 @@ struct ContentView: View {
 
             adviceBlock(compact: compact)
 
-            primaryActions(compact: compact)
+            homeStatusLine(compact: compact)
             discoveryBlock
             Spacer(minLength: compact ? 12 : 24)
+        }
+    }
+
+    private func handleGlassDestination(_ destination: HomeGlassDestination) {
+        switch destination {
+        case .weigh:
+            if session.selectedScaleID != nil {
+                session.reopenWeighIn()
+            } else {
+                session.presentManualEntry()
+            }
+        case .progress:
+            session.presentProgress()
+        case .keel:
+            session.presentCoach()
+        case .meals:
+            session.presentMealPlan()
+        case .settings:
+            session.presentSettings()
+        }
+    }
+
+    private func homeStatusLine(compact: Bool) -> some View {
+        VStack(spacing: compact ? 6 : 8) {
+            Text(session.phase == .scanning || session.selectedScaleID != nil
+                 ? "Listening…"
+                 : "Step on. Live card opens.")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(atmosphere.ink.opacity(0.78))
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
+                Text("Saved to Health")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.06, green: 0.32, blue: 0.20))
+            }
+
+            if !session.healthKitAvailable {
+                Text("Health unavailable.")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(atmosphere.ink.opacity(0.7))
+            }
         }
     }
 
@@ -302,6 +344,12 @@ struct ContentView: View {
         ScaleNotificationRouter.openAppNotificationSettings = {
             session.presentSettings()
         }
+        await refreshPendingNotifBadge()
+    }
+
+    private func refreshPendingNotifBadge() async {
+        let pending = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        pendingNotifCount = pending.count
     }
 
     private var brandRow: some View {
@@ -322,8 +370,9 @@ struct ContentView: View {
                     .foregroundStyle(atmosphere.ink.opacity(0.78))
             }
             Spacer(minLength: 0)
+            HomeNotificationBell(isPresented: $showNotificationCenter, badgeCount: pendingNotifCount)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(brandAccessibilityLabel)
     }
 
@@ -383,63 +432,6 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
-    }
-
-    private func primaryActions(compact: Bool) -> some View {
-        VStack(spacing: compact ? 8 : 10) {
-            Text(session.phase == .scanning || session.selectedScaleID != nil
-                 ? "Listening…"
-                 : "Step on. Live card opens.")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(atmosphere.ink.opacity(0.78))
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            HStack(spacing: 8) {
-                homeSecondaryButton(title: "Keel", systemImage: "sparkles") {
-                    session.presentCoach()
-                }
-                homeSecondaryButton(title: "Meals", systemImage: "fork.knife") {
-                    session.presentMealPlan()
-                }
-                homeSecondaryButton(title: "History", systemImage: "chart.xyaxis.line") {
-                    session.reopenResults()
-                }
-            }
-
-            Button {
-                session.presentManualEntry()
-            } label: {
-                Label("Manual", systemImage: "pencil.line")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(atmosphere.ink.opacity(0.8))
-
-            if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
-                Text("Saved to Health")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color(red: 0.06, green: 0.32, blue: 0.20))
-            }
-
-            if !session.healthKitAvailable {
-                Text("Health unavailable.")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(atmosphere.ink.opacity(0.7))
-            }
-        }
-    }
-
-    private func homeSecondaryButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .labelStyle(.titleAndIcon)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 2)
-        }
-        .buttonStyle(.bordered)
-        .tint(atmosphere.ink)
     }
 
     @ViewBuilder

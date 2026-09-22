@@ -564,6 +564,18 @@ struct SettingsView: View {
                         }
                     )
                 )
+                Toggle(
+                    "Morning weigh drill (out of bed)",
+                    isOn: Binding(
+                        get: { session.notificationPreferences.morningWeighDrill },
+                        set: {
+                            var next = session.notificationPreferences
+                            next.morningWeighDrill = $0
+                            session.notificationPreferences = next
+                            Task { await session.considerMorningWeighDrill() }
+                        }
+                    )
+                )
 
                 if !pendingCoachReminders.isEmpty {
                     Text("Pending Coach reminders")
