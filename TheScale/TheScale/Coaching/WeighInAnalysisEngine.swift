@@ -1,10 +1,29 @@
 import Foundation
 
-/// Coach reaction after a weigh-in lands in Health. Congrats / reward / blunt punish. No diagnosis.
+/// Post-weigh hero moment voice. Humour first. Never a diagnosis.
 enum WeighInCoachTone: String, Equatable, Sendable {
-    case congratulate
-    case reward
-    case punish
+    /// Drill-sergeant kick. For wrong-way weigh-ins.
+    case sergeant
+    /// Warm push with swagger. For real progress.
+    case encourage
+    /// Dry side-eye. For flat / baseline / "sure, Jan" moments.
+    case skeptical
+
+    var badge: String {
+        switch self {
+        case .sergeant: return "DRILL"
+        case .encourage: return "HERO"
+        case .skeptical: return "SIDE-EYE"
+        }
+    }
+
+    var cta: String {
+        switch self {
+        case .sergeant: return "I'll fix dinner"
+        case .encourage: return "Keep the streak"
+        case .skeptical: return "Noted. Next."
+        }
+    }
 }
 
 struct WeighInAnalysisCard: Equatable, Sendable {
@@ -14,16 +33,19 @@ struct WeighInAnalysisCard: Equatable, Sendable {
     var deltaKg: Double?
     var weighedKg: Double
     var createdAt: Date
+    /// Short pop-culture tagline under the body (may be empty).
+    var popLine: String
 }
 
 enum WeighInAnalysisEngine {
-    /// Build a hero analysis card from this weigh-in vs last Health baseline.
+    /// Build a hero moment from this weigh-in vs last Health baseline + profile vibe.
     static func build(
         name: String,
         weighedKg: Double,
         previousKg: Double?,
         weeklyGoal: WeeklyMiniGoal,
         idealKg: Double,
+        profile: UserBodyProfile? = nil,
         chartCommentsBlock: String = "",
         now: Date = Date()
     ) -> WeighInAnalysisCard {
@@ -31,70 +53,398 @@ enum WeighInAnalysisEngine {
         let delta: Double? = previousKg.map { weighedKg - $0 }
         let towardIdeal = weighedKg - idealKg
         let cutting = weeklyGoal.targetDeltaKg < -0.05
+        let seed = deterministicSeed(
+            name: who,
+            weighedKg: weighedKg,
+            dayKey: dayKey(now: now)
+        )
+        let vibe = PopCultureLens.from(profile: profile)
 
         let tone: WeighInCoachTone
         let headline: String
         let body: String
+        let pop: String
 
         if let delta {
             if cutting {
                 if delta <= -0.15 {
-                    tone = .congratulate
-                    headline = "That's the number, \(who)."
-                    body = String(
-                        format: "%.2f kg down since last. Keep the boring streak. Ideal still %.1f kg away.",
-                        abs(delta),
-                        max(0, towardIdeal)
-                    )
+                    tone = .encourage
+                    let pack = encouragePack(who: who, delta: delta, towardIdeal: towardIdeal, vibe: vibe, seed: seed)
+                    headline = pack.headline
+                    body = pack.body
+                    pop = pack.pop
                 } else if delta <= 0.12 {
-                    tone = .reward
-                    headline = "Quiet win."
-                    body = String(
-                        format: "Flat-ish (%+.2f kg). Noise happens. Hit protein and close the kitchen on time.",
-                        delta
-                    )
+                    tone = .skeptical
+                    let pack = skepticalPack(who: who, delta: delta, vibe: vibe, seed: seed)
+                    headline = pack.headline
+                    body = pack.body
+                    pop = pack.pop
                 } else {
-                    tone = .punish
-                    headline = "Scale doesn't do vibes, \(who)."
-                    body = String(
-                        format: "%+.2f kg since last. Not doom. Fix dinner tonight, not your personality.",
-                        delta
-                    )
+                    tone = .sergeant
+                    let pack = sergeantPack(who: who, delta: delta, vibe: vibe, seed: seed)
+                    headline = pack.headline
+                    body = pack.body
+                    pop = pack.pop
                 }
+            } else if abs(delta) <= 0.15 {
+                tone = .skeptical
+                let pack = skepticalPack(who: who, delta: delta, vibe: vibe, seed: seed)
+                headline = pack.headline
+                body = pack.body
+                pop = pack.pop
+            } else if delta > 0.15 {
+                tone = .encourage
+                let pack = encouragePack(who: who, delta: delta, towardIdeal: towardIdeal, vibe: vibe, seed: seed, gaining: true)
+                headline = pack.headline
+                body = pack.body
+                pop = pack.pop
             } else {
-                // Maintain / gain goal
-                if abs(delta) <= 0.15 {
-                    tone = .reward
-                    headline = "Steady."
-                    body = String(format: "%+.2f kg. Boring is the brand.", delta)
-                } else if delta > 0.15 {
-                    tone = .congratulate
-                    headline = "Up is the job."
-                    body = String(format: "%+.2f kg. Keep fueling like you mean it.", delta)
-                } else {
-                    tone = .punish
-                    headline = "Wrong direction for this week."
-                    body = String(format: "%+.2f kg. Eat the plan, not the fridge mood.", delta)
-                }
+                tone = .sergeant
+                let pack = sergeantPack(who: who, delta: delta, vibe: vibe, seed: seed)
+                headline = pack.headline
+                body = pack.body
+                pop = pack.pop
             }
         } else {
-            tone = .reward
-            headline = "Baseline locked."
+            tone = .skeptical
+            headline = "Baseline locked, \(who)."
             body = String(
-                format: "%.1f kg on the board, \(who). Next weigh-in gets the roast or the parade.",
+                format: "%.1f kg on the board. Next weigh-in gets the parade, the roast, or the drill.",
                 weighedKg
             )
+            pop = vibe.baselinePop(seed: seed)
         }
 
-        _ = chartCommentsBlock // reserved for Coach payload; keep card copy short
+        _ = chartCommentsBlock
         return WeighInAnalysisCard(
             tone: tone,
             headline: CoachCopySanitize.clean(headline),
             body: CoachCopySanitize.clean(body),
             deltaKg: delta,
             weighedKg: weighedKg,
-            createdAt: now
+            createdAt: now,
+            popLine: CoachCopySanitize.clean(pop)
         )
+    }
+
+    // MARK: - Tone packs
+
+    private static func sergeantPack(
+        who: String,
+        delta: Double,
+        vibe: PopCultureLens,
+        seed: Int
+    ) -> (headline: String, body: String, pop: String) {
+        let headlines = [
+            "Drop and give me zero snacks, \(who).",
+            "ATTENTION. The scale filed a complaint.",
+            "Wrong way, recruit.",
+            "That was not the mission brief."
+        ]
+        let bodies = [
+            String(format: "%+.2f kg since last. Not doom. Fix dinner tonight, not your personality.", delta),
+            String(format: "%+.2f kg. Kitchen lights out. Protein first. No negotiation.", delta),
+            String(format: "%+.2f kg walked on. March it back with boring food and an early close.", delta)
+        ]
+        return (
+            pick(headlines, seed: seed),
+            pick(bodies, seed: seed &+ 3),
+            vibe.sergeantPop(seed: seed)
+        )
+    }
+
+    private static func encouragePack(
+        who: String,
+        delta: Double,
+        towardIdeal: Double,
+        vibe: PopCultureLens,
+        seed: Int,
+        gaining: Bool = false
+    ) -> (headline: String, body: String, pop: String) {
+        if gaining {
+            let headlines = [
+                "Up is the job, \(who).",
+                "Fuel landed.",
+                "That's a builder's number."
+            ]
+            let bodies = [
+                String(format: "%+.2f kg. Keep eating like you mean the program.", delta),
+                String(format: "%+.2f kg on the board. Repeat the boring wins.", delta)
+            ]
+            return (pick(headlines, seed: seed), pick(bodies, seed: seed &+ 2), vibe.encouragePop(seed: seed))
+        }
+        let headlines = [
+            "That's the number, \(who).",
+            "Quiet flex unlocked.",
+            "Physics clapped politely.",
+            "Main character energy: measured."
+        ]
+        let bodies = [
+            String(
+                format: "%.2f kg down since last. Keep the boring streak. Ideal still %.1f kg away.",
+                abs(delta),
+                max(0, towardIdeal)
+            ),
+            String(
+                format: "%.2f kg gone. Don't celebrate with chaos. Protein, then bed.",
+                abs(delta)
+            ),
+            String(
+                format: "%.2f kg lighter. The plot is working. Stay dull on purpose.",
+                abs(delta)
+            )
+        ]
+        return (
+            pick(headlines, seed: seed),
+            pick(bodies, seed: seed &+ 5),
+            vibe.encouragePop(seed: seed)
+        )
+    }
+
+    private static func skepticalPack(
+        who: String,
+        delta: Double,
+        vibe: PopCultureLens,
+        seed: Int
+    ) -> (headline: String, body: String, pop: String) {
+        let headlines = [
+            "Sure, \(who). The kg are listening.",
+            "Plot twist pending.",
+            "Interesting. Define interesting.",
+            "Flat-ish. The jury is still out."
+        ]
+        let bodies = [
+            String(format: "%+.2f kg. Noise happens. Hit protein and close the kitchen on time.", delta),
+            String(format: "%+.2f kg. Not a parade, not a funeral. Do the boring reps.", delta),
+            String(format: "%+.2f kg. Water, salt, or vibes. Tomorrow still counts.", delta)
+        ]
+        return (
+            pick(headlines, seed: seed),
+            pick(bodies, seed: seed &+ 7),
+            vibe.skepticalPop(seed: seed)
+        )
+    }
+
+    // MARK: - Helpers
+
+    private static func pick(_ lines: [String], seed: Int) -> String {
+        guard !lines.isEmpty else { return "" }
+        let idx = abs(seed) % lines.count
+        return lines[idx]
+    }
+
+    private static func dayKey(now: Date, calendar: Calendar = .current) -> String {
+        let p = calendar.dateComponents([.year, .month, .day], from: now)
+        return String(format: "%04d-%02d-%02d", p.year ?? 0, p.month ?? 0, p.day ?? 0)
+    }
+
+    private static func deterministicSeed(name: String, weighedKg: Double, dayKey: String) -> Int {
+        var hash = 5381
+        let blob = "\(name)|\(String(format: "%.2f", weighedKg))|\(dayKey)"
+        for byte in blob.utf8 {
+            hash = ((hash << 5) &+ hash) &+ Int(byte)
+        }
+        return hash
+    }
+}
+
+// MARK: - Pop culture lens from profile
+
+private struct PopCultureLens: Equatable {
+    var tags: [String]
+
+    static func from(profile: UserBodyProfile?) -> PopCultureLens {
+        guard let profile else { return PopCultureLens(tags: ["default"]) }
+        let blob = [
+            profile.culturalVibe,
+            profile.location,
+            profile.ethnicity,
+            profile.preferredLanguage,
+            profile.dietPreference.rawValue,
+            profile.sex.rawValue
+        ]
+        .joined(separator: " ")
+        .lowercased()
+
+        var tags: [String] = []
+        if blob.contains("filip") || blob.contains("manila") || blob.contains("tagalog") {
+            tags.append("ph")
+        }
+        if blob.contains("french") || blob.contains("paris") || blob.contains("france") {
+            tags.append("fr")
+        }
+        if blob.contains("hong kong") || blob.contains("hk") || blob.contains("cantonese") {
+            tags.append("hk")
+        }
+        if blob.contains("japan") || blob.contains("tokyo") || blob.contains("anime") {
+            tags.append("jp")
+        }
+        if blob.contains("korean") || blob.contains("seoul") || blob.contains("k-pop") || blob.contains("kpop") {
+            tags.append("kr")
+        }
+        if blob.contains("american") || blob.contains("usa") || blob.contains("hollywood") || blob.contains("marvel") {
+            tags.append("us")
+        }
+        if blob.contains("british") || blob.contains("london") || blob.contains("uk") {
+            tags.append("uk")
+        }
+        if blob.contains("vegan") || blob.contains("vegetarian") {
+            tags.append("plant")
+        }
+        if tags.isEmpty { tags = ["default"] }
+        return PopCultureLens(tags: tags)
+    }
+
+    func sergeantPop(seed: Int) -> String {
+        let lines: [String]
+        if tags.contains("ph") {
+            lines = [
+                "This isn't Eat Bulaga, recruit. The scale kept score.",
+                "Walang 'one more lumpia' tonight. Mission first."
+            ]
+        } else if tags.contains("fr") {
+            lines = [
+                "Sacré bleu is not a meal plan. Close the kitchen.",
+                "Marie Antoinette energy detected. Let them eat protein."
+            ]
+        } else if tags.contains("jp") {
+            lines = [
+                "Main character arc rejected. Train like it's shonen week one.",
+                "Not today, snack demon. Bankai the leftovers into the bin."
+            ]
+        } else if tags.contains("kr") {
+            lines = [
+                "No encore for late-night snacks. Comeback stage needs discipline.",
+                "That was not the choreography. Reset the setlist at dinner."
+            ]
+        } else if tags.contains("hk") {
+            lines = [
+                "MTR closed. Kitchen closes too. March home without the cha chaan teng detour.",
+                "Central isn't forgiving. Neither is the kg."
+            ]
+        } else if tags.contains("uk") {
+            lines = [
+                "Keep calm and stop raiding the biscuit tin.",
+                "This isn't Bake Off. Step away from the sponge."
+            ]
+        } else if tags.contains("us") {
+            lines = [
+                "Rocky didn't hit the fridge after round twelve.",
+                "Avengers assemble... at the gym. Not the drive-thru."
+            ]
+        } else {
+            lines = [
+                "Sergeant Scale has entered the chat.",
+                "Drop the vibes. Pick up the fork schedule."
+            ]
+        }
+        return pick(lines, seed: seed)
+    }
+
+    func encouragePop(seed: Int) -> String {
+        let lines: [String]
+        if tags.contains("ph") {
+            lines = [
+                "Quiet flex. Even your tita would side-eye less.",
+                "Plot armour: boring meals. Keep it."
+            ]
+        } else if tags.contains("fr") {
+            lines = [
+                "Très chic restraint. Amélie would nod once and move on.",
+                "Michelin star for not improvising dessert."
+            ]
+        } else if tags.contains("jp") {
+            lines = [
+                "Training montage unlocked. Keep the arc clean.",
+                "Sensei Scale says: continue."
+            ]
+        } else if tags.contains("kr") {
+            lines = [
+                "Comeback trailer looks expensive. Stay on script.",
+                "That was a title-track weigh-in. No B-sides tonight."
+            ]
+        } else if tags.contains("hk") {
+            lines = [
+                "Harbour view energy without the buffet plot twist.",
+                "Peak tram discipline. Stay elevated."
+            ]
+        } else if tags.contains("uk") {
+            lines = [
+                "Stiff upper lip, softer midsection. Carry on.",
+                "Bond villain plot denied. You kept the volume down."
+            ]
+        } else if tags.contains("us") {
+            lines = [
+                "Endgame energy without the snack infinity stones.",
+                "That's a post-credit scene worth keeping."
+            ]
+        } else if tags.contains("plant") {
+            lines = [
+                "Plants did their job. You did yours. No victory pizza required.",
+                "Chlorophyll and discipline. Elite combo."
+            ]
+        } else {
+            lines = [
+                "Physics sent a high-five. Don't reply with cake.",
+                "Boring wins compound. Stay dull on purpose."
+            ]
+        }
+        return pick(lines, seed: seed &+ 11)
+    }
+
+    func skepticalPop(seed: Int) -> String {
+        let lines: [String]
+        if tags.contains("ph") {
+            lines = [
+                "Hmm. Like a teleserye cliffhanger. Resolve it at dinner.",
+                "The kg raised one eyebrow. Tagalog for 'prove it tomorrow'."
+            ]
+        } else if tags.contains("fr") {
+            lines = [
+                "Bof. The scale shrugged in French.",
+                "J'accuse... the sodium. Or the vibes. Investigate."
+            ]
+        } else if tags.contains("jp") {
+            lines = [
+                "Filler episode energy. Tomorrow needs plot.",
+                "Narrator voice: it was, in fact, not that deep. Yet."
+            ]
+        } else if tags.contains("kr") {
+            lines = [
+                "Mid-season hiatus vibes. Don't ghost the protein.",
+                "The fandom wants receipts. Kitchen closes on time."
+            ]
+        } else if tags.contains("us") {
+            lines = [
+                "Sure, Jan. The kg took notes.",
+                "Schrodinger's progress. Open the fridge carefully."
+            ]
+        } else if tags.contains("uk") {
+            lines = [
+                "Right then. Very interesting. Carry on, but less biscuits.",
+                "The weather of your weigh-in: cloudy with a chance of discipline."
+            ]
+        } else {
+            lines = [
+                "The plot thickens by 0.0-something. Keep cooking boring.",
+                "Side-eye deployed. Tomorrow still gets a vote."
+            ]
+        }
+        return pick(lines, seed: seed &+ 17)
+    }
+
+    func baselinePop(seed: Int) -> String {
+        let lines = [
+            "Origin story framed. Sequel starts at the next step-on.",
+            "Character sheet saved. Now play the level.",
+            "Pilot episode in the can. Don't cancel the series with snacks."
+        ]
+        return pick(lines, seed: seed)
+    }
+
+    private func pick(_ lines: [String], seed: Int) -> String {
+        guard !lines.isEmpty else { return "" }
+        return lines[abs(seed) % lines.count]
     }
 }
 

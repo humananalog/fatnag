@@ -113,6 +113,13 @@ struct ContentView: View {
                     .environmentObject(session)
             }
             .fullScreenCover(isPresented: Binding(
+                get: { session.isWeighInHeroPresented },
+                set: { if !$0 { session.dismissWeighInHero() } }
+            )) {
+                WeighInHeroMomentView()
+                    .environmentObject(session)
+            }
+            .fullScreenCover(isPresented: Binding(
                 get: { session.isResultsPresented },
                 set: { if !$0 { session.dismissResults() } }
             )) {
@@ -338,9 +345,9 @@ struct ContentView: View {
     }
 
     private func weighInAnalysisBlock(_ card: WeighInAnalysisCard) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(card.tone == .punish ? "COACH CHECK" : "WEIGH-IN")
+                Text(card.tone.badge)
                     .font(.system(size: 10, weight: .heavy, design: .rounded))
                     .tracking(0.8)
                     .foregroundStyle(atmosphere.ink.opacity(0.65))
@@ -352,16 +359,22 @@ struct ContentView: View {
                 .foregroundStyle(atmosphere.ink.opacity(0.7))
             }
             Text(card.headline)
-                .font(.system(size: 18, weight: .bold, design: .serif))
+                .font(.system(size: 20, weight: .bold, design: .serif))
                 .foregroundStyle(atmosphere.ink)
-                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
             Text(card.body)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundStyle(atmosphere.ink.opacity(0.82))
-                .lineLimit(2)
-                .minimumScaleFactor(0.85)
+                .fixedSize(horizontal: false, vertical: true)
+            if !card.popLine.isEmpty {
+                Text(card.popLine)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(atmosphere.ink.opacity(0.7))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
     }
 

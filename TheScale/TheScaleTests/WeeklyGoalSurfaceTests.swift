@@ -251,7 +251,7 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         XCTAssertFalse(eta.line.contains("—"))
     }
 
-    func testWeighInAnalysisPunishOnGainWhileCutting() {
+    func testWeighInAnalysisSergeantOnGainWhileCutting() {
         var goal = WeeklyMiniGoal.default
         goal.targetDeltaKg = -0.4
         let card = WeighInAnalysisEngine.build(
@@ -259,11 +259,45 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
             weighedKg: 84.5,
             previousKg: 84.0,
             weeklyGoal: goal,
-            idealKg: 78
+            idealKg: 78,
+            profile: .default
         )
-        XCTAssertEqual(card.tone, .punish)
-        XCTAssertTrue(card.headline.contains("Alex") || card.body.lowercased().contains("scale"))
+        XCTAssertEqual(card.tone, .sergeant)
+        XCTAssertTrue(card.headline.contains("Alex") || card.body.lowercased().contains("kg"))
         XCTAssertFalse(card.body.contains("—"))
         XCTAssertFalse(card.body.lowercased().contains("diagnos"))
+        XCTAssertFalse(card.popLine.isEmpty)
+    }
+
+    func testWeighInHeroEncourageOnSolidCut() {
+        var goal = WeeklyMiniGoal.default
+        goal.targetDeltaKg = -0.4
+        var profile = UserBodyProfile.default
+        profile.culturalVibe = "Filipina in Manila"
+        let card = WeighInAnalysisEngine.build(
+            name: "Alex",
+            weighedKg: 83.5,
+            previousKg: 84.0,
+            weeklyGoal: goal,
+            idealKg: 78,
+            profile: profile
+        )
+        XCTAssertEqual(card.tone, .encourage)
+        XCTAssertFalse(card.popLine.isEmpty)
+        XCTAssertFalse(card.popLine.contains("—"))
+    }
+
+    func testWeighInHeroSkepticalWhenFlat() {
+        var goal = WeeklyMiniGoal.default
+        goal.targetDeltaKg = -0.3
+        let card = WeighInAnalysisEngine.build(
+            name: "Alex",
+            weighedKg: 84.05,
+            previousKg: 84.0,
+            weeklyGoal: goal,
+            idealKg: 78
+        )
+        XCTAssertEqual(card.tone, .skeptical)
+        XCTAssertEqual(card.tone.badge, "SIDE-EYE")
     }
 }

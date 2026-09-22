@@ -8,7 +8,7 @@ private struct PaywallScrollOffsetKey: PreferenceKey {
     }
 }
 
-/// Luxury paywall sheet. Full-bleed hero fades into a dark tier panel. Width-safe.
+/// Luxury paywall sheet. Hero kisses the top edge; Close floats over it. Width-safe.
 struct PaywallView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @ObservedObject private var store = ScaleSubscriptionStore.shared
@@ -27,62 +27,76 @@ struct PaywallView: View {
     private let gold = Color(red: 0.82, green: 0.66, blue: 0.40)
     private let goldDeep = Color(red: 0.48, green: 0.36, blue: 0.18)
 
+    /// Room under the sheet drag gripper before chrome controls.
+    private let gripperClearance: CGFloat = 18
+
     private var heroName: String {
         session.profile.sex == .female ? "PaywallHeroFemale" : "PaywallHeroMale"
     }
 
-    /// Softens hero as you scroll the sheet content up.
     private var heroDim: Double {
         let progress = min(max(Double(-scrollY) / 220.0, 0), 1)
-        return 0.18 + progress * 0.55
+        return 0.12 + progress * 0.58
     }
 
     var body: some View {
-        NavigationStack {
-            GeometryReader { geo in
-                let width = geo.size.width
-                let heroHeight = min(max(geo.size.height * 0.46, 280), 420)
+        GeometryReader { geo in
+            let width = geo.size.width
+            let heroHeight = min(max(geo.size.height * 0.50, 300), 460)
 
-                ZStack(alignment: .top) {
-                    ink.ignoresSafeArea()
+            ZStack(alignment: .top) {
+                ink.ignoresSafeArea()
 
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: 0) {
-                            heroBlock(width: width, height: heroHeight)
-                                .background(
-                                    GeometryReader { proxy in
-                                        Color.clear.preference(
-                                            key: PaywallScrollOffsetKey.self,
-                                            value: proxy.frame(in: .named("paywallScroll")).minY
-                                        )
-                                    }
-                                )
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        heroBlock(width: width, height: heroHeight)
+                            .background(
+                                GeometryReader { proxy in
+                                    Color.clear.preference(
+                                        key: PaywallScrollOffsetKey.self,
+                                        value: proxy.frame(in: .named("paywallScroll")).minY
+                                    )
+                                }
+                            )
 
-                            panelContent
-                                .frame(width: width)
-                                .background(ink)
-                        }
+                        panelContent
+                            .frame(width: width)
+                            .background(ink)
                     }
-                    .coordinateSpace(name: "paywallScroll")
-                    .onPreferenceChange(PaywallScrollOffsetKey.self) { scrollY = $0 }
                 }
-                .frame(width: width, height: geo.size.height)
-                .clipped()
+                .coordinateSpace(name: "paywallScroll")
+                .onPreferenceChange(PaywallScrollOffsetKey.self) { scrollY = $0 }
+                .ignoresSafeArea(edges: .top)
+
+                // Close overlays the hero; sits below the system gripper.
+                HStack {
+                    Spacer(minLength: 0)
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(ivory)
+                            .frame(width: 32, height: 32)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .overlay(Circle().strokeBorder(ivory.opacity(0.22), lineWidth: 1))
+                    }
+                    .accessibilityLabel("Close")
+                    .padding(.trailing, 16)
+                    .padding(.top, gripperClearance)
+                }
+                .frame(maxWidth: .infinity, alignment: .topTrailing)
+                .zIndex(2)
             }
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundStyle(ivory.opacity(0.92))
-                }
-            }
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .task { await store.refresh() }
-            .preferredColorScheme(.dark)
-            .onAppear {
-                withAnimation(.easeOut(duration: 0.55)) {
-                    appeared = true
-                }
+            .frame(width: width, height: geo.size.height)
+            .clipped()
+        }
+        .background(ink.ignoresSafeArea())
+        .task { await store.refresh() }
+        .preferredColorScheme(.dark)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.55)) {
+                appeared = true
             }
         }
     }
@@ -98,28 +112,26 @@ struct PaywallView: View {
                 .clipped()
                 .accessibilityHidden(true)
 
-            // Top vignette for Close readability
+            // Soft top wash so gripper + Close stay readable
             LinearGradient(
-                colors: [ink.opacity(0.55), .clear],
+                colors: [ink.opacity(0.42), .clear],
                 startPoint: .top,
-                endPoint: .center
+                endPoint: UnitPoint(x: 0.5, y: 0.28)
             )
-            .frame(height: height * 0.42)
-            .frame(maxHeight: .infinity, alignment: .top)
             .allowsHitTesting(false)
 
             // Bottom dissolve into the panel
             LinearGradient(
                 colors: [
                     .clear,
-                    ink.opacity(0.35),
-                    ink.opacity(0.88),
+                    ink.opacity(0.28),
+                    ink.opacity(0.86),
                     ink
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(height: height * 0.58)
+            .frame(height: height * 0.55)
             .frame(maxHeight: .infinity, alignment: .bottom)
             .allowsHitTesting(false)
 

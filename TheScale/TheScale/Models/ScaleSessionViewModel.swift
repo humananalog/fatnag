@@ -127,8 +127,13 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var isMealPlanPresented = false
     @Published private(set) var mealPlan: MealPlanPayload?
     @Published private(set) var isMealPlanLoading = false
-    /// Hero coach card after a successful weigh-in (congratulate / reward / punish).
+    /// Hero coach card after a successful weigh-in (sergeant / encourage / skeptical).
     @Published private(set) var lastWeighInAnalysis: WeighInAnalysisCard?
+    /// Full-screen hero moment shown right after a weigh-in before History.
+    @Published private(set) var isWeighInHeroPresented = false
+    /// Offer Monday card after the hero moment dismisses.
+    private var pendingMondayAfterHero = false
+    private var pendingMondayWeighKg: Double?
     /// True while 10s auto-confirm countdown is armed on the live sheet.
     @Published var autoConfirmArmed = false
     @Published var autoConfirmSecondsRemaining = 10
@@ -401,6 +406,28 @@ final class ScaleSessionViewModel: ObservableObject {
         lastWeighInAnalysis = nil
     }
 
+    /// Close the post-weigh hero moment, then open History (and Monday card if queued).
+    func dismissWeighInHero() {
+        isWeighInHeroPresented = false
+        isResultsPresented = true
+        let offerMonday = pendingMondayAfterHero
+        let kg = pendingMondayWeighKg
+        pendingMondayAfterHero = false
+        pendingMondayWeighKg = nil
+        guard offerMonday, let kg else { return }
+        Task {
+            await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
+        }
+    }
+
+    #if DEBUG
+    /// Preview / debug injection for hero moment UI.
+    func previewInjectWeighInHero(_ card: WeighInAnalysisCard) {
+        lastWeighInAnalysis = card
+        isWeighInHeroPresented = true
+    }
+    #endif
+
     func dismissResults() {
         isResultsPresented = false
         // Settle home first so the soft sheet never fights the results dismiss.
@@ -422,6 +449,7 @@ final class ScaleSessionViewModel: ObservableObject {
               !isMondayCardPresented,
               !isSettingsPresented,
               !isWeighInPresented,
+              !isWeighInHeroPresented,
               !isResultsPresented,
               !isProgressPresented
         else { return }
@@ -1439,16 +1467,14 @@ final class ScaleSessionViewModel: ObservableObject {
                 previousKg: priorKg,
                 weeklyGoal: weeklyGoal,
                 idealKg: profile.idealWeightKg,
+                profile: profile,
                 chartCommentsBlock: ChartCommentStore.analysisPayload()
             )
             rebuildWeeklyGoalSurface()
             let offerMonday = MondayCardEngine.shouldOfferAfterWeighIn()
-            if offerMonday {
-                isResultsPresented = true
-                await presentMondayCardIfNeeded(weighInKg: weighKg, force: false, regenerate: false)
-            } else {
-                isResultsPresented = true
-            }
+            pendingMondayAfterHero = offerMonday
+            pendingMondayWeighKg = offerMonday ? weighKg : nil
+            isWeighInHeroPresented = true
         } catch {
             phase = .healthKitFailed(error.localizedDescription)
         }
