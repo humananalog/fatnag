@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Profile, notifications, Grok consent, calibration. Live capture uses the weigh-in sheet.
+/// Profile, AI usage, Coach, Health, calibration, legal.
 struct SettingsView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @ObservedObject private var subscription = ScaleSubscriptionStore.shared
@@ -15,26 +15,41 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable {
-        case reference
-        case offset
-        case name
+        case name, height, age, targetWeight, bodyFat
+        case location, ethnicity, language, vibe
+        case reference, offset
+        case preSleepWindow, preSleepHR
     }
+
+    private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
+    private let steel = Color(red: 0.35, green: 0.37, blue: 0.40)
+    private let accent = Color(red: 0.18, green: 0.52, blue: 0.62)
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 28) {
+                sectionLabel("You")
                 profileCard
+
+                sectionLabel("Weekly AI")
                 planCard
-                personaCard
+
+                sectionLabel("Coach")
+                coachCard
+
+                sectionLabel("Alerts & Health")
                 notificationsCard
                 fitnessMonitorCard
-                appleIntelligenceCard
-                grokCard
+
+                sectionLabel("Scale")
                 calibrationCard
+
+                sectionLabel("Privacy & Legal")
                 privacyCard
                 legalCard
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
         }
         .task {
             await refreshNotificationStatus()
@@ -64,7 +79,8 @@ struct SettingsView: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") { focusedField = nil }
+                Button("Done") { dismissKeyboard() }
+                    .fontWeight(.semibold)
             }
         }
         .alert("Reset calibration?", isPresented: $confirmReset) {
@@ -77,379 +93,428 @@ struct SettingsView: View {
         }
     }
 
+    private func dismissKeyboard() {
+        focusedField = nil
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
+    }
+
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundStyle(steel)
+            .tracking(0.8)
+            .padding(.bottom, -12)
+    }
+
+    private func settingsPanel<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.white.opacity(0.78), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    // MARK: - Weekly AI
+
     private var planCard: some View {
         let snap = subscription.quotaSnapshot
-        return VStack(alignment: .leading, spacing: 12) {
-            Label("Weekly AI usage", systemImage: "chart.bar.fill")
-                .font(.headline)
-            Text("Live Grok credits for Coach chat, Monday card, fitness checks, and meal plans. Weigh-in, Health, charts, and on-device Coach stay unlimited. Pool resets Monday.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        return settingsPanel {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Online AI usage", systemImage: "chart.bar.fill")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text("Live Grok for chat, Monday card, fitness checks, and meal plans. On-device Coach stays unlimited. Resets Monday.")
+                    .font(.footnote)
+                    .foregroundStyle(steel)
 
-            HStack(alignment: .firstTextBaseline) {
-                Text(subscription.plan.displayName)
-                    .font(.title3.weight(.semibold))
-                Spacer()
-                Text(subscription.plan.priceLabel)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(snap.percentLine)
-                        .font(.subheadline.weight(.semibold))
+                HStack(alignment: .firstTextBaseline) {
+                    Text(subscription.plan.displayName)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(ink)
                     Spacer()
-                    Text("\(snap.percentUsed)%")
-                        .font(.title2.weight(.bold).monospacedDigit())
-                        .foregroundStyle(snap.isExhausted ? Color.orange : Color.primary)
+                    Text(subscription.plan.priceLabel)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(steel)
                 }
-                ProgressView(value: Double(snap.percentUsed), total: 100)
-                    .tint(snap.isExhausted ? .orange : Color(red: 0.18, green: 0.52, blue: 0.62))
-                HStack {
-                    Text(snap.usageCountLine)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(snap.remaining) left")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(snap.isExhausted ? .orange : .secondary)
-                }
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                (snap.isExhausted ? Color.orange.opacity(0.10) : Color(red: 0.18, green: 0.52, blue: 0.62).opacity(0.08)),
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-            )
 
-            Text(subscription.plan.blurb)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if let target = subscription.plan.upgradeTarget {
-                Button {
-                    showPaywall = true
-                } label: {
-                    Label(
-                        snap.isExhausted
-                            ? "Upgrade to \(target.displayName)"
-                            : "Upgrade to \(target.displayName) · \(target.weeklyGrokCredits)/wk",
-                        systemImage: "arrow.up.circle.fill"
-                    )
-                    .frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(snap.percentLine)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(ink)
+                        Spacer()
+                        Text("\(snap.percentUsed)%")
+                            .font(.title2.weight(.bold).monospacedDigit())
+                            .foregroundStyle(snap.isExhausted ? Color.orange : ink)
+                    }
+                    ProgressView(value: Double(snap.percentUsed), total: 100)
+                        .tint(snap.isExhausted ? .orange : accent)
+                    HStack {
+                        Text(snap.usageCountLine)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(steel)
+                        Spacer()
+                        Text("\(snap.remaining) left")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(snap.isExhausted ? .orange : steel)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(snap.isExhausted ? .orange : Color(red: 0.18, green: 0.52, blue: 0.62))
-            } else {
-                Button {
-                    showPaywall = true
-                } label: {
-                    Label("Manage plans", systemImage: "creditcard")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-
-            #if DEBUG
-            Picker(
-                "DEBUG plan override",
-                selection: Binding(
-                    get: { subscription.debugOverride ?? subscription.plan },
-                    set: { subscription.debugOverride = $0 }
+                .padding(12)
+                .background(
+                    (snap.isExhausted ? Color.orange.opacity(0.10) : accent.opacity(0.08)),
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                 )
-            ) {
-                ForEach(ScalePlan.allCases) { plan in
-                    Text(plan.displayName).tag(plan)
+
+                if let target = subscription.plan.upgradeTarget {
+                    Button {
+                        dismissKeyboard()
+                        showPaywall = true
+                    } label: {
+                        Label(
+                            snap.isExhausted
+                                ? "Upgrade to \(target.displayName)"
+                                : "Upgrade to \(target.displayName) · \(target.weeklyGrokCredits)/wk",
+                            systemImage: "arrow.up.circle.fill"
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(snap.isExhausted ? .orange : accent)
+                } else {
+                    Button {
+                        dismissKeyboard()
+                        showPaywall = true
+                    } label: {
+                        Label("Manage plans", systemImage: "creditcard")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                 }
+
+                #if DEBUG
+                Picker(
+                    "DEBUG plan override",
+                    selection: Binding(
+                        get: { subscription.debugOverride ?? subscription.plan },
+                        set: { subscription.debugOverride = $0 }
+                    )
+                ) {
+                    ForEach(ScalePlan.allCases) { plan in
+                        Text(plan.displayName).tag(plan)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Button("DEBUG reset weekly quota") {
+                    CoachWeeklyQuota.debugReset()
+                    subscription.noteQuotaChange()
+                }
+                .font(.caption)
+                #endif
             }
-            .pickerStyle(.segmented)
-            Button("DEBUG reset weekly quota") {
-                CoachWeeklyQuota.debugReset()
-                subscription.noteQuotaChange()
-            }
-            .font(.caption)
-            #endif
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .id(subscription.quotaEpoch)
     }
 
+    // MARK: - You
+
     private var profileCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Your profile")
-                .font(.headline)
-            Text("Used on-device for body fat math, greetings, and optional coaching tone.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Profile")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text("On-device for body fat, greetings, and Coach tone.")
+                    .font(.footnote)
+                    .foregroundStyle(steel)
 
-            HStack {
-                Text("Name")
-                Spacer()
-                TextField("Name", text: $session.profile.displayName)
-                    .focused($focusedField, equals: .name)
-                    .multilineTextAlignment(.trailing)
-                    .textContentType(.givenName)
-            }
-
-            HStack {
-                Text("Height")
-                Spacer()
-                TextField(
-                    session.preferredUnits.heightLabel,
-                    value: Binding(
-                        get: {
-                            UnitFormat.height(fromCm: session.profile.heightCm, system: session.preferredUnits)
-                        },
-                        set: { display in
-                            session.profile.heightCm = UnitFormat.cm(fromHeight: display, system: session.preferredUnits)
-                        }
-                    ),
-                    format: .number.precision(.fractionLength(session.preferredUnits == .metric ? 0 : 1))
-                )
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 72)
-                Text(session.preferredUnits.heightLabel).foregroundStyle(.secondary)
-            }
-
-            HStack {
-                Text("Age")
-                Spacer()
-                TextField(
-                    "years",
-                    value: $session.profile.ageYears,
-                    format: .number.precision(.fractionLength(0))
-                )
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 72)
-                Text("yr").foregroundStyle(.secondary)
-            }
-
-            HStack {
-                Text("Target weight")
-                Spacer()
-                TextField(
-                    session.preferredUnits.massLabel,
-                    value: Binding(
-                        get: {
-                            UnitFormat.mass(fromKg: session.profile.idealWeightKg, system: session.preferredUnits)
-                        },
-                        set: { display in
-                            session.profile.idealWeightKg = UnitFormat.kg(fromMass: display, system: session.preferredUnits)
-                        }
-                    ),
-                    format: .number.precision(.fractionLength(1))
-                )
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 72)
-                Text(session.preferredUnits.massLabel).foregroundStyle(.secondary)
-            }
-
-            Picker("Units", selection: $session.preferredUnits) {
-                ForEach(PreferredUnitSystem.allCases) { system in
-                    Text(system.shortTitle).tag(system)
+                fieldRow("Name") {
+                    TextField("Name", text: $session.profile.displayName)
+                        .focused($focusedField, equals: .name)
+                        .multilineTextAlignment(.trailing)
+                        .textContentType(.givenName)
                 }
-            }
-            .pickerStyle(.segmented)
 
-            Text("Used for weight, height, portions, meal plan, and Coach. Apple Health stays metric under the hood.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-
-            DatePicker(
-                "Goal date",
-                selection: Binding(
-                    get: { session.profile.goalDate ?? Calendar.current.date(byAdding: .month, value: 3, to: Date())! },
-                    set: { session.profile.goalDate = $0 }
-                ),
-                displayedComponents: .date
-            )
-            Toggle(
-                "Use goal date for Monday pacing",
-                isOn: Binding(
-                    get: { session.profile.goalDate != nil },
-                    set: { on in
-                        if on {
-                            if session.profile.goalDate == nil {
-                                session.profile.goalDate = Calendar.current.date(byAdding: .month, value: 3, to: Date())
-                            }
-                        } else {
-                            session.profile.goalDate = nil
-                        }
+                Picker("Units", selection: $session.preferredUnits) {
+                    ForEach(PreferredUnitSystem.allCases) { system in
+                        Text(system.shortTitle).tag(system)
                     }
-                )
-            )
-            .font(.footnote)
+                }
+                .pickerStyle(.segmented)
 
-            HStack {
-                Text("Target body fat")
-                Spacer()
-                TextField(
-                    "%",
-                    value: Binding(
-                        get: { session.profile.idealBodyFatPercent ?? 0 },
-                        set: { session.profile.idealBodyFatPercent = $0 > 0.05 ? $0 : nil }
+                Text("Weight, height, portions, meal plan, and Coach use this. Health stays metric under the hood.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+
+                fieldRow("Height") {
+                    TextField(
+                        session.preferredUnits.heightLabel,
+                        value: Binding(
+                            get: {
+                                UnitFormat.height(fromCm: session.profile.heightCm, system: session.preferredUnits)
+                            },
+                            set: { display in
+                                session.profile.heightCm = UnitFormat.cm(fromHeight: display, system: session.preferredUnits)
+                            }
+                        ),
+                        format: .number.precision(.fractionLength(session.preferredUnits == .metric ? 0 : 1))
+                    )
+                    .focused($focusedField, equals: .height)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 72)
+                    Text(session.preferredUnits.heightLabel).foregroundStyle(steel)
+                }
+
+                fieldRow("Age") {
+                    TextField(
+                        "years",
+                        value: $session.profile.ageYears,
+                        format: .number.precision(.fractionLength(0))
+                    )
+                    .focused($focusedField, equals: .age)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 72)
+                    Text("yr").foregroundStyle(steel)
+                }
+
+                fieldRow("Target weight") {
+                    TextField(
+                        session.preferredUnits.massLabel,
+                        value: Binding(
+                            get: {
+                                UnitFormat.mass(fromKg: session.profile.idealWeightKg, system: session.preferredUnits)
+                            },
+                            set: { display in
+                                session.profile.idealWeightKg = UnitFormat.kg(fromMass: display, system: session.preferredUnits)
+                            }
+                        ),
+                        format: .number.precision(.fractionLength(1))
+                    )
+                    .focused($focusedField, equals: .targetWeight)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 72)
+                    Text(session.preferredUnits.massLabel).foregroundStyle(steel)
+                }
+
+                fieldRow("Target body fat") {
+                    TextField(
+                        "%",
+                        value: Binding(
+                            get: { session.profile.idealBodyFatPercent ?? 0 },
+                            set: { session.profile.idealBodyFatPercent = $0 > 0.05 ? $0 : nil }
+                        ),
+                        format: .number.precision(.fractionLength(1))
+                    )
+                    .focused($focusedField, equals: .bodyFat)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 72)
+                    Text("%").foregroundStyle(steel)
+                }
+
+                DatePicker(
+                    "Goal date",
+                    selection: Binding(
+                        get: { session.profile.goalDate ?? Calendar.current.date(byAdding: .month, value: 3, to: Date())! },
+                        set: { session.profile.goalDate = $0 }
                     ),
-                    format: .number.precision(.fractionLength(1))
+                    displayedComponents: .date
                 )
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 72)
-                Text("%").foregroundStyle(.secondary)
-            }
-
-            Picker("Sex", selection: $session.profile.sex) {
-                ForEach(UserBodyProfile.Sex.allCases) { sex in
-                    Text(sex.title).tag(sex)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            Picker("Diet", selection: $session.profile.dietPreference) {
-                ForEach(DietPreference.allCases) { diet in
-                    Text(diet.title).tag(diet)
-                }
-            }
-            .pickerStyle(.menu)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    private var personaCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Coach persona")
-                .font(.headline)
-            Text("Location, culture, language, and vibe shape Coach tone. On-device only until you consent to a Grok ask.")
+                Toggle(
+                    "Use goal date for Monday pacing",
+                    isOn: Binding(
+                        get: { session.profile.goalDate != nil },
+                        set: { on in
+                            if on {
+                                if session.profile.goalDate == nil {
+                                    session.profile.goalDate = Calendar.current.date(byAdding: .month, value: 3, to: Date())
+                                }
+                            } else {
+                                session.profile.goalDate = nil
+                            }
+                        }
+                    )
+                )
                 .font(.footnote)
-                .foregroundStyle(.secondary)
 
-            TextField("Location (e.g. Manila, Hong Kong)", text: $session.profile.location)
-            TextField("Ethnicity / culture", text: $session.profile.ethnicity)
-            TextField("Preferred language", text: $session.profile.preferredLanguage)
-            TextField(
-                "Vibe (e.g. Filipina in Manila; French in HK preferring American culture)",
-                text: $session.profile.culturalVibe,
-                axis: .vertical
-            )
-            .lineLimit(2...4)
+                Picker("Sex", selection: $session.profile.sex) {
+                    ForEach(UserBodyProfile.Sex.allCases) { sex in
+                        Text(sex.title).tag(sex)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Picker("Diet", selection: $session.profile.dietPreference) {
+                    ForEach(DietPreference.allCases) { diet in
+                        Text(diet.title).tag(diet)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
+
+    private func fieldRow<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(ink)
+            Spacer()
+            content()
+        }
+    }
+
+    // MARK: - Coach
+
+    private var coachCard: some View {
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Persona & AI")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text("Tone stays on-device until you consent to a live Grok ask.")
+                    .font(.footnote)
+                    .foregroundStyle(steel)
+
+                TextField("Location (e.g. Manila, Hong Kong)", text: $session.profile.location)
+                    .focused($focusedField, equals: .location)
+                TextField("Ethnicity / culture", text: $session.profile.ethnicity)
+                    .focused($focusedField, equals: .ethnicity)
+                TextField("Preferred language", text: $session.profile.preferredLanguage)
+                    .focused($focusedField, equals: .language)
+                TextField(
+                    "Vibe (short coach-facing note)",
+                    text: $session.profile.culturalVibe,
+                    axis: .vertical
+                )
+                .focused($focusedField, equals: .vibe)
+                .lineLimit(2...4)
+
+                Divider().padding(.vertical, 4)
+
+                Toggle(
+                    "Allow Grok coach requests",
+                    isOn: Binding(
+                        get: { GrokPrivacyConsent.isAccepted },
+                        set: { GrokPrivacyConsent.isAccepted = $0 }
+                    )
+                )
+                Text(GrokSharedConfig.statusSummary)
+                    .font(.caption)
+                    .foregroundStyle(steel)
+
+                Text(FoundationModelAvailability.statusSummary)
+                    .font(.caption)
+                    .foregroundStyle(steel)
+                Text("Apple Intelligence polishes private copy on-device. Grok handles live multi-agent Coach when consented.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+            }
+        }
+    }
+
+    // MARK: - Alerts
 
     private var notificationsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Notifications", systemImage: "bell.badge")
-                .font(.headline)
-            Text("SOTA local banners: title / subtitle / body, threads, actions (Open Coach, Progress, History, Snooze), Coach communication chrome when the Communication Notifications capability is active, and a small visual. Time Sensitive is requested for wake pings you asked for (requires the Time Sensitive capability in your Apple Developer app ID). FM can sharpen copy after schedule; never blocks. Focus/DND can still silence banners.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Notifications", systemImage: "bell.badge")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text("Local banners with actions. Focus/DND can still silence them.")
+                    .font(.footnote)
+                    .foregroundStyle(steel)
 
-            Text(notificationAuthLine)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 8) {
-                Button {
-                    Task {
-                        _ = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
-                        await refreshNotificationStatus()
-                    }
-                } label: {
-                    Label("Request permission", systemImage: "bell")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-
-                Button {
-                    openNotificationSettings()
-                } label: {
-                    Label("System Settings", systemImage: "gear")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Toggle(
-                "Bad-trend alerts",
-                isOn: Binding(
-                    get: { session.notificationPreferences.notifyOnBadTrend },
-                    set: {
-                        var next = session.notificationPreferences
-                        next.notifyOnBadTrend = $0
-                        session.notificationPreferences = next
-                        Task { await session.refreshTrendNotifications() }
-                    }
-                )
-            )
-            Toggle(
-                "Weekly mini-goal reminder",
-                isOn: Binding(
-                    get: { session.notificationPreferences.weeklyGoalReminders },
-                    set: {
-                        var next = session.notificationPreferences
-                        next.weeklyGoalReminders = $0
-                        session.notificationPreferences = next
-                        Task { await session.refreshTrendNotifications() }
-                    }
-                )
-            )
-
-            Text("Coach reminders")
-                .font(.caption.weight(.semibold))
-                .padding(.top, 4)
-
-            if pendingCoachReminders.isEmpty {
-                Text("No pending Coach reminders.")
+                Text(notificationAuthLine)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(pendingCoachReminders) { item in
-                    HStack(alignment: .top, spacing: 10) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.title)
-                                .font(.caption.weight(.semibold))
-                            if let fire = item.nextFire {
-                                Text(fire.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(item.body)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
+                    .foregroundStyle(steel)
+
+                HStack(spacing: 8) {
+                    Button {
+                        Task {
+                            _ = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
+                            await refreshNotificationStatus()
                         }
-                        Spacer(minLength: 0)
-                        Button("Cancel") {
-                            CoachReminderScheduler.cancelCoachReminder(id: item.id)
-                            Task { await refreshNotificationStatus() }
-                        }
-                        .font(.caption)
-                        .buttonStyle(.bordered)
+                    } label: {
+                        Label("Allow", systemImage: "bell")
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        openNotificationSettings()
+                    } label: {
+                        Label("System", systemImage: "gear")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                 }
 
-                Button("Cancel all Coach reminders") {
-                    Task {
-                        await CoachReminderScheduler.cancelAllCoachReminders()
-                        await refreshNotificationStatus()
+                Toggle(
+                    "Bad-trend alerts",
+                    isOn: Binding(
+                        get: { session.notificationPreferences.notifyOnBadTrend },
+                        set: {
+                            var next = session.notificationPreferences
+                            next.notifyOnBadTrend = $0
+                            session.notificationPreferences = next
+                            Task { await session.refreshTrendNotifications() }
+                        }
+                    )
+                )
+                Toggle(
+                    "Weekly mini-goal reminder",
+                    isOn: Binding(
+                        get: { session.notificationPreferences.weeklyGoalReminders },
+                        set: {
+                            var next = session.notificationPreferences
+                            next.weeklyGoalReminders = $0
+                            session.notificationPreferences = next
+                            Task { await session.refreshTrendNotifications() }
+                        }
+                    )
+                )
+
+                if !pendingCoachReminders.isEmpty {
+                    Text("Pending Coach reminders")
+                        .font(.caption.weight(.semibold))
+                        .padding(.top, 4)
+                    ForEach(pendingCoachReminders) { item in
+                        HStack(alignment: .top, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title)
+                                    .font(.caption.weight(.semibold))
+                                if let fire = item.nextFire {
+                                    Text(fire.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.caption2)
+                                        .foregroundStyle(steel)
+                                }
+                            }
+                            Spacer(minLength: 0)
+                            Button("Cancel") {
+                                CoachReminderScheduler.cancelCoachReminder(id: item.id)
+                                Task { await refreshNotificationStatus() }
+                            }
+                            .font(.caption)
+                            .buttonStyle(.bordered)
+                        }
                     }
+                    Button("Cancel all Coach reminders") {
+                        Task {
+                            await CoachReminderScheduler.cancelAllCoachReminders()
+                            await refreshNotificationStatus()
+                        }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.bordered)
                 }
-                .font(.caption)
-                .buttonStyle(.bordered)
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func refreshNotificationStatus() async {
@@ -465,154 +530,152 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Health
+
     private var fitnessMonitorCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Health ↔ Grok monitoring", systemImage: "heart.text.square")
-                .font(.headline)
-            Text("Reads HR, RHR, HRV (SDNN), respiratory rate, wrist temperature, SpO2, VO2 max, sleep (stages when available), steps, active energy, Exercise Time, walking/running distance, and workouts from Apple Health (after permission). Coach refreshes this dated digest on every ask. Third-party apps (AllTrails, Strava, etc.) only appear after they write into Apple Health. The Scale never reads those apps directly. Background: HKObserverQuery + enableBackgroundDelivery wake the process for key types; BGAppRefresh / BGProcessing are backups. iOS still throttles. Local notifications can land without opening the app.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Apple Health", systemImage: "heart.text.square")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text("Coach reads HealthKit after permission. Third-party apps only appear if they write to Health.")
+                    .font(.footnote)
+                    .foregroundStyle(steel)
 
-            Text("Health status")
-                .font(.caption.weight(.semibold))
-            Text(session.healthAccessStatusLine)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(session.healthAccessStatusLine)
+                    .font(.caption)
+                    .foregroundStyle(steel)
+                Text(healthBackgroundLine)
+                    .font(.caption2)
+                    .foregroundStyle(steel)
 
-            Text(healthBackgroundLine)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Button {
+                        Task { await session.requestHealthAccessFromSettings() }
+                    } label: {
+                        Label("Allow Health", systemImage: "heart.text.square.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(accent)
 
-            HStack(spacing: 8) {
-                Button {
-                    Task { await session.requestHealthAccessFromSettings() }
-                } label: {
-                    Label("Allow Health access", systemImage: "heart.text.square.fill")
-                        .frame(maxWidth: .infinity)
+                    Button {
+                        openAppleHealth()
+                    } label: {
+                        Label("Open", systemImage: "arrow.up.right.square")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.borderedProminent)
+
+                Toggle(
+                    "Fitness monitoring",
+                    isOn: Binding(
+                        get: { session.fitnessMonitorPreferences.enabled },
+                        set: {
+                            var next = session.fitnessMonitorPreferences
+                            next.enabled = $0
+                            session.fitnessMonitorPreferences = next
+                            if $0 {
+                                Task { _ = await session.runFitnessMonitorCheck(force: true) }
+                            }
+                        }
+                    )
+                )
+
+                Picker(
+                    "Check interval",
+                    selection: Binding(
+                        get: { session.fitnessMonitorPreferences.interval },
+                        set: {
+                            var next = session.fitnessMonitorPreferences
+                            next.interval = $0
+                            session.fitnessMonitorPreferences = next
+                        }
+                    )
+                ) {
+                    ForEach(GrokCheckInterval.allCases) { interval in
+                        Text(interval.title).tag(interval)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Toggle(
+                    "Notify on Watch / sleep-HR signals",
+                    isOn: Binding(
+                        get: { session.fitnessMonitorPreferences.notifyOnTriggers },
+                        set: {
+                            var next = session.fitnessMonitorPreferences
+                            next.notifyOnTriggers = $0
+                            session.fitnessMonitorPreferences = next
+                        }
+                    )
+                )
+
+                fieldRow("Pre-sleep HR window") {
+                    TextField(
+                        "min",
+                        value: Binding(
+                            get: { session.fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes },
+                            set: {
+                                var next = session.fitnessMonitorPreferences
+                                next.thresholds.preSleepHRWindowMinutes = max(10, min($0, 90))
+                                session.fitnessMonitorPreferences = next
+                            }
+                        ),
+                        format: .number
+                    )
+                    .focused($focusedField, equals: .preSleepWindow)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 48)
+                    Text("min").foregroundStyle(steel)
+                }
+                .font(.footnote)
+
+                fieldRow("Flag if pre-sleep HR ≥") {
+                    TextField(
+                        "bpm",
+                        value: Binding(
+                            get: { session.fitnessMonitorPreferences.thresholds.preSleepHRAbsoluteBpm },
+                            set: {
+                                var next = session.fitnessMonitorPreferences
+                                next.thresholds.preSleepHRAbsoluteBpm = max(60, min($0, 140))
+                                session.fitnessMonitorPreferences = next
+                            }
+                        ),
+                        format: .number.precision(.fractionLength(0))
+                    )
+                    .focused($focusedField, equals: .preSleepHR)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 48)
+                    Text("bpm").foregroundStyle(steel)
+                }
+                .font(.footnote)
 
                 Button {
-                    openAppleHealth()
+                    Task { _ = await session.runFitnessMonitorCheck(force: true) }
                 } label: {
-                    Label("Open Health", systemImage: "arrow.up.right.square")
+                    Label("Run check now", systemImage: "arrow.triangle.2.circlepath")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
-            }
 
-            Toggle(
-                "Enable fitness monitoring",
-                isOn: Binding(
-                    get: { session.fitnessMonitorPreferences.enabled },
-                    set: {
-                        var next = session.fitnessMonitorPreferences
-                        next.enabled = $0
-                        session.fitnessMonitorPreferences = next
-                        if $0 {
-                            Task { _ = await session.runFitnessMonitorCheck(force: true) }
-                        }
-                    }
-                )
-            )
-
-            Picker(
-                "Check interval",
-                selection: Binding(
-                    get: { session.fitnessMonitorPreferences.interval },
-                    set: {
-                        var next = session.fitnessMonitorPreferences
-                        next.interval = $0
-                        session.fitnessMonitorPreferences = next
-                    }
-                )
-            ) {
-                ForEach(GrokCheckInterval.allCases) { interval in
-                    Text(interval.title).tag(interval)
+                if let reply = session.lastFitnessCoachReply {
+                    Text("Last Coach note")
+                        .font(.caption.weight(.semibold))
+                    Text(reply)
+                        .font(.caption)
+                        .foregroundStyle(steel)
+                }
+                if !session.lastFitnessTriggers.isEmpty {
+                    Text(session.lastFitnessTriggers.map(\.message).joined(separator: "\n"))
+                        .font(.caption2)
+                        .foregroundStyle(steel)
                 }
             }
-            .pickerStyle(.menu)
-
-            Toggle(
-                "Notify on bad Watch / sleep-HR signals",
-                isOn: Binding(
-                    get: { session.fitnessMonitorPreferences.notifyOnTriggers },
-                    set: {
-                        var next = session.fitnessMonitorPreferences
-                        next.notifyOnTriggers = $0
-                        session.fitnessMonitorPreferences = next
-                    }
-                )
-            )
-
-            HStack {
-                Text("Pre-sleep HR window")
-                Spacer()
-                TextField(
-                    "min",
-                    value: Binding(
-                        get: { session.fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes },
-                        set: {
-                            var next = session.fitnessMonitorPreferences
-                            next.thresholds.preSleepHRWindowMinutes = max(10, min($0, 90))
-                            session.fitnessMonitorPreferences = next
-                        }
-                    ),
-                    format: .number
-                )
-                .keyboardType(.numberPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 48)
-                Text("min").foregroundStyle(.secondary)
-            }
-            .font(.footnote)
-
-            HStack {
-                Text("Flag if pre-sleep HR ≥")
-                Spacer()
-                TextField(
-                    "bpm",
-                    value: Binding(
-                        get: { session.fitnessMonitorPreferences.thresholds.preSleepHRAbsoluteBpm },
-                        set: {
-                            var next = session.fitnessMonitorPreferences
-                            next.thresholds.preSleepHRAbsoluteBpm = max(60, min($0, 140))
-                            session.fitnessMonitorPreferences = next
-                        }
-                    ),
-                    format: .number.precision(.fractionLength(0))
-                )
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 48)
-                Text("bpm").foregroundStyle(.secondary)
-            }
-            .font(.footnote)
-
-            Button {
-                Task { _ = await session.runFitnessMonitorCheck(force: true) }
-            } label: {
-                Label("Run check now", systemImage: "arrow.triangle.2.circlepath")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-
-            if let reply = session.lastFitnessCoachReply {
-                Text("Last Coach note")
-                    .font(.caption.weight(.semibold))
-                Text(reply)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            if !session.lastFitnessTriggers.isEmpty {
-                Text(session.lastFitnessTriggers.map(\.message).joined(separator: "\n"))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .task {
             _ = await session.refreshFitnessDigestForCoach()
             healthBackgroundLine = HealthKitBackgroundDelivery.shared.statusLine()
@@ -627,73 +690,19 @@ struct SettingsView: View {
         }
     }
 
-    private var appleIntelligenceCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Apple Intelligence", systemImage: "brain.head.profile")
-                .font(.headline)
-            Text("On-device Foundation Models polish notification copy, help decide whether a ping is worth it, and summarize private Health digests when Grok is offline. Nothing leaves the phone for these.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Text(FoundationModelAvailability.statusSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text("Hybrid: FM for private snippets + notification judgment. Grok Worker for full multi-agent Coach when online and consented.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    private var grokCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Grok coach", systemImage: "sparkles")
-                .font(.headline)
-            Text("Shared for every install of this build. You never paste an API key here. Coach sends only a short trend / chat / fitness digest after consent. If the proxy URL is broken, you'll see a clear error (not a fake offline roast).")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            Toggle(
-                "Allow Grok coach requests",
-                isOn: Binding(
-                    get: { GrokPrivacyConsent.isAccepted },
-                    set: { GrokPrivacyConsent.isAccepted = $0 }
-                )
-            )
-
-            Text(GrokSharedConfig.statusSummary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text(
-                GrokSharedConfig.isLiveConfigured
-                    ? "Live Grok ready when consent is on."
-                    : "Offline mock until the operator sets GROK_PROXY_URL in TheScale.xcconfig and rebuilds."
-            )
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
+    // MARK: - Scale
 
     private var calibrationCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Label("Weight calibration", systemImage: "slider.horizontal.3")
-                .font(.headline)
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 14) {
+                Label("Weight calibration", systemImage: "slider.horizontal.3")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text("Enter true mass, open the live sheet, weigh, then store.")
+                    .font(.footnote)
+                    .foregroundStyle(steel)
 
-            Text("Enter the true mass, open the live sheet, weigh it, then store. Same screen as a normal weigh-in.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("1. True mass (reference)")
-                    .font(.subheadline.weight(.semibold))
-                HStack {
-                    Text("Known mass")
-                    Spacer()
+                fieldRow("Known mass") {
                     TextField(
                         "kg",
                         value: Binding(
@@ -702,17 +711,13 @@ struct SettingsView: View {
                         ),
                         format: .number.precision(.fractionLength(3))
                     )
-                    .keyboardType(.decimalPad)
                     .focused($focusedField, equals: .reference)
+                    .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 96)
-                    Text("kg").foregroundStyle(.secondary)
+                    Text("kg").foregroundStyle(steel)
                 }
-            }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("2. Capture mode")
-                    .font(.subheadline.weight(.semibold))
                 Picker(
                     "Mode",
                     selection: Binding(
@@ -727,35 +732,32 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 Text(modeHelpText)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+                    .foregroundStyle(steel)
 
-            Button {
-                focusedField = nil
-                session.beginCalibrationWeighIn()
-                dismiss()
-            } label: {
-                Label("Weigh reference on live sheet", systemImage: "scalemass")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
+                Button {
+                    dismissKeyboard()
+                    session.beginCalibrationWeighIn()
+                    dismiss()
+                } label: {
+                    Label("Weigh reference on live sheet", systemImage: "scalemass")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(accent)
 
-            Button {
-                focusedField = nil
-                _ = session.recordCalibration(
-                    referenceKg: 7.926,
-                    rawKg: 7.90,
-                    mode: .offset
-                )
-            } label: {
-                Label("Store Alex's 7.926 / 7.90 offset", systemImage: "checkmark.seal")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
+                Button {
+                    dismissKeyboard()
+                    _ = session.recordCalibration(
+                        referenceKg: 7.926,
+                        rawKg: 7.90,
+                        mode: .offset
+                    )
+                } label: {
+                    Label("Store Alex's 7.926 / 7.90 offset", systemImage: "checkmark.seal")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("3. Current correction")
-                    .font(.subheadline.weight(.semibold))
                 Text(session.calibration.summaryLine)
                     .font(.footnote.weight(.medium))
                 Toggle(
@@ -767,9 +769,7 @@ struct SettingsView: View {
                 )
                 .disabled(!session.calibration.hasCorrection && !session.calibration.isActive)
 
-                HStack {
-                    Text("Manual offset (kg)")
-                    Spacer()
+                fieldRow("Manual offset (kg)") {
                     TextField(
                         "offset",
                         value: Binding(
@@ -778,70 +778,66 @@ struct SettingsView: View {
                         ),
                         format: .number.precision(.fractionLength(3))
                     )
-                    .keyboardType(.numbersAndPunctuation)
                     .focused($focusedField, equals: .offset)
+                    .keyboardType(.numbersAndPunctuation)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 88)
                 }
                 .font(.footnote)
-            }
 
-            Button(role: .destructive) {
-                confirmReset = true
-            } label: {
-                Label("Reset calibration", systemImage: "arrow.counterclockwise")
-                    .frame(maxWidth: .infinity)
+                Button(role: .destructive) {
+                    confirmReset = true
+                } label: {
+                    Label("Reset calibration", systemImage: "arrow.counterclockwise")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+    // MARK: - Privacy & Legal
+
     private var privacyCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Privacy & Health", systemImage: "lock.shield")
-                .font(.headline)
-            Text("Profile, calibration, memory, persona, and readings stay on this iPhone. Health is read for trend, history, and optional fitness monitoring (HR, sleep, steps, energy, workouts), and written only after you confirm a weigh-in. On-device Apple Intelligence (when available) polishes notifications and private digests without leaving the phone. Grok is opt-in after consent. Store builds leave the xAI key on the Worker, never in the IPA.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Text("If permissions were denied: Settings → Health → Data Access → The Scale. Notifications: Settings → Notifications → The Scale. Apple Intelligence: Settings → Apple Intelligence & Siri.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Privacy", systemImage: "lock.shield")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text("Profile, calibration, memory, and readings stay on this iPhone. Health is read/written only with permission. Grok is opt-in. Apple Intelligence stays on-device.")
+                    .font(.footnote)
+                    .foregroundStyle(steel)
 
-            NavigationLink {
-                PrivacyPolicyView()
-            } label: {
-                Label("Privacy Policy", systemImage: "doc.text")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
+                NavigationLink {
+                    PrivacyPolicyView()
+                } label: {
+                    Label("Privacy Policy", systemImage: "doc.text")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
 
-            Link(destination: ScaleLegal.privacyPolicyURL) {
-                Label("Privacy Policy (web)", systemImage: "safari")
-                    .frame(maxWidth: .infinity)
+                Link(destination: ScaleLegal.privacyPolicyURL) {
+                    Label("Privacy Policy (web)", systemImage: "safari")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var legalCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Legal", systemImage: "doc.text")
                 .font(.headline)
+                .foregroundStyle(ink)
             Text(CoachCopySanitize.medicalDisclaimer)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(steel)
             Text("Shown once during onboarding. Coach chat and notifications do not repeat this.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
 
             #if DEBUG
-            // Debug-only: Monday card + SOTA sample notification. Stripped from App Store builds.
             Menu {
                 Button("Preview Monday card") {
                     dismiss()
@@ -908,7 +904,7 @@ struct SettingsView: View {
     private var modeHelpText: String {
         switch session.calibration.captureMode {
         case .offset:
-            return "Offset: corrected = raw + (true - raw). Good for a small constant bias (e.g. 7.90 vs 7.926)."
+            return "Offset: corrected = raw + (true - raw). Good for a small constant bias."
         case .factor:
             return "Factor: corrected = raw × (true / raw). Better when error grows with mass."
         }

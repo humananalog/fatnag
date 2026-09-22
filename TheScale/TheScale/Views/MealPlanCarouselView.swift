@@ -10,6 +10,9 @@ struct MealPlanCarouselView: View {
     private let steel = Color(red: 0.28, green: 0.30, blue: 0.34)
     private let peek: CGFloat = 28
     private let cardGap: CGFloat = 12
+    /// Must match sheet background so cards do not read as mismatched white tiles.
+    private let sheetTop = Color(red: 0.95, green: 0.97, blue: 0.99)
+    private let sheetBottom = Color(red: 0.90, green: 0.93, blue: 0.96)
 
     private let accents: [Color] = [
         Color(red: 0.18, green: 0.52, blue: 0.62),
@@ -22,10 +25,7 @@ struct MealPlanCarouselView: View {
         NavigationStack {
             ZStack {
                 LinearGradient(
-                    colors: [
-                        Color(red: 0.95, green: 0.97, blue: 0.99),
-                        Color(red: 0.90, green: 0.93, blue: 0.96)
-                    ],
+                    colors: [sheetTop, sheetBottom],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -192,10 +192,7 @@ struct MealPlanCarouselView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(
             LinearGradient(
-                colors: [
-                    Color.white,
-                    accent.opacity(0.07)
-                ],
+                colors: [sheetTop, sheetBottom],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
@@ -203,10 +200,9 @@ struct MealPlanCarouselView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(accent.opacity(0.22), lineWidth: 1)
+                .strokeBorder(accent.opacity(0.35), lineWidth: 1.5)
         )
-        .shadow(color: accent.opacity(0.22), radius: 16, y: 10)
-        .shadow(color: ink.opacity(0.10), radius: 22, y: 12)
+        .shadow(color: ink.opacity(0.06), radius: 10, y: 4)
     }
 
     private func labeled(_ caption: String, _ value: String, accent: Color) -> some View {
