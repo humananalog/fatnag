@@ -48,6 +48,7 @@ struct WeeklyGoalHazeBackground: View {
 /// Home: one weekly-goal composition. No card chrome. Haze atmosphere only.
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
+    @Environment(\.scenePhase) private var scenePhase
     #if DEBUG
     @State private var showDebugTools = false
     #endif
@@ -64,82 +65,9 @@ struct ContentView: View {
         NavigationStack {
             ZStack {
                 WeeklyGoalHazeBackground(atmosphere: atmosphere)
-
-                GeometryReader { geo in
-                    let compact = geo.size.height < 780
-                    VStack(alignment: .leading, spacing: 0) {
-                        brandRow
-                            .padding(.top, 0)
-
-                        if let analysis = session.lastWeighInAnalysis {
-                            weighInAnalysisBlock(analysis)
-                                .padding(.top, 6)
-                        }
-
-                        HorizonArcBankView(
-                            weeklyPercent: surface.completionPercent,
-                            bandLabel: surface.band.statusLabel,
-                            weekTitle: surface.weekTitle,
-                            metrics: surface.todayProgress,
-                            ink: atmosphere.ink,
-                            steel: atmosphere.ink.opacity(0.72),
-                            accent: Color(red: 0.12, green: 0.42, blue: 0.30),
-                            compact: compact
-                        )
-                        .padding(.top, compact ? 6 : 10)
-                        .onTapGesture { session.presentProgress() }
-
-                        Text(surface.todayAdvice)
-                            .font(.system(size: compact ? 18 : 22, weight: .bold, design: .serif))
-                            .foregroundStyle(atmosphere.ink)
-                            .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.85)
-                            .padding(.top, 10)
-                            .accessibilityIdentifier("home.todayAdvice")
-
-                        Text(surface.macroGoalETA.line)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(atmosphere.ink.opacity(0.72))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .padding(.top, 4)
-
-                        primaryActions(compact: compact)
-                            .padding(.top, 10)
-
-                        discoveryBlock
-
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-                    .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
-                }
-
+                homeScroll
                 #if DEBUG
-                // Overlay only: must not participate in home layout / positioning.
-                VStack {
-                    HStack {
-                        Button {
-                            showDebugTools = true
-                        } label: {
-                            Text("DEBUG")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.orange.opacity(0.92), in: Capsule())
-                        }
-                        .accessibilityIdentifier("home.debug")
-                        .accessibilityLabel("Debug tools")
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.leading, 12)
-                    .padding(.top, 6)
-                    Spacer(minLength: 0)
-                }
-                .allowsHitTesting(true)
+                debugOverlay
                 #endif
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -228,22 +156,126 @@ struct ContentView: View {
                 }
             }
             .task {
-                session.ensureWeeklyGoalBaseline()
-                session.rebuildWeeklyGoalSurface()
-                session.startPassiveListening()
-                await session.refreshHealthBaseline()
-                session.ensureWeeklyGoalBaseline()
-                await session.refreshWeeklyGoalSurface()
-                await session.refreshTrendNotifications()
-                ScaleNotificationRouter.openDestination = { destination in
-                    session.handleNotificationDestination(destination)
-                }
-                ScaleNotificationRouter.openAppNotificationSettings = {
-                    session.presentSettings()
+                await bootstrapHome()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task {
+                    await session.refreshHomeGauges(force: false)
                 }
             }
         }
         .preferredColorScheme(.light)
+    }
+
+    private var homeScroll: some View {
+        GeometryReader { geo in
+            let compact = geo.size.height < 780
+            ScrollView(.vertical, showsIndicators: false) {
+                homeColumn(compact: compact, minHeight: geo.size.height)
+            }
+            .refreshable {
+                await session.refreshHomeGauges(force: true)
+                await session.refreshHealthBaseline()
+                await session.refreshWeeklyGoalSurface()
+            }
+        }
+    }
+
+    private func homeColumn(compact: Bool, minHeight: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            brandRow
+                .padding(.top, 0)
+
+            if let analysis = session.lastWeighInAnalysis {
+                weighInAnalysisBlock(analysis)
+                    .padding(.top, 6)
+            }
+
+            HorizonArcBankView(
+                weeklyPercent: surface.completionPercent,
+                bandLabel: surface.band.statusLabel,
+                weekTitle: surface.weekTitle,
+                metrics: surface.todayProgress,
+                ink: atmosphere.ink,
+                steel: atmosphere.ink.opacity(0.72),
+                accent: Color(red: 0.12, green: 0.42, blue: 0.30),
+                compact: compact
+            )
+            .padding(.top, compact ? 6 : 10)
+            .onTapGesture { session.presentProgress() }
+
+            Text(surface.todayAdvice)
+                .font(.system(size: compact ? 18 : 22, weight: .bold, design: .serif))
+                .foregroundStyle(atmosphere.ink)
+                .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+                .padding(.top, 10)
+                .accessibilityIdentifier("home.todayAdvice")
+
+            Text(surface.macroGoalETA.line)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(atmosphere.ink.opacity(0.72))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.top, 4)
+
+            primaryActions(compact: compact)
+                .padding(.top, 10)
+
+            discoveryBlock
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .top)
+    }
+
+    #if DEBUG
+    private var debugOverlay: some View {
+        VStack {
+            HStack {
+                Button {
+                    showDebugTools = true
+                } label: {
+                    Text("DEBUG")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.orange.opacity(0.92), in: Capsule())
+                }
+                .accessibilityIdentifier("home.debug")
+                .accessibilityLabel("Debug tools")
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, 12)
+            .padding(.top, 6)
+            Spacer(minLength: 0)
+        }
+        .allowsHitTesting(true)
+    }
+    #endif
+
+    private func bootstrapHome() async {
+        session.ensureWeeklyGoalBaseline()
+        session.rebuildWeeklyGoalSurface()
+        session.startPassiveListening()
+        async let gauges = session.refreshHomeGauges(force: true)
+        async let baseline: Void = session.refreshHealthBaseline()
+        _ = await gauges
+        await baseline
+        session.ensureWeeklyGoalBaseline()
+        await session.refreshWeeklyGoalSurface()
+        await session.refreshTrendNotifications()
+        ScaleNotificationRouter.openDestination = { destination in
+            session.handleNotificationDestination(destination)
+        }
+        ScaleNotificationRouter.openAppNotificationSettings = {
+            session.presentSettings()
+        }
     }
 
     private var brandRow: some View {

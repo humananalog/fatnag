@@ -20,6 +20,8 @@ protocol HealthWriting: AnyObject {
         preSleepWindowMinutes: Int,
         now: Date
     ) async throws -> FitnessDigest
+    /// Lean today totals for home gauges only (steps + move + nutrition). Fast path.
+    func fetchHomeDailyMetrics(now: Date) async throws -> HomeDailyMetrics
     func write(
         measurement: ScaleMeasurement,
         composition: BodyCompositionResult?,
@@ -202,6 +204,74 @@ final class HealthKitWriter: HealthWriting {
             from: start,
             to: end,
             scale: 100
+        )
+    }
+
+    func fetchHomeDailyMetrics(now: Date = Date()) async throws -> HomeDailyMetrics {
+        guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
+        try await requestAuthorizationIfNeeded()
+
+        let dayStart = Calendar.current.startOfDay(for: now)
+        async let steps = sumQuantity(.stepCount, unit: .count(), from: dayStart, to: now)
+        async let energy = sumQuantity(
+            .activeEnergyBurned,
+            unit: .kilocalorie(),
+            from: dayStart,
+            to: now
+        )
+        async let dietaryEnergy = sumQuantity(
+            .dietaryEnergyConsumed,
+            unit: .kilocalorie(),
+            from: dayStart,
+            to: now
+        )
+        async let dietaryProtein = sumQuantity(
+            .dietaryProtein,
+            unit: .gram(),
+            from: dayStart,
+            to: now
+        )
+        async let dietaryFiber = sumQuantity(
+            .dietaryFiber,
+            unit: .gram(),
+            from: dayStart,
+            to: now
+        )
+        async let dietaryIron = sumQuantity(
+            .dietaryIron,
+            unit: .gramUnit(with: .milli),
+            from: dayStart,
+            to: now
+        )
+        async let dietaryPotassium = sumQuantity(
+            .dietaryPotassium,
+            unit: .gramUnit(with: .milli),
+            from: dayStart,
+            to: now
+        )
+
+        let (
+            stepsV,
+            energyV,
+            dietEnergyV,
+            dietProteinV,
+            dietFiberV,
+            dietIronV,
+            dietPotassiumV
+        ) = try await (
+            steps, energy, dietaryEnergy, dietaryProtein, dietaryFiber, dietaryIron, dietaryPotassium
+        )
+
+        // Nil sum = no samples today. Coalesce activity to 0 so gauges show a real zero, not "Open".
+        return HomeDailyMetrics(
+            stepsToday: stepsV ?? 0,
+            activeEnergyKcalToday: energyV ?? 0,
+            dietaryEnergyKcalToday: dietEnergyV ?? 0,
+            dietaryProteinGramsToday: dietProteinV ?? 0,
+            dietaryFiberGramsToday: dietFiberV ?? 0,
+            dietaryIronMgToday: dietIronV ?? 0,
+            dietaryPotassiumMgToday: dietPotassiumV ?? 0,
+            generatedAt: now
         )
     }
 
@@ -428,8 +498,8 @@ final class HealthKitWriter: HealthWriting {
         }()
 
         let digest = FitnessDigest(
-            stepsToday: stepsV,
-            activeEnergyKcalToday: energyV,
+            stepsToday: stepsV ?? 0,
+            activeEnergyKcalToday: energyV ?? 0,
             activeEnergyKcalLast7dAverage: energy7dAvg,
             appleExerciseMinutesToday: exerciseV,
             dietaryEnergyKcalToday: dietEnergyV,

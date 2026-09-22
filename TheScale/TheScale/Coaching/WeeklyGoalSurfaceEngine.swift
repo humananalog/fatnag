@@ -441,8 +441,8 @@ enum WeeklyGoalSurfaceEngine {
                 formatCurrent: { "\(Int($0.rounded()))" },
                 formatTarget: { "\(Int($0.rounded())) max" }
             )
-        } else if let burn = digest?.activeEnergyKcalToday, burn > 0 {
-            // No food log: show move burn vs a soft floor so home still has today progress.
+        } else if let burn = digest?.activeEnergyKcalToday {
+            // No food log: show move burn vs a soft floor (0 is a real reading after home refresh).
             let moveTarget = max(250.0, Double(targets.maxCalories) * 0.22)
             energy = progressRow(
                 kind: .energy,

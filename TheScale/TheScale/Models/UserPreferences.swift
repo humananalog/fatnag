@@ -299,6 +299,29 @@ enum HealthDigestAccess: String, Equatable, Sendable {
     case readFailed
 }
 
+/// Compact today totals for home Horizon Arc Bank. Avoids the heavy Coach digest path.
+struct HomeDailyMetrics: Equatable, Sendable {
+    var stepsToday: Double
+    var activeEnergyKcalToday: Double
+    var dietaryEnergyKcalToday: Double
+    var dietaryProteinGramsToday: Double
+    var dietaryFiberGramsToday: Double
+    var dietaryIronMgToday: Double
+    var dietaryPotassiumMgToday: Double
+    var generatedAt: Date
+
+    static let zero = HomeDailyMetrics(
+        stepsToday: 0,
+        activeEnergyKcalToday: 0,
+        dietaryEnergyKcalToday: 0,
+        dietaryProteinGramsToday: 0,
+        dietaryFiberGramsToday: 0,
+        dietaryIronMgToday: 0,
+        dietaryPotassiumMgToday: 0,
+        generatedAt: Date()
+    )
+}
+
 /// Compact fitness snapshot for Grok + local trigger algorithms.
 struct FitnessDigest: Equatable, Sendable {
     var stepsToday: Double?
@@ -421,6 +444,19 @@ struct FitnessDigest: Equatable, Sendable {
             || !recentWorkouts.isEmpty
             || (walkingRunningDistance?.distanceKmLast24h ?? 0) > 0
             || (walkingRunningDistance?.distanceKmLast7d ?? 0) > 0
+    }
+
+    /// Overlay lean home-gauge totals without wiping Coach-only fields (HRV, sleep, …).
+    mutating func applyHomeDailyMetrics(_ metrics: HomeDailyMetrics) {
+        stepsToday = metrics.stepsToday
+        activeEnergyKcalToday = metrics.activeEnergyKcalToday
+        // Keep dietary nil when zero so Move-burn fallback still works when no food log.
+        dietaryEnergyKcalToday = metrics.dietaryEnergyKcalToday > 0 ? metrics.dietaryEnergyKcalToday : nil
+        dietaryProteinGramsToday = metrics.dietaryProteinGramsToday > 0 ? metrics.dietaryProteinGramsToday : nil
+        dietaryFiberGramsToday = metrics.dietaryFiberGramsToday > 0 ? metrics.dietaryFiberGramsToday : nil
+        dietaryIronMgToday = metrics.dietaryIronMgToday > 0 ? metrics.dietaryIronMgToday : nil
+        dietaryPotassiumMgToday = metrics.dietaryPotassiumMgToday > 0 ? metrics.dietaryPotassiumMgToday : nil
+        generatedAt = metrics.generatedAt
     }
 
     /// Short line for Settings → Health status.

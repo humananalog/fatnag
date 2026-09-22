@@ -155,6 +155,7 @@ final class ScaleSessionViewModel: ObservableObject {
     private let healthStore: HealthWriting
     private var lastAcceptedSignature: String?
     private var impedanceWaitTask: Task<Void, Never>?
+    private var lastHomeGaugeRefreshAt: Date?
 
     init(
         scanner: ScaleScanning,
@@ -728,9 +729,58 @@ final class ScaleSessionViewModel: ObservableObject {
         weeklyGoal = next
     }
 
+    /// Refresh home gauges from a lean HealthKit query (steps / move / nutrition only).
+    /// Prefer this for UI speed; full Coach digest stays on `refreshFitnessDigestForCoach`.
+    @discardableResult
+    func refreshHomeGauges(force: Bool = false) async -> WeeklyGoalSurface {
+        if !force,
+           let last = lastHomeGaugeRefreshAt,
+           Date().timeIntervalSince(last) < 8,
+           lastFitnessDigest?.stepsToday != nil {
+            rebuildWeeklyGoalSurface()
+            return weeklyGoalSurface
+        }
+
+        guard healthKitAvailable else {
+            var digest = lastFitnessDigest ?? FitnessDigest.unavailable()
+            digest.applyHomeDailyMetrics(.zero)
+            lastFitnessDigest = digest
+            return weeklyGoalSurface
+        }
+
+        do {
+            try await healthStore.requestAuthorizationIfNeeded()
+            let metrics = try await healthStore.fetchHomeDailyMetrics(now: Date())
+            var digest = lastFitnessDigest ?? FitnessDigest.empty
+            if digest.access == .notRequested {
+                digest.access = healthStore.authorizationWasRequested ? .readable : .notRequested
+                digest.accessDetail = digest.access == .readable
+                    ? "Home gauges refreshed from Health."
+                    : "Health access not requested yet."
+            }
+            digest.applyHomeDailyMetrics(metrics)
+            lastHomeGaugeRefreshAt = Date()
+            lastFitnessDigest = digest
+            #if DEBUG
+            print(
+                "[TheScale] Home gauges: steps \(Int(metrics.stepsToday)) · move \(Int(metrics.activeEnergyKcalToday)) · diet \(Int(metrics.dietaryEnergyKcalToday))"
+            )
+            #endif
+        } catch {
+            #if DEBUG
+            print("[TheScale] Home gauges refresh FAILED: \(error.localizedDescription)")
+            #endif
+            // Soft-fail: keep prior digest; still rebuild so UI settles.
+            rebuildWeeklyGoalSurface()
+        }
+        return weeklyGoalSurface
+    }
+
     /// Refresh Health digest + rebuild the home weekly-goal hero.
     @discardableResult
     func refreshWeeklyGoalSurface() async -> WeeklyGoalSurface {
+        // Fast path first so Horizon Arc Bank fills without waiting on sleep/HRV/workouts.
+        await refreshHomeGauges(force: true)
         _ = await refreshFitnessDigestForCoach()
         rebuildWeeklyGoalSurface()
         await polishTomorrowAdviceIfAvailable()

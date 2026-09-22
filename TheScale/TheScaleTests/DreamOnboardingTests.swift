@@ -222,4 +222,57 @@ final class DailyMetricProgressTests: XCTestCase {
         XCTAssertEqual(surface.todayProgress.count, 4)
         XCTAssertEqual(surface.todayProgress.first?.kind, .steps)
     }
+
+    func testHomeMetricsApplyFillsGaugeRows() {
+        var digest = FitnessDigest.empty
+        digest.applyHomeDailyMetrics(
+            HomeDailyMetrics(
+                stepsToday: 4200,
+                activeEnergyKcalToday: 380,
+                dietaryEnergyKcalToday: 0,
+                dietaryProteinGramsToday: 0,
+                dietaryFiberGramsToday: 0,
+                dietaryIronMgToday: 0,
+                dietaryPotassiumMgToday: 0,
+                generatedAt: Date()
+            )
+        )
+        XCTAssertEqual(digest.stepsToday, 4200)
+        XCTAssertEqual(digest.activeEnergyKcalToday, 380)
+        XCTAssertNil(digest.dietaryEnergyKcalToday)
+
+        let targets = DailyGoalTargets(
+            steps: 8500,
+            maxCalories: 2200,
+            proteinGrams: 140,
+            proteinLabel: "Protein",
+            microName: "Fiber",
+            microTargetLine: "Hit ≥ 30 g",
+            intakeTracked: false
+        )
+        let rows = WeeklyGoalSurfaceEngine.todayMetricProgress(targets: targets, digest: digest)
+        XCTAssertEqual(rows.first { $0.kind == .steps }?.status, .inProgress)
+        XCTAssertGreaterThan(rows.first { $0.kind == .steps }?.fraction ?? 0, 0.4)
+        XCTAssertEqual(rows.first { $0.kind == .energy }?.title, "Move")
+        XCTAssertEqual(rows.first { $0.kind == .energy }?.status, .inProgress)
+    }
+
+    func testZeroStepsAfterHomeRefreshIsNotUnknown() {
+        var digest = FitnessDigest.empty
+        digest.applyHomeDailyMetrics(.zero)
+        let targets = DailyGoalTargets(
+            steps: 8000,
+            maxCalories: 2000,
+            proteinGrams: 120,
+            proteinLabel: "Protein",
+            microName: "Fiber",
+            microTargetLine: "Hit ≥ 30 g",
+            intakeTracked: false
+        )
+        let steps = WeeklyGoalSurfaceEngine.todayMetricProgress(targets: targets, digest: digest)
+            .first { $0.kind == .steps }
+        XCTAssertEqual(steps?.status, .inProgress)
+        XCTAssertEqual(steps?.fraction ?? -1, 0, accuracy: 0.001)
+        XCTAssertTrue(steps?.currentLine.contains("0") == true)
+    }
 }

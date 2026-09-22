@@ -184,6 +184,11 @@ final class ScaleSessionImpedanceTests: XCTestCase {
         func fetchFitnessDigest(preSleepWindowMinutes: Int, now: Date) async throws -> FitnessDigest {
             .unavailable(now: now)
         }
+        func fetchHomeDailyMetrics(now: Date) async throws -> HomeDailyMetrics {
+            var zero = HomeDailyMetrics.zero
+            zero.generatedAt = now
+            return zero
+        }
         func write(
             measurement: ScaleMeasurement,
             composition: BodyCompositionResult?,

@@ -50,6 +50,7 @@ struct TheScaleApp: App {
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, session.hasCompletedOnboarding else { return }
                 Task {
+                    await session.refreshHomeGauges(force: false)
                     _ = await session.runFitnessMonitorCheck(force: false)
                     await session.armHealthKitBackgroundDelivery()
                 }
