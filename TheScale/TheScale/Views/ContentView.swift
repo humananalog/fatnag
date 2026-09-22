@@ -68,40 +68,40 @@ struct ContentView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         brandRow
-                            .padding(.top, 4)
+                            .padding(.top, 0)
 
                         if let analysis = session.lastWeighInAnalysis {
                             weighInAnalysisBlock(analysis)
-                                .padding(.top, 18)
+                                .padding(.top, 10)
                         }
 
                         weeklyHero
-                            .padding(.top, 20)
+                            .padding(.top, 10)
 
                         todayBlock
-                            .padding(.top, 26)
+                            .padding(.top, 16)
 
                         etaLine
-                            .padding(.top, 14)
+                            .padding(.top, 10)
 
                         targetsRow
-                            .padding(.top, 28)
+                            .padding(.top, 18)
 
                         Text(surface.targets.honestyLine)
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(atmosphere.ink.opacity(0.72))
-                            .padding(.top, 10)
+                            .padding(.top, 8)
 
                         primaryActions
-                            .padding(.top, 30)
+                            .padding(.top, 18)
 
                         discoveryBlock
-                            .padding(.top, 12)
+                            .padding(.top, 8)
 
-                        Spacer(minLength: 24)
+                        Spacer(minLength: 16)
                     }
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 12)
                 }
 
                 #if DEBUG

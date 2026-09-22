@@ -138,9 +138,43 @@ final class MealPlanEngineTests: XCTestCase {
         let window = FastingWindow.detect(memoryBlock: "User mentioned: intermittent fasting 16/8")
         XCTAssertTrue(window.isActive)
         XCTAssertEqual(window.eatingStartMinutes, 12 * 60)
+        XCTAssertEqual(window.eatingWindowEndMinutes, 20 * 60)
+        XCTAssertEqual(window.protocolLabel, "16-8")
+        XCTAssertEqual(window.eatingHours, 8, accuracy: 0.01)
         XCTAssertTrue(window.isFasting(
             at: Calendar.current.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 7))!
         ))
+    }
+
+    func testSixteenDashEightIsProtocolNotClock() {
+        let window = FastingWindow.detect(memoryBlock: "doing IF 16-8")
+        XCTAssertEqual(window.protocolLabel, "16-8")
+        XCTAssertEqual(window.eatingWindowStartMinutes, 12 * 60)
+        XCTAssertEqual(window.eatingWindowEndMinutes, 20 * 60)
+        XCTAssertFalse(window.cacheToken.contains("@960-"))
+    }
+
+    func testIFMealsSpacedAcrossEightHourWindow() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let sevenAM = cal.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 7))!
+        let meals = MealPlanEngine.offlineMeals(
+            diet: .omnivore,
+            maxKcal: 1800,
+            proteinGrams: 140,
+            fasting: .classic168,
+            now: sevenAM,
+            calendar: cal
+        )
+        XCTAssertGreaterThanOrEqual(meals.count, 3)
+        let hours = meals.compactMap(\.approxHour)
+        XCTAssertEqual(hours.first ?? -1, 12.0, accuracy: 0.26)
+        XCTAssertGreaterThanOrEqual(hours.last ?? 0, 18.5)
+        XCTAssertLessThan(hours.last ?? 99, 20.0)
+        // Spread across the window, not clustered at open.
+        if hours.count >= 3 {
+            XCTAssertGreaterThan((hours.last ?? 0) - (hours.first ?? 0), 5.0)
+        }
     }
 
     func testEnforceFastingDropsEarlyBreakfast() {
@@ -155,5 +189,13 @@ final class MealPlanEngineTests: XCTestCase {
         let fixed = MealPlanEngine.enforceFasting(raw, fasting: .classic168, now: sevenAM, calendar: cal)
         XCTAssertGreaterThanOrEqual(fixed.count, 3)
         XCTAssertFalse(fixed.contains(where: { ($0.approxHour ?? 99) < 11.5 }))
+    }
+
+    func testSpacedHoursEven() {
+        let slots = MealPlanEngine.spacedHours(count: 3, from: 12, to: 19.75)
+        XCTAssertEqual(slots.count, 3)
+        XCTAssertEqual(slots[0], 12, accuracy: 0.01)
+        XCTAssertEqual(slots[2], 19.75, accuracy: 0.01)
+        XCTAssertEqual(slots[1], 16.0, accuracy: 0.35)
     }
 }

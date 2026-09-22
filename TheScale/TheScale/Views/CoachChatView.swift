@@ -169,12 +169,34 @@ struct CoachChatView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(
-                            turn.isFailure
-                                ? Color.red.opacity(0.22)
-                                : (turn.kind == .user ? ScaleChrome.signal : Color.white.opacity(0.08))
+                            turn.isQuotaLock
+                                ? Color.orange.opacity(0.22)
+                                : (turn.isFailure
+                                    ? Color.red.opacity(0.22)
+                                    : (turn.kind == .user ? ScaleChrome.signal : Color.white.opacity(0.08)))
                         )
                 )
+                .overlay(
+                    Group {
+                        if turn.isQuotaLock {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(Color.orange.opacity(0.55), lineWidth: 1)
+                        }
+                    }
+                )
+                if turn.isQuotaLock {
+                    Text("Tap to unlock Coach")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.orange.opacity(0.95))
+                }
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard turn.isQuotaLock else { return }
+                chat.openPaywall(from: turn)
+            }
+            .accessibilityAddTraits(turn.isQuotaLock ? .isButton : [])
+            .accessibilityHint(turn.isQuotaLock ? "Opens Unlock Coach paywall" : "")
             if turn.kind != .user { Spacer(minLength: 36) }
         }
     }

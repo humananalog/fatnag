@@ -65,8 +65,14 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var isEditingDraft = false
     @Published var profile: UserBodyProfile {
         didSet {
+            let fastingChanged = oldValue.intermittentFasting?.cacheToken
+                != profile.intermittentFasting?.cacheToken
             UserProfileStore.save(profile)
             rebuildWeeklyGoalSurface()
+            if fastingChanged {
+                MealPlanStore.clear()
+                mealPlan = nil
+            }
         }
     }
     @Published var calibration: ScaleCalibration {
@@ -465,6 +471,12 @@ final class ScaleSessionViewModel: ObservableObject {
         isMealPlanPresented = true
     }
 
+    /// Drop cached meals so the next ensure rebuilds (e.g. IF window changed).
+    func clearMealPlanCache() {
+        MealPlanStore.clear()
+        mealPlan = nil
+    }
+
     func dismissMealPlan() {
         isMealPlanPresented = false
         isMealPlanLoading = false
@@ -482,7 +494,10 @@ final class ScaleSessionViewModel: ObservableObject {
         rebuildWeeklyGoalSurface()
         let surface = weeklyGoalSurface
         let day = MealPlanEngine.dayKey()
-        let fasting = FastingWindowResolver.current(memoryBlock: CoachMemoryStore.promptBlock())
+        let fasting = FastingWindowResolver.current(
+            profile: profile,
+            memoryBlock: CoachMemoryStore.promptBlock()
+        )
         let now = Date()
         let key = MealPlanEngine.cacheKey(
             dayKey: day,

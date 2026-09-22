@@ -389,6 +389,7 @@ enum FoundationModelCoach {
             culturalVibe: clean(fm.culturalVibe),
             idealWeightKg: idealW,
             idealBodyFatPercent: idealBF,
+            intermittentFasting: nil,
             usedNetwork: false,
             sourceLabel: "foundation-model"
         )

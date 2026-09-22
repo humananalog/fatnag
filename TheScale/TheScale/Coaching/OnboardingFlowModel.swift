@@ -22,6 +22,7 @@ final class OnboardingFlowModel: ObservableObject {
     @Published var ethnicity = ""
     @Published var preferredLanguage = "English"
     @Published var culturalVibe = ""
+    @Published var intermittentFasting: FastingWindow?
     @Published var allowOnDevicePrefill = true
     @Published var allowGrokCoachLater = true
     @Published var acceptedLegal = false
@@ -60,6 +61,7 @@ final class OnboardingFlowModel: ObservableObject {
         ethnicity = profile.ethnicity
         preferredLanguage = profile.preferredLanguage
         culturalVibe = profile.culturalVibe
+        intermittentFasting = profile.intermittentFasting
         enableNotifications = notifications.notifyOnBadTrend
         if !FoundationModelAvailability.isAvailable {
             allowOnDevicePrefill = false
@@ -116,6 +118,9 @@ final class OnboardingFlowModel: ObservableObject {
         if let eth = draft.ethnicity, !eth.isEmpty { ethnicity = eth }
         if let lang = draft.preferredLanguage, !lang.isEmpty { preferredLanguage = lang }
         if let vibe = draft.culturalVibe, !vibe.isEmpty { culturalVibe = vibe }
+        if let fasting = draft.intermittentFasting, fasting.isActive {
+            intermittentFasting = fasting
+        }
         if let w = draft.idealWeightKg { idealKg = w }
         if let bf = draft.idealBodyFatPercent { idealBodyFat = bf }
 
@@ -141,7 +146,8 @@ final class OnboardingFlowModel: ObservableObject {
             location: location.trimmingCharacters(in: .whitespacesAndNewlines),
             ethnicity: ethnicity.trimmingCharacters(in: .whitespacesAndNewlines),
             preferredLanguage: preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines),
-            culturalVibe: culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines)
+            culturalVibe: culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines),
+            intermittentFasting: intermittentFasting?.isActive == true ? intermittentFasting : nil
         )
     }
 

@@ -84,6 +84,8 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
     var preferredLanguage: String
     /// Vibe / cultural style notes (e.g. Filipina in Manila; French in HK preferring American culture).
     var culturalVibe: String
+    /// Structured intermittent fasting window (`eatingWindowStart` / `eatingWindowEnd`). Nil = none.
+    var intermittentFasting: FastingWindow?
 
     /// First name / greeting fragment; falls back to empty.
     var greetingName: String {
@@ -102,6 +104,13 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         if !eth.isEmpty { lines.append("Ethnicity / culture: \(eth)") }
         if !lang.isEmpty { lines.append("Preferred language: \(lang)") }
         if !vibe.isEmpty { lines.append("Vibe / cultural style: \(vibe)") }
+        if let ifWindow = intermittentFasting, ifWindow.isActive {
+            let open = MealPlanEngine.formatHour(ifWindow.eatingStartHour)
+            let close = MealPlanEngine.formatHour(ifWindow.eatingEndHour)
+            lines.append(
+                "Intermittent fasting: \(ifWindow.protocolLabel) (\(ifWindow.fastingHours)h fast). Eating window \(open)-\(close) local (eatingWindowStart=\(ifWindow.eatingWindowStart), eatingWindowEnd=\(ifWindow.eatingWindowEnd))."
+            )
+        }
         guard !lines.isEmpty else { return "" }
         return """
         Persona (match tone and examples to this; do not stereotype or exoticize):
@@ -121,7 +130,8 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         location: "",
         ethnicity: "",
         preferredLanguage: "English",
-        culturalVibe: ""
+        culturalVibe: "",
+        intermittentFasting: nil
     )
 
     /// BMI ~22 suggestion used when seeding a new profile or migrating old saves.
@@ -142,7 +152,8 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         location: String = "",
         ethnicity: String = "",
         preferredLanguage: String = "English",
-        culturalVibe: String = ""
+        culturalVibe: String = "",
+        intermittentFasting: FastingWindow? = nil
     ) {
         self.displayName = displayName
         self.heightCm = heightCm
@@ -156,6 +167,7 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         self.ethnicity = ethnicity
         self.preferredLanguage = preferredLanguage
         self.culturalVibe = culturalVibe
+        self.intermittentFasting = intermittentFasting
     }
 
     init(from decoder: Decoder) throws {
@@ -173,6 +185,7 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         ethnicity = try c.decodeIfPresent(String.self, forKey: .ethnicity) ?? ""
         preferredLanguage = try c.decodeIfPresent(String.self, forKey: .preferredLanguage) ?? "English"
         culturalVibe = try c.decodeIfPresent(String.self, forKey: .culturalVibe) ?? ""
+        intermittentFasting = try c.decodeIfPresent(FastingWindow.self, forKey: .intermittentFasting)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -189,11 +202,12 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         try c.encode(ethnicity, forKey: .ethnicity)
         try c.encode(preferredLanguage, forKey: .preferredLanguage)
         try c.encode(culturalVibe, forKey: .culturalVibe)
+        try c.encodeIfPresent(intermittentFasting, forKey: .intermittentFasting)
     }
 
     private enum CodingKeys: String, CodingKey {
         case displayName, heightCm, ageYears, sex, idealWeightKg, goalDate, idealBodyFatPercent, dietPreference
-        case location, ethnicity, preferredLanguage, culturalVibe
+        case location, ethnicity, preferredLanguage, culturalVibe, intermittentFasting
     }
 }
 

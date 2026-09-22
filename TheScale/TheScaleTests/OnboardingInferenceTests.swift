@@ -33,6 +33,7 @@ final class OnboardingFlowTests: XCTestCase {
                 culturalVibe: "Filipina in Manila, vegetarian",
                 idealWeightKg: 62,
                 idealBodyFatPercent: nil,
+                intermittentFasting: nil,
                 usedNetwork: false,
                 sourceLabel: "foundation-model"
             )
@@ -107,6 +108,24 @@ final class OnboardingInferenceTests: XCTestCase {
         XCTAssertEqual(draft.idealBodyFatPercent, 18)
     }
 
+    func testLocalInfersStructuredIF168() {
+        let draft = OnboardingLocalInference.infer(
+            from: "Filipina in Manila, IF 16-8, aiming 62 kg",
+            name: "Alex"
+        )
+        guard let fasting = draft.intermittentFasting else {
+            XCTFail("expected structured IF window")
+            return
+        }
+        XCTAssertEqual(fasting.protocolLabel, "16-8")
+        XCTAssertEqual(fasting.eatingWindowStartMinutes, 12 * 60)
+        XCTAssertEqual(fasting.eatingWindowEndMinutes, 20 * 60)
+        XCTAssertEqual(fasting.fastingHours, 16)
+        // IF alone is not a special diet.
+        XCTAssertEqual(draft.diet, .omnivore)
+        XCTAssertEqual(draft.idealWeightKg, 62)
+    }
+
     func testFMDraftMapping() {
         let fm = OnboardingProfileFMDraft(
             diet: "vegan",
@@ -136,6 +155,7 @@ final class OnboardingInferenceTests: XCTestCase {
             culturalVibe: "local",
             idealWeightKg: nil,
             idealBodyFatPercent: nil,
+            intermittentFasting: nil,
             usedNetwork: false,
             sourceLabel: "on-device"
         )
@@ -147,6 +167,7 @@ final class OnboardingInferenceTests: XCTestCase {
             culturalVibe: nil,
             idealWeightKg: 60,
             idealBodyFatPercent: 20,
+            intermittentFasting: nil,
             usedNetwork: false,
             sourceLabel: "foundation-model"
         )

@@ -108,7 +108,7 @@ struct OnboardingView: View {
 
     private var stepTitle: String {
         switch flow.step {
-        case .identity: return "Who’s on the scale?"
+        case .identity: return "What this is"
         case .body: return "Body basics"
         case .confirm: return "Looks right?"
         }
@@ -117,48 +117,129 @@ struct OnboardingView: View {
     private var stepSubtitle: String {
         switch flow.step {
         case .identity:
-            return "Name plus a freeform note. On-device Coach fills the rest. Nothing leaves the phone."
+            return "Hard facts up front. Diet is not the main thing. You fail on consistency, small habits, and mind. We help with that. Keel kicks your ass when you get lazy."
         case .body:
-            return "Only what on-device fat math needs. Ideal weight starts from height."
+            return "Only what on-device fat math needs. Ideal weight starts from height. The hard part is still showing up."
         case .confirm:
             return "Edit anything. Legal once. Then you’re in."
         }
     }
 
     private var identityStep: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            TextField("Your name", text: $flow.name)
-                .textContentType(.givenName)
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .padding(.vertical, 8)
-                .accessibilityIdentifier("onboarding.name")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                thesisBlock
+                weighInPathsBlock
 
-            Text("About you (optional)")
-                .font(.subheadline.weight(.semibold))
-            TextField(
-                "City, diet, language, vibe, goals… e.g. Filipina in Manila, IF, aiming 62 kg",
-                text: $flow.freeform,
-                axis: .vertical
+                TextField("Your name", text: $flow.name)
+                    .textContentType(.givenName)
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .padding(.vertical, 8)
+                    .accessibilityIdentifier("onboarding.name")
+
+                Text("About you (optional)")
+                    .font(.subheadline.weight(.semibold))
+                TextField(
+                    "City, diet, IF 16-8, language, vibe, goals… e.g. Filipina in Manila, IF 16-8, aiming 62 kg",
+                    text: $flow.freeform,
+                    axis: .vertical
+                )
+                .lineLimit(3...6)
+                .padding(12)
+                .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .accessibilityIdentifier("onboarding.freeform")
+
+                if FoundationModelAvailability.isAvailable {
+                    Toggle("Use on-device Coach to pre-fill", isOn: $flow.allowOnDevicePrefill)
+                        .font(.footnote)
+                        .accessibilityIdentifier("onboarding.fmToggle")
+                    Text("Apple Intelligence stays on this iPhone. Heuristics fill in if the model is busy.")
+                        .font(.caption2)
+                        .foregroundStyle(steel)
+                } else {
+                    Text(FoundationModelAvailability.statusSummary)
+                        .font(.caption)
+                        .foregroundStyle(steel)
+                    Text("We’ll still parse what we can from your note on-device.")
+                        .font(.caption2)
+                        .foregroundStyle(steel)
+                }
+            }
+        }
+    }
+
+    private var thesisBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("The Scale")
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .tracking(0.6)
+                .foregroundStyle(moss)
+                .accessibilityIdentifier("onboarding.thesis.eyebrow")
+            Text("Consistency coach. Not another diet app.")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("onboarding.thesis.headline")
+            Text("Weigh-ins and charts are the scoreboard. The real game is small habits and not quitting when you’re bored. We call that out.")
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(steel)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("onboarding.thesis.body")
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.55), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var weighInPathsBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("How you weigh. Your choice.")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundStyle(ink)
+                .accessibilityIdentifier("onboarding.weighPaths.title")
+            weighPathRow(
+                number: "1",
+                title: "Apple Health scale",
+                body: "Already got a smart scale dumping into Health? We read it. No new gadgets required."
             )
-            .lineLimit(3...6)
-            .padding(12)
-            .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .accessibilityIdentifier("onboarding.freeform")
+            weighPathRow(
+                number: "2",
+                title: "Bluetooth scale",
+                body: "Pair something like a Xiaomi Mi Body Composition Scale. Each weigh-in syncs here."
+            )
+            weighPathRow(
+                number: "3",
+                title: "Full manual",
+                body: "No scale drama. Type the number yourself. Still counts."
+            )
+            Text("Weigh every day. That’s how the habit starts, and how you kill the fear of the number going up.")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
+                .accessibilityIdentifier("onboarding.weighPaths.daily")
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityIdentifier("onboarding.weighPaths")
+    }
 
-            if FoundationModelAvailability.isAvailable {
-                Toggle("Use on-device Coach to pre-fill", isOn: $flow.allowOnDevicePrefill)
-                    .font(.footnote)
-                    .accessibilityIdentifier("onboarding.fmToggle")
-                Text("Apple Intelligence stays on this iPhone. Heuristics fill in if the model is busy.")
-                    .font(.caption2)
+    private func weighPathRow(number: String, title: String, body: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text(number)
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(ink, in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(ink)
+                Text(body)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(steel)
-            } else {
-                Text(FoundationModelAvailability.statusSummary)
-                    .font(.caption)
-                    .foregroundStyle(steel)
-                Text("We’ll still parse what we can from your note on-device.")
-                    .font(.caption2)
-                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -208,6 +289,19 @@ struct OnboardingView: View {
                 }
                 .pickerStyle(.menu)
                 .accessibilityIdentifier("onboarding.diet")
+
+                if let fasting = flow.intermittentFasting, fasting.isActive {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Intermittent fasting")
+                            .font(.subheadline.weight(.semibold))
+                        Text(
+                            "\(fasting.protocolLabel) · eating \(MealPlanEngine.formatHour(fasting.eatingStartHour))-\(MealPlanEngine.formatHour(fasting.eatingEndHour)) · \(fasting.fastingHours)h fast"
+                        )
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(steel)
+                        .accessibilityIdentifier("onboarding.ifWindow")
+                    }
+                }
 
                 HStack {
                     Text("Target body fat % (optional)")
@@ -304,7 +398,19 @@ struct OnboardingView: View {
     }
 
     private func finish() {
-        session.profile = flow.buildProfile()
+        let profile = flow.buildProfile()
+        session.profile = profile
+        if let fasting = profile.intermittentFasting, fasting.isActive {
+            let open = MealPlanEngine.formatHour(fasting.eatingStartHour)
+            let close = MealPlanEngine.formatHour(fasting.eatingEndHour)
+            CoachMemoryStore.remember(
+                CoachMemoryFact(
+                    text: "Intermittent fasting \(fasting.protocolLabel). Eating window \(open)-\(close) local (eatingWindowStart=\(fasting.eatingWindowStart), eatingWindowEnd=\(fasting.eatingWindowEnd)).",
+                    tags: ["fasting", "diet", fasting.protocolLabel]
+                )
+            )
+            session.clearMealPlanCache()
+        }
         if GrokSharedConfig.isLiveConfigured {
             GrokPrivacyConsent.isAccepted = flow.allowGrokCoachLater
         }

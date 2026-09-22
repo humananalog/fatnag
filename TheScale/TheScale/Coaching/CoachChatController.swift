@@ -96,6 +96,15 @@ final class CoachChatController: ObservableObject {
     @Published var paywallLockMessage: String?
     @Published var paywallHighlight: ScalePlan = .plus
 
+    /// Open Unlock Coach from a rate-limit bubble (or auto after lock).
+    func openPaywall(from turn: CoachChatTurn? = nil) {
+        if let turn, turn.isQuotaLock {
+            paywallLockMessage = turn.text
+        }
+        paywallHighlight = ScaleSubscriptionStore.shared.plan.upgradeTarget ?? .plus
+        showPaywall = true
+    }
+
     func seedWelcome(name: String) {
         rememberedCount = CoachMemoryStore.load().count
         let saved = CoachChatHistoryStore.load()
@@ -271,7 +280,10 @@ final class CoachChatController: ObservableObject {
             if reply.isQuotaLock {
                 self.paywallLockMessage = reply.text
                 self.paywallHighlight = ScaleSubscriptionStore.shared.plan.upgradeTarget ?? .plus
-                self.showPaywall = true
+                // Auto-present once when the lock lands; bubble stays tappable after dismiss.
+                if !self.showPaywall {
+                    self.showPaywall = true
+                }
             }
         }
 

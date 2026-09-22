@@ -9,6 +9,8 @@ struct OnboardingInferenceDraft: Equatable, Sendable {
     var culturalVibe: String?
     var idealWeightKg: Double?
     var idealBodyFatPercent: Double?
+    /// Structured IF window when freeform mentions 16-8 / fasting.
+    var intermittentFasting: FastingWindow?
     var usedNetwork: Bool
     var sourceLabel: String
 
@@ -20,6 +22,7 @@ struct OnboardingInferenceDraft: Equatable, Sendable {
         culturalVibe: nil,
         idealWeightKg: nil,
         idealBodyFatPercent: nil,
+        intermittentFasting: nil,
         usedNetwork: false,
         sourceLabel: "none"
     )
@@ -38,19 +41,22 @@ enum OnboardingLocalInference {
                 culturalVibe: nil,
                 idealWeightKg: nil,
                 idealBodyFatPercent: nil,
+                intermittentFasting: nil,
                 usedNetwork: false,
                 sourceLabel: "empty"
             )
         }
         let lower = text.lowercased()
+        let fasting = FastingWindow.detect(memoryBlock: lower)
         return OnboardingInferenceDraft(
-            diet: dietHint(from: lower),
+            diet: dietHint(from: lower, hasIF: fasting.isActive),
             location: locationHint(from: text),
             ethnicity: ethnicityHint(from: text),
             preferredLanguage: preferredLanguageHint(from: lower) ?? "English",
             culturalVibe: vibeHint(from: text, name: name),
             idealWeightKg: weightGoalHint(from: lower),
             idealBodyFatPercent: bodyFatHint(from: lower),
+            intermittentFasting: fasting.isActive ? fasting : nil,
             usedNetwork: false,
             sourceLabel: "on-device"
         )
@@ -66,6 +72,7 @@ enum OnboardingLocalInference {
             culturalVibe: remote.culturalVibe ?? local.culturalVibe,
             idealWeightKg: remote.idealWeightKg ?? local.idealWeightKg,
             idealBodyFatPercent: remote.idealBodyFatPercent ?? local.idealBodyFatPercent,
+            intermittentFasting: remote.intermittentFasting ?? local.intermittentFasting,
             usedNetwork: remote.usedNetwork || local.usedNetwork,
             sourceLabel: remote.sourceLabel == "none" || remote.sourceLabel == "empty"
                 ? local.sourceLabel
@@ -73,7 +80,7 @@ enum OnboardingLocalInference {
         )
     }
 
-    private static func dietHint(from lower: String) -> DietPreference? {
+    private static func dietHint(from lower: String, hasIF: Bool) -> DietPreference? {
         if lower.contains("vegan") { return .vegan }
         if lower.contains("vegetarian") || lower.contains("veggie") { return .vegetarian }
         if lower.contains("pescatarian") || lower.contains("pescetarian") || lower.contains("fish but no meat") {
@@ -82,9 +89,11 @@ enum OnboardingLocalInference {
         if lower.contains("omnivore") || lower.contains("eat everything") || lower.contains("no diet") {
             return .omnivore
         }
-        if lower.contains("flexible") || lower.contains("keto") || lower.contains("if ") || lower.contains("intermittent") {
+        // IF alone is not a diet. Keep omnivore unless they said flexible/keto.
+        if lower.contains("keto") || lower.contains("flexible") {
             return .other
         }
+        if hasIF { return .omnivore }
         return nil
     }
 

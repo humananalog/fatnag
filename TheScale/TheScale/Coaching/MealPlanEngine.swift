@@ -183,7 +183,7 @@ enum MealPlanEngine {
         return scheduleMeals(templates, fasting: fasting, now: now, calendar: calendar)
     }
 
-    /// Drop meals still inside the fasting window or already past; retitle first remaining as break-fast when IF.
+    /// Drop meals still inside the fasting window or already past; space survivors across the eating window.
     static func scheduleMeals(
         _ templates: [MealPlanMeal],
         fasting: FastingWindow,
@@ -204,57 +204,45 @@ enum MealPlanEngine {
 
         let open = fasting.eatingStartHour
         let close = fasting.eatingEndHour
-        let firstHour = max(open, nowHour < open ? open : nowHour)
+        // Usable span inside the 8h (or protocol) window: from max(open, now) to just before close.
+        let usableStart = nowHour < open ? open : max(open, nowHour)
+        let usableEnd = close - 0.25
+        guard usableEnd > usableStart + 0.5 else {
+            // Window almost closed: one late plate only, still inside.
+            let hour = max(open, min(usableEnd, nowHour))
+            let template = templates.last ?? templates[0]
+            return [
+                MealPlanMeal(
+                    title: "Close window",
+                    timeLabel: formatHour(hour),
+                    ingredients: template.ingredients,
+                    keyMacro: template.keyMacro,
+                    keyMicro: template.keyMicro,
+                    approxKcal: template.approxKcal
+                )
+            ]
+        }
 
-        // Build IF-aware slots inside the window from "now".
-        var slots: [Double] = []
-        if firstHour < close - 0.5 {
-            slots.append(max(firstHour, open))
-        }
-        let mid = (open + close) / 2.0
-        if mid > firstHour + 1.0, mid < close - 0.5 {
-            slots.append(mid)
-        }
-        let lateSnack = close - 0.75
-        if lateSnack > firstHour + 1.5 {
-            slots.append(lateSnack)
-        }
-        let dinner = min(close - 0.25, max(open + 5.0, 18.5))
-        if dinner > firstHour + 0.5, !slots.contains(where: { abs($0 - dinner) < 0.4 }) {
-            slots.append(dinner)
-        }
-        slots = Array(Set(slots.map { ($0 * 4).rounded() / 4 })).sorted()
-        if slots.count < 3 {
-            // Force three plateaus inside window.
-            let span = max(1.5, close - open - 0.5)
-            slots = [
-                open,
-                open + span * 0.4,
-                open + span * 0.85
-            ].map { min(max($0, open), close - 0.25) }
-            if nowHour > open {
-                slots = slots.map { max($0, nowHour) }.filter { $0 < close }
-            }
-            while slots.count < 3 {
-                slots.append(min(close - 0.2, (slots.last ?? open) + 1.5))
-            }
-        }
+        let mealCount = min(4, max(3, templates.count))
+        let slots = spacedHours(count: mealCount, from: usableStart, to: usableEnd)
 
         let titles: [String] = {
             if fasting.isFasting(at: now, calendar: calendar) || nowHour < open {
-                return ["Break-fast", "Lunch plate", "Dinner"]
+                return ["Break-fast", "Mid window", "Late plate", "Close window"]
             }
-            return ["Next plate", "Later plate", "Close window"]
+            return ["Next plate", "Later plate", "Close window", "Last bite"]
         }()
 
         var meals: [MealPlanMeal] = []
-        for (index, hour) in slots.prefix(4).enumerated() {
+        for (index, hour) in slots.enumerated() {
+            let clamped = min(max(hour, open), close - 0.05)
+            guard fasting.allowsMeal(atHour: clamped) else { continue }
             let template = templates[min(index, templates.count - 1)]
             let title = index < titles.count ? titles[index] : template.title
             meals.append(
                 MealPlanMeal(
                     title: title,
-                    timeLabel: formatHour(hour),
+                    timeLabel: formatHour(clamped),
                     ingredients: template.ingredients,
                     keyMacro: template.keyMacro,
                     keyMicro: template.keyMicro,
@@ -263,6 +251,17 @@ enum MealPlanEngine {
             )
         }
         return meals
+    }
+
+    /// Evenly space `count` meal hours across [from, to] inclusive.
+    static func spacedHours(count: Int, from start: Double, to end: Double) -> [Double] {
+        guard count > 0, end > start else { return [] }
+        if count == 1 { return [start] }
+        let span = end - start
+        return (0..<count).map { i in
+            let raw = start + span * Double(i) / Double(count - 1)
+            return (raw * 4).rounded() / 4
+        }
     }
 
     /// Reject Grok meals that land inside the fasting window; reschedule survivors.

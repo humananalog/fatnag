@@ -242,9 +242,10 @@ enum HealthChartMath {
         let wanted = range.visibleDomainLength
         guard wanted.isFinite, wanted > 0 else { return nil }
         // Require headroom so layout math stays positive after axis/chrome insets.
-        guard span > wanted * 1.05 else { return nil }
-        let capped = min(wanted, span * 0.92)
-        guard capped.isFinite, capped > 0, capped < span else { return nil }
+        // Charts still emits Invalid frame dimension when leftover width collapses.
+        guard span > wanted * 1.08 else { return nil }
+        let capped = min(wanted, span * 0.90)
+        guard capped.isFinite, capped > 0, capped < span - 86_400 * 0.05 else { return nil }
         return capped
     }
 

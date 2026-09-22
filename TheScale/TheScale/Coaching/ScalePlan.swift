@@ -46,11 +46,23 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
     var blurb: String {
         switch self {
         case .free:
-            return "Full weigh-in, Health, charts, and on-device Coach. \(weeklyGrokCredits) live Keel asks per week."
+            return "Scoreboard only. Full weigh-in, Health, charts, on-device Coach. \(weeklyGrokCredits) live Keel asks a week so you can taste the heat. When you stall, you wait until Monday or you upgrade."
         case .plus:
-            return "Active daily Coach. \(weeklyGrokCredits) live Keel credits per week (chat, Monday card, fitness checks)."
+            return "Daily accountability. \(weeklyGrokCredits) live Keel credits a week (chat, Monday card, fitness checks). Enough to get called out when you skip the scale or invent excuses. Adults who want a habit, not a toy."
         case .pro:
-            return "Heavy Coach use. \(weeklyGrokCredits) live Keel credits per week with room for power days."
+            return "No soft ceiling. \(weeklyGrokCredits) live Keel credits a week with room for ugly weeks, double checks, and power days. You pay for volume because consistency is expensive when you actually use the coach."
+        }
+    }
+
+    /// Hard paywall argument (Keel voice). Shown under each tier.
+    var paywallArgument: String {
+        switch self {
+        case .free:
+            return "You get the hardware loop for free: scale, Health, charts. \(weeklyGrokCredits) live Keel asks a week. Enough to learn the tone. Not enough to hide behind when you go soft."
+        case .plus:
+            return "\(weeklyGrokCredits) live credits a week. Roughly a sharp ask a day. Monday card, fitness checks, chat when you start lying to yourself. This is the adult default if you mean it."
+        case .pro:
+            return "\(weeklyGrokCredits) live credits a week. Use Coach hard on bad weeks without rationing. Pro is for people who already know consistency is the failure mode and refuse to run out of pressure mid-spiral."
         }
     }
 

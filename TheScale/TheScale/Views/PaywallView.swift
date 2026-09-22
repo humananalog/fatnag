@@ -56,7 +56,7 @@ struct PaywallView: View {
                 .font(.system(size: 32, weight: .semibold, design: .serif))
                 .foregroundStyle(ink)
 
-            Text("Weigh-in, Health, and charts stay free. Live Keel uses a weekly credit pool.")
+            Text("Weigh-in, Health, and charts stay free. Live Keel is finite. Consistency is the product. Credits buy pressure.")
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(steel)
                 .fixedSize(horizontal: false, vertical: true)
@@ -129,7 +129,7 @@ struct PaywallView: View {
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundStyle(accent)
 
-            Text(shortBlurb(plan))
+            Text(plan.paywallArgument)
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundStyle(steel)
                 .fixedSize(horizontal: false, vertical: true)
@@ -168,17 +168,6 @@ struct PaywallView: View {
                     lineWidth: isHighlight ? 2 : 1
                 )
         )
-    }
-
-    private func shortBlurb(_ plan: ScalePlan) -> String {
-        switch plan {
-        case .free:
-            return "Full scale + Health. 5 Keel asks to try Coach."
-        case .plus:
-            return "Daily Coach. About 4 live asks per day."
-        case .pro:
-            return "Heavy Coach weeks. Room for power days."
-        }
     }
 
     private var footer: some View {
