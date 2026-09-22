@@ -60,7 +60,7 @@ struct RetroSnakeSpinnerView: View {
         let lines = [
             "Nom. That apple had protein goals.",
             "16/8 snake: no snacks before noon.",
-            "High score unlocked: not inventing breakfast at 7am.",
+            "High score unlocked: Lunch at noon, not Breakfast.",
             CoachPersona.thinkingSpinnerLine
         ]
         return lines[tick % lines.count]

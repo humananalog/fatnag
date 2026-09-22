@@ -95,16 +95,17 @@ struct MealPlanPayload: Equatable, Codable, Sendable {
 }
 
 enum MealPlanStore {
-    private static let key = "thescale.mealPlan.v3"
+    private static let key = "thescale.mealPlan.v4"
 
     static func load() -> MealPlanPayload? {
         if let data = UserDefaults.standard.data(forKey: key),
            let payload = try? JSONDecoder().decode(MealPlanPayload.self, from: data) {
             return payload
         }
-        // Drop stale v1/v2 caches so IF meal-count fix regenerates (16-8 → 2 plates).
-        UserDefaults.standard.removeObject(forKey: "thescale.mealPlan.v1")
-        UserDefaults.standard.removeObject(forKey: "thescale.mealPlan.v2")
+        // Drop stale caches so IF slot naming (no Breakfast at noon) regenerates.
+        for stale in ["thescale.mealPlan.v1", "thescale.mealPlan.v2", "thescale.mealPlan.v3"] {
+            UserDefaults.standard.removeObject(forKey: stale)
+        }
         return nil
     }
 
@@ -116,8 +117,9 @@ enum MealPlanStore {
 
     static func clear() {
         UserDefaults.standard.removeObject(forKey: key)
-        UserDefaults.standard.removeObject(forKey: "thescale.mealPlan.v1")
-        UserDefaults.standard.removeObject(forKey: "thescale.mealPlan.v2")
+        for stale in ["thescale.mealPlan.v1", "thescale.mealPlan.v2", "thescale.mealPlan.v3"] {
+            UserDefaults.standard.removeObject(forKey: stale)
+        }
     }
 }
 
@@ -158,7 +160,8 @@ enum MealPlanEngine {
         let hour = calendar.component(.hour, from: now)
         let hourBucket = (hour / 4) * 4
         let meals = preferredMealCount(for: fasting)
-        return "\(dayKey)|\(maxKcal)|\(proteinGrams)|\(diet.rawValue)|\(deltaBucket)|\(fasting.cacheToken)|m\(meals)|h\(hourBucket)"
+        // `slots2` invalidates caches that still labeled IF first plate as Breakfast / Break-fast.
+        return "\(dayKey)|\(maxKcal)|\(proteinGrams)|\(diet.rawValue)|\(deltaBucket)|\(fasting.cacheToken)|m\(meals)|h\(hourBucket)|slots2"
     }
 
     static func dayKey(now: Date = Date(), calendar: Calendar = .current) -> String {
@@ -275,10 +278,13 @@ enum MealPlanEngine {
                 guard let h = meal.approxHour else { return true }
                 return h >= nowHour - 0.75
             }
+            let picked: [MealPlanMeal]
             if upcoming.count >= targetCount {
-                return Array(upcoming.prefix(targetCount))
+                picked = Array(upcoming.prefix(targetCount))
+            } else {
+                picked = Array(templates.suffix(min(targetCount, templates.count)))
             }
-            return Array(templates.suffix(min(targetCount, templates.count)))
+            return applySlotTitles(picked, fasting: .none)
         }
 
         let open = fasting.eatingStartHour
@@ -290,36 +296,24 @@ enum MealPlanEngine {
             // Window almost closed: one late plate only, still inside.
             let hour = max(open, min(usableEnd, nowHour))
             let template = templates.last ?? templates[0]
-            return [
-                MealPlanMeal(
-                    title: "Close window",
-                    timeLabel: formatHour(hour),
-                    ingredients: template.ingredients,
-                    keyMacro: template.keyMacro,
-                    keyMicro: template.keyMicro,
-                    approxKcal: template.approxKcal
-                )
-            ]
+            return applySlotTitles(
+                [
+                    MealPlanMeal(
+                        title: "One plate",
+                        timeLabel: formatHour(hour),
+                        ingredients: template.ingredients,
+                        keyMacro: template.keyMacro,
+                        keyMicro: template.keyMicro,
+                        approxKcal: template.approxKcal
+                    )
+                ],
+                fasting: fasting
+            )
         }
 
         let count = min(targetCount, max(1, templates.count))
         let slots = spacedHours(count: count, from: usableStart, to: usableEnd)
-
-        let titles: [String] = {
-            if count == 1 {
-                return ["One plate"]
-            }
-            if count == 2 {
-                if fasting.isFasting(at: now, calendar: calendar) || nowHour < open {
-                    return ["Break-fast", "Late plate"]
-                }
-                return ["Next plate", "Close window"]
-            }
-            if fasting.isFasting(at: now, calendar: calendar) || nowHour < open {
-                return ["Break-fast", "Mid window", "Late plate", "Close window"]
-            }
-            return ["Next plate", "Later plate", "Close window", "Last bite"]
-        }()
+        let titles = slotTitles(count: count, fasting: fasting)
 
         var meals: [MealPlanMeal] = []
         for (index, hour) in slots.enumerated() {
@@ -338,7 +332,45 @@ enum MealPlanEngine {
                 )
             )
         }
-        return meals
+        return applySlotTitles(meals, fasting: fasting)
+    }
+
+    /// Slot names inside an IF eating window. Never "Breakfast" (morning meal sense) when fasting.
+    /// 16-8 / 2 plates → Lunch + Dinner. 3+ → First / Mid / Last plate.
+    static func slotTitles(count: Int, fasting: FastingWindow) -> [String] {
+        let n = max(1, count)
+        if !fasting.isActive {
+            switch n {
+            case 1: return ["One plate"]
+            case 2: return ["Lunch", "Dinner"]
+            case 3: return ["Breakfast", "Lunch", "Dinner"]
+            default: return ["Breakfast", "Lunch", "Snack", "Dinner"]
+            }
+        }
+        switch n {
+        case 1:
+            return ["One plate"]
+        case 2:
+            // Classic midday-open windows (16-8 ~12-20): Lunch then Dinner.
+            return ["Lunch", "Dinner"]
+        case 3:
+            return ["First plate", "Mid plate", "Last plate"]
+        default:
+            return ["First plate", "Mid plate", "Later plate", "Last plate"]
+        }
+    }
+
+    /// Overwrite meal titles by slot order so Grok/FM cannot leave "Breakfast" on a noon first plate.
+    static func applySlotTitles(_ meals: [MealPlanMeal], fasting: FastingWindow) -> [MealPlanMeal] {
+        guard !meals.isEmpty else { return meals }
+        let titles = slotTitles(count: meals.count, fasting: fasting)
+        return meals.enumerated().map { index, meal in
+            var copy = meal
+            if index < titles.count {
+                copy.title = titles[index]
+            }
+            return copy
+        }
     }
 
     /// Evenly space `count` meal hours across [from, to] inclusive.
@@ -361,16 +393,22 @@ enum MealPlanEngine {
     ) -> [MealPlanMeal] {
         let target = preferredMealCount(for: fasting)
         guard fasting.isActive else {
-            return scheduleMeals(meals, fasting: .none, now: now, calendar: calendar, mealCount: target)
+            return applySlotTitles(
+                scheduleMeals(meals, fasting: .none, now: now, calendar: calendar, mealCount: target),
+                fasting: .none
+            )
         }
         let allowed = meals.filter { meal in
             guard let h = meal.approxHour else { return true }
             return fasting.allowsMeal(atHour: h)
         }
+        let scheduled: [MealPlanMeal]
         if allowed.count >= target {
-            return scheduleMeals(allowed, fasting: fasting, now: now, calendar: calendar, mealCount: target)
+            scheduled = scheduleMeals(allowed, fasting: fasting, now: now, calendar: calendar, mealCount: target)
+        } else {
+            scheduled = scheduleMeals(meals, fasting: fasting, now: now, calendar: calendar, mealCount: target)
         }
-        return scheduleMeals(meals, fasting: fasting, now: now, calendar: calendar, mealCount: target)
+        return applySlotTitles(scheduled, fasting: fasting)
     }
 
     /// Pick and resize templates so plate count matches IF (2 for 16-8, 1 for OMAD, …).

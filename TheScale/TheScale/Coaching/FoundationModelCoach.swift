@@ -29,7 +29,7 @@ struct MemoryExtractionDraft: Equatable, Sendable {
 
 @Generable(description: "One meal with metric ingredient portions for an on-device menu")
 struct MealPlanFMMealDraft: Equatable, Sendable {
-    @Guide(description: "Meal title, e.g. Break-fast, Lunch, Dinner.")
+    @Guide(description: "Meal title by slot. With IF use Lunch/Dinner or First plate/Mid plate/Last plate. Never Breakfast when fasting.")
     var title: String
 
     @Guide(description: "Local time label like ~12:30.")
@@ -258,12 +258,13 @@ enum FoundationModelCoach {
             if fasting.isActive {
                 let open = MealPlanEngine.formatHour(fasting.eatingStartHour)
                 let close = MealPlanEngine.formatHour(fasting.eatingEndHour)
-                return "Intermittent fasting \(fasting.cacheToken). Eating window \(open)-\(close). Do not place meals outside the window."
+                return "Intermittent fasting \(fasting.cacheToken). Eating window \(open)-\(close). Do not place meals outside the window. Never title a meal Breakfast. For 2 plates use Lunch then Dinner."
             }
             return "No fasting window."
         }()
         let mem = memoryBlock.trimmingCharacters(in: .whitespacesAndNewlines)
         let plateCount = MealPlanEngine.preferredMealCount(for: fasting)
+        let slotHint = MealPlanEngine.slotTitles(count: plateCount, fasting: fasting).joined(separator: ", ")
         do {
             let session = LanguageModelSession(instructions: """
                 You write practical meal menus for The Scale on-device.
@@ -276,6 +277,7 @@ enum FoundationModelCoach {
                 Diet: \(diet.title). Daily max \(maxKcal) kcal. Protein \(proteinGrams) g. Micro focus: \(microHint).
                 Weekly weight nudge \(String(format: "%+.1f", weeklyDeltaKg)) kg (keep a mild deficit if negative).
                 \(fastingLine)
+                Slot titles in order: \(slotHint).
                 \(mem.isEmpty ? "" : "Memory:\n\(mem)")
                 Ingredients must include metric grams or millilitres. Do not invent extra snacks.
                 """

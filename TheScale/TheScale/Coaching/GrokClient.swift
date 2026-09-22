@@ -653,7 +653,7 @@ actor GrokClient {
                 let open = MealPlanEngine.formatHour(fasting.eatingStartHour)
                 let close = MealPlanEngine.formatHour(fasting.eatingEndHour)
                 let fastingNow = fasting.isFasting(at: now) ? "CURRENTLY FASTING" : "inside eating window"
-                return "Intermittent fasting active (\(fasting.cacheToken)). Eating window \(open)-\(close) local. Status now: \(fastingNow). Do NOT propose meals during the fasting window. First meal at or after window open. Exactly \(plateCount) meal\(plateCount == 1 ? "" : "s") inside the window."
+                return "Intermittent fasting active (\(fasting.cacheToken)). Eating window \(open)-\(close) local. Status now: \(fastingNow). Do NOT propose meals during the fasting window. First meal at or after window open. Exactly \(plateCount) meal\(plateCount == 1 ? "" : "s") inside the window. NEVER title a meal Breakfast or Break-fast when fasting is active. For 2 plates use Lunch then Dinner. For 3+ use First plate / Mid plate / Last plate."
             }
             return "No intermittent fasting window set. Exactly \(plateCount) meals."
         }()
@@ -672,7 +672,7 @@ actor GrokClient {
         \(fastingLine)\(memory)
         \(portionRule)
         Reply ONLY JSON:
-        {"meals":[{"title":"Break-fast","time":"~12:00","ingredients":["Chicken breast 140 g","Greens 120 g"],"macro":"Protein 35 g","micro":"Iron ~3 mg","kcal":420}]}
+        {"meals":[{"title":"Lunch","time":"~12:00","ingredients":["Chicken breast 140 g","Greens 120 g"],"macro":"Protein 35 g","micro":"Iron ~3 mg","kcal":420},{"title":"Dinner","time":"~19:00","ingredients":["Salmon 150 g","Broccoli 200 g"],"macro":"Protein 40 g","micro":"Omega-3","kcal":480}]}
         Exactly \(plateCount) meal\(plateCount == 1 ? "" : "s"). Stay under \(maxKcal) total. Match diet. Main ingredients with portions. Times must be inside any eating window and at/after local now. No extra snacks.
         """
 

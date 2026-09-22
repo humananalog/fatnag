@@ -176,6 +176,36 @@ final class MealPlanEngineTests: XCTestCase {
         XCTAssertGreaterThan((hours.last ?? 0) - (hours.first ?? 0), 5.0)
     }
 
+    func testIFFirstPlateIsNeverBreakfast() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let sevenAM = cal.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 7))!
+        let noon = cal.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 12))!
+        for now in [sevenAM, noon] {
+            let meals = MealPlanEngine.offlineMeals(
+                diet: .omnivore,
+                maxKcal: 1800,
+                proteinGrams: 140,
+                fasting: .classic168,
+                now: now,
+                calendar: cal
+            )
+            XCTAssertEqual(meals.count, 2)
+            XCTAssertEqual(meals.map(\.title), ["Lunch", "Dinner"])
+            XCTAssertFalse(meals.contains(where: {
+                $0.title.localizedCaseInsensitiveContains("breakfast")
+                    || $0.title.localizedCaseInsensitiveContains("break-fast")
+            }))
+        }
+
+        let grokLabeledBreakfast = [
+            MealPlanMeal(title: "Breakfast", timeLabel: "~12:00", ingredients: ["Eggs"], keyMacro: "P", keyMicro: "M", approxKcal: 400),
+            MealPlanMeal(title: "Dinner", timeLabel: "~19:00", ingredients: ["Fish"], keyMacro: "P", keyMicro: "M", approxKcal: 500)
+        ]
+        let fixed = MealPlanEngine.enforceFasting(grokLabeledBreakfast, fasting: .classic168, now: noon, calendar: cal)
+        XCTAssertEqual(fixed.map(\.title), ["Lunch", "Dinner"])
+    }
+
     func testEnforceFastingDropsEarlyBreakfast() {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(secondsFromGMT: 0)!
