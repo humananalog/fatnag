@@ -19,18 +19,21 @@ final class MondayCardTests: XCTestCase {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(secondsFromGMT: 0)!
         let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 8))!
-        // 4 weeks to goal: 84 → 80 = -1 kg/wk → Sunday 83.
+        // 4 weeks to goal: 84 → 80 wants -1 kg/wk; biology caps near ~0.59.
         let goalDate = cal.date(from: DateComponents(year: 2026, month: 10, day: 19))!
         let goal = MondayCardEngine.sundayGoal(
             currentKg: 84,
             idealKg: 80,
             goalDate: goalDate,
             fallbackWeeklyDeltaKg: -0.3,
+            priorSundayTargetKg: nil,
             now: now,
             calendar: cal
         )
-        XCTAssertEqual(goal.weeklyDeltaKg, -1.0, accuracy: 0.05)
-        XCTAssertEqual(goal.targetKg, 83.0, accuracy: 0.05)
+        let safe = TargetFeasibility.maxSafeLossKgPerWeek(currentKg: 84)
+        let expected = (safe * 100).rounded() / 100
+        XCTAssertEqual(goal.weeklyDeltaKg, -expected, accuracy: 0.05)
+        XCTAssertEqual(goal.targetKg, 84 + goal.weeklyDeltaKg, accuracy: 0.05)
         XCTAssertEqual(cal.component(.weekday, from: goal.sundayDate), 1)
     }
 
@@ -39,10 +42,14 @@ final class MondayCardTests: XCTestCase {
             currentKg: 90,
             idealKg: 80,
             goalDate: nil,
-            fallbackWeeklyDeltaKg: -0.4
+            fallbackWeeklyDeltaKg: -0.4,
+            priorSundayTargetKg: nil
         )
-        XCTAssertEqual(goal.targetKg, 89.6, accuracy: 0.01)
-        XCTAssertEqual(goal.weeklyDeltaKg, -0.4, accuracy: 0.01)
+        // No goal date: still aggressive to safe max toward ideal (not soft fallback).
+        let safe = TargetFeasibility.maxSafeLossKgPerWeek(currentKg: 90)
+        let expected = (safe * 100).rounded() / 100
+        XCTAssertEqual(goal.weeklyDeltaKg, -expected, accuracy: 0.05)
+        XCTAssertEqual(goal.targetKg, 90 + goal.weeklyDeltaKg, accuracy: 0.05)
     }
 
     func testParseSections() {

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One-screen Monday morning post-weigh card: progress, Sunday goal, meals, Grok diagnostic.
+/// One-screen Monday morning post-weigh card: progress, Sunday goal, meals, Keel diagnostic.
 struct MondayWeeklyCardView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
 

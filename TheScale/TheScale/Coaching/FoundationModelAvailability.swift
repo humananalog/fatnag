@@ -2,7 +2,7 @@ import Foundation
 import FoundationModels
 
 /// On-device Apple Intelligence availability for The Scale.
-/// Never throws into UI; callers treat unavailable as algorithmic / Grok fallback.
+/// Never throws into UI; callers treat unavailable as algorithmic / Keel fallback.
 enum FoundationModelAvailability {
     enum Status: Equatable, Sendable {
         case available
@@ -40,7 +40,7 @@ enum FoundationModelAvailability {
         case .available:
             return "Apple Intelligence: on-device model ready (notifications + private snippets)."
         case .unavailable(let reason):
-            return "Apple Intelligence: \(reason) Algorithmic copy and Grok (when consented) still work."
+            return "Apple Intelligence: \(reason) Algorithmic copy and Keel (when consented) still work."
         }
     }
 

@@ -117,7 +117,7 @@ struct OnboardingView: View {
     private var stepSubtitle: String {
         switch flow.step {
         case .identity:
-            return "Name plus a freeform note. On-device Coach fills the rest — nothing leaves the phone."
+            return "Name plus a freeform note. On-device Coach fills the rest. Nothing leaves the phone."
         case .body:
             return "Only what on-device fat math needs. Ideal weight starts from height."
         case .confirm:
@@ -231,7 +231,7 @@ struct OnboardingView: View {
                     .font(.footnote)
                     .accessibilityIdentifier("onboarding.notifications")
 
-                Toggle("Allow live Grok Coach later", isOn: $flow.allowGrokCoachLater)
+                Toggle(CoachPersona.onboardingLiveToggleTitle, isOn: $flow.allowGrokCoachLater)
                     .font(.footnote)
                     .disabled(!GrokSharedConfig.isLiveConfigured)
                     .accessibilityIdentifier("onboarding.grokLater")

@@ -157,7 +157,7 @@ enum MealPlanEngine {
         let fastingNote = fasting.isActive
             ? " IF \(fasting.cacheToken) respected."
             : ""
-        let note = sourceNoteOverride ?? "On-device menu for \(who) with metric-sized portions.\(fastingNote) Refresh when Grok credits remain."
+        let note = sourceNoteOverride ?? "On-device menu for \(who) with metric-sized portions.\(fastingNote) Refresh when Keel credits remain."
         return MealPlanPayload(
             cacheKey: key,
             dayKey: dayKey,

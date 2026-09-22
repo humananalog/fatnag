@@ -40,14 +40,14 @@ struct CoachChatView: View {
             chat.seedWelcome(name: session.profile.greetingName)
             Task { _ = await session.runFitnessMonitorCheck(force: false) }
         }
-        .alert("Send chat context to Grok?", isPresented: $showPrivacyGate) {
+        .alert("Send chat context to Keel?", isPresented: $showPrivacyGate) {
             Button("Cancel", role: .cancel) {}
             Button("Agree & send") {
                 GrokPrivacyConsent.isAccepted = true
                 Task { await chat.send(session: session) }
             }
         } message: {
-            Text("Only this chat plus a short weight/fat/fitness digest go to the shared Grok backend. Memory stays on-device except the facts relevant to the ask. No per-user API key.")
+            Text("Only this chat plus a short weight/fat/fitness digest go to the shared Keel backend. Memory stays on-device except the facts relevant to the ask. No per-user API key.")
         }
         .sheet(isPresented: $chat.showPaywall) {
             PaywallView(
@@ -102,7 +102,7 @@ struct CoachChatView: View {
         let fm = FoundationModelAvailability.shortLabel
         if GrokSharedConfig.isLiveConfigured {
             let mem = chat.rememberedCount
-            let base = mem > 0 ? "Grok · \(mem) mem" : "Grok · live"
+            let base = CoachPersona.liveBadge(memoryCount: mem)
             return "\(base) · \(quota) · \(fm)"
         }
         return "Mock / offline · \(quota) · \(fm)"

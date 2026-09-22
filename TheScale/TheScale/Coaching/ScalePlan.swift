@@ -33,8 +33,8 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Live Grok credits per ISO week (chat + Monday card + fitness Grok check = 1 each).
-    /// Sized for Grok 4.20 Non-Reasoning COGS (~$0.004–0.011 / call) and 50% margin after Apple.
+    /// Live Keel credits per ISO week (chat + Monday card + fitness check = 1 each).
+    /// Sized for shared live-model COGS and 50% margin after Apple.
     var weeklyGrokCredits: Int {
         switch self {
         case .free: return 5 // teaser; full scale/Health/FM still unlimited
@@ -46,11 +46,11 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
     var blurb: String {
         switch self {
         case .free:
-            return "Full weigh-in, Health, charts, and on-device Coach. \(weeklyGrokCredits) live Grok asks per week."
+            return "Full weigh-in, Health, charts, and on-device Coach. \(weeklyGrokCredits) live Keel asks per week."
         case .plus:
-            return "Active daily Coach. \(weeklyGrokCredits) live Grok credits per week (chat, Monday card, fitness checks)."
+            return "Active daily Coach. \(weeklyGrokCredits) live Keel credits per week (chat, Monday card, fitness checks)."
         case .pro:
-            return "Heavy Coach use. \(weeklyGrokCredits) live Grok credits per week with room for power days."
+            return "Heavy Coach use. \(weeklyGrokCredits) live Keel credits per week with room for power days."
         }
     }
 

@@ -265,19 +265,19 @@ actor GrokClient {
         var userMessage: String {
             switch self {
             case .consentDenied:
-                return "Consent off. Turn on Allow Grok coach requests in Settings."
+                return "Consent off. Turn on Allow Keel coach requests in Settings."
             case .notConfigured(let detail):
                 return detail
             case .malformedProxy(let detail):
                 return detail
             case .badURL:
-                return "Grok proxy URL is invalid (NSURLError bad URL). Rebuild with GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev"
+                return "Keel proxy URL is invalid (NSURLError bad URL). Rebuild with GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev"
             case .httpStatus(let code):
-                return "Grok proxy returned HTTP \(code). Check Worker health / XAI_API_KEY secret."
+                return "Keel proxy returned HTTP \(code). Check Worker health / XAI_API_KEY secret."
             case .emptyResponse:
-                return "Grok returned an empty reply. Try again in a moment."
+                return "Keel returned an empty reply. Try again in a moment."
             case .transport(let message):
-                return "Grok request failed: \(message)"
+                return "Keel request failed: \(message)"
             }
         }
     }
@@ -606,8 +606,8 @@ actor GrokClient {
                 now: now,
                 templated: templated,
                 reason: quotaBlocked
-                    ? "Weekly Grok credits used. On-device menu."
-                    : "On-device menu (Grok offline or consent off)."
+                    ? "Weekly Keel credits used. On-device menu."
+                    : "On-device menu (Keel offline or consent off)."
             )
         }
 
@@ -622,7 +622,7 @@ actor GrokClient {
                 fasting: fasting,
                 now: now,
                 templated: templated,
-                reason: "On-device menu (Grok offline)."
+                reason: "On-device menu (Keel offline)."
             )
         }
 
@@ -637,7 +637,7 @@ actor GrokClient {
                 fasting: fasting,
                 now: now,
                 templated: templated,
-                reason: "Weekly Grok credits used. On-device menu."
+                reason: "Weekly Keel credits used. On-device menu."
             )
         }
 
@@ -701,7 +701,7 @@ actor GrokClient {
                         fasting: fasting,
                         now: now,
                         templated: templated,
-                        reason: "On-device menu (Grok parse thin)."
+                        reason: "On-device menu (Keel parse thin)."
                     )
                 }
                 let key = MealPlanEngine.cacheKey(
@@ -713,7 +713,7 @@ actor GrokClient {
                     fasting: fasting,
                     now: now
                 )
-                let note = fasting.isActive ? "Grok · live · IF respected" : "Grok · live"
+                let note = fasting.isActive ? CoachPersona.liveBadge(fastingNote: "IF respected") : CoachPersona.liveBadge()
                 return MealPlanPayload(
                     cacheKey: key,
                     dayKey: dayKey,
@@ -736,7 +736,7 @@ actor GrokClient {
                 fasting: fasting,
                 now: now,
                 templated: templated,
-                reason: "On-device menu (Grok empty)."
+                reason: "On-device menu (Keel empty)."
             )
         } catch {
             return await localMealPlanFallback(
@@ -749,7 +749,7 @@ actor GrokClient {
                 fasting: fasting,
                 now: now,
                 templated: templated,
-                reason: "On-device menu (Grok error)."
+                reason: "On-device menu (Keel error)."
             )
         }
     }

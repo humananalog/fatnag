@@ -16,7 +16,7 @@ struct MondayWeekKey: Equatable, Hashable, Codable, Sendable {
     }
 }
 
-/// Deterministic last-week + Sunday-goal numbers. Grok fills voice / meals / diagnostic.
+/// Deterministic last-week + Sunday-goal numbers. Live Keel fills voice / meals / diagnostic.
 struct MondayWeekProgress: Equatable, Codable, Sendable {
     var weightDeltaKg: Double?
     var fatDeltaPercent: Double?
@@ -31,6 +31,12 @@ struct MondaySundayGoal: Equatable, Codable, Sendable {
     var sundayDate: Date
     var weeklyDeltaKg: Double
     var pacingLine: String
+    /// Catch-up / accelerate / aggressive. Defaults to aggressive for old caches.
+    var modeRaw: String?
+
+    var mode: WeeklyTargetMode {
+        WeeklyTargetMode(rawValue: modeRaw ?? "") ?? .aggressive
+    }
 }
 
 /// Cached Monday card payload for the ISO week.
@@ -133,58 +139,32 @@ enum MondayCardEngine {
         return calendar.date(bySettingHour: 12, minute: 0, second: 0, of: sundayStart) ?? sundayStart
     }
 
-    /// Pace current → ideal across remaining weeks to goalDate (or weekly mini-goal delta).
-    /// Direct instructor math: no medical soft-caps on this card.
+    /// Pace current → ideal as hard as biology safely allows.
+    /// Missed last Sunday → hardcore catch-up. Ahead → accelerate (no coast).
     static func sundayGoal(
         currentKg: Double,
         idealKg: Double,
         goalDate: Date?,
         fallbackWeeklyDeltaKg: Double,
+        priorSundayTargetKg: Double? = MondayCardStore.priorSundayTargetKg,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> MondaySundayGoal {
-        let sunday = targetSunday(from: now, calendar: calendar)
-        let remaining = idealKg - currentKg
-
-        if let goalDate {
-            let days = max(calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: goalDate)).day ?? 0, 0)
-            let weeks = max(Double(days) / 7.0, 1.0 / 7.0)
-            let weekly = remaining / weeks
-            let target = (currentKg + weekly).rounded(toPlaces: 2)
-            let dateLabel = goalDate.formatted(.dateTime.month(.abbreviated).day().year())
-            let pacing = String(
-                format: "Pace %.2f kg/wk toward %.1f kg by %@ → Sunday %.2f kg.",
-                weekly,
-                idealKg,
-                dateLabel,
-                target
-            )
-            return MondaySundayGoal(
-                targetKg: target,
-                sundayDate: sunday,
-                weeklyDeltaKg: weekly.rounded(toPlaces: 2),
-                pacingLine: pacing
-            )
-        }
-
-        let weekly = fallbackWeeklyDeltaKg
-        let target = (currentKg + weekly).rounded(toPlaces: 2)
-        let pacing: String
-        if abs(remaining) < 0.15 {
-            pacing = String(format: "Near ideal (%.1f kg). Sunday hold near %.2f kg.", idealKg, target)
-        } else {
-            pacing = String(
-                format: "Weekly nudge %+.2f kg toward %.1f kg → Sunday %.2f kg.",
-                weekly,
-                idealKg,
-                target
-            )
-        }
+        let hit = AggressiveWeeklyTargetEngine.compute(
+            currentKg: currentKg,
+            idealKg: idealKg,
+            goalDate: goalDate,
+            priorSundayTargetKg: priorSundayTargetKg,
+            fallbackWeeklyDeltaKg: fallbackWeeklyDeltaKg,
+            now: now,
+            calendar: calendar
+        )
         return MondaySundayGoal(
-            targetKg: target,
-            sundayDate: sunday,
-            weeklyDeltaKg: weekly.rounded(toPlaces: 2),
-            pacingLine: pacing
+            targetKg: hit.sundayTargetKg,
+            sundayDate: hit.sundayDate,
+            weeklyDeltaKg: hit.weeklyDeltaKg,
+            pacingLine: hit.pacingLine,
+            modeRaw: hit.mode.rawValue
         )
     }
 
@@ -350,12 +330,5 @@ enum MondayCardEngine {
             return ("", "", cleaned)
         }
         return (encouragement, meals, diagnostic)
-    }
-}
-
-private extension Double {
-    func rounded(toPlaces places: Int) -> Double {
-        let factor = pow(10.0, Double(places))
-        return (self * factor).rounded() / factor
     }
 }

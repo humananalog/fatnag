@@ -34,7 +34,7 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>The Scale listens for your Mi Body Composition Scale 2 Bluetooth broadcasts to read weight and impedance on this iPhone only.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>The Scale reads weight, body fat, heart rate, resting heart rate, HRV (SDNN), respiratory rate, sleeping wrist temperature, blood oxygen, VO2 max, sleep (including stages when available), steps, active energy, Exercise Time, walking/running distance, and workouts from Apple Health on this iPhone only. Used for local charts, fitness digests, and optional Grok coaching after you consent. Nothing is uploaded without that opt-in.</string>
+	<string>The Scale reads weight, body fat, heart rate, resting heart rate, HRV (SDNN), respiratory rate, sleeping wrist temperature, blood oxygen, VO2 max, sleep (including stages when available), steps, active energy, Exercise Time, walking/running distance, and workouts from Apple Health on this iPhone only. Used for local charts, fitness digests, and optional Keel coaching after you consent. Nothing is uploaded without that opt-in.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>The Scale saves confirmed weight, BMI, body fat percentage, and lean body mass to Apple Health when you tap Confirm. Nothing is uploaded.</string>
 	<key>NSUserNotificationsUsageDescription</key>

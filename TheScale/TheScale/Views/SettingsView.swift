@@ -127,7 +127,7 @@ struct SettingsView: View {
                 Label("Online AI usage", systemImage: "chart.bar.fill")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Live Grok for chat, Monday card, fitness checks, and meal plans. On-device Coach stays unlimited. Resets Monday.")
+                Text("Live Keel for chat, Monday card, fitness checks, and meal plans. On-device Coach stays unlimited. Resets Monday.")
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -377,7 +377,7 @@ struct SettingsView: View {
                 Text("Persona & AI")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Tone stays on-device until you consent to a live Grok ask.")
+                Text("Tone stays on-device until you consent to a live Keel ask.")
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -398,7 +398,7 @@ struct SettingsView: View {
                 Divider().padding(.vertical, 4)
 
                 Toggle(
-                    "Allow Grok coach requests",
+                    CoachPersona.consentToggleTitle,
                     isOn: Binding(
                         get: { GrokPrivacyConsent.isAccepted },
                         set: { GrokPrivacyConsent.isAccepted = $0 }
@@ -411,7 +411,7 @@ struct SettingsView: View {
                 Text(FoundationModelAvailability.statusSummary)
                     .font(.caption)
                     .foregroundStyle(steel)
-                Text("Apple Intelligence polishes private copy on-device. Grok handles live multi-agent Coach when consented.")
+                Text("Apple Intelligence polishes private copy on-device. Keel handles live multi-agent Coach when consented.")
                     .font(.caption2)
                     .foregroundStyle(steel)
             }
@@ -804,7 +804,7 @@ struct SettingsView: View {
                 Label("Privacy", systemImage: "lock.shield")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Profile, calibration, memory, and readings stay on this iPhone. Health is read/written only with permission. Grok is opt-in. Apple Intelligence stays on-device.")
+                Text("Profile, calibration, memory, and readings stay on this iPhone. Health is read/written only with permission. Keel is opt-in. Apple Intelligence stays on-device.")
                     .font(.footnote)
                     .foregroundStyle(steel)
 

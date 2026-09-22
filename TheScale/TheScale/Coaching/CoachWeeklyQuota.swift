@@ -1,6 +1,6 @@
 import Foundation
 
-/// ISO-week Grok credit ledger. Resets each Monday (locale calendar).
+/// ISO-week Keel credit ledger. Resets each Monday (locale calendar).
 @MainActor
 enum CoachWeeklyQuota {
     private static let countKey = "thescale.coachWeeklyQuota.count"
@@ -33,7 +33,7 @@ enum CoachWeeklyQuota {
         }
 
         var statusLine: String {
-            "\(plan.displayName) · \(remaining)/\(limit) Grok this week · \(percentUsed)% used"
+            "\(plan.displayName) · \(remaining)/\(limit) Keel this week · \(percentUsed)% used"
         }
     }
 
@@ -74,9 +74,9 @@ enum CoachWeeklyQuota {
     static func lockMessage(kind: CoachQuotaKind, plan: ScalePlan, used: Int, limit: Int) -> String {
         let name = plan.displayName
         if let next = plan.upgradeTarget {
-            return "\(kind.title) blocked: weekly Grok limit hit on \(name) (\(used)/\(limit)). Unlock \(next.displayName) (\(next.priceLabel)) for \(next.weeklyGrokCredits)/week, or wait until next Monday."
+            return "\(kind.title) blocked: weekly Keel limit hit on \(name) (\(used)/\(limit)). Unlock \(next.displayName) (\(next.priceLabel)) for \(next.weeklyGrokCredits)/week, or wait until next Monday."
         }
-        return "\(kind.title) blocked: weekly Grok limit hit on \(name) (\(used)/\(limit)). Resets Monday."
+        return "\(kind.title) blocked: weekly Keel limit hit on \(name) (\(used)/\(limit)). Resets Monday."
     }
 
     #if DEBUG

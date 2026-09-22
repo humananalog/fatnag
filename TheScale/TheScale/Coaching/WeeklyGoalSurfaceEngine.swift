@@ -56,6 +56,8 @@ struct WeeklyGoalSurface: Equatable, Sendable {
     /// Fraction of ISO week elapsed (0...1), for pace math.
     var weekElapsedFraction: Double
     var expectedPaceFraction: Double
+    /// How this week's target was shaped (catch-up / accelerate / aggressive).
+    var targetMode: WeeklyTargetMode
 }
 
 /// Atmosphere for the home weekly-goal hero.
@@ -146,6 +148,7 @@ enum WeeklyGoalSurfaceEngine {
         profile: UserBodyProfile,
         digest: FitnessDigest?,
         recentWeights: [HealthWeightSample] = [],
+        targetMode: WeeklyTargetMode = .aggressive,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> WeeklyGoalSurface {
@@ -167,7 +170,8 @@ enum WeeklyGoalSurfaceEngine {
             currentKg: currentKg,
             weeklyDeltaKg: weeklyGoal.targetDeltaKg,
             digest: digest,
-            band: band
+            band: band,
+            targetMode: targetMode
         )
 
         let energy = WeeklyEnergyBalanceEvaluator.evaluate(
@@ -193,7 +197,15 @@ enum WeeklyGoalSurfaceEngine {
             if currentKg == nil || weeklyGoal.weekStartKg == nil {
                 return "Weigh in once to lock this week's baseline."
             }
-            return weeklyGoal.statusLine(currentKg: currentKg)
+            let base = weeklyGoal.statusLine(currentKg: currentKg)
+            switch targetMode {
+            case .hardcoreCatchUp:
+                return base + " Hardcore catch-up week."
+            case .accelerate:
+                return base + " Accelerate: no coast."
+            case .aggressive, .hold:
+                return base
+            }
         }()
 
         let meals = WeeklyEnergyBalanceEvaluator.mealSuggestion(
@@ -211,6 +223,7 @@ enum WeeklyGoalSurfaceEngine {
             diet: profile.dietPreference,
             energy: energy,
             mealLine: meals,
+            targetMode: targetMode,
             now: now,
             calendar: calendar
         )
@@ -245,7 +258,8 @@ enum WeeklyGoalSurfaceEngine {
             targets: targets,
             macroGoalETA: eta,
             weekElapsedFraction: elapsed,
-            expectedPaceFraction: expected
+            expectedPaceFraction: expected,
+            targetMode: targetMode
         )
     }
 
@@ -311,7 +325,8 @@ enum WeeklyGoalSurfaceEngine {
         currentKg: Double?,
         weeklyDeltaKg: Double,
         digest: FitnessDigest?,
-        band: WeeklyTrackBand
+        band: WeeklyTrackBand,
+        targetMode: WeeklyTargetMode = .aggressive
     ) -> DailyGoalTargets {
         let weight = currentKg ?? profile.idealWeightKg
         let bmr = mifflinBMR(profile: profile, weightKg: weight)
@@ -328,11 +343,16 @@ enum WeeklyGoalSurfaceEngine {
         var maxCal = tdee + dailyDeltaKcal
         let floor = bmr * 1.15
         maxCal = max(floor, maxCal)
+        // Biology ceiling: don't invent surplus above a modest buffer when cutting hard.
         maxCal = min(tdee + 500, maxCal)
 
         var steps = 8_500
-        if band == .atRisk { steps = 10_000 }
-        if band == .ahead || band == .crushed { steps = 7_500 }
+        if band == .atRisk || targetMode == .hardcoreCatchUp { steps = 10_500 }
+        if targetMode == .accelerate { steps = max(steps, 9_500) }
+        // Ahead of week pace: do not coast with a soft step floor.
+        if band == .ahead || band == .crushed {
+            steps = max(steps, targetMode == .accelerate ? 9_500 : 8_500)
+        }
         if digest?.recovery?.band == .red {
             steps = min(steps, 7_000)
         }
@@ -341,7 +361,7 @@ enum WeeklyGoalSurfaceEngine {
             steps = Int(today.rounded())
         }
 
-        let proteinPerKg = weeklyDeltaKg < -0.15 ? 1.8 : 1.6
+        let proteinPerKg = weeklyDeltaKg < -0.15 || targetMode == .hardcoreCatchUp ? 1.8 : 1.6
         let protein = Int((weight * proteinPerKg).rounded())
         let micro = microPriority(profile: profile, weeklyDeltaKg: weeklyDeltaKg, diet: profile.dietPreference)
 
@@ -384,6 +404,7 @@ enum WeeklyGoalSurfaceEngine {
         diet: DietPreference,
         energy: WeeklyEnergyBalanceSnapshot,
         mealLine: String,
+        targetMode: WeeklyTargetMode = .aggressive,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> String {
@@ -414,11 +435,18 @@ enum WeeklyGoalSurfaceEngine {
             return "\(who), \(String(format: "%.1f", sleep)) h sleep is thin. Protect bedtime \(dayPart), stay under \(targets.maxCalories) kcal with \(targets.proteinGrams) g protein."
         }
 
+        if targetMode == .hardcoreCatchUp {
+            return "\(who), hardcore catch-up week. \(dayPart.capitalized): max \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein, \(targets.steps) steps. No mercy snacks."
+        }
+        if targetMode == .accelerate {
+            return "\(who), you're ahead: accelerate, don't coast. \(dayPart.capitalized) under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein, keep \(targets.steps) steps."
+        }
+
         switch band {
         case .crushed:
-            return "\(who), week already won. \(dayPart.capitalized) maintain under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. Don't celebrate with chaos."
+            return "\(who), week already won on kg. Still finish the line: under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein \(dayPart). Don't celebrate with chaos."
         case .ahead:
-            return "\(who), you're ahead of pace. \(dayPart.capitalized) keep it boring: \(targets.proteinGrams) g protein, max \(targets.maxCalories) kcal."
+            return "\(who), ahead of pace. Tighten: \(targets.proteinGrams) g protein, max \(targets.maxCalories) kcal, \(targets.steps) steps \(dayPart)."
         case .onTrack:
             let dietBit: String = {
                 switch diet {

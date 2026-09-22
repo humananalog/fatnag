@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Progress: weekly mini-goal + optional Grok orchestrator roast.
+/// Progress: weekly mini-goal + optional Keel orchestrator roast.
 struct ProgressSheet: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.dismiss) private var dismiss
@@ -44,14 +44,14 @@ struct ProgressSheet: View {
                 goalDelta = session.weeklyGoal.targetDeltaKg
                 session.ensureWeeklyGoalBaseline()
             }
-            .alert("Send trend summary to Grok?", isPresented: $showPrivacyGate) {
+            .alert("Send trend summary to Keel?", isPresented: $showPrivacyGate) {
                 Button("Cancel", role: .cancel) {}
                 Button("Agree & coach") {
                     GrokPrivacyConsent.isAccepted = true
                     Task { await runCoach() }
                 }
             } message: {
-                Text("Only a short weight/fat trend summary (no raw impedance, no Health dump) goes to the shared Grok backend when you tap Coach. You can revoke consent in Settings.")
+                Text("Only a short weight/fat trend summary (no raw impedance, no Health dump) goes to the shared Keel backend when you tap Coach. You can revoke consent in Settings.")
             }
         }
         .preferredColorScheme(.light)
@@ -121,7 +121,7 @@ struct ProgressSheet: View {
                     .font(.system(size: 17, weight: .medium, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.9))
                 HStack {
-                    Text(coachReply.usedNetwork ? "Grok · live" : "Offline fallback")
+                    Text(coachReply.usedNetwork ? CoachPersona.liveBadge() : "Offline fallback")
                         .font(.caption2.weight(.semibold))
                     Spacer()
                     Text(coachReply.role.title)
@@ -129,7 +129,7 @@ struct ProgressSheet: View {
                 }
                 .foregroundStyle(atmosphere.accent.opacity(0.55))
             } else {
-                Text("Want a short roast of your week? Offline mock always works; live Grok needs shared build config + consent.")
+                Text("Want a short roast of your week? Offline mock always works; live Keel needs shared build config + consent.")
                     .font(.footnote)
                     .foregroundStyle(atmosphere.accent.opacity(0.7))
             }
@@ -162,7 +162,7 @@ struct ProgressSheet: View {
     }
 
     private var privacyNote: some View {
-        Text("Privacy: weigh-ins stay on-device / Apple Health. Grok only runs when you tap Coach after consent. Shared key is operator-managed; revoke consent anytime in Settings.")
+        Text("Privacy: weigh-ins stay on-device / Apple Health. Keel only runs when you tap Coach after consent. Shared key is operator-managed; revoke consent anytime in Settings.")
             .font(.caption2)
             .foregroundStyle(atmosphere.accent.opacity(0.55))
     }

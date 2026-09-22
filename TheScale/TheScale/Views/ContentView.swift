@@ -103,25 +103,34 @@ struct ContentView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 16)
                 }
+
+                #if DEBUG
+                // Overlay only: must not participate in home layout / positioning.
+                VStack {
+                    HStack {
+                        Button {
+                            showDebugTools = true
+                        } label: {
+                            Text("DEBUG")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.orange.opacity(0.92), in: Capsule())
+                        }
+                        .accessibilityIdentifier("home.debug")
+                        .accessibilityLabel("Debug tools")
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.leading, 12)
+                    .padding(.top, 6)
+                    Spacer(minLength: 0)
+                }
+                .allowsHitTesting(true)
+                #endif
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                #if DEBUG
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showDebugTools = true
-                    } label: {
-                        Text("DEBUG")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color.orange.opacity(0.92), in: Capsule())
-                    }
-                    .accessibilityIdentifier("home.debug")
-                    .accessibilityLabel("Debug tools")
-                }
-                #endif
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         session.presentSettings()

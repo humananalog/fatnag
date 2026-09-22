@@ -108,6 +108,8 @@ final class ScaleSessionViewModel: ObservableObject {
         profile: .default,
         digest: nil
     )
+    /// Last computed weekly target mode (catch-up / accelerate / aggressive).
+    @Published private(set) var weeklyTargetMode: WeeklyTargetMode = .aggressive
     @Published var hasCompletedOnboarding: Bool {
         didSet { OnboardingStore.hasCompleted = hasCompletedOnboarding }
     }
@@ -583,6 +585,7 @@ final class ScaleSessionViewModel: ObservableObject {
             idealKg: profile.idealWeightKg,
             goalDate: profile.goalDate,
             fallbackWeeklyDeltaKg: weeklyGoal.targetDeltaKg,
+            priorSundayTargetKg: MondayCardStore.priorSundayTargetKg,
             now: now
         )
 
@@ -592,6 +595,7 @@ final class ScaleSessionViewModel: ObservableObject {
         nextGoal.title = String(format: "Sunday %.2f kg", sunday.targetKg)
         nextGoal.weekStartKg = weighInKg
         nextGoal.weekStartDate = Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        weeklyTargetMode = sunday.mode
         weeklyGoal = nextGoal
 
         let goalDateLine: String = {
@@ -668,6 +672,7 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     /// Lock ISO-week baseline from the latest Health weight when missing or stale.
+    /// Also refreshes weekly delta from the macro goal (aggressive / catch-up / accelerate).
     func ensureWeeklyGoalBaseline() {
         guard let baseline = healthBaselineKg else {
             rebuildWeeklyGoalSurface()
@@ -676,20 +681,36 @@ final class ScaleSessionViewModel: ObservableObject {
         var next = weeklyGoal
         let cal = Calendar.current
         let weekStart = cal.dateInterval(of: .weekOfYear, for: Date())?.start
+        var weekRolled = false
         if next.weekStartKg == nil || next.weekStartDate == nil {
             next.weekStartKg = baseline
             next.weekStartDate = weekStart ?? Date()
-            weeklyGoal = next
-            return
-        }
-        if let stored = next.weekStartDate, let weekStart,
-           !cal.isDate(stored, equalTo: weekStart, toGranularity: .weekOfYear) {
+            weekRolled = true
+        } else if let stored = next.weekStartDate, let weekStart,
+                  !cal.isDate(stored, equalTo: weekStart, toGranularity: .weekOfYear) {
             next.weekStartKg = baseline
             next.weekStartDate = weekStart
-            weeklyGoal = next
-            return
+            weekRolled = true
         }
-        rebuildWeeklyGoalSurface()
+
+        let hit = AggressiveWeeklyTargetEngine.compute(
+            currentKg: baseline,
+            idealKg: profile.idealWeightKg,
+            goalDate: profile.goalDate,
+            priorSundayTargetKg: MondayCardStore.priorSundayTargetKg,
+            fallbackWeeklyDeltaKg: next.targetDeltaKg
+        )
+        weeklyTargetMode = hit.mode
+        // On week roll or when delta drifted soft: adopt aggressive target.
+        if weekRolled
+            || abs(next.targetDeltaKg - hit.weeklyDeltaKg) > 0.04
+            || hit.mode == .hardcoreCatchUp
+            || hit.mode == .accelerate
+        {
+            next.targetDeltaKg = hit.weeklyDeltaKg
+            next.title = String(format: "Sunday %.2f kg", hit.sundayTargetKg)
+        }
+        weeklyGoal = next
     }
 
     /// Refresh Health digest + rebuild the home weekly-goal hero.
@@ -707,7 +728,8 @@ final class ScaleSessionViewModel: ObservableObject {
             currentKg: healthBaselineKg ?? displayWeightKg,
             profile: profile,
             digest: lastFitnessDigest,
-            recentWeights: recentHealthWeights
+            recentWeights: recentHealthWeights,
+            targetMode: weeklyTargetMode
         )
     }
 

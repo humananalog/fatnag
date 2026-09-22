@@ -22,6 +22,12 @@
 		A1B2C3D4E5F60718293A0042 /* WeeklyGoalSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1042 /* WeeklyGoalSurfaceTests.swift */; };
 		A1B2C3D4E5F60718293A0043 /* WeeklyEnergyBalanceEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1043 /* WeeklyEnergyBalanceEvaluator.swift */; };
 		A1B2C3D4E5F60718293A0044 /* MealPlanEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1044 /* MealPlanEngine.swift */; };
+		A1B2C3D4E5F60718293A1052 /* AggressiveWeeklyTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AggressiveWeeklyTargetTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A0052 /* AggressiveWeeklyTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1052 /* AggressiveWeeklyTargetTests.swift */; };
+		A1B2C3D4E5F60718293A1051 /* AggressiveWeeklyTargetEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AggressiveWeeklyTargetEngine.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A0051 /* AggressiveWeeklyTargetEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1051 /* AggressiveWeeklyTargetEngine.swift */; };
+		A1B2C3D4E5F60718293A1050 /* CoachPersona.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachPersona.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A0050 /* CoachPersona.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1050 /* CoachPersona.swift */; };
 		A1B2C3D4E5F60718293A0045 /* MealPlanCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1045 /* MealPlanCarouselView.swift */; };
 		A1B2C3D4E5F60718293A0046 /* MealPlanEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1046 /* MealPlanEngineTests.swift */; };
 		A1B2C3D4E5F60718293A00U1 /* UnitFormatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10U1 /* UnitFormatTests.swift */; };
@@ -335,6 +341,7 @@
 				A1B2C3D4E5F60718293A102A /* MondayCardTests.swift */,
 				A1B2C3D4E5F60718293A1042 /* WeeklyGoalSurfaceTests.swift */,
 				A1B2C3D4E5F60718293A1046 /* MealPlanEngineTests.swift */,
+				A1B2C3D4E5F60718293A1052 /* AggressiveWeeklyTargetTests.swift */,
 				A1B2C3D4E5F60718293A10U1 /* UnitFormatTests.swift */,
 				A1B2C3D4E5F60718293A1031 /* ScaleNotificationContentTests.swift */,
 				A1B2C3D4E5F60718293A1039 /* CoachQuotaTests.swift */,
@@ -370,6 +377,8 @@
 				A1B2C3D4E5F60718293A1041 /* WeeklyGoalSurfaceEngine.swift */,
 				A1B2C3D4E5F60718293A1043 /* WeeklyEnergyBalanceEvaluator.swift */,
 				A1B2C3D4E5F60718293A1044 /* MealPlanEngine.swift */,
+				A1B2C3D4E5F60718293A1051 /* AggressiveWeeklyTargetEngine.swift */,
+				A1B2C3D4E5F60718293A1050 /* CoachPersona.swift */,
 				A1B2C3D4E5F60718293A104A /* WeighInAnalysisEngine.swift */,
 				A1B2C3D4E5F60718293A1049 /* ChartCommentStore.swift */,
 				A1B2C3D4E5F60718293A1047 /* FastingWindow.swift */,
@@ -520,6 +529,7 @@
 				A1B2C3D4E5F60718293A002A /* MondayCardTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0042 /* WeeklyGoalSurfaceTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0046 /* MealPlanEngineTests.swift in Sources */,
+				A1B2C3D4E5F60718293A0052 /* AggressiveWeeklyTargetTests.swift in Sources */,
 				A1B2C3D4E5F60718293A00U1 /* UnitFormatTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0031 /* ScaleNotificationContentTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0039 /* CoachQuotaTests.swift in Sources */,
@@ -570,6 +580,8 @@
 				A1B2C3D4E5F60718293A0041 /* WeeklyGoalSurfaceEngine.swift in Sources */,
 				A1B2C3D4E5F60718293A0043 /* WeeklyEnergyBalanceEvaluator.swift in Sources */,
 				A1B2C3D4E5F60718293A0044 /* MealPlanEngine.swift in Sources */,
+				A1B2C3D4E5F60718293A0051 /* AggressiveWeeklyTargetEngine.swift in Sources */,
+				A1B2C3D4E5F60718293A0050 /* CoachPersona.swift in Sources */,
 				A1B2C3D4E5F60718293A004A /* WeighInAnalysisEngine.swift in Sources */,
 				A1B2C3D4E5F60718293A0049 /* ChartCommentStore.swift in Sources */,
 				A1B2C3D4E5F60718293A0048 /* RetroSnakeSpinnerView.swift in Sources */,
@@ -612,11 +624,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 47;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.14.1;
+				MARKETING_VERSION = 2.15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -653,7 +665,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 47;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -666,7 +678,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.14.1;
+				MARKETING_VERSION = 2.15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -685,11 +697,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 47;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.14.1;
+				MARKETING_VERSION = 2.15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -707,7 +719,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 47;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -720,7 +732,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.14.1;
+				MARKETING_VERSION = 2.15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

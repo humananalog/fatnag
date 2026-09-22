@@ -56,7 +56,7 @@ struct PaywallView: View {
                 .font(.system(size: 32, weight: .semibold, design: .serif))
                 .foregroundStyle(ink)
 
-            Text("Weigh-in, Health, and charts stay free. Live Grok uses a weekly credit pool.")
+            Text("Weigh-in, Health, and charts stay free. Live Keel uses a weekly credit pool.")
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(steel)
                 .fixedSize(horizontal: false, vertical: true)
@@ -125,7 +125,7 @@ struct PaywallView: View {
                     .foregroundStyle(ink)
             }
 
-            Text("\(plan.weeklyGrokCredits) live Grok credits / week")
+            Text("\(plan.weeklyGrokCredits) live Keel credits / week")
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundStyle(accent)
 
@@ -173,7 +173,7 @@ struct PaywallView: View {
     private func shortBlurb(_ plan: ScalePlan) -> String {
         switch plan {
         case .free:
-            return "Full scale + Health. 5 Grok asks to try Coach."
+            return "Full scale + Health. 5 Keel asks to try Coach."
         case .plus:
             return "Daily Coach. About 4 live asks per day."
         case .pro:

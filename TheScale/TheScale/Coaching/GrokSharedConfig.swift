@@ -18,11 +18,11 @@ enum GrokSharedConfig {
         var userMessage: String {
             switch self {
             case .missingProxyAndKey:
-                return "Offline mock: this build has no shared Grok proxy/key. Ask the operator to set GROK_PROXY_URL in TheScale.xcconfig (escaped as https:/$()/…) and rebuild."
+                return "Offline mock: this build has no shared Keel proxy/key. Ask the operator to set GROK_PROXY_URL in TheScale.xcconfig (escaped as https:/$()/…) and rebuild."
             case .malformedProxyURL(let raw):
-                return "Grok proxy URL is broken (\(raw)). Almost certainly xcconfig stripped https:// as a comment. Rebuild with GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev"
+                return "Keel proxy URL is broken (\(raw)). Almost certainly xcconfig stripped https:// as a comment. Rebuild with GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev"
             case .nonHTTPSProxy:
-                return "Grok proxy must be https. Check GROK_PROXY_URL in TheScale.xcconfig."
+                return "Keel proxy must be https. Check GROK_PROXY_URL in TheScale.xcconfig."
             }
         }
     }
