@@ -150,7 +150,8 @@ final class DailyMetricProgressTests: XCTestCase {
             intakeTracked: false
         )
         let rows = WeeklyGoalSurfaceEngine.todayMetricProgress(targets: targets, digest: digest)
-        XCTAssertEqual(rows.count, 4)
+        // No robust nutrition: activity gauges only (steps + move).
+        XCTAssertEqual(rows.count, 2)
         let steps = rows.first { $0.kind == .steps }
         XCTAssertEqual(steps?.status, .complete)
         XCTAssertGreaterThanOrEqual(steps?.fraction ?? 0, 1)
@@ -158,11 +159,13 @@ final class DailyMetricProgressTests: XCTestCase {
         XCTAssertEqual(move?.title, "Move")
         XCTAssertEqual(move?.status, .inProgress)
         XCTAssertGreaterThan(move?.fraction ?? 0, 0.5)
+        XCTAssertNil(rows.first { $0.kind == .protein })
     }
 
     func testNutritionProgressWhenLogged() {
         var digest = FitnessDigest.empty
         digest.stepsToday = 3000
+        digest.activeEnergyKcalToday = 200
         digest.dietaryEnergyKcalToday = 1800
         digest.dietaryProteinGramsToday = 120
         digest.dietaryFiberGramsToday = 28
@@ -176,6 +179,7 @@ final class DailyMetricProgressTests: XCTestCase {
             intakeTracked: true
         )
         let rows = WeeklyGoalSurfaceEngine.todayMetricProgress(targets: targets, digest: digest)
+        XCTAssertEqual(rows.first { $0.kind == .energy }?.title, "Energy")
         XCTAssertEqual(rows.first { $0.kind == .energy }?.status, .complete)
         XCTAssertEqual(rows.first { $0.kind == .protein }?.status, .inProgress)
         XCTAssertEqual(rows.first { $0.kind == .micro }?.status, .inProgress)
@@ -185,6 +189,7 @@ final class DailyMetricProgressTests: XCTestCase {
     func testOverCalorieBudgetMarksOver() {
         var digest = FitnessDigest.empty
         digest.dietaryEnergyKcalToday = 2600
+        digest.dietaryProteinGramsToday = 80
         let targets = DailyGoalTargets(
             steps: 8000,
             maxCalories: 2000,
@@ -207,9 +212,10 @@ final class DailyMetricProgressTests: XCTestCase {
         XCTAssertEqual(value, 3500)
     }
 
-    func testSurfaceIncludesTodayProgress() {
+    func testSurfaceUsesTargetsNotNutritionGaugesWithoutFoodLog() {
         var digest = FitnessDigest.empty
         digest.stepsToday = 1000
+        digest.activeEnergyKcalToday = 120
         var goal = WeeklyMiniGoal.default
         goal.weekStartKg = 80
         goal.weekStartDate = Date()
@@ -219,8 +225,24 @@ final class DailyMetricProgressTests: XCTestCase {
             profile: .default,
             digest: digest
         )
-        XCTAssertEqual(surface.todayProgress.count, 4)
-        XCTAssertEqual(surface.todayProgress.first?.kind, .steps)
+        XCTAssertFalse(surface.targets.intakeTracked)
+        XCTAssertEqual(surface.todayProgress.count, 2)
+        XCTAssertEqual(surface.todayProgress.map(\.kind), [.steps, .energy])
+        XCTAssertEqual(surface.dailyTargetChips.count, 3)
+        XCTAssertTrue(surface.dailyTargetChips.map(\.title).contains("Energy"))
+        XCTAssertTrue(surface.dailyTargetChips.map(\.title).contains("Protein"))
+    }
+
+    func testRobustNutritionRequiresRealMealSignal() {
+        var weak = FitnessDigest.empty
+        weak.dietaryEnergyKcalToday = 80
+        weak.dietaryProteinGramsToday = 5
+        XCTAssertFalse(WeeklyGoalSurfaceEngine.hasRobustNutritionLog(digest: weak))
+
+        var strong = FitnessDigest.empty
+        strong.dietaryEnergyKcalToday = 900
+        strong.dietaryProteinGramsToday = 40
+        XCTAssertTrue(WeeklyGoalSurfaceEngine.hasRobustNutritionLog(digest: strong))
     }
 
     func testHomeMetricsApplyFillsGaugeRows() {
@@ -255,6 +277,10 @@ final class DailyMetricProgressTests: XCTestCase {
         XCTAssertGreaterThan(rows.first { $0.kind == .steps }?.fraction ?? 0, 0.4)
         XCTAssertEqual(rows.first { $0.kind == .energy }?.title, "Move")
         XCTAssertEqual(rows.first { $0.kind == .energy }?.status, .inProgress)
+        XCTAssertEqual(
+            WeeklyGoalSurfaceEngine.dailyTargetChips(targets: targets, showNutritionTargets: true).count,
+            3
+        )
     }
 
     func testZeroStepsAfterHomeRefreshIsNotUnknown() {

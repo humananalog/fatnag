@@ -30,14 +30,21 @@ struct DailyGoalTargets: Equatable, Sendable {
     /// Key micronutrient priority / cap.
     var microName: String
     var microTargetLine: String
-    /// Honest: food logging is not in-app yet.
+    /// True only when Apple Health has a *robust* nutrition log today (not a stray snack).
     var intakeTracked: Bool
 
     var honestyLine: String {
         intakeTracked
             ? "Logged vs target (Apple Health nutrition)"
-            : "Goals only · food not logged yet"
+            : "Daily targets · food not logged in Health"
     }
+}
+
+/// Compact home target chip when nutrition gauges are hidden.
+struct HomeDailyTargetChip: Equatable, Sendable, Identifiable {
+    var id: String { title }
+    var title: String
+    var valueLine: String
 }
 
 /// One home row: today's progress against a daily target.
@@ -81,8 +88,10 @@ struct WeeklyGoalSurface: Equatable, Sendable {
     var mealSuggestion: String?
     var energySnapshot: WeeklyEnergyBalanceSnapshot?
     var targets: DailyGoalTargets
-    /// Today completion for steps / kcal / protein / micro (HealthKit + targets).
+    /// Today completion for steps / move / (nutrition only when robustly logged).
     var todayProgress: [DailyMetricProgress]
+    /// Shown when nutrition is not robustly logged: kcal / protein / micro as targets, not gauges.
+    var dailyTargetChips: [HomeDailyTargetChip]
     /// ETA to ideal weight at current pace vs planned goal date.
     var macroGoalETA: MacroGoalETA
     /// Fraction of ISO week elapsed (0...1), for pace math.
@@ -280,6 +289,7 @@ enum WeeklyGoalSurfaceEngine {
         )
 
         let progress = todayMetricProgress(targets: targets, digest: digest)
+        let chips = Self.dailyTargetChips(targets: targets, showNutritionTargets: !targets.intakeTracked)
 
         return WeeklyGoalSurface(
             completionPercent: percent,
@@ -291,6 +301,7 @@ enum WeeklyGoalSurfaceEngine {
             energySnapshot: energy,
             targets: targets,
             todayProgress: progress,
+            dailyTargetChips: chips,
             macroGoalETA: eta,
             weekElapsedFraction: elapsed,
             expectedPaceFraction: expected,
@@ -399,8 +410,7 @@ enum WeeklyGoalSurfaceEngine {
         let proteinPerKg = weeklyDeltaKg < -0.15 || targetMode == .hardcoreCatchUp ? 1.8 : 1.6
         let protein = Int((weight * proteinPerKg).rounded())
         let micro = microPriority(profile: profile, weeklyDeltaKg: weeklyDeltaKg, diet: profile.dietPreference)
-        let intakeTracked = (digest?.dietaryEnergyKcalToday ?? 0) > 0
-            || (digest?.dietaryProteinGramsToday ?? 0) > 0
+        let intakeTracked = hasRobustNutritionLog(digest: digest)
 
         return DailyGoalTargets(
             steps: steps,
@@ -413,7 +423,27 @@ enum WeeklyGoalSurfaceEngine {
         )
     }
 
-    /// Today completion rows for home (steps from Health; nutrition when logged).
+    /// People rarely log full macros in Health. Require real meal signal before showing nutrition gauges.
+    static func hasRobustNutritionLog(digest: FitnessDigest?) -> Bool {
+        let energy = digest?.dietaryEnergyKcalToday ?? 0
+        let protein = digest?.dietaryProteinGramsToday ?? 0
+        return energy >= 200 && protein >= 15
+    }
+
+    static func dailyTargetChips(
+        targets: DailyGoalTargets,
+        showNutritionTargets: Bool
+    ) -> [HomeDailyTargetChip] {
+        guard showNutritionTargets else { return [] }
+        return [
+            HomeDailyTargetChip(title: "Energy", valueLine: "\(targets.maxCalories) kcal max"),
+            HomeDailyTargetChip(title: targets.proteinLabel, valueLine: "\(targets.proteinGrams) g"),
+            HomeDailyTargetChip(title: targets.microName, valueLine: targets.microTargetLine)
+        ]
+    }
+
+    /// Today completion rows for home.
+    /// Activity gauges always (steps + move). Nutrition gauges only with robust Health food log.
     static func todayMetricProgress(
         targets: DailyGoalTargets,
         digest: FitnessDigest?
@@ -429,61 +459,57 @@ enum WeeklyGoalSurfaceEngine {
             formatTarget: { Int($0.rounded()).formatted() }
         )
 
-        let energyCurrent = digest?.dietaryEnergyKcalToday
-        let energy: DailyMetricProgress
-        if let energyCurrent, energyCurrent > 0 {
-            energy = progressRow(
-                kind: .energy,
-                title: "Energy",
-                current: energyCurrent,
-                target: Double(targets.maxCalories),
-                higherIsBetter: false,
-                formatCurrent: { "\(Int($0.rounded()))" },
-                formatTarget: { "\(Int($0.rounded())) max" }
-            )
-        } else if let burn = digest?.activeEnergyKcalToday {
-            // No food log: show move burn vs a soft floor (0 is a real reading after home refresh).
-            let moveTarget = max(250.0, Double(targets.maxCalories) * 0.22)
-            energy = progressRow(
-                kind: .energy,
-                title: "Move",
-                current: burn,
-                target: moveTarget,
-                higherIsBetter: true,
-                formatCurrent: { "\(Int($0.rounded()))" },
-                formatTarget: { "\(Int($0.rounded())) burn" }
-            )
-        } else {
-            energy = DailyMetricProgress(
-                kind: .energy,
-                title: "Energy",
-                currentLine: "- / \(targets.maxCalories) max",
-                fraction: 0,
-                status: .unknown,
-                accessibilitySummary: "Energy not logged today. Cap \(targets.maxCalories) calories."
+        var rows: [DailyMetricProgress] = [steps]
+
+        let moveBurn = digest?.activeEnergyKcalToday
+        let moveTarget = max(250.0, Double(targets.maxCalories) * 0.22)
+        if let burn = moveBurn {
+            rows.append(
+                progressRow(
+                    kind: .energy,
+                    title: "Move",
+                    current: burn,
+                    target: moveTarget,
+                    higherIsBetter: true,
+                    formatCurrent: { "\(Int($0.rounded()))" },
+                    formatTarget: { "\(Int($0.rounded())) burn" }
+                )
             )
         }
 
-        let proteinCurrent = digest?.dietaryProteinGramsToday
-        let protein: DailyMetricProgress
-        if let proteinCurrent, proteinCurrent > 0 {
-            protein = progressRow(
-                kind: .protein,
-                title: targets.proteinLabel,
-                current: proteinCurrent,
-                target: Double(targets.proteinGrams),
-                higherIsBetter: true,
-                formatCurrent: { "\(Int($0.rounded()))" },
-                formatTarget: { "\(Int($0.rounded())) g" }
+        guard targets.intakeTracked else {
+            return rows
+        }
+
+        // Robust nutrition log: replace Move with dietary Energy when available, add protein + micro.
+        if let dietKcal = digest?.dietaryEnergyKcalToday, dietKcal > 0 {
+            // Keep Move if we already added it; also show dietary Energy as the energy kind
+            // Prefer a single Energy gauge from diet when logged.
+            rows.removeAll { $0.kind == .energy && $0.title == "Move" }
+            rows.append(
+                progressRow(
+                    kind: .energy,
+                    title: "Energy",
+                    current: dietKcal,
+                    target: Double(targets.maxCalories),
+                    higherIsBetter: false,
+                    formatCurrent: { "\(Int($0.rounded()))" },
+                    formatTarget: { "\(Int($0.rounded())) max" }
+                )
             )
-        } else {
-            protein = DailyMetricProgress(
-                kind: .protein,
-                title: targets.proteinLabel,
-                currentLine: "- / \(targets.proteinGrams) g",
-                fraction: 0,
-                status: .unknown,
-                accessibilitySummary: "Protein not logged today. Hit \(targets.proteinGrams) grams."
+        }
+
+        if let proteinCurrent = digest?.dietaryProteinGramsToday, proteinCurrent > 0 {
+            rows.append(
+                progressRow(
+                    kind: .protein,
+                    title: targets.proteinLabel,
+                    current: proteinCurrent,
+                    target: Double(targets.proteinGrams),
+                    higherIsBetter: true,
+                    formatCurrent: { "\(Int($0.rounded()))" },
+                    formatTarget: { "\(Int($0.rounded())) g" }
+                )
             )
         }
 
@@ -497,29 +523,21 @@ enum WeeklyGoalSurfaceEngine {
             }
         }()
         let microUnit = targets.microName.lowercased() == "fiber" ? "g" : "mg"
-        let micro: DailyMetricProgress
         if let microCurrent, microCurrent > 0, let microTarget, microTarget > 0 {
-            micro = progressRow(
-                kind: .micro,
-                title: targets.microName,
-                current: microCurrent,
-                target: microTarget,
-                higherIsBetter: true,
-                formatCurrent: { "\(Int($0.rounded()))" },
-                formatTarget: { "\(Int($0.rounded())) \(microUnit)" }
-            )
-        } else {
-            micro = DailyMetricProgress(
-                kind: .micro,
-                title: targets.microName,
-                currentLine: "- · \(targets.microTargetLine)",
-                fraction: 0,
-                status: .unknown,
-                accessibilitySummary: "\(targets.microName) not logged today. \(targets.microTargetLine)."
+            rows.append(
+                progressRow(
+                    kind: .micro,
+                    title: targets.microName,
+                    current: microCurrent,
+                    target: microTarget,
+                    higherIsBetter: true,
+                    formatCurrent: { "\(Int($0.rounded()))" },
+                    formatTarget: { "\(Int($0.rounded())) \(microUnit)" }
+                )
             )
         }
 
-        return [steps, energy, protein, micro]
+        return rows
     }
 
     private static func progressRow(

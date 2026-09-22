@@ -172,7 +172,11 @@ struct ContentView: View {
         GeometryReader { geo in
             let compact = geo.size.height < 780
             ScrollView(.vertical, showsIndicators: false) {
-                homeColumn(compact: compact, minHeight: geo.size.height)
+                homeColumn(compact: compact)
+                    .padding(.horizontal, 22)
+                    .padding(.top, 4)
+                    .padding(.bottom, 12)
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .top)
             }
             .refreshable {
                 await session.refreshHomeGauges(force: true)
@@ -182,14 +186,12 @@ struct ContentView: View {
         }
     }
 
-    private func homeColumn(compact: Bool, minHeight: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+    private func homeColumn(compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: compact ? 10 : 14) {
             brandRow
-                .padding(.top, 0)
 
             if let analysis = session.lastWeighInAnalysis {
                 weighInAnalysisBlock(analysis)
-                    .padding(.top, 6)
             }
 
             HorizonArcBankView(
@@ -197,40 +199,34 @@ struct ContentView: View {
                 bandLabel: surface.band.statusLabel,
                 weekTitle: surface.weekTitle,
                 metrics: surface.todayProgress,
+                targetChips: surface.dailyTargetChips,
                 ink: atmosphere.ink,
                 steel: atmosphere.ink.opacity(0.72),
                 accent: Color(red: 0.12, green: 0.42, blue: 0.30),
                 compact: compact
             )
-            .padding(.top, compact ? 6 : 10)
             .onTapGesture { session.presentProgress() }
 
-            Text(surface.todayAdvice)
-                .font(.system(size: compact ? 18 : 22, weight: .bold, design: .serif))
-                .foregroundStyle(atmosphere.ink)
-                .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
-                .lineLimit(2)
-                .minimumScaleFactor(0.85)
-                .padding(.top, 10)
-                .accessibilityIdentifier("home.todayAdvice")
+            VStack(alignment: .leading, spacing: 4) {
+                Text(surface.todayAdvice)
+                    .font(.system(size: compact ? 17 : 20, weight: .bold, design: .serif))
+                    .foregroundStyle(atmosphere.ink)
+                    .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                    .accessibilityIdentifier("home.todayAdvice")
 
-            Text(surface.macroGoalETA.line)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(atmosphere.ink.opacity(0.72))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(.top, 4)
+                Text(surface.macroGoalETA.line)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.ink.opacity(0.72))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
 
             primaryActions(compact: compact)
-                .padding(.top, 10)
-
             discoveryBlock
-
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 8)
-        .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .top)
     }
 
     #if DEBUG
