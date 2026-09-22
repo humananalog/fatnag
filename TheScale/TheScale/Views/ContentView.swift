@@ -76,27 +76,30 @@ struct ContentView: View {
                                 .padding(.top, 6)
                         }
 
-                        VectorCrosshairGaugesView(
+                        HorizonArcBankView(
                             weeklyPercent: surface.completionPercent,
                             bandLabel: surface.band.statusLabel,
+                            weekTitle: surface.weekTitle,
                             metrics: surface.todayProgress,
                             ink: atmosphere.ink,
-                            steel: atmosphere.ink.opacity(0.55),
-                            accent: Color(red: 0.12, green: 0.42, blue: 0.30)
+                            steel: atmosphere.ink.opacity(0.72),
+                            accent: Color(red: 0.12, green: 0.42, blue: 0.30),
+                            compact: compact
                         )
-                        .padding(.top, compact ? 4 : 8)
+                        .padding(.top, compact ? 6 : 10)
                         .onTapGesture { session.presentProgress() }
 
                         Text(surface.todayAdvice)
-                            .font(.system(size: compact ? 16 : 18, weight: .bold, design: .serif))
+                            .font(.system(size: compact ? 18 : 22, weight: .bold, design: .serif))
                             .foregroundStyle(atmosphere.ink)
+                            .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
                             .lineLimit(2)
                             .minimumScaleFactor(0.85)
-                            .padding(.top, 6)
+                            .padding(.top, 10)
                             .accessibilityIdentifier("home.todayAdvice")
 
                         Text(surface.macroGoalETA.line)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
                             .foregroundStyle(atmosphere.ink.opacity(0.72))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
