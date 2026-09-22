@@ -52,6 +52,8 @@ enum ScaleWeightUnit: String, Sendable {
 struct UserBodyProfile: Equatable, Codable, Sendable {
     /// Adults only. Onboarding and Settings reject ages below this.
     static let minimumAgeYears: Double = 18
+    /// Inclusive upper bound for age controls (onboarding swipe + Settings).
+    static let maximumAgeYears: Double = 100
 
     enum Sex: String, Codable, CaseIterable, Identifiable, Sendable {
         case female

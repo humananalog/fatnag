@@ -119,6 +119,20 @@ final class DreamOnboardingTests: XCTestCase {
         XCTAssertEqual(weekly.weekStartKg, 92)
         XCTAssertNotEqual(weekly.targetDeltaKg, 0, accuracy: 0.0001)
     }
+
+    @MainActor
+    func testAgeBoundsAreEighteenToOneHundred() {
+        let flow = OnboardingFlowModel()
+        flow.ageYears = 17
+        XCTAssertFalse(flow.isAdultAge)
+        flow.ageYears = 18
+        XCTAssertTrue(flow.isAdultAge)
+        flow.ageYears = 100
+        XCTAssertTrue(flow.isAdultAge)
+        flow.ageYears = 101
+        XCTAssertFalse(flow.isAdultAge)
+        XCTAssertEqual(UserBodyProfile.maximumAgeYears, 100)
+    }
 }
 
 final class DailyMetricProgressTests: XCTestCase {

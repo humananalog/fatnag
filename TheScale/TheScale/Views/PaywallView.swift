@@ -1,7 +1,14 @@
 import StoreKit
 import SwiftUI
 
-/// Luxury one-pager upgrade sheet. Hero by profile sex. Pro is the desire path.
+private struct PaywallScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+/// Luxury one-pager. Hero is a static background; content scrolls over it and fades as you go down.
 struct PaywallView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @ObservedObject private var store = ScaleSubscriptionStore.shared
@@ -11,44 +18,96 @@ struct PaywallView: View {
     /// Soft nudge for the next step up. Pro stays visually primary either way.
     var highlighted: ScalePlan = .pro
 
+    @State private var scrollY: CGFloat = 0
+
     private let ink = Color(red: 0.06, green: 0.07, blue: 0.09)
     private let ivory = Color(red: 0.96, green: 0.95, blue: 0.92)
     private let mist = Color(red: 0.72, green: 0.70, blue: 0.66)
     private let gold = Color(red: 0.78, green: 0.62, blue: 0.38)
     private let goldDeep = Color(red: 0.55, green: 0.42, blue: 0.22)
+    private let heroHeight: CGFloat = 420
 
     private var heroName: String {
         session.profile.sex == .female ? "PaywallHeroFemale" : "PaywallHeroMale"
     }
 
+    /// 1 at top → fades toward 0 as content scrolls down over the hero.
+    private var contentFade: Double {
+        let progress = min(max(Double(-scrollY) / 280.0, 0), 1)
+        return max(0.28, 1.0 - progress * 0.72)
+    }
+
+    private var heroScrim: Double {
+        let progress = min(max(Double(-scrollY) / 220.0, 0), 1)
+        return 0.35 + progress * 0.55
+    }
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                ink.ignoresSafeArea()
+                // STATIC hero background (does not scroll)
+                Image(heroName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .ignoresSafeArea()
+                    .accessibilityHidden(true)
+
+                ink.opacity(heroScrim)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
-                        hero
-                        copyBlock
-                            .padding(.horizontal, 24)
-                            .padding(.top, 20)
-                        if let lockMessage, !lockMessage.isEmpty {
-                            lockChip(lockMessage)
+                        Color.clear
+                            .frame(height: heroHeight * 0.55)
+                            .background(
+                                GeometryReader { geo in
+                                    Color.clear.preference(
+                                        key: PaywallScrollOffsetKey.self,
+                                        value: geo.frame(in: .named("paywallScroll")).minY
+                                    )
+                                }
+                            )
+
+                        VStack(spacing: 0) {
+                            copyBlock
                                 .padding(.horizontal, 24)
-                                .padding(.top, 14)
+                                .padding(.top, 8)
+                            if let lockMessage, !lockMessage.isEmpty {
+                                lockChip(lockMessage)
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 14)
+                            }
+                            usageStrip
+                                .padding(.horizontal, 24)
+                                .padding(.top, 16)
+                            tierStack
+                                .padding(.horizontal, 20)
+                                .padding(.top, 18)
+                            footer
+                                .padding(.horizontal, 24)
+                                .padding(.top, 20)
+                                .padding(.bottom, 36)
                         }
-                        usageStrip
-                            .padding(.horizontal, 24)
-                            .padding(.top, 16)
-                        tierStack
-                            .padding(.horizontal, 20)
-                            .padding(.top, 18)
-                        footer
-                            .padding(.horizontal, 24)
-                            .padding(.top, 20)
-                            .padding(.bottom, 28)
+                        .padding(.top, 20)
+                        .background(
+                            LinearGradient(
+                                colors: [
+                                    ink.opacity(0.15),
+                                    ink.opacity(0.92),
+                                    ink
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .opacity(contentFade)
                     }
                 }
+                .coordinateSpace(name: "paywallScroll")
+                .onPreferenceChange(PaywallScrollOffsetKey.self) { scrollY = $0 }
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -62,47 +121,20 @@ struct PaywallView: View {
         }
     }
 
-    private var hero: some View {
-        ZStack(alignment: .bottom) {
-            Image(heroName)
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity)
-                .frame(height: 280)
-                .clipped()
-                .accessibilityHidden(true)
-
-            LinearGradient(
-                colors: [
-                    ink.opacity(0),
-                    ink.opacity(0.55),
-                    ink
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 160)
-        }
-        .frame(height: 280)
-        .overlay(alignment: .top) {
-            LinearGradient(
-                colors: [ink.opacity(0.55), ink.opacity(0)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 72)
-            .allowsHitTesting(false)
-        }
-    }
-
     private var copyBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text("Stay sharp.")
                 .font(.system(size: 34, weight: .semibold, design: .serif))
                 .foregroundStyle(ivory)
 
-            Text("Live Keel when you go soft. Credits buy pressure.")
-                .font(.system(size: 16, weight: .medium, design: .rounded))
+            Text("Credits do not buy pleasure. Credits buy better outcomes.")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(gold.opacity(0.95))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("paywall.creditsLine")
+
+            Text("Live Keel when you go soft. Pro is the pressure path.")
+                .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(mist)
                 .fixedSize(horizontal: false, vertical: true)
         }

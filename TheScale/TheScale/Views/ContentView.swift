@@ -65,43 +65,53 @@ struct ContentView: View {
             ZStack {
                 WeeklyGoalHazeBackground(atmosphere: atmosphere)
 
-                ScrollView(.vertical, showsIndicators: false) {
+                GeometryReader { geo in
+                    let compact = geo.size.height < 780
                     VStack(alignment: .leading, spacing: 0) {
                         brandRow
                             .padding(.top, 0)
 
                         if let analysis = session.lastWeighInAnalysis {
                             weighInAnalysisBlock(analysis)
-                                .padding(.top, 10)
+                                .padding(.top, 6)
                         }
 
-                        weeklyHero
-                            .padding(.top, 10)
+                        VectorCrosshairGaugesView(
+                            weeklyPercent: surface.completionPercent,
+                            bandLabel: surface.band.statusLabel,
+                            metrics: surface.todayProgress,
+                            ink: atmosphere.ink,
+                            steel: atmosphere.ink.opacity(0.55),
+                            accent: Color(red: 0.12, green: 0.42, blue: 0.30)
+                        )
+                        .padding(.top, compact ? 4 : 8)
+                        .onTapGesture { session.presentProgress() }
 
-                        todayBlock
-                            .padding(.top, 16)
+                        Text(surface.todayAdvice)
+                            .font(.system(size: compact ? 16 : 18, weight: .bold, design: .serif))
+                            .foregroundStyle(atmosphere.ink)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                            .padding(.top, 6)
+                            .accessibilityIdentifier("home.todayAdvice")
 
-                        etaLine
-                            .padding(.top, 10)
-
-                        targetsRow
-                            .padding(.top, 18)
-
-                        Text(surface.targets.honestyLine)
+                        Text(surface.macroGoalETA.line)
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(atmosphere.ink.opacity(0.72))
-                            .padding(.top, 8)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .padding(.top, 4)
 
-                        primaryActions
-                            .padding(.top, 18)
+                        primaryActions(compact: compact)
+                            .padding(.top, 10)
 
                         discoveryBlock
-                            .padding(.top, 8)
 
-                        Spacer(minLength: 16)
+                        Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
+                    .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
                 }
 
                 #if DEBUG
@@ -280,187 +290,45 @@ struct ContentView: View {
         return "The Scale. Hello \(name)."
     }
 
-    private var weeklyHero: some View {
-        Button {
-            session.presentProgress()
-        } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text("\(surface.completionPercent)%")
-                        .font(.system(size: 78, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(atmosphere.ink)
-                        .shadow(color: .white.opacity(0.65), radius: 0, y: 1)
-                        .minimumScaleFactor(0.7)
-                        .lineLimit(1)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(surface.band.statusLabel.uppercased())
-                            .font(.system(size: 13, weight: .heavy, design: .rounded))
-                            .tracking(0.6)
-                            .foregroundStyle(atmosphere.ink)
-                        Text("of week goal")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundStyle(atmosphere.ink.opacity(0.75))
-                    }
-                    Spacer(minLength: 0)
-                }
-
-                Text(surface.weekTitle)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(atmosphere.ink)
-
-                Text(surface.detailLine)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(atmosphere.ink.opacity(0.78))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("Opens Progress")
-    }
-
-    private var todayBlock: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Today")
-                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                .foregroundStyle(atmosphere.ink.opacity(0.7))
-                .textCase(.uppercase)
-                .tracking(1.0)
-
-            Text(surface.todayAdvice)
-                .font(.system(size: 24, weight: .bold, design: .serif))
-                .foregroundStyle(atmosphere.ink)
-                .shadow(color: .white.opacity(0.45), radius: 0, y: 1)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineSpacing(3)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var etaLine: some View {
-        Text(surface.macroGoalETA.line)
-            .font(.system(size: 14, weight: .semibold, design: .rounded))
-            .foregroundStyle(atmosphere.ink.opacity(0.78))
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityLabel(surface.macroGoalETA.line)
-    }
-
     private func weighInAnalysisBlock(_ card: WeighInAnalysisCard) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(card.tone == .punish ? "COACH CHECK" : "WEIGH-IN")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .font(.system(size: 10, weight: .heavy, design: .rounded))
                     .tracking(0.8)
                     .foregroundStyle(atmosphere.ink.opacity(0.65))
                 Spacer()
                 Button("Dismiss") {
                     session.dismissWeighInAnalysis()
                 }
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(atmosphere.ink.opacity(0.7))
             }
             Text(card.headline)
-                .font(.system(size: 26, weight: .bold, design: .serif))
+                .font(.system(size: 18, weight: .bold, design: .serif))
                 .foregroundStyle(atmosphere.ink)
-                .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
+                .lineLimit(1)
             Text(card.body)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(atmosphere.ink.opacity(0.82))
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
-    private var targetsRow: some View {
-        let rows = surface.todayProgress
-        return VStack(alignment: .leading, spacing: 14) {
-            Text("Today's metrics")
-                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                .foregroundStyle(atmosphere.ink.opacity(0.7))
-                .textCase(.uppercase)
-                .tracking(1.0)
-                .accessibilityIdentifier("home.todayMetrics.title")
-
-            ForEach(Array(rows.enumerated()), id: \.element.kind) { _, row in
-                dailyMetricRow(row)
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("home.todayMetrics")
-    }
-
-    private func dailyMetricRow(_ row: DailyMetricProgress) -> some View {
-        let fill = min(max(row.fraction, 0), 1)
-        let barColor: Color = {
-            switch row.status {
-            case .complete: return Color(red: 0.12, green: 0.42, blue: 0.30)
-            case .over: return Color(red: 0.72, green: 0.22, blue: 0.18)
-            case .inProgress: return atmosphere.ink.opacity(0.85)
-            case .unknown: return atmosphere.ink.opacity(0.25)
-            }
-        }()
-        let statusLabel: String = {
-            switch row.status {
-            case .complete: return "Done"
-            case .over: return "Over"
-            case .inProgress: return "\(Int((min(row.fraction, 1) * 100).rounded()))%"
-            case .unknown: return "Open"
-            }
-        }()
-
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(row.title.uppercased())
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .foregroundStyle(atmosphere.ink.opacity(0.65))
-                    .tracking(0.7)
-                Spacer(minLength: 8)
-                Text(statusLabel)
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(barColor)
-                    .monospacedDigit()
-            }
-            Text(row.currentLine)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(atmosphere.ink)
-                .shadow(color: .white.opacity(0.35), radius: 0, y: 1)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(atmosphere.ink.opacity(0.12))
-                    Capsule()
-                        .fill(barColor)
-                        .frame(width: max(4, geo.size.width * fill))
-                }
-            }
-            .frame(height: 6)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(row.accessibilitySummary)
-        .accessibilityIdentifier("home.todayMetrics.\(row.kind.rawValue)")
-    }
-
-    private var primaryActions: some View {
-        VStack(spacing: 12) {
+    private func primaryActions(compact: Bool) -> some View {
+        VStack(spacing: compact ? 8 : 10) {
             Text(session.phase == .scanning || session.selectedScaleID != nil
-                 ? "Listening for your scale…"
-                 : "Step on the scale. Live card opens automatically.")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                 ? "Listening…"
+                 : "Step on. Live card opens.")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(atmosphere.ink.opacity(0.78))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 8) {
-                homeSecondaryButton(title: "Coach", systemImage: "sparkles") {
+                homeSecondaryButton(title: "Keel", systemImage: "sparkles") {
                     session.presentCoach()
                 }
                 homeSecondaryButton(title: "Meals", systemImage: "fork.knife") {
@@ -474,8 +342,8 @@ struct ContentView: View {
             Button {
                 session.presentManualEntry()
             } label: {
-                Label("Manual weigh-in", systemImage: "pencil.line")
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                Label("Manual", systemImage: "pencil.line")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.plain)
@@ -483,12 +351,12 @@ struct ContentView: View {
 
             if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
                 Text("Saved to Health")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color(red: 0.06, green: 0.32, blue: 0.20))
             }
 
             if !session.healthKitAvailable {
-                Text("Health unavailable on this device.")
+                Text("Health unavailable.")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(atmosphere.ink.opacity(0.7))
             }

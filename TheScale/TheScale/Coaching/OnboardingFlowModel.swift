@@ -44,8 +44,11 @@ final class OnboardingFlowModel: ObservableObject {
     @Published var paceRefusalNote: String?
     @Published var difficultyBand: GoalDifficultyBand?
 
+    /// Inclusive upper bound for onboarding age swipe (18-100).
+    static let maximumAgeYears: Double = UserBodyProfile.maximumAgeYears
+
     var isAdultAge: Bool {
-        ageYears >= UserBodyProfile.minimumAgeYears && ageYears <= 120
+        ageYears >= UserBodyProfile.minimumAgeYears && ageYears <= UserBodyProfile.maximumAgeYears
     }
 
     var hasChosenGender: Bool { sex != nil }
@@ -54,6 +57,9 @@ final class OnboardingFlowModel: ObservableObject {
         guard step == .body, ageYears > 0, !isAdultAge else { return nil }
         if ageYears < UserBodyProfile.minimumAgeYears {
             return "You must be 18 or older."
+        }
+        if ageYears > UserBodyProfile.maximumAgeYears {
+            return "Age max is 100."
         }
         return "Enter a valid age."
     }
@@ -222,7 +228,7 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func buildProfile() -> UserBodyProfile {
-        let clampedAge = min(120, max(UserBodyProfile.minimumAgeYears, ageYears))
+        let clampedAge = min(UserBodyProfile.maximumAgeYears, max(UserBodyProfile.minimumAgeYears, ageYears))
         refreshPaceAndDifficulty()
         return UserBodyProfile(
             displayName: name.trimmingCharacters(in: .whitespacesAndNewlines),

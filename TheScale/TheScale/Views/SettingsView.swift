@@ -275,7 +275,7 @@ struct SettingsView: View {
                         value: Binding(
                             get: { session.profile.ageYears },
                             set: { raw in
-                                let clamped = min(120, max(UserBodyProfile.minimumAgeYears, raw.rounded()))
+                                let clamped = min(UserBodyProfile.maximumAgeYears, max(UserBodyProfile.minimumAgeYears, raw.rounded()))
                                 session.profile.ageYears = clamped
                             }
                         ),

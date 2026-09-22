@@ -98,6 +98,8 @@
 		A1B2C3D4E5F60718293A00DW2 /* GoalDifficultyFlavor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10DW2 /* GoalDifficultyFlavor.swift */; };
 		A1B2C3D4E5F60718293A00DW3 /* AnalogDreamScaleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10DW3 /* AnalogDreamScaleView.swift */; };
 		A1B2C3D4E5F60718293A00DW4 /* DreamOnboardingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10DW4 /* DreamOnboardingTests.swift */; };
+		A1B2C3D4E5F60718293A00UX1 /* AgeSwipeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10UX1 /* AgeSwipeControl.swift */; };
+		A1B2C3D4E5F60718293A00UX2 /* VectorCrosshairGaugesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10UX2 /* VectorCrosshairGaugesView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -203,6 +205,8 @@
 		A1B2C3D4E5F60718293A10DW2 /* GoalDifficultyFlavor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalDifficultyFlavor.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10DW3 /* AnalogDreamScaleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalogDreamScaleView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10DW4 /* DreamOnboardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamOnboardingTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10UX1 /* AgeSwipeControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeSwipeControl.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10UX2 /* VectorCrosshairGaugesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VectorCrosshairGaugesView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -232,6 +236,8 @@
 				A1B2C3D4E5F60718293A100B /* ManualWeighInView.swift */,
 				A1B2C3D4E5F60718293A1010 /* OnboardingView.swift */,
 				A1B2C3D4E5F60718293A10DW3 /* AnalogDreamScaleView.swift */,
+				A1B2C3D4E5F60718293A10UX1 /* AgeSwipeControl.swift */,
+				A1B2C3D4E5F60718293A10UX2 /* VectorCrosshairGaugesView.swift */,
 				A1B2C3D4E5F60718293A1040 /* DebugToolsView.swift */,
 				A1B2C3D4E5F60718293A103D /* AppReviewPromptView.swift */,
 				A1B2C3D4E5F60718293A1011 /* ProgressSheet.swift */,
@@ -618,6 +624,8 @@
 				A1B2C3D4E5F60718293A00DW1 /* GoalPaceGuard.swift in Sources */,
 				A1B2C3D4E5F60718293A00DW2 /* GoalDifficultyFlavor.swift in Sources */,
 				A1B2C3D4E5F60718293A00DW3 /* AnalogDreamScaleView.swift in Sources */,
+				A1B2C3D4E5F60718293A00UX1 /* AgeSwipeControl.swift in Sources */,
+				A1B2C3D4E5F60718293A00UX2 /* VectorCrosshairGaugesView.swift in Sources */,
 				A1B2C3D4E5F60718293A003C /* ScaleAppReviewPrompt.swift in Sources */,
 				A1B2C3D4E5F60718293A003D /* AppReviewPromptView.swift in Sources */,
 				A1B2C3D4E5F60718293A0040 /* DebugToolsView.swift in Sources */,
@@ -640,11 +648,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 50;
+				CURRENT_PROJECT_VERSION = 51;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.18.0;
+				MARKETING_VERSION = 2.19.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -681,7 +689,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 50;
+				CURRENT_PROJECT_VERSION = 51;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -694,7 +702,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.18.0;
+				MARKETING_VERSION = 2.19.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -713,11 +721,11 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 50;
+				CURRENT_PROJECT_VERSION = 51;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.18.0;
+				MARKETING_VERSION = 2.19.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -735,7 +743,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 50;
+				CURRENT_PROJECT_VERSION = 51;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -748,7 +756,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.18.0;
+				MARKETING_VERSION = 2.19.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
