@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Destinations for the home liquid-glass nav bar (Keel / The Scale).
+/// Destinations for the home liquid-glass nav (Keel / The Scale).
 enum HomeGlassDestination: String, CaseIterable, Identifiable, Sendable {
     case weigh
     case progress
@@ -33,154 +33,129 @@ enum HomeGlassDestination: String, CaseIterable, Identifiable, Sendable {
     var isCenter: Bool { self == .keel }
 }
 
-/// Native liquid glass home bar (iOS 26+ `GlassEffectContainer` + `glassEffect` / `.glass` buttons).
+/// Home bottom nav following Apple Liquid Glass guidance:
+/// - Prefer one glass surface (Adopting Liquid Glass / Applying Liquid Glass to custom views)
+/// - No glass-on-glass (no `.buttonStyle(.glass)` stacked on an outer `glassEffect`)
+/// - System hit targets (≥44pt), safe-area inset, black-tinted regular glass
+/// Docs: https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass
+///       https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
 struct HomeGlassBar: View {
     let onSelect: (HomeGlassDestination) -> Void
-    @Namespace private var glassNamespace
-    @State private var keelPulse = false
-
-    private let sideDestinations: [HomeGlassDestination] = [.weigh, .progress]
-    private let trailingDestinations: [HomeGlassDestination] = [.meals, .settings]
+    @State private var selected: HomeGlassDestination = .weigh
 
     var body: some View {
         Group {
             if #available(iOS 26.0, *) {
-                nativeGlassBar
+                liquidGlassBar
             } else {
                 fallbackBar
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 20)
+        .padding(.top, 6)
+        .padding(.bottom, 4)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("The Scale navigation")
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
-                keelPulse = true
-            }
-        }
     }
 
+    /// Single floating glass capsule (system tab-bar pattern) with an in-bar selection well.
     @available(iOS 26.0, *)
-    private var nativeGlassBar: some View {
-        // Official Liquid Glass: container morphs sibling glassEffect IDs (tab-bar style magnify).
-        GlassEffectContainer(spacing: 10) {
-            HStack(spacing: 4) {
-                ForEach(sideDestinations) { dest in
-                    sideGlassButton(dest)
-                }
-
-                keelGlassButton
-
-                ForEach(trailingDestinations) { dest in
-                    sideGlassButton(dest)
-                }
+    private var liquidGlassBar: some View {
+        HStack(spacing: 0) {
+            ForEach(HomeGlassDestination.allCases) { dest in
+                tabButton(dest, emphasizeKeel: true)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
         }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
         .glassEffect(
-            .regular.tint(Color.black.opacity(0.28)).interactive(),
+            .regular.tint(Color.black.opacity(0.48)).interactive(),
             in: Capsule(style: .continuous)
         )
-    }
-
-    @available(iOS 26.0, *)
-    private func sideGlassButton(_ dest: HomeGlassDestination) -> some View {
-        Button {
-            onSelect(dest)
-        } label: {
-            VStack(spacing: 2) {
-                Image(systemName: dest.systemImage)
-                    .font(.system(size: 16, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                Text(dest.title)
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            .foregroundStyle(.white.opacity(0.92))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.glass)
-        .glassEffectID(dest.id, in: glassNamespace)
-        .accessibilityLabel(dest.title)
-    }
-
-    @available(iOS 26.0, *)
-    private var keelGlassButton: some View {
-        Button {
-            onSelect(.keel)
-        } label: {
-            VStack(spacing: 2) {
-                Image(systemName: HomeGlassDestination.keel.systemImage)
-                    .font(.system(size: 26, weight: .semibold))
-                    .symbolRenderingMode(.hierarchical)
-                    .symbolEffect(.pulse, options: .repeating.speed(0.35), isActive: true)
-                    .scaleEffect(keelPulse ? 1.08 : 0.96)
-                    .opacity(keelPulse ? 1.0 : 0.88)
-                Text(HomeGlassDestination.keel.title)
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
-            }
-            .foregroundStyle(.white)
-            .frame(width: 72, height: 64)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.glass)
-        .glassEffect(
-            .regular.tint(ScaleChrome.ember.opacity(0.35)).interactive(),
-            in: Circle()
-        )
-        .glassEffectID(HomeGlassDestination.keel.id, in: glassNamespace)
-        .accessibilityLabel("Keel")
     }
 
     private var fallbackBar: some View {
         HStack(spacing: 0) {
             ForEach(HomeGlassDestination.allCases) { dest in
-                Button {
-                    onSelect(dest)
-                } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: dest.systemImage)
-                            .font(.system(size: dest.isCenter ? 24 : 16, weight: .semibold))
-                            .scaleEffect(dest.isCenter && keelPulse ? 1.06 : 1.0)
-                        Text(dest.title)
-                            .font(.system(size: dest.isCenter ? 10 : 9, weight: .bold, design: .rounded))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .foregroundStyle(.white.opacity(0.92))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, dest.isCenter ? 12 : 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(dest.title)
+                tabButton(dest, emphasizeKeel: true)
             }
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, 2)
+        .padding(.vertical, 5)
         .background(.ultraThinMaterial, in: Capsule(style: .continuous))
         .overlay {
             Capsule(style: .continuous)
                 .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.5)
         }
     }
+
+    private func tabButton(_ dest: HomeGlassDestination, emphasizeKeel: Bool) -> some View {
+        let isSelected = selected == dest
+        let isKeel = dest.isCenter
+        let iconSize: CGFloat = {
+            if isKeel { return isSelected ? 22 : 20 }
+            return 17
+        }()
+
+        return Button {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                selected = dest
+            }
+            onSelect(dest)
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: dest.systemImage)
+                    .font(.system(size: iconSize, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .symbolEffect(.bounce, value: isSelected && isKeel)
+                Text(dest.title)
+                    .font(.system(size: 10, weight: isSelected ? .bold : .semibold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(foreground(for: dest, selected: isSelected))
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
+            .padding(.vertical, 4)
+            .background {
+                if isSelected {
+                    Capsule(style: .continuous)
+                        .fill(selectionFill(for: dest))
+                        .padding(.horizontal, 2)
+                        .padding(.vertical, 1)
+                }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(dest.title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func foreground(for dest: HomeGlassDestination, selected: Bool) -> Color {
+        if dest.isCenter {
+            return selected ? ScaleChrome.ember : Color.white.opacity(0.92)
+        }
+        return selected ? Color.white : Color.white.opacity(0.72)
+    }
+
+    private func selectionFill(for dest: HomeGlassDestination) -> Color {
+        if dest.isCenter {
+            return ScaleChrome.ember.opacity(0.28)
+        }
+        return Color.white.opacity(0.16)
+    }
 }
 
 extension View {
-    /// Black-tinted liquid glass capsule (shared chrome).
+    /// Shared black-tinted liquid glass capsule (single surface; no nested glass).
     @ViewBuilder
     func scaleBlackGlassCapsule() -> some View {
         if #available(iOS 26.0, *) {
-            self
-                .glassEffect(
-                    .regular.tint(Color.black.opacity(0.32)).interactive(),
-                    in: Capsule(style: .continuous)
-                )
+            self.glassEffect(
+                .regular.tint(Color.black.opacity(0.45)).interactive(),
+                in: Capsule(style: .continuous)
+            )
         } else {
             self
                 .background(.ultraThinMaterial, in: Capsule(style: .continuous))

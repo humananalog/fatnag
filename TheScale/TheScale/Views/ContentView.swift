@@ -66,15 +66,17 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottom) {
+            ZStack {
                 WeeklyGoalHazeBackground(atmosphere: atmosphere)
                 homeScroll
-                HomeGlassBar { destination in
-                    handleGlassDestination(destination)
-                }
                 #if DEBUG
                 debugOverlay
                 #endif
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                HomeGlassBar { destination in
+                    handleGlassDestination(destination)
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -189,7 +191,7 @@ struct ContentView: View {
                 homeColumn(compact: compact)
                     .padding(.horizontal, 22)
                     .padding(.top, 8)
-                    .padding(.bottom, 96)
+                    .padding(.bottom, 20)
                     .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .top)
             }
             .refreshable {
