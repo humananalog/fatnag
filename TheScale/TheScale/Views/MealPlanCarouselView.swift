@@ -4,14 +4,32 @@ import SwiftUI
 struct MealPlanCarouselView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var pageIndex = 0
 
     private let ink = Color(red: 0.06, green: 0.07, blue: 0.09)
     private let steel = Color(red: 0.28, green: 0.30, blue: 0.34)
+    private let peek: CGFloat = 28
+    private let cardGap: CGFloat = 12
+
+    private let accents: [Color] = [
+        Color(red: 0.18, green: 0.52, blue: 0.62),
+        Color(red: 0.78, green: 0.42, blue: 0.22),
+        Color(red: 0.32, green: 0.55, blue: 0.38),
+        Color(red: 0.48, green: 0.36, blue: 0.68)
+    ]
 
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.96, green: 0.97, blue: 0.98).ignoresSafeArea()
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.95, green: 0.97, blue: 0.99),
+                        Color(red: 0.90, green: 0.93, blue: 0.96)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 16) {
                     headerCopy
@@ -22,15 +40,28 @@ struct MealPlanCarouselView: View {
                             .frame(maxWidth: .infinity)
                         Spacer()
                     } else if let plan = session.mealPlan, !plan.meals.isEmpty {
-                        TabView {
-                            ForEach(plan.meals) { meal in
-                                mealCard(meal)
-                                    .padding(.horizontal, 8)
-                                    .padding(.bottom, 28)
+                        GeometryReader { geo in
+                            let cardWidth = max(240, geo.size.width - peek * 2)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: cardGap) {
+                                    ForEach(Array(plan.meals.enumerated()), id: \.element.id) { index, meal in
+                                        mealCard(meal, accent: accents[index % accents.count])
+                                            .frame(width: cardWidth, height: geo.size.height - 8)
+                                            .id(index)
+                                    }
+                                }
+                                .scrollTargetLayout()
                             }
+                            .contentMargins(.horizontal, peek, for: .scrollContent)
+                            .scrollTargetBehavior(.viewAligned)
+                            .scrollPosition(id: Binding<Int?>(
+                                get: { pageIndex },
+                                set: { pageIndex = $0 ?? 0 }
+                            ))
                         }
-                        .tabViewStyle(.page(indexDisplayMode: .always))
                         .frame(maxHeight: .infinity)
+
+                        pageDots(count: plan.meals.count)
 
                         Text(plan.sourceNote)
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -44,7 +75,8 @@ struct MealPlanCarouselView: View {
                         Spacer()
                     }
                 }
-                .padding(20)
+                .padding(.vertical, 20)
+                .padding(.horizontal, 12)
             }
             .navigationTitle("Meal plan")
             .navigationBarTitleDisplayMode(.inline)
@@ -61,6 +93,9 @@ struct MealPlanCarouselView: View {
             }
             .task {
                 await session.ensureMealPlan()
+            }
+            .onChange(of: session.mealPlan?.meals.count ?? 0) { _, _ in
+                pageIndex = 0
             }
         }
         .preferredColorScheme(.light)
@@ -81,10 +116,37 @@ struct MealPlanCarouselView: View {
                     .foregroundStyle(steel)
             }
         }
+        .padding(.horizontal, 8)
     }
 
-    private func mealCard(_ meal: MealPlanMeal) -> some View {
+    private func pageDots(count: Int) -> some View {
+        HStack(spacing: 8) {
+            ForEach(0..<count, id: \.self) { index in
+                Capsule()
+                    .fill(index == pageIndex ? ink : ink.opacity(0.22))
+                    .frame(width: index == pageIndex ? 18 : 8, height: 8)
+                    .accessibilityLabel("Page \(index + 1) of \(count)")
+                    .accessibilityAddTraits(index == pageIndex ? .isSelected : [])
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Meal pages")
+    }
+
+    private func mealCard(_ meal: MealPlanMeal, accent: Color) -> some View {
         VStack(alignment: .leading, spacing: 14) {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [accent, accent.opacity(0.55)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(height: 6)
+
             HStack(alignment: .firstTextBaseline) {
                 Text(meal.title)
                     .font(.system(size: 26, weight: .bold, design: .rounded))
@@ -92,37 +154,66 @@ struct MealPlanCarouselView: View {
                 Spacer()
                 Text(meal.timeLabel)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(steel)
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(accent.opacity(0.14), in: Capsule())
             }
 
-            Text(meal.ingredients.joined(separator: " · "))
-                .font(.system(size: 18, weight: .medium, design: .rounded))
-                .foregroundStyle(ink)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(meal.ingredients, id: \.self) { line in
+                    HStack(alignment: .top, spacing: 8) {
+                        Circle()
+                            .fill(accent.opacity(0.85))
+                            .frame(width: 6, height: 6)
+                            .padding(.top, 7)
+                        Text(line)
+                            .font(.system(size: 17, weight: .medium, design: .rounded))
+                            .foregroundStyle(ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
 
             HStack(spacing: 16) {
-                labeled("Macro", meal.keyMacro)
-                labeled("Micro", meal.keyMicro)
+                labeled("Macro", meal.keyMacro, accent: accent)
+                labeled("Micro", meal.keyMicro, accent: accent)
             }
 
             Text("~\(meal.approxKcal) kcal")
                 .font(.system(size: 15, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(ink)
+                .padding(.top, 2)
 
             Spacer(minLength: 0)
         }
         .padding(22)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color.white, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: ink.opacity(0.08), radius: 18, y: 8)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color.white,
+                    accent.opacity(0.07)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(accent.opacity(0.22), lineWidth: 1)
+        )
+        .shadow(color: accent.opacity(0.22), radius: 16, y: 10)
+        .shadow(color: ink.opacity(0.10), radius: 22, y: 12)
     }
 
-    private func labeled(_ caption: String, _ value: String) -> some View {
+    private func labeled(_ caption: String, _ value: String, accent: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(caption.uppercased())
                 .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(steel)
+                .foregroundStyle(accent)
                 .tracking(0.6)
             Text(value)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))

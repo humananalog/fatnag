@@ -27,6 +27,33 @@ struct MemoryExtractionDraft: Equatable, Sendable {
     var facts: [String]
 }
 
+@Generable(description: "One meal with metric ingredient portions for an on-device menu")
+struct MealPlanFMMealDraft: Equatable, Sendable {
+    @Guide(description: "Meal title, e.g. Break-fast, Lunch, Dinner.")
+    var title: String
+
+    @Guide(description: "Local time label like ~12:30.")
+    var time: String
+
+    @Guide(description: "2-5 ingredients with metric portions (g or ml), e.g. Chicken breast 140 g.")
+    var ingredients: [String]
+
+    @Guide(description: "Key macro line, e.g. Protein 35 g.")
+    var macro: String
+
+    @Guide(description: "Key micro line, e.g. Iron ~3 mg.")
+    var micro: String
+
+    @Guide(description: "Approximate kcal for this meal.")
+    var kcal: Int
+}
+
+@Generable(description: "Next meals for the day with metric portions")
+struct MealPlanFMDraft: Equatable, Sendable {
+    @Guide(description: "3 or 4 meals remaining in the eating window.")
+    var meals: [MealPlanFMMealDraft]
+}
+
 @Generable(description: "Onboarding profile fields inferred on-device from a freeform note")
 struct OnboardingProfileFMDraft: Equatable, Sendable {
     @Guide(description: "Diet preference: omnivore, pescatarian, vegetarian, vegan, other, or empty if unknown.")
@@ -206,6 +233,88 @@ enum FoundationModelCoach {
             }
         } catch {
             return []
+        }
+    }
+
+    // MARK: Meal plan (quota / offline)
+
+    /// On-device meal menu when weekly Grok credits are exhausted. Metric portions required.
+    /// Returns nil when FM is unavailable or output is too thin (caller uses templated menu).
+    static func generateMealPlan(
+        name: String,
+        diet: DietPreference,
+        maxKcal: Int,
+        proteinGrams: Int,
+        microHint: String,
+        weeklyDeltaKg: Double,
+        fasting: FastingWindow,
+        memoryBlock: String,
+        now: Date = Date()
+    ) async -> [MealPlanMeal]? {
+        guard FoundationModelAvailability.isAvailable else { return nil }
+        let who = name.isEmpty ? "the user" : name
+        let localTime = now.formatted(date: .omitted, time: .shortened)
+        let fastingLine: String = {
+            if fasting.isActive {
+                let open = MealPlanEngine.formatHour(fasting.eatingStartHour)
+                let close = MealPlanEngine.formatHour(fasting.eatingEndHour)
+                return "Intermittent fasting \(fasting.cacheToken). Eating window \(open)-\(close). Do not place meals outside the window."
+            }
+            return "No fasting window."
+        }()
+        let mem = memoryBlock.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let session = LanguageModelSession(instructions: """
+                You write practical meal menus for The Scale on-device.
+                Fitness coaching only. Never diagnose. No em dashes.
+                Every ingredient needs a metric portion (g or ml). Real dishes, not fluff.
+                Honour diet preference and fasting windows.
+                """)
+            let prompt = """
+                Build 3-4 upcoming meals for \(who) from local now \(localTime).
+                Diet: \(diet.title). Daily max \(maxKcal) kcal. Protein \(proteinGrams) g. Micro focus: \(microHint).
+                Weekly weight nudge \(String(format: "%+.1f", weeklyDeltaKg)) kg (keep a mild deficit if negative).
+                \(fastingLine)
+                \(mem.isEmpty ? "" : "Memory:\n\(mem)")
+                Ingredients must include metric grams or millilitres.
+                """
+            var options = GenerationOptions()
+            options.temperature = 0.5
+            options.maximumResponseTokens = 420
+            let response = try await session.respond(
+                to: prompt,
+                generating: MealPlanFMDraft.self,
+                options: options
+            )
+            let drafts = response.content.meals
+            var meals: [MealPlanMeal] = []
+            for draft in drafts.prefix(5) {
+                let ingredients = draft.ingredients
+                    .map { CoachCopySanitize.clean($0) }
+                    .filter { !$0.isEmpty }
+                guard ingredients.count >= 2 else { continue }
+                let hasMetric = ingredients.contains {
+                    $0.range(of: #"\d+\s*(g|ml)\b"#, options: .regularExpression) != nil
+                }
+                guard hasMetric else { continue }
+                let title = CoachCopySanitize.clean(draft.title)
+                let time = CoachCopySanitize.clean(draft.time)
+                let macro = CoachCopySanitize.clean(draft.macro)
+                let micro = CoachCopySanitize.clean(draft.micro)
+                meals.append(
+                    MealPlanMeal(
+                        title: title.isEmpty ? "Meal" : title,
+                        timeLabel: time,
+                        ingredients: Array(ingredients.prefix(5)),
+                        keyMacro: macro.isEmpty ? "Protein" : macro,
+                        keyMicro: micro.isEmpty ? "Fiber" : micro,
+                        approxKcal: max(80, min(1200, draft.kcal))
+                    )
+                )
+            }
+            return meals.count >= 3 ? meals : nil
+        } catch {
+            return nil
         }
     }
 

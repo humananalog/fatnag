@@ -80,13 +80,13 @@ struct SettingsView: View {
     private var planCard: some View {
         let snap = subscription.quotaSnapshot
         return VStack(alignment: .leading, spacing: 12) {
-            Label("Coach plan", systemImage: "creditcard")
+            Label("Weekly AI usage", systemImage: "chart.bar.fill")
                 .font(.headline)
-            Text("Free, Plus ($2/mo), and Pro ($8/mo). Weigh-in, Health, charts, and on-device Coach stay unlimited. Live Grok uses a weekly credit pool that resets Monday.")
+            Text("Live Grok credits for Coach chat, Monday card, fitness checks, and meal plans. Weigh-in, Health, charts, and on-device Coach stay unlimited. Pool resets Monday.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            HStack {
+            HStack(alignment: .firstTextBaseline) {
                 Text(subscription.plan.displayName)
                     .font(.title3.weight(.semibold))
                 Spacer()
@@ -94,23 +94,62 @@ struct SettingsView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
             }
-            Text(snap.statusLine)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(snap.isExhausted ? .orange : .secondary)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(snap.percentLine)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Text("\(snap.percentUsed)%")
+                        .font(.title2.weight(.bold).monospacedDigit())
+                        .foregroundStyle(snap.isExhausted ? Color.orange : Color.primary)
+                }
+                ProgressView(value: Double(snap.percentUsed), total: 100)
+                    .tint(snap.isExhausted ? .orange : Color(red: 0.18, green: 0.52, blue: 0.62))
+                HStack {
+                    Text(snap.usageCountLine)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(snap.remaining) left")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(snap.isExhausted ? .orange : .secondary)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                (snap.isExhausted ? Color.orange.opacity(0.10) : Color(red: 0.18, green: 0.52, blue: 0.62).opacity(0.08)),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
+
             Text(subscription.plan.blurb)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Button {
-                showPaywall = true
-            } label: {
-                Label(
-                    subscription.plan == .pro ? "Manage plans" : "Unlock more Grok",
-                    systemImage: "arrow.up.circle"
-                )
-                .frame(maxWidth: .infinity)
+            if let target = subscription.plan.upgradeTarget {
+                Button {
+                    showPaywall = true
+                } label: {
+                    Label(
+                        snap.isExhausted
+                            ? "Upgrade to \(target.displayName)"
+                            : "Upgrade to \(target.displayName) · \(target.weeklyGrokCredits)/wk",
+                        systemImage: "arrow.up.circle.fill"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(snap.isExhausted ? .orange : Color(red: 0.18, green: 0.52, blue: 0.62))
+            } else {
+                Button {
+                    showPaywall = true
+                } label: {
+                    Label("Manage plans", systemImage: "creditcard")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.borderedProminent)
 
             #if DEBUG
             Picker(
@@ -135,6 +174,7 @@ struct SettingsView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .id(subscription.quotaEpoch)
     }
 
     private var profileCard: some View {
@@ -158,14 +198,21 @@ struct SettingsView: View {
                 Text("Height")
                 Spacer()
                 TextField(
-                    "cm",
-                    value: $session.profile.heightCm,
-                    format: .number.precision(.fractionLength(0))
+                    session.preferredUnits.heightLabel,
+                    value: Binding(
+                        get: {
+                            UnitFormat.height(fromCm: session.profile.heightCm, system: session.preferredUnits)
+                        },
+                        set: { display in
+                            session.profile.heightCm = UnitFormat.cm(fromHeight: display, system: session.preferredUnits)
+                        }
+                    ),
+                    format: .number.precision(.fractionLength(session.preferredUnits == .metric ? 0 : 1))
                 )
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 72)
-                Text("cm").foregroundStyle(.secondary)
+                Text(session.preferredUnits.heightLabel).foregroundStyle(.secondary)
             }
 
             HStack {
@@ -186,15 +233,33 @@ struct SettingsView: View {
                 Text("Target weight")
                 Spacer()
                 TextField(
-                    "kg",
-                    value: $session.profile.idealWeightKg,
+                    session.preferredUnits.massLabel,
+                    value: Binding(
+                        get: {
+                            UnitFormat.mass(fromKg: session.profile.idealWeightKg, system: session.preferredUnits)
+                        },
+                        set: { display in
+                            session.profile.idealWeightKg = UnitFormat.kg(fromMass: display, system: session.preferredUnits)
+                        }
+                    ),
                     format: .number.precision(.fractionLength(1))
                 )
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 72)
-                Text("kg").foregroundStyle(.secondary)
+                Text(session.preferredUnits.massLabel).foregroundStyle(.secondary)
             }
+
+            Picker("Units", selection: $session.preferredUnits) {
+                ForEach(PreferredUnitSystem.allCases) { system in
+                    Text(system.shortTitle).tag(system)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text("Used for weight, height, portions, meal plan, and Coach. Apple Health stays metric under the hood.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
 
             DatePicker(
                 "Goal date",

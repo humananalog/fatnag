@@ -319,7 +319,7 @@ struct LiveWeighInSheet: View {
             }
 
             HStack(spacing: 8) {
-                Text(isCalibration ? "kg raw" : "kg")
+                Text(isCalibration ? "\(session.preferredUnits.massLabel) raw" : session.preferredUnits.massLabel)
                     .font(.system(size: 22, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.72))
                 if !isCalibration, session.calibration.hasCorrection {
@@ -387,16 +387,21 @@ struct LiveWeighInSheet: View {
     }
 
     private func editableWeightHero(_ draft: EditableMeasurementDraft) -> some View {
-        HStack(spacing: 10) {
-            nudgeButton(systemName: "minus", accessibility: "Decrease weight by 0.1 kg") {
-                session.updateDraftWeight(max(draft.weightKg - 0.1, 0.1))
+        let step = session.preferredUnits == .metric ? 0.1 : 0.2
+        return HStack(spacing: 10) {
+            nudgeButton(systemName: "minus", accessibility: "Decrease weight") {
+                session.updateDraftWeight(max(draft.weightKg - UnitFormat.kg(fromMass: step, system: session.preferredUnits), 0.1))
             }
 
             TextField(
                 "Weight",
                 value: Binding(
-                    get: { draft.weightKg },
-                    set: { session.updateDraftWeight($0) }
+                    get: {
+                        UnitFormat.mass(fromKg: draft.weightKg, system: session.preferredUnits)
+                    },
+                    set: { display in
+                        session.updateDraftWeight(UnitFormat.kg(fromMass: display, system: session.preferredUnits))
+                    }
                 ),
                 format: .number.precision(.fractionLength(2))
             )
@@ -411,8 +416,8 @@ struct LiveWeighInSheet: View {
             .frame(height: 72, alignment: .center)
             .contentTransition(.numericText())
 
-            nudgeButton(systemName: "plus", accessibility: "Increase weight by 0.1 kg") {
-                session.updateDraftWeight(draft.weightKg + 0.1)
+            nudgeButton(systemName: "plus", accessibility: "Increase weight") {
+                session.updateDraftWeight(draft.weightKg + UnitFormat.kg(fromMass: step, system: session.preferredUnits))
             }
         }
     }
@@ -875,12 +880,15 @@ struct LiveWeighInSheet: View {
     // MARK: - Derived text
 
     private var weightText: String {
+        let kg: Double?
         if isCalibration {
-            guard let kg = session.rawDisplayWeightKg else { return "-" }
-            return String(format: "%.2f", kg)
+            kg = session.rawDisplayWeightKg
+        } else {
+            kg = session.displayWeightKg
         }
-        guard let kg = session.displayWeightKg else { return "-" }
-        return String(format: "%.2f", kg)
+        guard let kg else { return "-" }
+        let display = UnitFormat.mass(fromKg: kg, system: session.preferredUnits)
+        return String(format: "%.2f", display)
     }
 
     private var bodyFatValueText: String {

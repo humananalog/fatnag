@@ -39,6 +39,12 @@ final class CoachQuotaTests: XCTestCase {
         XCTAssertTrue(lock!.contains("Plus"))
         XCTAssertTrue(lock!.contains("$2"))
         XCTAssertTrue(CoachWeeklyQuota.snapshot(plan: .free).isExhausted)
+        let snap = CoachWeeklyQuota.snapshot(plan: .free)
+        XCTAssertEqual(snap.used, 5)
+        XCTAssertEqual(snap.limit, 5)
+        XCTAssertEqual(snap.percentUsed, 100)
+        XCTAssertTrue(snap.usageCountLine.contains("5 / 5"))
+        XCTAssertTrue(snap.percentLine.contains("100%"))
     }
 
     func testHigherTierAllowMoreCreditsSameWeek() {

@@ -231,7 +231,8 @@ final class CoachChatController: ObservableObject {
             personaBlock: brief.personaBlock,
             memoryBlock: brief.memoryBlock + targetContext + reminderContext,
             fitnessDigestBlock: brief.fitnessDigestBlock,
-            localNow: brief.localNow
+            localNow: brief.localNow,
+            unitSystem: brief.unitSystem
         )
 
         let assistantID = UUID()

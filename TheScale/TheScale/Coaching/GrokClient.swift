@@ -95,6 +95,8 @@ struct CoachBrief: Equatable, Sendable {
     let fitnessDigestBlock: String
     /// Device-local clock for time-aware coaching (never invent a timezone).
     let localNow: Date
+    /// Preferred display / prompt units (canonical storage stays metric).
+    let unitSystem: PreferredUnitSystem
 
     init(
         userName: String,
@@ -112,7 +114,8 @@ struct CoachBrief: Equatable, Sendable {
         personaBlock: String = "",
         memoryBlock: String = "",
         fitnessDigestBlock: String = "",
-        localNow: Date = Date()
+        localNow: Date = Date(),
+        unitSystem: PreferredUnitSystem = .metric
     ) {
         self.userName = userName
         self.diet = diet
@@ -130,6 +133,7 @@ struct CoachBrief: Equatable, Sendable {
         self.memoryBlock = memoryBlock
         self.fitnessDigestBlock = fitnessDigestBlock
         self.localNow = localNow
+        self.unitSystem = unitSystem
     }
 }
 
@@ -575,7 +579,7 @@ actor GrokClient {
         fasting: FastingWindow = .none,
         now: Date = Date()
     ) async -> MealPlanPayload {
-        let offline = MealPlanEngine.offlinePlan(
+        let templated = MealPlanEngine.offlinePlan(
             name: brief.userName,
             diet: brief.diet,
             maxKcal: maxKcal,
@@ -583,19 +587,58 @@ actor GrokClient {
             dayKey: dayKey,
             weeklyDeltaKg: weeklyDeltaKg,
             fasting: fasting,
+            units: brief.unitSystem,
             now: now
         )
 
-        guard GrokPrivacyConsent.isAccepted else { return offline }
-        if GrokSharedConfig.configurationIssue != nil || resolveTransport() == nil {
-            return offline
+        // Weekly credits exhausted (or consent / transport missing): prefer on-device FM, else solid template.
+        let quotaBlocked = !(await MainActor.run { CoachWeeklyQuota.canConsume(plan: ScaleSubscriptionStore.shared.plan) })
+        let transportMissing = GrokSharedConfig.configurationIssue != nil || resolveTransport() == nil
+        if !GrokPrivacyConsent.isAccepted || transportMissing || quotaBlocked {
+            return await localMealPlanFallback(
+                brief: brief,
+                maxKcal: maxKcal,
+                proteinGrams: proteinGrams,
+                microHint: microHint,
+                dayKey: dayKey,
+                weeklyDeltaKg: weeklyDeltaKg,
+                fasting: fasting,
+                now: now,
+                templated: templated,
+                reason: quotaBlocked
+                    ? "Weekly Grok credits used. On-device menu."
+                    : "On-device menu (Grok offline or consent off)."
+            )
         }
-        guard let transport = resolveTransport() else { return offline }
+
+        guard let transport = resolveTransport() else {
+            return await localMealPlanFallback(
+                brief: brief,
+                maxKcal: maxKcal,
+                proteinGrams: proteinGrams,
+                microHint: microHint,
+                dayKey: dayKey,
+                weeklyDeltaKg: weeklyDeltaKg,
+                fasting: fasting,
+                now: now,
+                templated: templated,
+                reason: "On-device menu (Grok offline)."
+            )
+        }
 
         if let _ = await consumeQuota(.mealPlan) {
-            var locked = offline
-            locked.sourceNote = "Weekly Grok limit hit. Offline meal pattern for now."
-            return locked
+            return await localMealPlanFallback(
+                brief: brief,
+                maxKcal: maxKcal,
+                proteinGrams: proteinGrams,
+                microHint: microHint,
+                dayKey: dayKey,
+                weeklyDeltaKg: weeklyDeltaKg,
+                fasting: fasting,
+                now: now,
+                templated: templated,
+                reason: "Weekly Grok credits used. On-device menu."
+            )
         }
 
         let who = brief.userName.isEmpty ? "the user" : brief.userName
@@ -610,17 +653,22 @@ actor GrokClient {
             return "No intermittent fasting window set."
         }()
         let memory = brief.memoryBlock.isEmpty ? "" : "\n\(brief.memoryBlock)"
+        let portionRule = brief.unitSystem == .metric
+            ? "Each ingredient must include a metric portion (g or ml)."
+            : "Each ingredient must include a portion in oz / fl oz (imperial)."
         let system = """
         You write tight meal plans for The Scale. Fitness coaching only. Never diagnose.
         No medical disclaimer. No em dashes. JSON only. Honour fasting windows strictly.
+        \(brief.unitSystem.coachPromptLine)
         """
         let prompt = """
         Next meals for \(who) from local now \(localTime) through ~24h. Diet: \(brief.diet.title). Daily max \(maxKcal) kcal, protein \(proteinGrams) g, micro focus: \(microHint).
         Weekly weight nudge \(String(format: "%+.1f", weeklyDeltaKg)) kg.
         \(fastingLine)\(memory)
+        \(portionRule)
         Reply ONLY JSON:
-        {"meals":[{"title":"Break-fast","time":"~12:00","ingredients":["a","b","c"],"macro":"Protein 35 g","micro":"Iron ~3 mg","kcal":420}]}
-        3-4 meals. Stay under \(maxKcal) total. Match diet. Main ingredients only. Times must be inside any eating window and at/after local now.
+        {"meals":[{"title":"Break-fast","time":"~12:00","ingredients":["Chicken breast 140 g","Greens 120 g"],"macro":"Protein 35 g","micro":"Iron ~3 mg","kcal":420}]}
+        3-4 meals. Stay under \(maxKcal) total. Match diet. Main ingredients with portions. Times must be inside any eating window and at/after local now.
         """
 
         let body: [String: Any] = [
@@ -638,8 +686,24 @@ actor GrokClient {
             let data = try await postChat(body: body, transport: transport, timeout: 35)
             let raw = Self.parseContent(from: data) ?? ""
             if let parsed = MealPlanEngine.parseGrokJSON(raw) {
-                let meals = MealPlanEngine.enforceFasting(parsed, fasting: fasting, now: now)
-                guard meals.count >= 3 else { return offline }
+                let meals = MealPlanEngine.localizePortions(
+                    MealPlanEngine.enforceFasting(parsed, fasting: fasting, now: now),
+                    units: brief.unitSystem
+                )
+                guard meals.count >= 3 else {
+                    return await localMealPlanFallback(
+                        brief: brief,
+                        maxKcal: maxKcal,
+                        proteinGrams: proteinGrams,
+                        microHint: microHint,
+                        dayKey: dayKey,
+                        weeklyDeltaKg: weeklyDeltaKg,
+                        fasting: fasting,
+                        now: now,
+                        templated: templated,
+                        reason: "On-device menu (Grok parse thin)."
+                    )
+                }
                 let key = MealPlanEngine.cacheKey(
                     dayKey: dayKey,
                     maxKcal: maxKcal,
@@ -662,10 +726,89 @@ actor GrokClient {
                     sourceNote: note
                 )
             }
-            return offline
+            return await localMealPlanFallback(
+                brief: brief,
+                maxKcal: maxKcal,
+                proteinGrams: proteinGrams,
+                microHint: microHint,
+                dayKey: dayKey,
+                weeklyDeltaKg: weeklyDeltaKg,
+                fasting: fasting,
+                now: now,
+                templated: templated,
+                reason: "On-device menu (Grok empty)."
+            )
         } catch {
-            return offline
+            return await localMealPlanFallback(
+                brief: brief,
+                maxKcal: maxKcal,
+                proteinGrams: proteinGrams,
+                microHint: microHint,
+                dayKey: dayKey,
+                weeklyDeltaKg: weeklyDeltaKg,
+                fasting: fasting,
+                now: now,
+                templated: templated,
+                reason: "On-device menu (Grok error)."
+            )
         }
+    }
+
+    /// FM first (metric portions), then preference-aware templated menu. Never an empty stub.
+    private func localMealPlanFallback(
+        brief: CoachBrief,
+        maxKcal: Int,
+        proteinGrams: Int,
+        microHint: String,
+        dayKey: String,
+        weeklyDeltaKg: Double,
+        fasting: FastingWindow,
+        now: Date,
+        templated: MealPlanPayload,
+        reason: String
+    ) async -> MealPlanPayload {
+        if let fmMeals = await FoundationModelCoach.generateMealPlan(
+            name: brief.userName,
+            diet: brief.diet,
+            maxKcal: maxKcal,
+            proteinGrams: proteinGrams,
+            microHint: microHint,
+            weeklyDeltaKg: weeklyDeltaKg,
+            fasting: fasting,
+            memoryBlock: brief.memoryBlock,
+            now: now
+        ) {
+            let scheduled = MealPlanEngine.localizePortions(
+                MealPlanEngine.enforceFasting(fmMeals, fasting: fasting, now: now),
+                units: brief.unitSystem
+            )
+            if scheduled.count >= 3 {
+                let key = MealPlanEngine.cacheKey(
+                    dayKey: dayKey,
+                    maxKcal: maxKcal,
+                    proteinGrams: proteinGrams,
+                    diet: brief.diet,
+                    weeklyDeltaKg: weeklyDeltaKg,
+                    fasting: fasting,
+                    now: now
+                )
+                let fastingBit = fasting.isActive ? " IF respected." : ""
+                return MealPlanPayload(
+                    cacheKey: key,
+                    dayKey: dayKey,
+                    maxKcal: maxKcal,
+                    proteinGrams: proteinGrams,
+                    dietRaw: brief.diet.rawValue,
+                    meals: scheduled,
+                    generatedAt: now,
+                    usedNetwork: false,
+                    sourceNote: "\(reason) Apple Intelligence.\(fastingBit)"
+                )
+            }
+        }
+        var plan = templated
+        plan.sourceNote = "\(reason) Preference-aware template with portions."
+        return plan
     }
 
     private func offlineChat(userText: String, brief: CoachBrief, hint: String) -> CoachReply {
@@ -900,9 +1043,10 @@ actor GrokClient {
         var lines: [String] = [
             "Name: \(name)",
             "Local now: \(weekday) \(clock) (device local, daypart=\(daypart))",
-            "Profile (DO NOT re-ask these): height \(String(format: "%.0f", brief.heightCm)) cm, age \(String(format: "%.0f", brief.ageYears)), sex \(brief.sex.title)",
+            brief.unitSystem.coachPromptLine,
+            "Profile (DO NOT re-ask these): height \(UnitFormat.heightString(brief.heightCm, system: brief.unitSystem)), age \(String(format: "%.0f", brief.ageYears)), sex \(brief.sex.title)",
             "Diet: \(brief.diet.title)",
-            "Target weight: \(String(format: "%.1f", brief.idealKg)) kg",
+            "Target weight: \(UnitFormat.massString(brief.idealKg, system: brief.unitSystem))",
             "Trend vs last Health weight: \(brief.trend.title)"
         ]
         if daypart == "evening" || daypart == "night" {
@@ -911,7 +1055,7 @@ actor GrokClient {
             )
         }
         if let kg = brief.currentKg {
-            lines.append("Current weight: \(String(format: "%.1f", kg)) kg")
+            lines.append("Current weight: \(UnitFormat.massString(kg, system: brief.unitSystem))")
         }
         if let fat = brief.bodyFatPercent {
             lines.append("Body fat: \(String(format: "%.1f", fat))%")
@@ -920,10 +1064,10 @@ actor GrokClient {
             lines.append("Target body fat: \(String(format: "%.1f", idealFat))%")
         }
         if let week = brief.weekDeltaKg {
-            lines.append("Week delta: \(String(format: "%+.2f", week)) kg")
+            lines.append("Week delta: \(UnitFormat.massDeltaString(week, system: brief.unitSystem))")
         }
         lines.append(
-            "Weekly mini-goal: \(brief.weeklyGoal.title) (\(String(format: "%+.2f", brief.weeklyGoal.targetDeltaKg)) kg)"
+            "Weekly mini-goal: \(brief.weeklyGoal.title) (\(UnitFormat.massDeltaString(brief.weeklyGoal.targetDeltaKg, system: brief.unitSystem)))"
         )
         if !brief.personaBlock.isEmpty {
             lines.append(brief.personaBlock)

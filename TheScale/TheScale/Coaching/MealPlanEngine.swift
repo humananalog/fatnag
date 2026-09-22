@@ -129,10 +129,12 @@ enum MealPlanEngine {
         dayKey: String,
         weeklyDeltaKg: Double,
         fasting: FastingWindow = .none,
+        units: PreferredUnitSystem = .metric,
         now: Date = Date(),
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        sourceNoteOverride: String? = nil
     ) -> MealPlanPayload {
-        let meals = offlineMeals(
+        let rawMeals = offlineMeals(
             diet: diet,
             maxKcal: maxKcal,
             proteinGrams: proteinGrams,
@@ -140,6 +142,7 @@ enum MealPlanEngine {
             now: now,
             calendar: calendar
         )
+        let meals = localizePortions(rawMeals, units: units)
         let key = cacheKey(
             dayKey: dayKey,
             maxKcal: maxKcal,
@@ -154,6 +157,7 @@ enum MealPlanEngine {
         let fastingNote = fasting.isActive
             ? " IF \(fasting.cacheToken) respected."
             : ""
+        let note = sourceNoteOverride ?? "On-device menu for \(who) with metric-sized portions.\(fastingNote) Refresh when Grok credits remain."
         return MealPlanPayload(
             cacheKey: key,
             dayKey: dayKey,
@@ -163,7 +167,7 @@ enum MealPlanEngine {
             meals: meals,
             generatedAt: now,
             usedNetwork: false,
-            sourceNote: "Offline pattern for \(who).\(fastingNote) Refresh for live Grok."
+            sourceNote: note
         )
     }
 
@@ -288,13 +292,19 @@ enum MealPlanEngine {
     ) -> [MealPlanMeal] {
         let per = max(280, maxKcal / 4)
         let pMeal = max(20, proteinGrams / 4)
+        // Portions are metric (g / ml) so offline / quota-exhausted plans stay cookable.
         switch diet {
         case .vegan:
             return [
                 MealPlanMeal(
                     title: "Breakfast",
                     timeLabel: "~8:00",
-                    ingredients: ["Tofu scramble", "Spinach", "Berries"],
+                    ingredients: [
+                        "Firm tofu scramble 150 g",
+                        "Spinach 80 g",
+                        "Berries 120 g",
+                        "Olive oil 5 ml"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Iron ~4 mg",
                     approxKcal: per
@@ -302,7 +312,12 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Lunch",
                     timeLabel: "~12:30",
-                    ingredients: ["Lentil bowl", "Kale", "Lemon"],
+                    ingredients: [
+                        "Cooked lentils 200 g",
+                        "Kale 100 g",
+                        "Cherry tomatoes 80 g",
+                        "Lemon juice 15 ml"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Fiber ≥ 10 g",
                     approxKcal: per
@@ -310,7 +325,10 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Snack",
                     timeLabel: "~16:00",
-                    ingredients: ["Apple", "Almond butter"],
+                    ingredients: [
+                        "Apple 180 g",
+                        "Almond butter 20 g"
+                    ],
                     keyMacro: "Protein \(max(8, pMeal / 2)) g",
                     keyMicro: "Potassium",
                     approxKcal: max(150, per / 2)
@@ -318,7 +336,11 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Dinner",
                     timeLabel: "~19:00",
-                    ingredients: ["Tempeh", "Broccoli", "Brown rice (small)"],
+                    ingredients: [
+                        "Tempeh 120 g",
+                        "Broccoli 200 g",
+                        "Cooked brown rice 100 g"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Iron + vitamin C",
                     approxKcal: per
@@ -329,7 +351,11 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Breakfast",
                     timeLabel: "~8:00",
-                    ingredients: ["Eggs", "Spinach", "Fruit"],
+                    ingredients: [
+                        "Eggs 2 (≈100 g)",
+                        "Spinach 60 g",
+                        "Fruit 150 g"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Iron",
                     approxKcal: per
@@ -337,7 +363,11 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Lunch",
                     timeLabel: "~12:30",
-                    ingredients: ["Greek yogurt", "Berries", "Seeds"],
+                    ingredients: [
+                        "Greek yogurt 200 g",
+                        "Berries 100 g",
+                        "Pumpkin seeds 15 g"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Calcium",
                     approxKcal: per
@@ -345,7 +375,10 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Snack",
                     timeLabel: "~16:00",
-                    ingredients: ["Cottage cheese", "Cucumber"],
+                    ingredients: [
+                        "Cottage cheese 150 g",
+                        "Cucumber 120 g"
+                    ],
                     keyMacro: "Protein \(max(12, pMeal / 2)) g",
                     keyMicro: "Potassium",
                     approxKcal: max(160, per / 2)
@@ -353,7 +386,11 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Dinner",
                     timeLabel: "~19:00",
-                    ingredients: ["Bean chili", "Side salad"],
+                    ingredients: [
+                        "Bean chili 250 g",
+                        "Side salad 150 g",
+                        "Olive oil 5 ml"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Fiber ≥ 12 g",
                     approxKcal: per
@@ -364,7 +401,11 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Breakfast",
                     timeLabel: "~8:00",
-                    ingredients: ["Egg whites", "Fruit", "Toast (thin)"],
+                    ingredients: [
+                        "Egg whites 180 g",
+                        "Fruit 150 g",
+                        "Wholegrain toast 30 g"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Vitamin C",
                     approxKcal: per
@@ -372,7 +413,11 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Lunch",
                     timeLabel: "~12:30",
-                    ingredients: ["Tuna salad", "Greens", "Olive oil (tsp)"],
+                    ingredients: [
+                        "Tuna in water 120 g",
+                        "Mixed greens 120 g",
+                        "Olive oil 5 ml"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Omega-3",
                     approxKcal: per
@@ -380,7 +425,10 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Snack",
                     timeLabel: "~16:00",
-                    ingredients: ["Greek yogurt", "Berries"],
+                    ingredients: [
+                        "Greek yogurt 170 g",
+                        "Berries 100 g"
+                    ],
                     keyMacro: "Protein \(max(12, pMeal / 2)) g",
                     keyMicro: "Calcium",
                     approxKcal: max(160, per / 2)
@@ -388,7 +436,11 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Dinner",
                     timeLabel: "~19:00",
-                    ingredients: ["Salmon", "Broccoli", "Potato (small)"],
+                    ingredients: [
+                        "Salmon 150 g",
+                        "Broccoli 200 g",
+                        "Potato 150 g"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Vitamin D / selenium",
                     approxKcal: per
@@ -399,7 +451,11 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Breakfast",
                     timeLabel: "~8:00",
-                    ingredients: ["Eggs", "Fruit", "Black coffee"],
+                    ingredients: [
+                        "Eggs 2 (≈100 g)",
+                        "Fruit 150 g",
+                        "Black coffee 240 ml"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Choline",
                     approxKcal: per
@@ -407,7 +463,11 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Lunch",
                     timeLabel: "~12:30",
-                    ingredients: ["Chicken salad", "Greens", "Vinegar"],
+                    ingredients: [
+                        "Chicken breast 140 g",
+                        "Mixed greens 150 g",
+                        "Vinegar 10 ml"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Fiber ≥ 8 g",
                     approxKcal: per
@@ -415,7 +475,10 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Snack",
                     timeLabel: "~16:00",
-                    ingredients: ["Greek yogurt", "Berries"],
+                    ingredients: [
+                        "Greek yogurt 170 g",
+                        "Berries 100 g"
+                    ],
                     keyMacro: "Protein \(max(12, pMeal / 2)) g",
                     keyMicro: "Calcium",
                     approxKcal: max(160, per / 2)
@@ -423,13 +486,61 @@ enum MealPlanEngine {
                 MealPlanMeal(
                     title: "Dinner",
                     timeLabel: "~19:00",
-                    ingredients: ["Lean fish or turkey", "Veg pile", "Rice (small)"],
+                    ingredients: [
+                        "Lean turkey or white fish 150 g",
+                        "Mixed vegetables 250 g",
+                        "Cooked rice 80 g"
+                    ],
                     keyMacro: "Protein \(pMeal) g",
                     keyMicro: "Potassium",
                     approxKcal: per
                 )
             ]
         }
+    }
+
+    /// Remap metric g/ml ingredient strings into the user's preferred unit system for display.
+    static func localizePortions(_ meals: [MealPlanMeal], units: PreferredUnitSystem) -> [MealPlanMeal] {
+        guard units == .imperial else { return meals }
+        return meals.map { meal in
+            var copy = meal
+            copy.ingredients = meal.ingredients.map(localizeIngredientPortion)
+            return copy
+        }
+    }
+
+    private static func localizeIngredientPortion(_ raw: String) -> String {
+        var text = raw
+        // "150 g" / "≈100 g" → oz
+        if let regex = try? NSRegularExpression(pattern: #"(\d+)\s*g\b"#, options: .caseInsensitive) {
+            let ns = text as NSString
+            let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed()
+            for match in matches {
+                let numRange = match.range(at: 1)
+                guard let swiftRange = Range(numRange, in: text),
+                      let grams = Int(text[swiftRange])
+                else { continue }
+                let replacement = UnitFormat.portionGrams(grams, system: .imperial)
+                if let full = Range(match.range, in: text) {
+                    text.replaceSubrange(full, with: replacement)
+                }
+            }
+        }
+        if let regex = try? NSRegularExpression(pattern: #"(\d+)\s*ml\b"#, options: .caseInsensitive) {
+            let ns = text as NSString
+            let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed()
+            for match in matches {
+                let numRange = match.range(at: 1)
+                guard let swiftRange = Range(numRange, in: text),
+                      let ml = Int(text[swiftRange])
+                else { continue }
+                let replacement = UnitFormat.portionMl(ml, system: .imperial)
+                if let full = Range(match.range, in: text) {
+                    text.replaceSubrange(full, with: replacement)
+                }
+            }
+        }
+        return text
     }
 
     /// Parse compact Grok JSON: `{ "meals": [ { "title", "time", "ingredients", "macro", "micro", "kcal" } ] }`

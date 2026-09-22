@@ -81,6 +81,36 @@ final class MealPlanEngineTests: XCTestCase {
         XCTAssertTrue(plan.isComplete)
         XCTAssertEqual(plan.dietRaw, "pescatarian")
         XCTAssertFalse(plan.usedNetwork)
+        // Metric portions on every meal for cookable offline menus.
+        for meal in plan.meals {
+            XCTAssertTrue(
+                meal.ingredients.contains(where: { $0.range(of: #"\d+\s*(g|ml)\b"#, options: .regularExpression) != nil }),
+                "meal \(meal.title) missing metric portion: \(meal.ingredients)"
+            )
+        }
+    }
+
+    func testImperialLocalizesPortions() {
+        let metric = MealPlanEngine.offlinePlan(
+            name: "Alex",
+            diet: .omnivore,
+            maxKcal: 1800,
+            proteinGrams: 140,
+            dayKey: "2026-09-21",
+            weeklyDeltaKg: -0.3,
+            units: .metric
+        )
+        let imperial = MealPlanEngine.offlinePlan(
+            name: "Alex",
+            diet: .omnivore,
+            maxKcal: 1800,
+            proteinGrams: 140,
+            dayKey: "2026-09-21",
+            weeklyDeltaKg: -0.3,
+            units: .imperial
+        )
+        XCTAssertTrue(imperial.meals.first?.ingredients.joined().contains("oz") == true)
+        XCTAssertFalse(metric.meals.first?.ingredients.joined().contains("oz") == true)
     }
 
     func testIFAt7amDoesNotProposeBreakfastAt8() {

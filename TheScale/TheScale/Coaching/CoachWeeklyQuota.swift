@@ -15,8 +15,25 @@ enum CoachWeeklyQuota {
         var remaining: Int { max(limit - used, 0) }
         var isExhausted: Bool { remaining <= 0 }
 
+        /// 0...100 weekly live-AI consumption of the plan quota.
+        var percentUsed: Int {
+            guard limit > 0 else { return 0 }
+            return min(100, Int(((Double(used) / Double(limit)) * 100).rounded()))
+        }
+
+        var percentRemaining: Int { max(0, 100 - percentUsed) }
+
+        /// Transparent used / limit for Settings.
+        var usageCountLine: String {
+            "\(used) / \(limit) actions this week"
+        }
+
+        var percentLine: String {
+            "\(percentUsed)% of weekly quota used"
+        }
+
         var statusLine: String {
-            "\(plan.displayName) · \(remaining)/\(limit) Grok this week"
+            "\(plan.displayName) · \(remaining)/\(limit) Grok this week · \(percentUsed)% used"
         }
     }
 

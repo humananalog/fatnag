@@ -97,6 +97,10 @@ final class ScaleSessionViewModel: ObservableObject {
             rebuildWeeklyGoalSurface()
         }
     }
+    /// Display / Coach prompt units. Canonical Health + profile fields stay metric.
+    @Published var preferredUnits: PreferredUnitSystem {
+        didSet { PreferredUnitSystemStore.save(preferredUnits) }
+    }
     /// Home weekly-goal hero snapshot (progress %, track band, tomorrow advice, daily targets).
     @Published private(set) var weeklyGoalSurface: WeeklyGoalSurface = WeeklyGoalSurfaceEngine.build(
         weeklyGoal: .default,
@@ -152,6 +156,7 @@ final class ScaleSessionViewModel: ObservableObject {
         notificationPreferences: NotificationPreferences = NotificationPreferencesStore.load(),
         fitnessMonitorPreferences: FitnessMonitorPreferences = FitnessMonitorPreferencesStore.load(),
         weeklyGoal: WeeklyMiniGoal = WeeklyMiniGoalStore.load(),
+        preferredUnits: PreferredUnitSystem = PreferredUnitSystemStore.load(),
         hasCompletedOnboarding: Bool = OnboardingStore.hasCompleted
     ) {
         self.scanner = scanner
@@ -161,6 +166,7 @@ final class ScaleSessionViewModel: ObservableObject {
         self.notificationPreferences = notificationPreferences
         self.fitnessMonitorPreferences = fitnessMonitorPreferences
         self.weeklyGoal = weeklyGoal
+        self.preferredUnits = preferredUnits
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.scanner.delegate = self
         self.lastFitnessCoachReply = GrokFitnessMonitor.loadLastReply()
@@ -782,7 +788,8 @@ final class ScaleSessionViewModel: ObservableObject {
                 return mem + "\n" + comments
             }(),
             fitnessDigestBlock: activeDigest.promptBlock(preSleepWindowMinutes: window),
-            localNow: Date()
+            localNow: Date(),
+            unitSystem: preferredUnits
         )
     }
 

@@ -30,9 +30,16 @@ struct PaywallView: View {
                     }
 
                     let snap = store.quotaSnapshot
-                    Text(snap.statusLine)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(snap.statusLine)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Text(snap.usageCountLine + " · " + snap.percentLine)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        ProgressView(value: Double(snap.percentUsed), total: 100)
+                            .tint(snap.isExhausted ? .orange : Color(red: 0.18, green: 0.52, blue: 0.62))
+                    }
 
                     ForEach(ScalePlan.allCases) { plan in
                         planCard(plan, current: store.plan, highlight: highlighted)

@@ -63,7 +63,9 @@ struct ProgressSheet: View {
                 .font(.system(size: 24, weight: .semibold, design: .serif))
                 .foregroundStyle(atmosphere.accent)
             if let kg = session.healthBaselineKg {
-                Text(String(format: "Last Health weight %.1f kg · ideal %.1f kg", kg, session.profile.idealWeightKg))
+                Text(
+                    "Last Health weight \(UnitFormat.massString(kg, system: session.preferredUnits)) · ideal \(UnitFormat.massString(session.profile.idealWeightKg, system: session.preferredUnits))"
+                )
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.7))
             }
