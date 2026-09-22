@@ -148,7 +148,7 @@ final class OnboardingFlowModel: ObservableObject {
 
         let emptyNote = freeform.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if draft.sourceLabel == "empty" || (emptyNote && draft.sourceLabel != "foundation-model") {
-            inferenceNote = "No note to parse — defaults ready. Edit anything below."
+            inferenceNote = "No note to parse. Defaults ready. Edit anything below."
         } else if draft.sourceLabel == "foundation-model" {
             inferenceNote = "On-device Coach filled these from your note. Edit freely."
         } else {
