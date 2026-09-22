@@ -1,95 +1,143 @@
 import StoreKit
 import SwiftUI
 
-/// One-pager upgrade sheet. High contrast, clear Free / Plus / Pro hierarchy.
+/// Luxury one-pager upgrade sheet. Hero by profile sex. Pro is the desire path.
 struct PaywallView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @ObservedObject private var store = ScaleSubscriptionStore.shared
     @Environment(\.dismiss) private var dismiss
 
     var lockMessage: String?
-    var highlighted: ScalePlan = .plus
+    /// Soft nudge for the next step up. Pro stays visually primary either way.
+    var highlighted: ScalePlan = .pro
 
-    private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
-    private let steel = Color(red: 0.32, green: 0.34, blue: 0.38)
-    private let accent = Color(red: 0.10, green: 0.42, blue: 0.48)
-    private let sheet = Color(red: 0.96, green: 0.97, blue: 0.98)
+    private let ink = Color(red: 0.06, green: 0.07, blue: 0.09)
+    private let ivory = Color(red: 0.96, green: 0.95, blue: 0.92)
+    private let mist = Color(red: 0.72, green: 0.70, blue: 0.66)
+    private let gold = Color(red: 0.78, green: 0.62, blue: 0.38)
+    private let goldDeep = Color(red: 0.55, green: 0.42, blue: 0.22)
+
+    private var heroName: String {
+        session.profile.sex == .female ? "PaywallHeroFemale" : "PaywallHeroMale"
+    }
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                sheet.ignoresSafeArea()
+            ZStack(alignment: .top) {
+                ink.ignoresSafeArea()
 
-                VStack(alignment: .leading, spacing: 0) {
-                    header
-                        .padding(.horizontal, 22)
-                        .padding(.top, 8)
-                        .padding(.bottom, 18)
-
-                    tierStack
-                        .padding(.horizontal, 18)
-
-                    Spacer(minLength: 12)
-
-                    footer
-                        .padding(.horizontal, 22)
-                        .padding(.bottom, 16)
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        hero
+                        copyBlock
+                            .padding(.horizontal, 24)
+                            .padding(.top, 20)
+                        if let lockMessage, !lockMessage.isEmpty {
+                            lockChip(lockMessage)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 14)
+                        }
+                        usageStrip
+                            .padding(.horizontal, 24)
+                            .padding(.top, 16)
+                        tierStack
+                            .padding(.horizontal, 20)
+                            .padding(.top, 18)
+                        footer
+                            .padding(.horizontal, 24)
+                            .padding(.top, 20)
+                            .padding(.bottom, 28)
+                    }
                 }
             }
-            .navigationTitle("Unlock Coach")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
-                        .foregroundStyle(ink)
+                        .foregroundStyle(ivory.opacity(0.9))
                 }
             }
+            .toolbarBackground(.hidden, for: .navigationBar)
             .task { await store.refresh() }
-            .preferredColorScheme(.light)
+            .preferredColorScheme(.dark)
         }
     }
 
-    private var header: some View {
-        let snap = store.quotaSnapshot
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("Coach plans")
-                .font(.system(size: 32, weight: .semibold, design: .serif))
-                .foregroundStyle(ink)
+    private var hero: some View {
+        ZStack(alignment: .bottom) {
+            Image(heroName)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 280)
+                .clipped()
+                .accessibilityHidden(true)
 
-            Text("Weigh-in, Health, and charts stay free. Live Keel is finite. Consistency is the product. Credits buy pressure.")
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(steel)
+            LinearGradient(
+                colors: [
+                    ink.opacity(0),
+                    ink.opacity(0.55),
+                    ink
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 160)
+        }
+        .frame(height: 280)
+        .overlay(alignment: .top) {
+            LinearGradient(
+                colors: [ink.opacity(0.55), ink.opacity(0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 72)
+            .allowsHitTesting(false)
+        }
+    }
+
+    private var copyBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Stay sharp.")
+                .font(.system(size: 34, weight: .semibold, design: .serif))
+                .foregroundStyle(ivory)
+
+            Text("Live Keel when you go soft. Credits buy pressure.")
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .foregroundStyle(mist)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-            if let lockMessage, !lockMessage.isEmpty {
-                Text(lockMessage)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color(red: 0.55, green: 0.28, blue: 0.05))
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(red: 1.0, green: 0.92, blue: 0.82), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
+    private func lockChip(_ message: String) -> some View {
+        Text(message)
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .foregroundStyle(Color(red: 0.95, green: 0.82, blue: 0.55))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(goldDeep.opacity(0.28), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(gold.opacity(0.35), lineWidth: 1)
+            )
+    }
 
-            HStack(spacing: 10) {
-                Text("\(snap.percentUsed)% used")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(ink)
-                Text("·")
-                    .foregroundStyle(steel)
-                Text("\(snap.used)/\(snap.limit) this week")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(steel)
-                Spacer(minLength: 0)
-                Text(store.plan.displayName)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(accent)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(accent.opacity(0.12), in: Capsule())
-            }
-
+    private var usageStrip: some View {
+        let snap = store.quotaSnapshot
+        return HStack(spacing: 8) {
+            Text("\(snap.used)/\(snap.limit) this week")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(ivory.opacity(0.9))
+            Text("·")
+                .foregroundStyle(mist.opacity(0.7))
+            Text(store.plan.displayName)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(gold)
+            Spacer(minLength: 0)
             ProgressView(value: Double(snap.percentUsed), total: 100)
-                .tint(snap.isExhausted ? Color.orange : accent)
+                .tint(snap.isExhausted ? Color.orange : gold)
+                .frame(width: 72)
         }
     }
 
@@ -103,41 +151,44 @@ struct PaywallView: View {
 
     private func tierRow(_ plan: ScalePlan) -> some View {
         let isCurrent = plan == store.plan
-        let isHighlight = plan == highlighted && !isCurrent
         let isPro = plan == .pro
+        let isStep = plan == highlighted && !isCurrent && !isPro
 
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(plan.displayName)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(ink)
-                if isHighlight {
-                    Text("Recommended")
+                    .font(.system(size: isPro ? 22 : 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(ivory)
+                if isPro && !isCurrent {
+                    Text("Best")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(ink)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(accent, in: Capsule())
+                        .background(gold, in: Capsule())
+                } else if isStep {
+                    Text("Next")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(ivory.opacity(0.9))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(ivory.opacity(0.14), in: Capsule())
                 }
                 Spacer(minLength: 8)
                 Text(plan.priceLabel)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(ink)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(isPro ? gold : mist)
             }
 
-            Text("\(plan.weeklyGrokCredits) live Keel credits / week")
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(accent)
-
-            Text(plan.paywallArgument)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(steel)
+            Text("\(plan.weeklyGrokCredits)/wk · \(plan.paywallArgument)")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(mist)
                 .fixedSize(horizontal: false, vertical: true)
 
             if isCurrent {
-                Text("Your current plan")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color(red: 0.12, green: 0.45, blue: 0.28))
+                Text("Current plan")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.55, green: 0.78, blue: 0.62))
             } else if plan != .free {
                 Button {
                     Task {
@@ -145,27 +196,30 @@ struct PaywallView: View {
                         if ok { dismiss() }
                     }
                 } label: {
-                    Text(isHighlight ? "Upgrade to \(plan.displayName)" : "Choose \(plan.displayName)")
+                    Text(isPro ? "Go Pro" : "Choose \(plan.displayName)")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, isPro ? 14 : 11)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.white)
-                .background(
-                    isHighlight || isPro ? accent : ink,
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                )
+                .foregroundStyle(isPro ? ink : ivory)
+                .background {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(isPro ? gold : ivory.opacity(0.12))
+                }
             }
         }
-        .padding(16)
+        .padding(isPro ? 18 : 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(sheet, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(
+            isPro ? gold.opacity(0.10) : ivory.opacity(0.04),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(
-                    isHighlight ? accent : ink.opacity(0.14),
-                    lineWidth: isHighlight ? 2 : 1
+                    isPro ? gold.opacity(0.85) : ivory.opacity(0.12),
+                    lineWidth: isPro ? 1.5 : 1
                 )
         )
     }
@@ -175,23 +229,36 @@ struct PaywallView: View {
             if let err = store.purchaseError {
                 Text(err)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color(red: 0.7, green: 0.12, blue: 0.12))
+                    .foregroundStyle(Color(red: 0.95, green: 0.45, blue: 0.42))
                     .multilineTextAlignment(.center)
             }
             Button("Restore purchases") {
                 Task { await store.restore() }
             }
             .font(.system(size: 14, weight: .semibold, design: .rounded))
-            .foregroundStyle(steel)
+            .foregroundStyle(mist)
             Text("Cancel anytime in App Store subscriptions.")
                 .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(steel.opacity(0.85))
+                .foregroundStyle(mist.opacity(0.75))
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-#Preview {
+#Preview("Male") {
     PaywallView(lockMessage: "Weekly limit hit on Free (5/5).", highlighted: .plus)
-        .environmentObject(ScaleSessionViewModel())
+        .environmentObject({
+            let s = ScaleSessionViewModel()
+            s.profile.sex = .male
+            return s
+        }())
+}
+
+#Preview("Female") {
+    PaywallView(highlighted: .pro)
+        .environmentObject({
+            let s = ScaleSessionViewModel()
+            s.profile.sex = .female
+            return s
+        }())
 }

@@ -13,8 +13,10 @@ final class OnboardingFlowModel: ObservableObject {
     @Published var name = ""
     @Published var freeform = ""
     @Published var heightCm: Double = 170
-    @Published var ageYears: Double = 30
-    @Published var sex: UserBodyProfile.Sex = .male
+    /// 0 until the user enters age. Must be ≥ `UserBodyProfile.minimumAgeYears`.
+    @Published var ageYears: Double = 0
+    /// Nil until the user picks male or female on the body step.
+    @Published var sex: UserBodyProfile.Sex?
     @Published var idealKg: Double = UserBodyProfile.suggestedIdealWeightKg(heightCm: 170)
     @Published var idealBodyFat: Double?
     @Published var diet: DietPreference = .omnivore
@@ -30,12 +32,26 @@ final class OnboardingFlowModel: ObservableObject {
     @Published var isInferring = false
     @Published var inferenceNote: String?
 
+    var isAdultAge: Bool {
+        ageYears >= UserBodyProfile.minimumAgeYears && ageYears <= 120
+    }
+
+    var hasChosenGender: Bool { sex != nil }
+
+    var ageValidationMessage: String? {
+        guard step == .body, ageYears > 0, !isAdultAge else { return nil }
+        if ageYears < UserBodyProfile.minimumAgeYears {
+            return "You must be 18 or older."
+        }
+        return "Enter a valid age."
+    }
+
     var canAdvance: Bool {
         switch step {
         case .identity:
             return !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .body:
-            return heightCm >= 100 && ageYears >= 10 && !isInferring
+            return heightCm >= 100 && isAdultAge && hasChosenGender && !isInferring
         case .confirm:
             return acceptedLegal && !isInferring
         }
@@ -52,8 +68,6 @@ final class OnboardingFlowModel: ObservableObject {
     func seed(from profile: UserBodyProfile, notifications: NotificationPreferences) {
         name = profile.displayName
         heightCm = profile.heightCm
-        ageYears = profile.ageYears
-        sex = profile.sex
         idealKg = profile.idealWeightKg
         idealBodyFat = profile.idealBodyFatPercent
         diet = profile.dietPreference
@@ -63,6 +77,14 @@ final class OnboardingFlowModel: ObservableObject {
         culturalVibe = profile.culturalVibe
         intermittentFasting = profile.intermittentFasting
         enableNotifications = notifications.notifyOnBadTrend
+        // First launch: force explicit gender + adult age. Re-entry keeps profile values.
+        if OnboardingStore.hasCompleted {
+            ageYears = profile.ageYears
+            sex = profile.sex
+        } else {
+            ageYears = 0
+            sex = nil
+        }
         if !FoundationModelAvailability.isAvailable {
             allowOnDevicePrefill = false
         }
@@ -104,7 +126,7 @@ final class OnboardingFlowModel: ObservableObject {
                 freeform: freeform.trimmingCharacters(in: .whitespacesAndNewlines),
                 heightCm: heightCm,
                 ageYears: ageYears,
-                sex: sex,
+                sex: sex ?? .male,
                 idealKg: idealKg,
                 allowOnDeviceModel: allowOnDevicePrefill
             )
@@ -135,11 +157,12 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func buildProfile() -> UserBodyProfile {
-        UserBodyProfile(
+        let clampedAge = min(120, max(UserBodyProfile.minimumAgeYears, ageYears))
+        return UserBodyProfile(
             displayName: name.trimmingCharacters(in: .whitespacesAndNewlines),
             heightCm: heightCm,
-            ageYears: ageYears,
-            sex: sex,
+            ageYears: clampedAge,
+            sex: sex ?? .male,
             idealWeightKg: idealKg,
             idealBodyFatPercent: idealBodyFat,
             dietPreference: diet,

@@ -50,6 +50,9 @@ enum ScaleWeightUnit: String, Sendable {
 
 /// User profile needed to estimate body composition from impedance + coaching.
 struct UserBodyProfile: Equatable, Codable, Sendable {
+    /// Adults only. Onboarding and Settings reject ages below this.
+    static let minimumAgeYears: Double = 18
+
     enum Sex: String, Codable, CaseIterable, Identifiable, Sendable {
         case female
         case male

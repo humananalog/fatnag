@@ -272,7 +272,13 @@ struct SettingsView: View {
                 fieldRow("Age") {
                     TextField(
                         "years",
-                        value: $session.profile.ageYears,
+                        value: Binding(
+                            get: { session.profile.ageYears },
+                            set: { raw in
+                                let clamped = min(120, max(UserBodyProfile.minimumAgeYears, raw.rounded()))
+                                session.profile.ageYears = clamped
+                            }
+                        ),
                         format: .number.precision(.fractionLength(0))
                     )
                     .focused($focusedField, equals: .age)
@@ -281,6 +287,9 @@ struct SettingsView: View {
                     .frame(width: 72)
                     Text("yr").foregroundStyle(steel)
                 }
+                Text("18 or older.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
 
                 fieldRow("Target weight") {
                     TextField(
@@ -343,12 +352,13 @@ struct SettingsView: View {
                 )
                 .font(.footnote)
 
-                Picker("Sex", selection: $session.profile.sex) {
+                Picker("Gender", selection: $session.profile.sex) {
                     ForEach(UserBodyProfile.Sex.allCases) { sex in
                         Text(sex.title).tag(sex)
                     }
                 }
                 .pickerStyle(.segmented)
+                .accessibilityIdentifier("settings.gender")
 
                 Picker("Diet", selection: $session.profile.dietPreference) {
                     ForEach(DietPreference.allCases) { diet in

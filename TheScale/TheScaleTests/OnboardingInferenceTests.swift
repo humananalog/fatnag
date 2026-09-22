@@ -22,6 +22,7 @@ final class OnboardingFlowTests: XCTestCase {
         flow.ageYears = 28
         flow.sex = .female
         flow.idealKg = 65
+        XCTAssertTrue(flow.canAdvance)
 
         await flow.advance { model in
             XCTAssertEqual(model.name, "Alex")
@@ -52,9 +53,39 @@ final class OnboardingFlowTests: XCTestCase {
 
         let profile = flow.buildProfile()
         XCTAssertEqual(profile.displayName, "Alex")
+        XCTAssertEqual(profile.sex, .female)
+        XCTAssertEqual(profile.ageYears, 28)
         XCTAssertEqual(profile.dietPreference, .vegetarian)
         XCTAssertEqual(profile.location, "Manila")
         XCTAssertEqual(profile.idealWeightKg, 62)
+    }
+
+    func testBodyStepRequiresAdultAgeAndGender() {
+        let flow = OnboardingFlowModel()
+        flow.step = .body
+        flow.heightCm = 170
+        flow.idealKg = 65
+
+        XCTAssertFalse(flow.canAdvance)
+        XCTAssertFalse(flow.hasChosenGender)
+
+        flow.sex = .male
+        flow.ageYears = 17
+        XCTAssertFalse(flow.canAdvance)
+        XCTAssertEqual(flow.ageValidationMessage, "You must be 18 or older.")
+
+        flow.ageYears = 18
+        XCTAssertTrue(flow.isAdultAge)
+        XCTAssertTrue(flow.canAdvance)
+        XCTAssertNil(flow.ageValidationMessage)
+
+        flow.sex = nil
+        XCTAssertFalse(flow.canAdvance)
+
+        flow.sex = .female
+        let profile = flow.buildProfile()
+        XCTAssertEqual(profile.sex, .female)
+        XCTAssertGreaterThanOrEqual(profile.ageYears, UserBodyProfile.minimumAgeYears)
     }
 
     func testBackNavigation() async {

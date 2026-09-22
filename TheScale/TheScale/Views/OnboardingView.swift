@@ -119,7 +119,7 @@ struct OnboardingView: View {
         case .identity:
             return "Hard facts up front. Diet is not the main thing. You fail on consistency, small habits, and mind. We help with that. Keel kicks your ass when you get lazy."
         case .body:
-            return "Only what on-device fat math needs. Ideal weight starts from height. The hard part is still showing up."
+            return "Height, age (18+), and gender. Ideal weight starts from height. Required for BIA and Coach."
         case .confirm:
             return "Edit anything. Legal once. Then you’re in."
         }
@@ -247,14 +247,37 @@ struct OnboardingView: View {
     private var bodyStep: some View {
         VStack(alignment: .leading, spacing: 16) {
             fieldRow("Height", unit: "cm", value: $flow.heightCm, fraction: 0, id: "onboarding.height")
-            fieldRow("Age", unit: "yr", value: $flow.ageYears, fraction: 0, id: "onboarding.age")
-            Picker("Sex", selection: $flow.sex) {
-                ForEach(UserBodyProfile.Sex.allCases) { item in
-                    Text(item.title).tag(item)
+
+            VStack(alignment: .leading, spacing: 6) {
+                fieldRow("Age", unit: "yr", value: $flow.ageYears, fraction: 0, id: "onboarding.age")
+                Text("18 or older. Required.")
+                    .font(.caption)
+                    .foregroundStyle(steel)
+                if let ageMsg = flow.ageValidationMessage {
+                    Text(ageMsg)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color(red: 0.65, green: 0.12, blue: 0.12))
+                        .accessibilityIdentifier("onboarding.age.error")
                 }
             }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("onboarding.sex")
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Gender")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(ink)
+                HStack(spacing: 10) {
+                    genderChip(.male)
+                    genderChip(.female)
+                }
+                .accessibilityIdentifier("onboarding.sex")
+                if !flow.hasChosenGender {
+                    Text("Required.")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(steel)
+                        .accessibilityIdentifier("onboarding.sex.required")
+                }
+            }
+
             fieldRow("Ideal weight", unit: "kg", value: $flow.idealKg, fraction: 1, id: "onboarding.ideal")
             Text("Used only for local BIA math and pacing. Never sold.")
                 .font(.caption)
@@ -263,6 +286,30 @@ struct OnboardingView: View {
         .onChange(of: flow.heightCm) { _, _ in
             flow.updateIdealFromHeightIfNeeded()
         }
+    }
+
+    private func genderChip(_ value: UserBodyProfile.Sex) -> some View {
+        let selected = flow.sex == value
+        return Button {
+            flow.sex = value
+        } label: {
+            Text(value.title)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .foregroundStyle(selected ? Color.white : ink)
+                .background(
+                    selected ? ink : Color.white.opacity(0.7),
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(ink.opacity(selected ? 0 : 0.18), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("onboarding.sex.\(value.rawValue)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var confirmStep: some View {
