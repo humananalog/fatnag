@@ -713,13 +713,11 @@ final class HealthKitWriter: HealthWriting {
     }
 
     nonisolated private static func activeEnergyKcal(from workout: HKWorkout) -> Double? {
-        if let total = workout.totalEnergyBurned {
-            return total.doubleValue(for: .kilocalorie())
+        if let type = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
+           let sum = workout.statistics(for: type)?.sumQuantity() {
+            return sum.doubleValue(for: .kilocalorie())
         }
-        guard let type = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
-              let sum = workout.statistics(for: type)?.sumQuantity()
-        else { return nil }
-        return sum.doubleValue(for: .kilocalorie())
+        return nil
     }
 
     private func sleepSnapshot(endingNear now: Date) async throws -> HealthSleepSnapshot {

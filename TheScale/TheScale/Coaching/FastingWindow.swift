@@ -284,7 +284,7 @@ struct FastingWindow: Equatable, Sendable, Codable {
     /// Never matches protocol ratios like `16-8`.
     private static func parseExplicitClockWindow(from lower: String) -> (start: Int, end: Int)? {
         // noon / midday → 12:00, midnight → 0
-        var normalized = lower
+        let normalized = lower
             .replacingOccurrences(of: "noon", with: "12:00")
             .replacingOccurrences(of: "midday", with: "12:00")
             .replacingOccurrences(of: "midnight", with: "0:00")
@@ -324,7 +324,7 @@ struct FastingWindow: Equatable, Sendable, Codable {
                 continue
             }
 
-            var start = sH * 60 + sM
+            let start = sH * 60 + sM
             var end = eH * 60 + eM
             // 12-8 without am/pm → treat as 12:00-20:00 when end looks like a 12h clock close.
             if end <= start, eH <= 12 {

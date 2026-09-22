@@ -314,7 +314,9 @@ actor GrokClient {
         history: [CoachChatTurn],
         quotaKind: CoachQuotaKind? = .chat
     ) async -> CoachReply {
-        var final = CoachReply(role: .orchestrator, text: "", usedNetwork: false)
+        let box = StreamReplyBox(
+            CoachReply(role: .orchestrator, text: "", usedNetwork: false)
+        )
         await chatStreaming(
             role: role,
             userText: userText,
@@ -322,9 +324,9 @@ actor GrokClient {
             history: history,
             quotaKind: quotaKind
         ) { reply in
-            final = reply
+            box.value = reply
         }
-        return final
+        return box.value
     }
 
     /// Streams token/chunk updates into `onUpdate`. Final call has the complete sanitized reply.
@@ -420,17 +422,17 @@ actor GrokClient {
         ]
 
         do {
-            var accumulated = ""
+            let accumulated = StreamTextBox()
             try await postChatStream(body: body, transport: transport, timeout: 60) { delta in
-                accumulated += delta
+                accumulated.append(delta)
                 let partial = CoachReply(
                     role: .orchestrator,
-                    text: accumulated,
+                    text: accumulated.text,
                     usedNetwork: true
                 )
                 await onUpdate(partial)
             }
-            let cleaned = CoachCopySanitize.clean(accumulated)
+            let cleaned = CoachCopySanitize.clean(accumulated.text)
             guard !cleaned.isEmpty else {
                 await onUpdate(failureReply(.emptyResponse, brief: brief, userText: userText))
                 return
@@ -544,22 +546,24 @@ actor GrokClient {
         ]
 
         do {
-            var accumulated = ""
+            let accumulated = StreamTextBox()
             try await postChatStream(body: body, transport: transport, timeout: 60) { delta in
-                accumulated += delta
-                let parts = MondayCardEngine.parseSections(from: accumulated)
-                await onUpdate(parts.encouragement, parts.meals, parts.diagnostic, accumulated)
+                accumulated.append(delta)
+                let snapshot = accumulated.text
+                let parts = MondayCardEngine.parseSections(from: snapshot)
+                await onUpdate(parts.encouragement, parts.meals, parts.diagnostic, snapshot)
             }
-            let parts = MondayCardEngine.parseSections(from: accumulated)
+            let snapshot = accumulated.text
+            let parts = MondayCardEngine.parseSections(from: snapshot)
             var encouragement = parts.encouragement
             var meals = parts.meals
             var diagnostic = parts.diagnostic
             if encouragement.isEmpty { encouragement = offline.encouragement }
             if meals.isEmpty { meals = offline.meals }
             if diagnostic.isEmpty {
-                diagnostic = parts.diagnostic.isEmpty ? offline.diagnostic : CoachCopySanitize.clean(accumulated)
+                diagnostic = parts.diagnostic.isEmpty ? offline.diagnostic : CoachCopySanitize.clean(snapshot)
             }
-            await onUpdate(encouragement, meals, diagnostic, accumulated)
+            await onUpdate(encouragement, meals, diagnostic, snapshot)
             return (encouragement, meals, diagnostic, true)
         } catch {
             await onUpdate(offline.encouragement, offline.meals, offline.diagnostic, "")
@@ -1126,5 +1130,46 @@ actor GrokClient {
             return content.isEmpty ? nil : content
         }
         return nil
+    }
+}
+
+/// Thread-safe string accumulation for streaming callbacks (Swift 6 Sendable).
+private final class StreamTextBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage = ""
+
+    var text: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func append(_ delta: String) {
+        lock.lock()
+        storage += delta
+        lock.unlock()
+    }
+}
+
+/// Holds the last CoachReply from a @MainActor streaming sink.
+private final class StreamReplyBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: CoachReply
+
+    init(_ value: CoachReply) {
+        storage = value
+    }
+
+    var value: CoachReply {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return storage
+        }
+        set {
+            lock.lock()
+            storage = newValue
+            lock.unlock()
+        }
     }
 }

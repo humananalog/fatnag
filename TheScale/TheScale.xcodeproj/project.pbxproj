@@ -104,6 +104,7 @@
 		A1B2C3D4E5F60718293A00WH1 /* WeighInHeroMomentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10WH1 /* WeighInHeroMomentView.swift */; };
 		A1B2C3D4E5F60718293A00PG1 /* ProfileGapPromptEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */; };
 		A1B2C3D4E5F60718293A00PG2 /* ProfileGapPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PG2 /* ProfileGapPromptView.swift */; };
+		A1B2C3D4E5F60718293A00SP1 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10SP1 /* SplashView.swift */; };
 		A1B2C3D4E5F60718293A00SF1 /* ScaleStorefront.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10SF1 /* ScaleStorefront.swift */; };
 		A1B2C3D4E5F60718293A00LG1 /* ScaleDataRights.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */; };
 		A1B2C3D4E5F60718293A00LG2 /* ScaleLegalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10LG2 /* ScaleLegalTests.swift */; };
@@ -219,6 +220,7 @@
 		A1B2C3D4E5F60718293A10WH1 /* WeighInHeroMomentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeighInHeroMomentView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGapPromptEngine.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10PG2 /* ProfileGapPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGapPromptView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10SP1 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10SF1 /* ScaleStorefront.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleStorefront.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleDataRights.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10LG2 /* ScaleLegalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleLegalTests.swift; sourceTree = "<group>"; };
@@ -256,6 +258,7 @@
 				A1B2C3D4E5F60718293A10UX2 /* HorizonArcBankView.swift */,
 				A1B2C3D4E5F60718293A10WH1 /* WeighInHeroMomentView.swift */,
 				A1B2C3D4E5F60718293A10PG2 /* ProfileGapPromptView.swift */,
+				A1B2C3D4E5F60718293A10SP1 /* SplashView.swift */,
 				A1B2C3D4E5F60718293A1040 /* DebugToolsView.swift */,
 				A1B2C3D4E5F60718293A103D /* AppReviewPromptView.swift */,
 				A1B2C3D4E5F60718293A1011 /* ProgressSheet.swift */,
@@ -510,8 +513,8 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1540;
-				LastUpgradeCheck = 1540;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					85ADC919B7464065BFCBCFCF = {
 						CreatedOnToolsVersion = 15.4;
@@ -658,6 +661,7 @@
 				A1B2C3D4E5F60718293A00WH1 /* WeighInHeroMomentView.swift in Sources */,
 				A1B2C3D4E5F60718293A00PG1 /* ProfileGapPromptEngine.swift in Sources */,
 				A1B2C3D4E5F60718293A00PG2 /* ProfileGapPromptView.swift in Sources */,
+				A1B2C3D4E5F60718293A00SP1 /* SplashView.swift in Sources */,
 				A1B2C3D4E5F60718293A003C /* ScaleAppReviewPrompt.swift in Sources */,
 				A1B2C3D4E5F60718293A003D /* AppReviewPromptView.swift in Sources */,
 				A1B2C3D4E5F60718293A0040 /* DebugToolsView.swift in Sources */,
@@ -684,7 +688,7 @@
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.27.0;
+				MARKETING_VERSION = 2.28.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -698,11 +702,15 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_DYNAMIC_NO_PIC = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				ONLY_ACTIVE_ARCH = YES;
@@ -734,7 +742,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.27.0;
+				MARKETING_VERSION = 2.28.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -757,7 +765,7 @@
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.27.0;
+				MARKETING_VERSION = 2.28.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -788,7 +796,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.27.0;
+				MARKETING_VERSION = 2.28.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -806,10 +814,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;

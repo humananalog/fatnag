@@ -149,9 +149,10 @@ final class HealthKitBackgroundDelivery: @unchecked Sendable {
                     completionHandler()
                     return
                 }
+                let finish = completionHandler
                 Task { [weak self] in
                     await self?.handleObserverFire(reason: reason)
-                    completionHandler()
+                    finish()
                 }
             }
             store.execute(query)

@@ -5,6 +5,7 @@ import UserNotifications
 struct TheScaleApp: App {
     @StateObject private var session = ScaleSessionViewModel()
     @Environment(\.scenePhase) private var scenePhase
+    @State private var showSplash = !ProcessInfo.processInfo.arguments.contains("-uitesting-skip-splash")
 
     init() {
         UNUserNotificationCenter.current().delegate = ScaleNotificationDelegate.shared
@@ -23,13 +24,24 @@ struct TheScaleApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if session.hasCompletedOnboarding {
-                    ContentView()
-                        .environmentObject(session)
-                } else {
-                    OnboardingView()
-                        .environmentObject(session)
+            ZStack {
+                Group {
+                    if session.hasCompletedOnboarding {
+                        ContentView()
+                            .environmentObject(session)
+                    } else {
+                        OnboardingView()
+                            .environmentObject(session)
+                    }
+                }
+                .opacity(showSplash ? 0 : 1)
+
+                if showSplash {
+                    SplashView {
+                        showSplash = false
+                    }
+                    .transition(.opacity)
+                    .zIndex(1)
                 }
             }
             .onAppear {
