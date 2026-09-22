@@ -301,12 +301,11 @@ final class OnboardingFlowModel: ObservableObject {
             priorSundayTargetKg: nil,
             now: now
         )
-        let bandTitle = difficultyBand?.title ?? "Goal"
         return WeeklyMiniGoal(
             targetDeltaKg: aggressive.weeklyDeltaKg,
             weekStartKg: currentWeightKg,
             weekStartDate: now,
-            title: "\(bandTitle): \(aggressive.pacingLine)"
+            title: String(format: "Sunday %.2f kg", aggressive.sundayTargetKg)
         )
     }
 

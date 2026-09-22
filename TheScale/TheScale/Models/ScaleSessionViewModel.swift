@@ -717,12 +717,27 @@ final class ScaleSessionViewModel: ObservableObject {
             fallbackWeeklyDeltaKg: next.targetDeltaKg
         )
         weeklyTargetMode = hit.mode
-        // On week roll or when delta drifted soft: adopt aggressive target.
+
+        // Always re-sync delta + Sunday title from the biology-capped engine.
+        // Stale titles (or pacing-line titles with other "X kg" tokens) must not stick.
+        let titleNeedsRefresh: Bool = {
+            guard let shown = WeeklyGoalSurfaceEngine.parseSundayKg(from: next.title) else { return true }
+            return abs(shown - hit.sundayTargetKg) > 0.04
+        }()
         if weekRolled
             || abs(next.targetDeltaKg - hit.weeklyDeltaKg) > 0.04
+            || titleNeedsRefresh
             || hit.mode == .hardcoreCatchUp
             || hit.mode == .accelerate
         {
+            next.targetDeltaKg = hit.weeklyDeltaKg
+            next.title = String(format: "Sunday %.2f kg", hit.sundayTargetKg)
+        }
+        // If week-start was locked far from today's baseline (manual edit / bad Health sample),
+        // keep the Sunday number anchored to the engine's live currentKg math.
+        if let start = next.weekStartKg, abs(start - baseline) > 2.5 {
+            next.weekStartKg = baseline
+            next.weekStartDate = weekStart ?? Date()
             next.targetDeltaKg = hit.weeklyDeltaKg
             next.title = String(format: "Sunday %.2f kg", hit.sundayTargetKg)
         }

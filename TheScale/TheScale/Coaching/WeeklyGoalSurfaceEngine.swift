@@ -316,26 +316,28 @@ enum WeeklyGoalSurfaceEngine {
         )
     }
 
-    /// Absolute Sunday target kg from title, week-start + delta, or current + delta.
+    /// Absolute Sunday target kg. Prefer live math from week-start / current + clamped delta.
+    /// Never trust a freeform title number (pacing lines embed other "X kg" tokens).
     static func sundayTargetKg(from weeklyGoal: WeeklyMiniGoal, currentKg: Double?) -> Double? {
-        if let parsed = parseSundayKg(from: weeklyGoal.title) {
-            return parsed
-        }
-        if let start = weeklyGoal.weekStartKg {
+        if let start = weeklyGoal.weekStartKg, abs(weeklyGoal.targetDeltaKg) > 0.001 {
             return round2(start + weeklyGoal.targetDeltaKg)
         }
-        if let current = currentKg {
+        if let current = currentKg, abs(weeklyGoal.targetDeltaKg) > 0.001 {
             return round2(current + weeklyGoal.targetDeltaKg)
+        }
+        if let parsed = parseSundayKg(from: weeklyGoal.title) {
+            return parsed
         }
         return nil
     }
 
-    /// Parse `"Sunday 82.40 kg"` / `"sunday 82,4 kg"` style titles.
+    /// Parse only `"Sunday 82.40 kg"` (number immediately after Sunday). Ignores other kg tokens.
     static func parseSundayKg(from title: String) -> Double? {
-        let lower = title.lowercased()
-        guard lower.contains("sunday") else { return nil }
         let cleaned = title.replacingOccurrences(of: ",", with: ".")
-        guard let regex = try? NSRegularExpression(pattern: #"(\d+(?:\.\d+)?)\s*kg"#),
+        guard let regex = try? NSRegularExpression(
+            pattern: #"sunday\s+(\d+(?:\.\d+)?)\s*kg"#,
+            options: [.caseInsensitive]
+        ),
               let match = regex.firstMatch(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)),
               let range = Range(match.range(at: 1), in: cleaned),
               let value = Double(cleaned[range])

@@ -233,6 +233,7 @@ final class DailyMetricProgressTests: XCTestCase {
         XCTAssertEqual(surface.dailyTargetChips.count, 3)
         XCTAssertTrue(surface.dailyTargetChips.map(\.title).contains("Energy"))
         XCTAssertTrue(surface.dailyTargetChips.map(\.title).contains("Protein"))
+        // Live week-start + delta wins (80 - 0.3), not a conflicting display.
         XCTAssertEqual(surface.sundayTargetKg ?? -1, 79.70, accuracy: 0.01)
         XCTAssertEqual(surface.weeklyDeltaKg, -0.3, accuracy: 0.001)
     }
@@ -240,6 +241,8 @@ final class DailyMetricProgressTests: XCTestCase {
     func testSundayTargetParsesTitleAndFallsBackToWeekStart() {
         var titled = WeeklyMiniGoal.default
         titled.title = "Sunday 82.40 kg"
+        titled.weekStartKg = nil
+        titled.targetDeltaKg = 0
         XCTAssertEqual(
             WeeklyGoalSurfaceEngine.sundayTargetKg(from: titled, currentKg: 83.0) ?? -1,
             82.40,
@@ -255,6 +258,44 @@ final class DailyMetricProgressTests: XCTestCase {
             83.50,
             accuracy: 0.01
         )
+    }
+
+    func testSundayTargetPrefersWeekMathOverStaleTitle() {
+        var goal = WeeklyMiniGoal.default
+        goal.weekStartKg = 93.7
+        goal.targetDeltaKg = -0.66
+        goal.title = "Sunday 87.38 kg" // stale / impossible; must not win
+        XCTAssertEqual(
+            WeeklyGoalSurfaceEngine.sundayTargetKg(from: goal, currentKg: 93.7) ?? -1,
+            93.04,
+            accuracy: 0.01
+        )
+    }
+
+    func testParseSundayKgIgnoresOtherKgTokensInPacingLine() {
+        let pacing = "-0.66 kg/wk toward 80.5 kg by Dec 22, 2026 → Sunday 93.04 kg. Aggressive."
+        XCTAssertEqual(WeeklyGoalSurfaceEngine.parseSundayKg(from: pacing) ?? -1, 93.04, accuracy: 0.01)
+        XCTAssertNil(WeeklyGoalSurfaceEngine.parseSundayKg(from: "Nudge -0.3 kg this week"))
+    }
+
+    func testAlexScenarioSundayIsSafeCapNotSixKg() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 10))!
+        let goalDate = cal.date(from: DateComponents(year: 2026, month: 12, day: 22))!
+        let hit = AggressiveWeeklyTargetEngine.compute(
+            currentKg: 93.7,
+            idealKg: 80.5,
+            goalDate: goalDate,
+            priorSundayTargetKg: nil,
+            now: now,
+            calendar: cal
+        )
+        let safe = TargetFeasibility.maxSafeLossKgPerWeek(currentKg: 93.7)
+        XCTAssertEqual(abs(hit.weeklyDeltaKg), safe, accuracy: 0.02)
+        XCTAssertEqual(hit.sundayTargetKg, 93.7 - safe, accuracy: 0.05)
+        XCTAssertGreaterThan(hit.sundayTargetKg, 92.5)
+        XCTAssertLessThan(abs(hit.weeklyDeltaKg), 1.05)
     }
 
     func testRobustNutritionRequiresRealMealSignal() {
