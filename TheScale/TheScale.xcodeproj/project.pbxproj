@@ -105,6 +105,8 @@
 		A1B2C3D4E5F60718293A00PG1 /* ProfileGapPromptEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */; };
 		A1B2C3D4E5F60718293A00PG2 /* ProfileGapPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PG2 /* ProfileGapPromptView.swift */; };
 		A1B2C3D4E5F60718293A00SF1 /* ScaleStorefront.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10SF1 /* ScaleStorefront.swift */; };
+		A1B2C3D4E5F60718293A00LG1 /* ScaleDataRights.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */; };
+		A1B2C3D4E5F60718293A00LG2 /* ScaleLegalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10LG2 /* ScaleLegalTests.swift */; };
 		A1B2C3D4E5F60718293A00SF2 /* ScaleStorefrontTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10SF2 /* ScaleStorefrontTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -218,6 +220,8 @@
 		A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGapPromptEngine.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10PG2 /* ProfileGapPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGapPromptView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10SF1 /* ScaleStorefront.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleStorefront.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleDataRights.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10LG2 /* ScaleLegalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleLegalTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10SF2 /* ScaleStorefrontTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleStorefrontTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -377,6 +381,7 @@
 				A1B2C3D4E5F60718293A103E /* OnboardingInferenceTests.swift */,
 				A1B2C3D4E5F60718293A10PG3 /* ProfileGapPromptEngineTests.swift */,
 				A1B2C3D4E5F60718293A10SF2 /* ScaleStorefrontTests.swift */,
+				A1B2C3D4E5F60718293A10LG2 /* ScaleLegalTests.swift */,
 				A1B2C3D4E5F60718293A10DW4 /* DreamOnboardingTests.swift */,
 			);
 			path = TheScaleTests;
@@ -419,6 +424,7 @@
 				A1B2C3D4E5F60718293A1036 /* CoachWeeklyQuota.swift */,
 				A1B2C3D4E5F60718293A1037 /* ScaleSubscriptionStore.swift */,
 				A1B2C3D4E5F60718293A10SF1 /* ScaleStorefront.swift */,
+				A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */,
 				A1B2C3D4E5F60718293A103B /* OnboardingProfileInference.swift */,
 				A1B2C3D4E5F60718293A103F /* OnboardingFlowModel.swift */,
 				A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */,
@@ -572,6 +578,7 @@
 				A1B2C3D4E5F60718293A003E /* OnboardingInferenceTests.swift in Sources */,
 				A1B2C3D4E5F60718293A00PG3 /* ProfileGapPromptEngineTests.swift in Sources */,
 				A1B2C3D4E5F60718293A00SF2 /* ScaleStorefrontTests.swift in Sources */,
+				A1B2C3D4E5F60718293A00LG2 /* ScaleLegalTests.swift in Sources */,
 				A1B2C3D4E5F60718293A00DW4 /* DreamOnboardingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -639,6 +646,7 @@
 				A1B2C3D4E5F60718293A0036 /* CoachWeeklyQuota.swift in Sources */,
 				A1B2C3D4E5F60718293A0037 /* ScaleSubscriptionStore.swift in Sources */,
 				A1B2C3D4E5F60718293A00SF1 /* ScaleStorefront.swift in Sources */,
+				A1B2C3D4E5F60718293A00LG1 /* ScaleDataRights.swift in Sources */,
 				A1B2C3D4E5F60718293A0038 /* PaywallView.swift in Sources */,
 				A1B2C3D4E5F60718293A003B /* OnboardingProfileInference.swift in Sources */,
 				A1B2C3D4E5F60718293A003F /* OnboardingFlowModel.swift in Sources */,
@@ -676,7 +684,7 @@
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.26.0;
+				MARKETING_VERSION = 2.27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -726,7 +734,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.26.0;
+				MARKETING_VERSION = 2.27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -749,7 +757,7 @@
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.26.0;
+				MARKETING_VERSION = 2.27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -780,7 +788,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.26.0;
+				MARKETING_VERSION = 2.27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

@@ -48,6 +48,10 @@ enum ChartCommentStore {
         }
     }
 
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+
     static func upsert(sampleDay: Date, metric: ChartCommentMetric, text: String, now: Date = Date()) {
         let day = startOfDay(sampleDay)
         let cleaned = CoachCopySanitize.clean(String(text.prefix(maxLength)))

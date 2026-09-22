@@ -12,6 +12,9 @@ struct SettingsView: View {
     @State private var healthBackgroundLine = "Health background: checking..."
     @State private var samplePingNote: String?
     @State private var showPaywall = false
+    @State private var exportShareURL: URL?
+    @State private var showEraseConfirm = false
+    @State private var dataRightsNote: String?
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable {
@@ -882,42 +885,139 @@ struct SettingsView: View {
 
     private var privacyCard: some View {
         settingsPanel {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 Label("Privacy", systemImage: "lock.shield")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Profile, calibration, memory, and readings stay on this iPhone. Health is read/written only with permission. Keel is opt-in. Apple Intelligence stays on-device.")
+                Text("On-device first. Keel Coach is opt-in. No ads. No sale of personal data. GDPR and US state rights supported.")
                     .font(.footnote)
                     .foregroundStyle(steel)
 
+                Text(ScaleLegal.privacyPolicyShortSummary)
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+
                 NavigationLink {
-                    PrivacyPolicyView()
+                    LegalDocumentView(document: .privacyPolicy)
                 } label: {
-                    Label("Privacy Policy", systemImage: "doc.text")
+                    Label("Privacy Policy (EU GDPR)", systemImage: "doc.text")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.privacyPolicy")
+
+                NavigationLink {
+                    LegalDocumentView(document: .usStatePrivacy)
+                } label: {
+                    Label("US State Privacy Notice", systemImage: "flag")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.usPrivacy")
 
                 Link(destination: ScaleLegal.privacyPolicyURL) {
                     Label("Privacy Policy (web)", systemImage: "safari")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+
+                Link(destination: ScaleLegal.privacyMailtoURL) {
+                    Label("Email \(ScaleLegal.privacyEmail)", systemImage: "envelope")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.privacyEmail")
+
+                Divider().padding(.vertical, 2)
+
+                Text("Your data rights")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
+
+                Button {
+                    exportLocalData()
+                } label: {
+                    Label("Export my data", systemImage: "square.and.arrow.up")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.exportData")
+
+                Button(role: .destructive) {
+                    showEraseConfirm = true
+                } label: {
+                    Label("Erase my data", systemImage: "trash")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.eraseData")
+
+                Text("Erase clears The Scale’s on-device profile, Coach history, and preferences, then returns you to onboarding. Apple Health samples are not deleted; manage those in the Health app.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+
+                if let dataRightsNote {
+                    Text(dataRightsNote)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(accent)
+                }
             }
+        }
+        .confirmationDialog(
+            "Erase all The Scale data on this iPhone?",
+            isPresented: $showEraseConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Erase everything", role: .destructive) {
+                ScaleDataRights.eraseAllLocalData(session: session)
+                dataRightsNote = "Local data erased. Complete onboarding again when ready."
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This cannot be undone. Health app data stays unless you delete it there.")
+        }
+        .sheet(item: Binding(
+            get: { exportShareURL.map { ExportShareItem(url: $0) } },
+            set: { exportShareURL = $0?.url }
+        )) { item in
+            ShareSheet(items: [item.url])
         }
     }
 
     private var legalCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Label("Legal", systemImage: "doc.text")
                 .font(.headline)
                 .foregroundStyle(ink)
             Text(CoachCopySanitize.medicalDisclaimer)
                 .font(.caption)
                 .foregroundStyle(steel)
-            Text("Shown once during onboarding. Coach chat and notifications do not repeat this.")
+            Text("Shown at onboarding. Coach chat and notifications do not repeat this.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+
+            ForEach(ScaleLegal.Document.allCases.filter { $0 != .privacyPolicy && $0 != .usStatePrivacy }) { doc in
+                NavigationLink {
+                    LegalDocumentView(document: doc)
+                } label: {
+                    Label(doc.title, systemImage: "doc.richtext")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.legal.\(doc.rawValue)")
+            }
+
+            Text("Age gate: \(ScaleLegal.minimumAgeYears)+. Controller: \(ScaleLegal.controllerName).")
+                .font(.caption2)
+                .foregroundStyle(steel)
+
+            if let accepted = LegalAcceptanceStore.acceptedAt {
+                Text("Terms accepted: \(accepted.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+                    .accessibilityIdentifier("settings.legalAcceptedAt")
+            }
 
             #if DEBUG
             Menu {
@@ -983,6 +1083,19 @@ struct SettingsView: View {
         .background(.white.opacity(0.55), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+    private func exportLocalData() {
+        do {
+            let data = try ScaleDataRights.exportLocalDataJSON(profile: session.profile)
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("the-scale-data-export.json")
+            try data.write(to: url, options: .atomic)
+            exportShareURL = url
+            dataRightsNote = "Export ready to share or save."
+        } catch {
+            dataRightsNote = "Export failed: \(error.localizedDescription)"
+        }
+    }
+
     private var modeHelpText: String {
         switch session.calibration.captureMode {
         case .offset:
@@ -991,6 +1104,22 @@ struct SettingsView: View {
             return "Factor: corrected = raw × (true / raw). Better when error grows with mass."
         }
     }
+}
+
+private struct ExportShareItem: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+/// Minimal UIKit share sheet wrapper for JSON export.
+private struct ShareSheet: UIViewControllerRepresentable {
+    var items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 #Preview {

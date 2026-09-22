@@ -525,7 +525,7 @@ struct OnboardingView: View {
                 .disabled(!GrokSharedConfig.isLiveConfigured)
                 .accessibilityIdentifier("onboarding.grokLater")
 
-            Toggle("I understand the fitness disclaimer", isOn: $flow.acceptedLegal)
+            Toggle("I agree to Terms, Privacy Policy, and the fitness disclaimer", isOn: $flow.acceptedLegal)
                 .font(.footnote.weight(.semibold))
                 .accessibilityIdentifier("onboarding.legal")
 
@@ -534,6 +534,10 @@ struct OnboardingView: View {
                 .foregroundStyle(steel)
                 .lineLimit(3)
                 .minimumScaleFactor(0.8)
+
+            Text("Full Terms and Privacy are in Settings after launch. Age \(ScaleLegal.minimumAgeYears)+ required.")
+                .font(.system(size: 9, weight: .medium, design: .rounded))
+                .foregroundStyle(steel)
 
             Spacer(minLength: 0)
         }
@@ -686,6 +690,7 @@ struct OnboardingView: View {
         if GrokSharedConfig.isLiveConfigured {
             GrokPrivacyConsent.isAccepted = flow.allowGrokCoachLater
         }
+        LegalAcceptanceStore.markAccepted()
         var prefs = session.notificationPreferences
         prefs.notifyOnBadTrend = flow.enableNotifications
         prefs.weeklyGoalReminders = flow.enableNotifications
