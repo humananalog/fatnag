@@ -119,6 +119,7 @@ struct ContentView: View {
         #endif
         .sheet(isPresented: $showNotificationCenter) {
             NotificationCenterSheet()
+                .environmentObject(session)
         }
         .fullScreenCover(isPresented: Binding(
             get: { session.isWeighInPresented },

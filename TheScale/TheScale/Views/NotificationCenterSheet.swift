@@ -3,37 +3,78 @@ import UserNotifications
 
 /// Pending + delivered local notifications for The Scale.
 struct NotificationCenterSheet: View {
+    @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var pending: [UNNotificationRequest] = []
+    @State private var pending: [PendingNotifRow] = []
     @State private var delivered: [UNNotification] = []
     @State private var isLoading = true
     @State private var authLine = ""
+    @State private var authDenied = false
+    @State private var testNote: String?
+
+    private struct PendingNotifRow: Identifiable {
+        let id: String
+        let title: String
+        let body: String
+        let meta: String
+    }
 
     var body: some View {
         NavigationStack {
             Group {
                 if isLoading {
-                    ProgressView("Loading…")
+                    ProgressView("Loading...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
                         Section {
                             Text(authLine)
                                 .font(.system(size: 13, weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(authDenied ? Color.orange : .secondary)
                                 .listRowBackground(Color.clear)
+                            if authDenied {
+                                Button("Open System Settings") {
+                                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }
+                            }
                         }
 
-                        Section("Pending") {
+                        Section {
+                            Button {
+                                Task {
+                                    let ok = await MorningWeighDrillScheduler.forceFireTest(
+                                        profileName: session.profile.greetingName
+                                    )
+                                    testNote = ok
+                                        ? "Test drill in ~2s. Leave the app or lock the phone."
+                                        : "Blocked. Allow notifications first."
+                                    await reload()
+                                }
+                            } label: {
+                                Label("Send test drill now", systemImage: "bell.and.waves.left.and.right")
+                            }
+                            .accessibilityIdentifier("alerts.sendTestDrill")
+                            if let testNote {
+                                Text(testNote)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } header: {
+                            Text("Debug")
+                        }
+
+                        Section("Pending / scheduled") {
                             if pending.isEmpty {
-                                Text("Nothing queued.")
+                                Text("Nothing queued. If Morning weigh is on, open Settings → Allow, then pull to refresh.")
                                     .foregroundStyle(.secondary)
                             } else {
-                                ForEach(pending, id: \.identifier) { request in
+                                ForEach(pending) { row in
                                     notificationRow(
-                                        title: request.content.title,
-                                        body: request.content.body,
-                                        meta: request.trigger.map { String(describing: type(of: $0)) } ?? "soon"
+                                        title: row.title,
+                                        body: row.body,
+                                        meta: row.meta
                                     )
                                 }
                             }
@@ -55,6 +96,7 @@ struct NotificationCenterSheet: View {
                         }
                     }
                     .listStyle(.insetGrouped)
+                    .refreshable { await reload() }
                 }
             }
             .navigationTitle("Alerts")
@@ -72,7 +114,10 @@ struct NotificationCenterSheet: View {
                     .accessibilityLabel("Refresh")
                 }
             }
-            .task { await reload() }
+            .task {
+                await session.considerMorningWeighDrill()
+                await reload()
+            }
         }
     }
 
@@ -95,21 +140,52 @@ struct NotificationCenterSheet: View {
 
     private func reload() async {
         isLoading = true
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
-        switch settings.authorizationStatus {
-        case .authorized: authLine = "Notifications on. Time Sensitive allowed when system grants it."
-        case .provisional: authLine = "Provisional delivery. Enable Alerts in Settings for full pings."
-        case .denied: authLine = "Notifications off. Open Settings to allow alerts."
-        case .notDetermined: authLine = "Not asked yet. Weigh or open Settings to enable."
-        case .ephemeral: authLine = "Ephemeral authorization active."
-        @unknown default: authLine = "Notification status unknown."
-        }
-        // Sequential UNUserNotificationCenter reads: center is not Sendable; avoid async-let races.
+        let detail = await TrendNotificationScheduler.authorizationStatusDetail()
+        authLine = detail.line
+        authDenied = detail.isDenied
         let pendingReqs = await UNUserNotificationCenter.current().pendingNotificationRequests()
         let deliveredNotes = await UNUserNotificationCenter.current().deliveredNotifications()
-        pending = pendingReqs
+        pending = pendingReqs.map { req in
+            PendingNotifRow(
+                id: req.identifier,
+                title: req.content.title,
+                body: req.content.body,
+                meta: triggerMeta(req)
+            )
+        }
+        .sorted { $0.meta < $1.meta }
         delivered = deliveredNotes.sorted { $0.date > $1.date }
         isLoading = false
+    }
+
+    private func triggerMeta(_ request: UNNotificationRequest) -> String {
+        let idHint: String = {
+            switch request.identifier {
+            case MorningWeighDrillScheduler.fallbackRequestId: return "morning fallback"
+            case MorningWeighDrillScheduler.requestId: return "sleep-wake drill"
+            case MorningWeighDrillScheduler.testRequestId: return "test drill"
+            case TrendNotificationScheduler.weeklyGoalId: return "weekly goal"
+            case TrendNotificationScheduler.badTrendId: return "bad trend"
+            default:
+                if request.identifier.hasPrefix(CoachReminderScheduler.notificationIdPrefix)
+                    || request.identifier == CoachReminderScheduler.wakeReminderId
+                {
+                    return "coach reminder"
+                }
+                return request.identifier
+            }
+        }()
+        if let cal = request.trigger as? UNCalendarNotificationTrigger,
+           let next = cal.nextTriggerDate()
+        {
+            return "\(idHint) · \(next.formatted(date: .abbreviated, time: .shortened))"
+        }
+        if let interval = request.trigger as? UNTimeIntervalNotificationTrigger,
+           let next = interval.nextTriggerDate()
+        {
+            return "\(idHint) · \(next.formatted(date: .abbreviated, time: .shortened))"
+        }
+        return "\(idHint) · \(String(describing: type(of: request.trigger)))"
     }
 }
 

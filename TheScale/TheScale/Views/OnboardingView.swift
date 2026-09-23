@@ -694,6 +694,8 @@ struct OnboardingView: View {
         var prefs = session.notificationPreferences
         prefs.notifyOnBadTrend = flow.enableNotifications
         prefs.weeklyGoalReminders = flow.enableNotifications
+        // Keep morning drill aligned with the Alerts toggle (defaults stay on when Alerts is on).
+        prefs.morningWeighDrill = flow.enableNotifications
         session.notificationPreferences = prefs
         OnboardingStore.hasCompleted = true
         session.hasCompletedOnboarding = true
@@ -702,6 +704,8 @@ struct OnboardingView: View {
                 _ = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
                 await session.refreshTrendNotifications()
             }
+        } else {
+            MorningWeighDrillScheduler.cancelAllPending()
         }
     }
 }

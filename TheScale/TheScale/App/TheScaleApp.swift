@@ -65,6 +65,7 @@ struct TheScaleApp: App {
                     await session.refreshHomeGauges(force: false)
                     _ = await session.runFitnessMonitorCheck(force: false)
                     await session.armHealthKitBackgroundDelivery()
+                    await session.refreshTrendNotifications()
                 }
                 GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: session.fitnessMonitorPreferences)
                 GrokFitnessMonitor.scheduleBackgroundProcessing(prefs: session.fitnessMonitorPreferences)
@@ -82,6 +83,9 @@ struct TheScaleApp: App {
                 profileName: session.profile.greetingName
             )
             await session.armHealthKitBackgroundDelivery()
+            // Arm weekly + morning fallback even if the user never opens Settings.
+            _ = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
+            await session.refreshTrendNotifications()
         }
     }
 }

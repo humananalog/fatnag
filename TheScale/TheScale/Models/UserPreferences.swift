@@ -55,27 +55,39 @@ struct NotificationPreferences: Equatable, Codable, Sendable {
     var weeklyGoalReminders: Bool
     /// After leaving sleep / bedtime, one sergeant ping to weigh (once per morning).
     var morningWeighDrill: Bool
+    /// Calendar fallback hour (local) when sleep-wake HealthKit is missing or flaky.
+    var morningWeighFallbackHour: Int
+    /// Calendar fallback minute (local).
+    var morningWeighFallbackMinute: Int
 
     static let `default` = NotificationPreferences(
         notifyOnBadTrend: true,
         weeklyGoalReminders: true,
-        morningWeighDrill: true
+        morningWeighDrill: true,
+        morningWeighFallbackHour: 7,
+        morningWeighFallbackMinute: 30
     )
 
     init(
         notifyOnBadTrend: Bool,
         weeklyGoalReminders: Bool,
-        morningWeighDrill: Bool
+        morningWeighDrill: Bool,
+        morningWeighFallbackHour: Int = 7,
+        morningWeighFallbackMinute: Int = 30
     ) {
         self.notifyOnBadTrend = notifyOnBadTrend
         self.weeklyGoalReminders = weeklyGoalReminders
         self.morningWeighDrill = morningWeighDrill
+        self.morningWeighFallbackHour = min(max(morningWeighFallbackHour, 0), 23)
+        self.morningWeighFallbackMinute = min(max(morningWeighFallbackMinute, 0), 59)
     }
 
     private enum CodingKeys: String, CodingKey {
         case notifyOnBadTrend
         case weeklyGoalReminders
         case morningWeighDrill
+        case morningWeighFallbackHour
+        case morningWeighFallbackMinute
     }
 
     init(from decoder: Decoder) throws {
@@ -83,6 +95,8 @@ struct NotificationPreferences: Equatable, Codable, Sendable {
         notifyOnBadTrend = try c.decodeIfPresent(Bool.self, forKey: .notifyOnBadTrend) ?? true
         weeklyGoalReminders = try c.decodeIfPresent(Bool.self, forKey: .weeklyGoalReminders) ?? true
         morningWeighDrill = try c.decodeIfPresent(Bool.self, forKey: .morningWeighDrill) ?? true
+        morningWeighFallbackHour = try c.decodeIfPresent(Int.self, forKey: .morningWeighFallbackHour) ?? 7
+        morningWeighFallbackMinute = try c.decodeIfPresent(Int.self, forKey: .morningWeighFallbackMinute) ?? 30
     }
 
     func encode(to encoder: Encoder) throws {
@@ -90,6 +104,8 @@ struct NotificationPreferences: Equatable, Codable, Sendable {
         try c.encode(notifyOnBadTrend, forKey: .notifyOnBadTrend)
         try c.encode(weeklyGoalReminders, forKey: .weeklyGoalReminders)
         try c.encode(morningWeighDrill, forKey: .morningWeighDrill)
+        try c.encode(morningWeighFallbackHour, forKey: .morningWeighFallbackHour)
+        try c.encode(morningWeighFallbackMinute, forKey: .morningWeighFallbackMinute)
     }
 }
 

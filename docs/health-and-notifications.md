@@ -74,6 +74,7 @@ All local (`UNUserNotificationCenter`). Toggles live in Settings. **2.9.0+** shi
 |---------|-------------------------|------------------|--------|--------------|
 | Coach wake | Name + wake · clock/before · Coach line | Open Coach, Snooze 10 min | `thescale.coach` | **Time Sensitive** |
 | Coach reminder | Name + reminder · fire time · Coach line | Open Coach, Snooze | `thescale.coach` | Active |
+| Morning weigh drill | Keel sergeant · sleep-wake ASAP or calendar fallback | Open Coach / Weigh | `thescale.coach` | **Time Sensitive** |
 | Bad trend | Name + scale check · kg · reason | Open History, Progress, Snooze | `thescale.trend` | Active |
 | Monday mini-goal | Name + weekly · goal title · nudge | Open Progress, Coach | `thescale.trend` | Passive |
 | Fitness interval | Name + check · interval · open hint | Open Coach | `thescale.fitness` | Passive |
@@ -84,13 +85,34 @@ Also: Communication-style Coach avatar when appropriate (`INSendMessageIntent` /
 
 | Trigger | Gate | Copy |
 |---------|------|------|
-| Bad trend (above ideal + rising, or sharp weekly gain) | Algorithmic | FM polish + optional suppress |
-| Monday mini-goal | Pref | FM polish |
+| Bad trend (above ideal + rising, or sharp weekly gain) | Algorithmic | FM polish after schedule (optional suppress) |
+| Monday mini-goal | Pref | Schedule first, FM polish optional |
+| Morning weigh drill (2.34.0+) | Pref on + auth | Sleep-wake ASAP when Health has wake; **calendar fallback** at configurable clock (default 07:30) so something always arms |
 | Coach-scheduled wake / reminder | Coach parse → **schedule first** | FM polish optional (never blocks) |
 | Fitness (Watch wear / pre-sleep HR) | Algorithm + cooldown | FM judgment + polish |
 | Fitness interval nudge | Monitor interval | FM polish |
 
-**Rule:** algorithms decide *whether work exists* and schedule local notifications; Foundation Models may refine wording afterward and may drop weak *trend/fitness* pings. Coach wake/timed reminders always schedule with algorithmic copy first. If Apple Intelligence is off or ineligible, algorithmic strings still fire (no silent drop regression).
+**Rule:** algorithms decide *whether work exists* and schedule local notifications; Foundation Models may refine wording afterward and may drop weak *trend/fitness* pings. Coach wake/timed reminders and morning weigh always schedule with algorithmic copy first. If Apple Intelligence is off or ineligible, algorithmic strings still fire (no silent drop regression).
+
+### Morning weigh drill (2.34.0+)
+
+Root cause of "no pings all day": sleep-wake path required a live HealthKit wake inside a 3 min-2.5 h window and BG wakes skipped when only morning coaching was on. No calendar fallback existed.
+
+Fix:
+
+1. Auth requests include **Time Sensitive**.
+2. BG `runBackgroundHealthWake` runs when **morning weigh** is on (fetches sleep digest).
+3. Calendar fallback `thescale.morning-weigh-fallback` always pending when the toggle is on (next eligible local morning clock).
+4. Settings: denied status surfaced, fallback clock picker, **Send test drill now**.
+5. Home bell sheet lists pending with next fire times + the same test button.
+
+**Verify:**
+
+1. Settings → Notifications: status **allowed** (or tap Allow / System if denied).
+2. Morning weigh drill ON. Fallback clock e.g. 07:30.
+3. Home bell → Pending should list `morning fallback` with tomorrow/today fire time.
+4. Tap **Send test drill now** (Settings or Alerts sheet). Expect banner ~2s later.
+5. Coach still: `remind me in 2 minutes` for timed reminder path.
 
 ### Coach reminders (2.7.2+)
 

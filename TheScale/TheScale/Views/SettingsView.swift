@@ -8,9 +8,11 @@ struct SettingsView: View {
     @FocusState private var focusedField: Field?
     @State private var confirmReset = false
     @State private var notificationAuthLine = "Notifications: checking..."
+    @State private var notificationAuthDenied = false
     @State private var pendingCoachReminders: [PendingCoachReminder] = []
     @State private var healthBackgroundLine = "Health background: checking..."
     @State private var samplePingNote: String?
+    @State private var drillTestNote: String?
     @State private var showPaywall = false
     @State private var exportShareURL: URL?
     @State private var showEraseConfirm = false
@@ -517,12 +519,20 @@ struct SettingsView: View {
 
                 Text(notificationAuthLine)
                     .font(.caption)
-                    .foregroundStyle(steel)
+                    .foregroundStyle(notificationAuthDenied ? Color.orange : steel)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if notificationAuthDenied {
+                    Text("Coach cannot fire drills while denied. Tap System, then allow alerts for The Scale.")
+                        .font(.caption2)
+                        .foregroundStyle(Color.orange)
+                }
 
                 HStack(spacing: 8) {
                     Button {
                         Task {
                             _ = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
+                            await session.refreshTrendNotifications()
                             await refreshNotificationStatus()
                         }
                     } label: {
@@ -565,17 +575,83 @@ struct SettingsView: View {
                     )
                 )
                 Toggle(
-                    "Morning weigh drill (out of bed)",
+                    "Morning weigh drill",
                     isOn: Binding(
                         get: { session.notificationPreferences.morningWeighDrill },
                         set: {
                             var next = session.notificationPreferences
                             next.morningWeighDrill = $0
                             session.notificationPreferences = next
-                            Task { await session.considerMorningWeighDrill() }
+                            Task {
+                                await session.considerMorningWeighDrill()
+                                await refreshNotificationStatus()
+                            }
                         }
                     )
                 )
+                Text("Sleep-wake ASAP when Health has wake time. Calendar fallback always arms at the clock below so Coach still drills when sleep data is soft.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+
+                if session.notificationPreferences.morningWeighDrill {
+                    HStack {
+                        Text("Fallback clock")
+                            .font(.caption)
+                            .foregroundStyle(steel)
+                        Spacer()
+                        DatePicker(
+                            "",
+                            selection: Binding(
+                                get: {
+                                    var comps = Calendar.current.dateComponents(
+                                        [.year, .month, .day],
+                                        from: Date()
+                                    )
+                                    comps.hour = session.notificationPreferences.morningWeighFallbackHour
+                                    comps.minute = session.notificationPreferences.morningWeighFallbackMinute
+                                    return Calendar.current.date(from: comps) ?? Date()
+                                },
+                                set: {
+                                    let comps = Calendar.current.dateComponents([.hour, .minute], from: $0)
+                                    var next = session.notificationPreferences
+                                    next.morningWeighFallbackHour = comps.hour ?? 7
+                                    next.morningWeighFallbackMinute = comps.minute ?? 30
+                                    session.notificationPreferences = next
+                                    Task {
+                                        await session.considerMorningWeighDrill()
+                                        await refreshNotificationStatus()
+                                    }
+                                }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                        .labelsHidden()
+                    }
+                }
+
+                Button {
+                    Task {
+                        let ok = await MorningWeighDrillScheduler.forceFireTest(
+                            profileName: session.profile.greetingName
+                        )
+                        drillTestNote = ok
+                            ? "Test drill in ~2s. Lock the phone or leave the app."
+                            : "Test drill blocked. Allow notifications first (or open System if denied)."
+                        await refreshNotificationStatus()
+                    }
+                } label: {
+                    Label("Send test drill now", systemImage: "bell.and.waves.left.and.right")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(accent)
+                .accessibilityIdentifier("settings.sendTestDrill")
+
+                if let drillTestNote {
+                    Text(drillTestNote)
+                        .font(.caption2)
+                        .foregroundStyle(steel)
+                }
 
                 if !pendingCoachReminders.isEmpty {
                     Text("Pending Coach reminders")
@@ -615,7 +691,12 @@ struct SettingsView: View {
     }
 
     private func refreshNotificationStatus() async {
+        let detail = await TrendNotificationScheduler.authorizationStatusDetail()
         notificationAuthLine = await CoachReminderScheduler.authorizationStatusLine()
+        if detail.isDenied {
+            notificationAuthLine = detail.line
+        }
+        notificationAuthDenied = detail.isDenied
         pendingCoachReminders = await CoachReminderScheduler.listPendingCoachReminders()
     }
 
