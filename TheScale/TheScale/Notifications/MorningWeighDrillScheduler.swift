@@ -3,19 +3,23 @@ import UserNotifications
 
 /// Out-of-bed sergeant ping: weigh yourself now.
 ///
-/// Rules (2.35+):
+/// Rules (2.36+):
 /// - Max once per local day (`lastFiredDayKey`).
-/// - Never schedule or fire after 09:00 local.
-/// - If a valid weigh-in already exists today, cancel wake + fallback for today.
-/// - Sleep-wake ASAP when Health has wake; calendar fallback before 09:00 otherwise.
+/// - Never schedule or fire at/after 09:00 local for "today."
+/// - If already weighed today: cancel today's ASAP; arm **tomorrow** morning only (idempotent).
+/// - Fallback schedule is **idempotent**: do not remove/re-add when the pending fire date already matches.
+/// - Sleep-wake ASAP when Health has wake (before 09:00); calendar fallback otherwise.
 @MainActor
 enum MorningWeighDrillScheduler {
     static let requestId = "thescale.morning-weigh-drill"
     static let fallbackRequestId = "thescale.morning-weigh-fallback"
     static let testRequestId = "thescale.morning-weigh-test"
     private static let lastFiredDayKey = "thescale.morningWeighDrill.lastFiredDay"
+    /// Match window when comparing pending vs intended fire (calendar trigger rebuild noise).
+    nonisolated static let fireDateMatchTolerance: TimeInterval = 60
 
     /// Call after digest refresh / scene active / trend refresh.
+    /// Safe to call often: fallback `add` only runs when the intended fire date changed.
     static func consider(
         prefs: NotificationPreferences,
         profileName: String,
@@ -38,15 +42,15 @@ enum MorningWeighDrillScheduler {
         let dayKey = dayStamp(now, calendar: calendar)
         let alreadyFired = UserDefaults.standard.string(forKey: lastFiredDayKey) == dayKey
 
-        // Already weighed or already fired today: kill today's drills; arm tomorrow only.
+        // Already weighed or already fired today: drop today's ASAP; arm tomorrow (idempotent).
         if alreadyWeighedToday || alreadyFired {
             UNUserNotificationCenter.current().removePendingNotificationRequests(
-                withIdentifiers: [requestId, fallbackRequestId]
+                withIdentifiers: [requestId]
             )
             UNUserNotificationCenter.current().removeDeliveredNotifications(
                 withIdentifiers: [requestId]
             )
-            await scheduleFallback(
+            await ensureFallbackScheduled(
                 prefs: prefs,
                 profileName: profileName,
                 forceTomorrow: true,
@@ -56,12 +60,12 @@ enum MorningWeighDrillScheduler {
             return
         }
 
-        // Past 09:00 local: do not schedule or deliver today.
+        // Past 09:00 local: no today fire; arm tomorrow only.
         if !ProfileNumericBounds.isBeforeMorningDeadline(now, calendar: calendar) {
             UNUserNotificationCenter.current().removePendingNotificationRequests(
-                withIdentifiers: [requestId, fallbackRequestId]
+                withIdentifiers: [requestId]
             )
-            await scheduleFallback(
+            await ensureFallbackScheduled(
                 prefs: prefs,
                 profileName: profileName,
                 forceTomorrow: true,
@@ -71,7 +75,7 @@ enum MorningWeighDrillScheduler {
             return
         }
 
-        await scheduleFallback(
+        await ensureFallbackScheduled(
             prefs: prefs,
             profileName: profileName,
             forceTomorrow: false,
@@ -99,7 +103,7 @@ enum MorningWeighDrillScheduler {
     }
 
     /// Next local morning clock for the fallback sergeant drill (pure; testable).
-    /// Always before 09:00. Rolls to tomorrow when weighed, fired, past slot, or past deadline.
+    /// Uses `calendar` date components (device local TZ). Always before 09:00 local.
     nonisolated static func nextFallbackFireDate(
         hour: Int,
         minute: Int,
@@ -122,6 +126,16 @@ enum MorningWeighDrillScheduler {
                 ?? now.addingTimeInterval(86_400)
         }
         return todaySlot
+    }
+
+    /// True when an existing pending fire is close enough to the intended instant.
+    nonisolated static func pendingFireMatchesIntended(
+        pending: Date?,
+        intended: Date,
+        tolerance: TimeInterval = fireDateMatchTolerance
+    ) -> Bool {
+        guard let pending else { return false }
+        return abs(pending.timeIntervalSince(intended)) <= tolerance
     }
 
     /// DEBUG / Settings QA: schedule a sergeant test ping in ~2s. Does not burn the day stamp.
@@ -150,9 +164,10 @@ enum MorningWeighDrillScheduler {
     static func markSatisfied(now: Date = Date(), calendar: Calendar = .current) {
         UserDefaults.standard.set(dayStamp(now, calendar: calendar), forKey: lastFiredDayKey)
         UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [requestId, testRequestId, fallbackRequestId])
+            .removePendingNotificationRequests(withIdentifiers: [requestId, testRequestId])
         UNUserNotificationCenter.current()
             .removeDeliveredNotifications(withIdentifiers: [requestId, testRequestId])
+        // Fallback re-armed for tomorrow on next consider(); leave pending if already tomorrow.
     }
 
     static func cancelAllPending() {
@@ -169,7 +184,8 @@ enum MorningWeighDrillScheduler {
         case test
     }
 
-    private static func scheduleFallback(
+    /// Schedule calendar fallback only when missing or fire date differs.
+    private static func ensureFallbackScheduled(
         prefs: NotificationPreferences,
         profileName: String,
         forceTomorrow: Bool,
@@ -188,36 +204,60 @@ enum MorningWeighDrillScheduler {
             forceTomorrow: forceTomorrow
         )
 
-        // Never schedule a same-day slot at or after 09:00.
+        // Never schedule a same-day slot at or after 09:00 local.
         if calendar.isDate(fireAt, inSameDayAs: now),
            !ProfileNumericBounds.isBeforeMorningDeadline(fireAt, calendar: calendar)
         {
             return
         }
 
+        let center = UNUserNotificationCenter.current()
+        let pending = await center.pendingNotificationRequests()
+        if let existing = pending.first(where: { $0.identifier == fallbackRequestId }) {
+            let existingFire = nextFireDate(from: existing.trigger)
+            if pendingFireMatchesIntended(pending: existingFire, intended: fireAt) {
+                // Already armed for this local morning. Do not remove/re-add (stops log spam).
+                return
+            }
+        }
+
         let content = makeContent(profileName: profileName, variant: .fallback)
-        let comps = calendar.dateComponents(
+        // Explicit local calendar components (device TZ via `calendar`).
+        var comps = calendar.dateComponents(
             [.year, .month, .day, .hour, .minute, .second],
             from: fireAt
         )
+        comps.timeZone = calendar.timeZone
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
         let request = UNNotificationRequest(
             identifier: fallbackRequestId,
             content: content,
             trigger: trigger
         )
-        let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [fallbackRequestId])
         do {
             try await center.add(request)
             #if DEBUG
-            print("[TheScale] Morning weigh fallback scheduled \(fireAt)")
+            let local = fireAt.formatted(date: .abbreviated, time: .shortened)
+            print(
+                "[TheScale] Morning weigh fallback scheduled local=\(local) tz=\(calendar.timeZone.identifier)"
+            )
             #endif
         } catch {
             #if DEBUG
             print("[TheScale] Morning weigh fallback failed: \(error.localizedDescription)")
             #endif
         }
+    }
+
+    private static func nextFireDate(from trigger: UNNotificationTrigger?) -> Date? {
+        if let cal = trigger as? UNCalendarNotificationTrigger {
+            return cal.nextTriggerDate()
+        }
+        if let interval = trigger as? UNTimeIntervalNotificationTrigger {
+            return interval.nextTriggerDate()
+        }
+        return nil
     }
 
     private static func fireASAP(
@@ -238,7 +278,7 @@ enum MorningWeighDrillScheduler {
         do {
             try await center.add(request)
             UserDefaults.standard.set(dayKey, forKey: lastFiredDayKey)
-            await scheduleFallback(
+            await ensureFallbackScheduled(
                 prefs: prefs,
                 profileName: profileName,
                 forceTomorrow: true,

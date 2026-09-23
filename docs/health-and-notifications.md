@@ -87,12 +87,18 @@ Also: Communication-style Coach avatar when appropriate (`INSendMessageIntent` /
 |---------|------|------|
 | Bad trend (above ideal + rising, or sharp weekly gain) | Algorithmic | FM polish after schedule (optional suppress) |
 | Monday mini-goal | Pref | Schedule first, FM polish optional |
-| Morning weigh drill (2.35.0+) | Pref on + auth; **before 09:00 local**; skip if already weighed today | Sleep-wake ASAP when Health has wake; calendar fallback before 09:00; max once/day |
+| Morning weigh drill (2.36.0+) | Pref on + auth; **before 09:00 local**; skip if already weighed today; **idempotent** fallback (no re-add spam) | Sleep-wake ASAP when Health has wake; calendar fallback before 09:00; max once/day |
 | Coach-scheduled wake / reminder | Coach parse → **schedule first** | FM polish optional (never blocks) |
 | Fitness (Watch wear / pre-sleep HR) | Algorithm + cooldown | FM judgment + polish |
 | Fitness interval nudge | Monitor interval | FM polish |
 
 **Rule:** algorithms decide *whether work exists* and schedule local notifications; Foundation Models may refine wording afterward and may drop weak *trend/fitness* pings. Coach wake/timed reminders and morning weigh always schedule with algorithmic copy first. If Apple Intelligence is off or ineligible, algorithmic strings still fire (no silent drop regression).
+
+### Morning weigh drill (2.36.0+)
+
+Fallback schedule is **idempotent**: if a pending `thescale.morning-weigh-fallback` already targets the same local fire instant (±60s), consider() does not remove/re-add (stops DEBUG log spam on every digest/observer wake).
+
+`Date` debug prints show **UTC** (`+0000`). For Asia/Hong_Kong, **07:30 local next morning** appears as **23:30 UTC** the prior calendar day. Triggers use `Calendar.current` date components + `timeZone`.
 
 ### Morning weigh drill (2.35.0+)
 

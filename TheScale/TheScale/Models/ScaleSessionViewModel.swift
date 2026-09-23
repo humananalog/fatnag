@@ -1047,12 +1047,13 @@ final class ScaleSessionViewModel: ObservableObject {
 
     /// After leaving sleep: one sergeant weigh ping (prefs + once/morning before 09:00).
     func considerMorningWeighDrill(digest: FitnessDigest? = nil) async {
-        // Refresh Health mass samples so "already weighed today" is not stale.
-        if healthKitAvailable {
+        // Prefer in-memory samples first; only hit Health when we do not already know today's mass.
+        var weighedToday = hasValidWeighInToday()
+        if !weighedToday, healthKitAvailable {
             await refreshHealthBaseline()
+            weighedToday = hasValidWeighInToday()
         }
         let snap = digest ?? lastFitnessDigest
-        let weighedToday = hasValidWeighInToday()
         await MorningWeighDrillScheduler.consider(
             prefs: notificationPreferences,
             profileName: profile.greetingName,

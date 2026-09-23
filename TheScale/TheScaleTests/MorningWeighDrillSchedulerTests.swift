@@ -110,6 +110,50 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         XCTAssertEqual(comps.day, 24)
     }
 
+    func testPendingFireMatchesIntended() {
+        let intended = date(year: 2026, month: 9, day: 24, hour: 7, minute: 30)
+        XCTAssertTrue(
+            MorningWeighDrillScheduler.pendingFireMatchesIntended(
+                pending: intended.addingTimeInterval(5),
+                intended: intended
+            )
+        )
+        XCTAssertFalse(
+            MorningWeighDrillScheduler.pendingFireMatchesIntended(
+                pending: intended.addingTimeInterval(120),
+                intended: intended
+            )
+        )
+        XCTAssertFalse(
+            MorningWeighDrillScheduler.pendingFireMatchesIntended(pending: nil, intended: intended)
+        )
+    }
+
+    func testFallbackPastNineUsesTomorrowLocalMorning() {
+        // 21:46 HKT on Sep 23 → next slot is Sep 24 07:30 HKT (= Sep 23 23:30 UTC).
+        let now = date(year: 2026, month: 9, day: 23, hour: 21, minute: 46)
+        let fire = MorningWeighDrillScheduler.nextFallbackFireDate(
+            hour: 7,
+            minute: 30,
+            alreadyWeighedToday: false,
+            alreadyFiredToday: false,
+            now: now,
+            calendar: calendar,
+            forceTomorrow: true
+        )
+        let comps = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
+        XCTAssertEqual(comps.day, 24)
+        XCTAssertEqual(comps.hour, 7)
+        XCTAssertEqual(comps.minute, 30)
+        // Absolute instant must be 2026-09-23 23:30 UTC when TZ is HKT.
+        var utcCal = Calendar(identifier: .gregorian)
+        utcCal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let utc = utcCal.dateComponents([.day, .hour, .minute], from: fire)
+        XCTAssertEqual(utc.day, 23)
+        XCTAssertEqual(utc.hour, 23)
+        XCTAssertEqual(utc.minute, 30)
+    }
+
     func testDetectWeighInTodayFromRecentHealth() {
         let now = date(year: 2026, month: 9, day: 23, hour: 10, minute: 0)
         let sample = HealthWeightSample(id: UUID(), weightKg: 80, date: now)
