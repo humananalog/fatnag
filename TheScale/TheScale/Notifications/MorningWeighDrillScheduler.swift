@@ -3,10 +3,11 @@ import UserNotifications
 
 /// Out-of-bed sergeant ping: weigh yourself now.
 ///
-/// Two paths (both required when coaching alerts are on):
-/// 1. Sleep-wake ASAP: when FitnessDigest reports a fresh wake, fire in ~1s (BG / scene).
-/// 2. Calendar fallback: non-repeating local trigger at the configured morning clock so
-///    something ALWAYS lands even when HealthKit sleep wake is missing or BG is throttled.
+/// Rules (2.35+):
+/// - Max once per local day (`lastFiredDayKey`).
+/// - Never schedule or fire after 09:00 local.
+/// - If a valid weigh-in already exists today, cancel wake + fallback for today.
+/// - Sleep-wake ASAP when Health has wake; calendar fallback before 09:00 otherwise.
 @MainActor
 enum MorningWeighDrillScheduler {
     static let requestId = "thescale.morning-weigh-drill"
@@ -15,7 +16,6 @@ enum MorningWeighDrillScheduler {
     private static let lastFiredDayKey = "thescale.morningWeighDrill.lastFiredDay"
 
     /// Call after digest refresh / scene active / trend refresh.
-    /// Always re-arms the calendar fallback when the toggle is on.
     static func consider(
         prefs: NotificationPreferences,
         profileName: String,
@@ -35,64 +35,89 @@ enum MorningWeighDrillScheduler {
             return
         }
 
-        // Fallback first: guaranteed pending request whenever coaching morning drill is on.
+        let dayKey = dayStamp(now, calendar: calendar)
+        let alreadyFired = UserDefaults.standard.string(forKey: lastFiredDayKey) == dayKey
+
+        // Already weighed or already fired today: kill today's drills; arm tomorrow only.
+        if alreadyWeighedToday || alreadyFired {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(
+                withIdentifiers: [requestId, fallbackRequestId]
+            )
+            UNUserNotificationCenter.current().removeDeliveredNotifications(
+                withIdentifiers: [requestId]
+            )
+            await scheduleFallback(
+                prefs: prefs,
+                profileName: profileName,
+                forceTomorrow: true,
+                now: now,
+                calendar: calendar
+            )
+            return
+        }
+
+        // Past 09:00 local: do not schedule or deliver today.
+        if !ProfileNumericBounds.isBeforeMorningDeadline(now, calendar: calendar) {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(
+                withIdentifiers: [requestId, fallbackRequestId]
+            )
+            await scheduleFallback(
+                prefs: prefs,
+                profileName: profileName,
+                forceTomorrow: true,
+                now: now,
+                calendar: calendar
+            )
+            return
+        }
+
         await scheduleFallback(
             prefs: prefs,
             profileName: profileName,
-            alreadyWeighedToday: alreadyWeighedToday,
+            forceTomorrow: false,
             now: now,
             calendar: calendar
         )
 
-        guard !alreadyWeighedToday else {
-            UNUserNotificationCenter.current()
-                .removePendingNotificationRequests(withIdentifiers: [requestId])
-            return
-        }
-
         guard let wake = sleepWake else { return }
-
-        let dayKey = dayStamp(now, calendar: calendar)
-        if UserDefaults.standard.string(forKey: lastFiredDayKey) == dayKey {
-            return
-        }
 
         let sinceWake = now.timeIntervalSince(wake)
         // 3 min after wake ... 2.5 h window. Avoid midnight false wakes.
         guard sinceWake >= 3 * 60, sinceWake <= 2.5 * 3600 else { return }
 
         let hour = calendar.component(.hour, from: now)
-        guard (4..<12).contains(hour) else { return }
+        guard (4..<ProfileNumericBounds.morningWeighDeadlineHour).contains(hour) else { return }
 
         await fireASAP(
             prefs: prefs,
             profileName: profileName,
             dayKey: dayKey,
             wake: wake,
-            alreadyWeighedToday: alreadyWeighedToday,
             now: now,
             calendar: calendar
         )
     }
 
     /// Next local morning clock for the fallback sergeant drill (pure; testable).
+    /// Always before 09:00. Rolls to tomorrow when weighed, fired, past slot, or past deadline.
     nonisolated static func nextFallbackFireDate(
         hour: Int,
         minute: Int,
         alreadyWeighedToday: Bool,
         alreadyFiredToday: Bool,
         now: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        forceTomorrow: Bool = false
     ) -> Date {
-        let h = min(max(hour, 0), 23)
-        let m = min(max(minute, 0), 59)
+        let clamped = ProfileNumericBounds.clampMorningFallback(hour: hour, minute: minute)
         var comps = calendar.dateComponents([.year, .month, .day], from: now)
-        comps.hour = h
-        comps.minute = m
+        comps.hour = clamped.hour
+        comps.minute = clamped.minute
         comps.second = 0
         let todaySlot = calendar.date(from: comps) ?? now.addingTimeInterval(3600)
 
-        if alreadyWeighedToday || alreadyFiredToday || todaySlot <= now {
+        let pastDeadline = !ProfileNumericBounds.isBeforeMorningDeadline(now, calendar: calendar)
+        if forceTomorrow || alreadyWeighedToday || alreadyFiredToday || todaySlot <= now || pastDeadline {
             return calendar.date(byAdding: .day, value: 1, to: todaySlot)
                 ?? now.addingTimeInterval(86_400)
         }
@@ -125,12 +150,9 @@ enum MorningWeighDrillScheduler {
     static func markSatisfied(now: Date = Date(), calendar: Calendar = .current) {
         UserDefaults.standard.set(dayStamp(now, calendar: calendar), forKey: lastFiredDayKey)
         UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [requestId, testRequestId])
+            .removePendingNotificationRequests(withIdentifiers: [requestId, testRequestId, fallbackRequestId])
         UNUserNotificationCenter.current()
             .removeDeliveredNotifications(withIdentifiers: [requestId, testRequestId])
-        // Leave fallback so it can re-arm for tomorrow on next consider().
-        UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [fallbackRequestId])
     }
 
     static func cancelAllPending() {
@@ -150,7 +172,7 @@ enum MorningWeighDrillScheduler {
     private static func scheduleFallback(
         prefs: NotificationPreferences,
         profileName: String,
-        alreadyWeighedToday: Bool,
+        forceTomorrow: Bool,
         now: Date,
         calendar: Calendar
     ) async {
@@ -159,11 +181,19 @@ enum MorningWeighDrillScheduler {
         let fireAt = nextFallbackFireDate(
             hour: prefs.morningWeighFallbackHour,
             minute: prefs.morningWeighFallbackMinute,
-            alreadyWeighedToday: alreadyWeighedToday,
+            alreadyWeighedToday: false,
             alreadyFiredToday: alreadyFired,
             now: now,
-            calendar: calendar
+            calendar: calendar,
+            forceTomorrow: forceTomorrow
         )
+
+        // Never schedule a same-day slot at or after 09:00.
+        if calendar.isDate(fireAt, inSameDayAs: now),
+           !ProfileNumericBounds.isBeforeMorningDeadline(fireAt, calendar: calendar)
+        {
+            return
+        }
 
         let content = makeContent(profileName: profileName, variant: .fallback)
         let comps = calendar.dateComponents(
@@ -195,7 +225,6 @@ enum MorningWeighDrillScheduler {
         profileName: String,
         dayKey: String,
         wake: Date,
-        alreadyWeighedToday: Bool,
         now: Date,
         calendar: Calendar
     ) async {
@@ -209,11 +238,10 @@ enum MorningWeighDrillScheduler {
         do {
             try await center.add(request)
             UserDefaults.standard.set(dayKey, forKey: lastFiredDayKey)
-            // Sleep-wake won today: re-arm fallback for tomorrow morning.
             await scheduleFallback(
                 prefs: prefs,
                 profileName: profileName,
-                alreadyWeighedToday: alreadyWeighedToday,
+                forceTomorrow: true,
                 now: now,
                 calendar: calendar
             )

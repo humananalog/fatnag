@@ -78,8 +78,12 @@ struct NotificationPreferences: Equatable, Codable, Sendable {
         self.notifyOnBadTrend = notifyOnBadTrend
         self.weeklyGoalReminders = weeklyGoalReminders
         self.morningWeighDrill = morningWeighDrill
-        self.morningWeighFallbackHour = min(max(morningWeighFallbackHour, 0), 23)
-        self.morningWeighFallbackMinute = min(max(morningWeighFallbackMinute, 0), 59)
+        let clamped = ProfileNumericBounds.clampMorningFallback(
+            hour: morningWeighFallbackHour,
+            minute: morningWeighFallbackMinute
+        )
+        self.morningWeighFallbackHour = clamped.hour
+        self.morningWeighFallbackMinute = clamped.minute
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -95,8 +99,11 @@ struct NotificationPreferences: Equatable, Codable, Sendable {
         notifyOnBadTrend = try c.decodeIfPresent(Bool.self, forKey: .notifyOnBadTrend) ?? true
         weeklyGoalReminders = try c.decodeIfPresent(Bool.self, forKey: .weeklyGoalReminders) ?? true
         morningWeighDrill = try c.decodeIfPresent(Bool.self, forKey: .morningWeighDrill) ?? true
-        morningWeighFallbackHour = try c.decodeIfPresent(Int.self, forKey: .morningWeighFallbackHour) ?? 7
-        morningWeighFallbackMinute = try c.decodeIfPresent(Int.self, forKey: .morningWeighFallbackMinute) ?? 30
+        let hour = try c.decodeIfPresent(Int.self, forKey: .morningWeighFallbackHour) ?? 7
+        let minute = try c.decodeIfPresent(Int.self, forKey: .morningWeighFallbackMinute) ?? 30
+        let clamped = ProfileNumericBounds.clampMorningFallback(hour: hour, minute: minute)
+        morningWeighFallbackHour = clamped.hour
+        morningWeighFallbackMinute = clamped.minute
     }
 
     func encode(to encoder: Encoder) throws {

@@ -15,6 +15,7 @@
 		77A738E9F5444319B38724AA /* HealthKitWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9268209C7548B6B832E710 /* HealthKitWriter.swift */; };
 		8425863436B347BE915C74E8 /* CoreBluetoothScaleScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8BB567BC5A469595541B70 /* CoreBluetoothScaleScanner.swift */; };
 		8C54A511087B4CD1ACD4066D /* ScaleMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E310DE90F9D4E95A8C307F0 /* ScaleMeasurement.swift */; };
+		A1B2C3D4E5F60718293A00PN1 /* ProfileNumericBounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PN1 /* ProfileNumericBounds.swift */; };
 		A1B2C3D4E5F60718293A0001 /* WeightTrend.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1001 /* WeightTrend.swift */; };
 		A1B2C3D4E5F60718293A0002 /* EditableMeasurementDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1002 /* EditableMeasurementDraft.swift */; };
 		A1B2C3D4E5F60718293A0003 /* LiveWeighInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1003 /* LiveWeighInSheet.swift */; };
@@ -140,6 +141,7 @@
 		87EB1E9E2263405C8B1B48F0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		8E22910827A843D494EA2130 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8E310DE90F9D4E95A8C307F0 /* ScaleMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleMeasurement.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10PN1 /* ProfileNumericBounds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileNumericBounds.swift; sourceTree = "<group>"; };
 		98B7D1B4269643799F3CE3B0 /* ScaleSessionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleSessionViewModel.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1001 /* WeightTrend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightTrend.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1002 /* EditableMeasurementDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableMeasurementDraft.swift; sourceTree = "<group>"; };
@@ -329,6 +331,7 @@
 			isa = PBXGroup;
 			children = (
 				8E310DE90F9D4E95A8C307F0 /* ScaleMeasurement.swift */,
+				A1B2C3D4E5F60718293A10PN1 /* ProfileNumericBounds.swift */,
 				98B7D1B4269643799F3CE3B0 /* ScaleSessionViewModel.swift */,
 				A1B2C3D4E5F60718293A1001 /* WeightTrend.swift */,
 				A1B2C3D4E5F60718293A1002 /* EditableMeasurementDraft.swift */,
@@ -702,6 +705,7 @@
 			files = (
 				6F875465CF3841AAAE957421 /* TheScaleApp.swift in Sources */,
 				8C54A511087B4CD1ACD4066D /* ScaleMeasurement.swift in Sources */,
+				A1B2C3D4E5F60718293A00PN1 /* ProfileNumericBounds.swift in Sources */,
 				3B9F0978281C4C8EBE8DADFC /* ScaleSessionViewModel.swift in Sources */,
 				639C1D0FBB9F479E88FDD8E4 /* MiScale2FrameDecoder.swift in Sources */,
 				8425863436B347BE915C74E8 /* CoreBluetoothScaleScanner.swift in Sources */,

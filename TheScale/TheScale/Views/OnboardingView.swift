@@ -291,7 +291,10 @@ struct OnboardingView: View {
                 title: "Height",
                 display: Binding(
                     get: { UnitFormat.height(fromCm: flow.heightCm, system: flow.unitSystem) },
-                    set: { flow.heightCm = UnitFormat.cm(fromHeight: $0, system: flow.unitSystem) }
+                    set: {
+                        let cm = UnitFormat.cm(fromHeight: $0, system: flow.unitSystem)
+                        flow.heightCm = ProfileNumericBounds.clampHeightCm(cm).value
+                    }
                 ),
                 unit: flow.unitSystem.heightLabel,
                 fraction: flow.unitSystem == .metric ? 0 : 1,
@@ -302,41 +305,68 @@ struct OnboardingView: View {
                 title: "Weight",
                 display: Binding(
                     get: { UnitFormat.mass(fromKg: flow.currentWeightKg, system: flow.unitSystem) },
-                    set: { flow.currentWeightKg = UnitFormat.kg(fromMass: $0, system: flow.unitSystem) }
+                    set: {
+                        let kg = UnitFormat.kg(fromMass: $0, system: flow.unitSystem)
+                        flow.currentWeightKg = ProfileNumericBounds.clampWeightKg(kg).value
+                    }
                 ),
                 unit: flow.unitSystem.massLabel,
                 fraction: 1,
                 id: "onboarding.currentWeight"
             )
 
-            HStack {
-                Text("BF% (opt)")
-                Spacer()
-                TextField(
-                    "%",
-                    value: Binding(
-                        get: { flow.startingBodyFatPercent ?? 0 },
-                        set: { flow.startingBodyFatPercent = $0 > 0.5 ? $0 : nil }
-                    ),
-                    format: .number.precision(.fractionLength(1))
-                )
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 56)
-                .accessibilityIdentifier("onboarding.startingBodyFat")
-                Text("%").foregroundStyle(steel)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Body fat % (optional)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
+                Text("Only if you already know it (DEXA, calipers, prior scale). Leave blank if unknown. Typical range about 3-60%.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+                HStack {
+                    TextField(
+                        "e.g. 18.5",
+                        text: Binding(
+                            get: {
+                                flow.startingBodyFatPercent.map { String(format: "%.1f", $0) } ?? ""
+                            },
+                            set: { raw in
+                                let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                                if trimmed.isEmpty {
+                                    flow.startingBodyFatPercent = nil
+                                    return
+                                }
+                                guard let value = Double(trimmed.replacingOccurrences(of: ",", with: ".")) else {
+                                    return
+                                }
+                                flow.startingBodyFatPercent = ProfileNumericBounds.clampOptionalBodyFatPercent(value).value
+                            }
+                        )
+                    )
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 72)
+                    .accessibilityIdentifier("onboarding.startingBodyFat")
+                    Text("%").foregroundStyle(steel)
+                }
             }
-            .font(.body.weight(.medium))
 
-            TextField(
-                "Medical / habits (opt)",
-                text: $flow.healthContextNotes,
-                axis: .vertical
-            )
-            .lineLimit(2...3)
-            .padding(10)
-            .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .accessibilityIdentifier("onboarding.healthContext")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Medical / habits (optional)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
+                Text("Injuries, meds, alcohol, sleep quirks. On-device Coach context only.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+                TextField(
+                    "e.g. knee tweak, weekend wine",
+                    text: $flow.healthContextNotes,
+                    axis: .vertical
+                )
+                .lineLimit(2...3)
+                .padding(10)
+                .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityIdentifier("onboarding.healthContext")
+            }
 
             Spacer(minLength: 0)
         }

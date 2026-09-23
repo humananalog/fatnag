@@ -13,6 +13,11 @@ struct SettingsView: View {
     @State private var healthBackgroundLine = "Health background: checking..."
     @State private var samplePingNote: String?
     @State private var drillTestNote: String?
+    @State private var heightValidationNote: String?
+    @State private var ageValidationNote: String?
+    @State private var weightValidationNote: String?
+    @State private var bodyFatValidationNote: String?
+    @State private var bodyFatText: String = ""
     @State private var showPaywall = false
     @State private var exportShareURL: URL?
     @State private var showEraseConfirm = false
@@ -21,7 +26,7 @@ struct SettingsView: View {
 
     private enum Field: Hashable {
         case name, height, age, targetWeight, bodyFat
-        case location, ethnicity, language, vibe, avoidances
+        case location, ethnicity, language, vibe, avoidances, healthContext
         case reference, offset
         case preSleepWindow, preSleepHR
     }
@@ -57,6 +62,7 @@ struct SettingsView: View {
             .padding(.vertical, 16)
         }
         .task {
+            syncBodyFatTextFromProfile()
             await refreshNotificationStatus()
             await subscription.refresh()
         }
@@ -272,104 +278,150 @@ struct SettingsView: View {
                 Text("Profile")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("On-device for body fat, greetings, and Coach tone.")
+                Text("On-device for body fat estimates, greetings, and Coach tone.")
                     .font(.footnote)
                     .foregroundStyle(steel)
 
-                fieldRow("Name") {
-                    TextField("Name", text: $session.profile.displayName)
+                labeledField(
+                    title: "Name",
+                    help: "What Keel calls you in drills and chat."
+                ) {
+                    TextField("Your first name", text: $session.profile.displayName)
                         .focused($focusedField, equals: .name)
-                        .multilineTextAlignment(.trailing)
                         .textContentType(.givenName)
                 }
 
+                Text("Units")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
                 Picker("Units", selection: $session.preferredUnits) {
                     ForEach(PreferredUnitSystem.allCases) { system in
                         Text(system.shortTitle).tag(system)
                     }
                 }
                 .pickerStyle(.segmented)
-
                 Text("Weight, height, portions, meal plan, and Coach use this. Health stays metric under the hood.")
                     .font(.caption2)
                     .foregroundStyle(steel)
 
-                fieldRow("Height") {
-                    TextField(
-                        session.preferredUnits.heightLabel,
-                        value: Binding(
-                            get: {
-                                UnitFormat.height(fromCm: session.profile.heightCm, system: session.preferredUnits)
-                            },
-                            set: { display in
-                                session.profile.heightCm = UnitFormat.cm(fromHeight: display, system: session.preferredUnits)
-                            }
-                        ),
-                        format: .number.precision(.fractionLength(session.preferredUnits == .metric ? 0 : 1))
-                    )
-                    .focused($focusedField, equals: .height)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 72)
-                    Text(session.preferredUnits.heightLabel).foregroundStyle(steel)
+                labeledField(
+                    title: "Height",
+                    help: "Used for BMI and body-fat math. About 120-250 cm / 3'11\"-8'2\"."
+                ) {
+                    HStack(spacing: 6) {
+                        TextField(
+                            session.preferredUnits.heightLabel,
+                            value: Binding(
+                                get: {
+                                    UnitFormat.height(fromCm: session.profile.heightCm, system: session.preferredUnits)
+                                },
+                                set: { display in
+                                    let cm = UnitFormat.cm(fromHeight: display, system: session.preferredUnits)
+                                    let result = ProfileNumericBounds.clampHeightCm(cm)
+                                    session.profile.heightCm = result.value
+                                    heightValidationNote = result.message
+                                }
+                            ),
+                            format: .number.precision(.fractionLength(session.preferredUnits == .metric ? 0 : 1))
+                        )
+                        .focused($focusedField, equals: .height)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(minWidth: 64)
+                        Text(session.preferredUnits.heightLabel)
+                            .foregroundStyle(steel)
+                    }
+                }
+                if let heightValidationNote {
+                    validationLine(heightValidationNote)
                 }
 
-                fieldRow("Age") {
-                    TextField(
-                        "years",
-                        value: Binding(
-                            get: { session.profile.ageYears },
-                            set: { raw in
-                                let clamped = min(UserBodyProfile.maximumAgeYears, max(UserBodyProfile.minimumAgeYears, raw.rounded()))
-                                session.profile.ageYears = clamped
-                            }
-                        ),
-                        format: .number.precision(.fractionLength(0))
-                    )
-                    .focused($focusedField, equals: .age)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 72)
-                    Text("yr").foregroundStyle(steel)
+                labeledField(
+                    title: "Age",
+                    help: "Adults only. 18 to 100."
+                ) {
+                    HStack(spacing: 6) {
+                        TextField(
+                            "years",
+                            value: Binding(
+                                get: { session.profile.ageYears },
+                                set: { raw in
+                                    let result = ProfileNumericBounds.clampAgeYears(raw)
+                                    session.profile.ageYears = result.value
+                                    ageValidationNote = result.message
+                                }
+                            ),
+                            format: .number.precision(.fractionLength(0))
+                        )
+                        .focused($focusedField, equals: .age)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(minWidth: 64)
+                        Text("years").foregroundStyle(steel)
+                    }
                 }
-                Text("18 or older.")
-                    .font(.caption2)
-                    .foregroundStyle(steel)
-
-                fieldRow("Target weight") {
-                    TextField(
-                        session.preferredUnits.massLabel,
-                        value: Binding(
-                            get: {
-                                UnitFormat.mass(fromKg: session.profile.idealWeightKg, system: session.preferredUnits)
-                            },
-                            set: { display in
-                                session.profile.idealWeightKg = UnitFormat.kg(fromMass: display, system: session.preferredUnits)
-                            }
-                        ),
-                        format: .number.precision(.fractionLength(1))
-                    )
-                    .focused($focusedField, equals: .targetWeight)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 72)
-                    Text(session.preferredUnits.massLabel).foregroundStyle(steel)
+                if let ageValidationNote {
+                    validationLine(ageValidationNote)
                 }
 
-                fieldRow("Target body fat") {
-                    TextField(
-                        "%",
-                        value: Binding(
-                            get: { session.profile.idealBodyFatPercent ?? 0 },
-                            set: { session.profile.idealBodyFatPercent = $0 > 0.05 ? $0 : nil }
-                        ),
-                        format: .number.precision(.fractionLength(1))
-                    )
-                    .focused($focusedField, equals: .bodyFat)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 72)
-                    Text("%").foregroundStyle(steel)
+                labeledField(
+                    title: "Dream / target weight",
+                    help: "Where you want the scale to land. Clamped to a realistic human range for your height."
+                ) {
+                    HStack(spacing: 6) {
+                        TextField(
+                            session.preferredUnits.massLabel,
+                            value: Binding(
+                                get: {
+                                    UnitFormat.mass(fromKg: session.profile.idealWeightKg, system: session.preferredUnits)
+                                },
+                                set: { display in
+                                    let kg = UnitFormat.kg(fromMass: display, system: session.preferredUnits)
+                                    let result = ProfileNumericBounds.clampIdealWeightKg(
+                                        kg,
+                                        heightCm: session.profile.heightCm,
+                                        currentKg: session.healthBaselineKg ?? session.profile.startingWeightKg
+                                    )
+                                    session.profile.idealWeightKg = result.value
+                                    weightValidationNote = result.message
+                                }
+                            ),
+                            format: .number.precision(.fractionLength(1))
+                        )
+                        .focused($focusedField, equals: .targetWeight)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(minWidth: 64)
+                        Text(session.preferredUnits.massLabel).foregroundStyle(steel)
+                    }
+                }
+                if let weightValidationNote {
+                    validationLine(weightValidationNote)
+                }
+
+                labeledField(
+                    title: "Body fat % (optional)",
+                    help: "Your known body-fat percentage if you have one (DEXA, calipers, prior scale). Leave blank if unknown. Typical adult range about 3-60%."
+                ) {
+                    HStack(spacing: 6) {
+                        TextField("e.g. 18.5", text: $bodyFatText)
+                            .focused($focusedField, equals: .bodyFat)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(minWidth: 72)
+                            .onChange(of: bodyFatText) { _, newValue in
+                                applyBodyFatText(newValue)
+                            }
+                            .onChange(of: focusedField) { _, field in
+                                if field != .bodyFat {
+                                    syncBodyFatTextFromProfile()
+                                }
+                            }
+                        Text("%").foregroundStyle(steel)
+                    }
+                }
+                if let bodyFatValidationNote {
+                    validationLine(bodyFatValidationNote)
                 }
 
                 DatePicker(
@@ -397,6 +449,9 @@ struct SettingsView: View {
                 )
                 .font(.footnote)
 
+                Text("Gender")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
                 Picker("Gender", selection: $session.profile.sex) {
                     ForEach(UserBodyProfile.Sex.allCases) { sex in
                         Text(sex.title).tag(sex)
@@ -405,6 +460,12 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("settings.gender")
 
+                Text("Diet")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
+                Text("How you eat most days. Drives meal-plan tone.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
                 Picker("Diet", selection: Binding(
                     get: { session.profile.dietPreference },
                     set: {
@@ -420,6 +481,62 @@ struct SettingsView: View {
                 .pickerStyle(.menu)
                 .accessibilityIdentifier("settings.diet")
             }
+        }
+    }
+
+    private func labeledField<Content: View>(
+        title: String,
+        help: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(ink)
+            Text(help)
+                .font(.caption2)
+                .foregroundStyle(steel)
+                .fixedSize(horizontal: false, vertical: true)
+            content()
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.55), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+
+    private func validationLine(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(Color.orange)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("settings.validation")
+    }
+
+    private func syncBodyFatTextFromProfile() {
+        if let pct = session.profile.idealBodyFatPercent {
+            bodyFatText = String(format: "%.1f", pct)
+        } else {
+            bodyFatText = ""
+        }
+        bodyFatValidationNote = nil
+    }
+
+    private func applyBodyFatText(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            session.profile.idealBodyFatPercent = nil
+            bodyFatValidationNote = nil
+            return
+        }
+        guard let value = Double(trimmed.replacingOccurrences(of: ",", with: ".")) else {
+            bodyFatValidationNote = "Body fat % must be a number, or leave blank if unknown."
+            return
+        }
+        let result = ProfileNumericBounds.clampOptionalBodyFatPercent(value)
+        session.profile.idealBodyFatPercent = result.value
+        bodyFatValidationNote = result.message
+        if let clamped = result.value, result.message != nil {
+            bodyFatText = String(format: "%.1f", clamped)
         }
     }
 
@@ -444,43 +561,87 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(steel)
 
-                TextField("Location (e.g. Manila, Hong Kong)", text: $session.profile.location)
-                    .focused($focusedField, equals: .location)
+                labeledField(
+                    title: "Location",
+                    help: "City or region (e.g. Hong Kong, Manila). Helps meal staples and nearby fitness when the toggle below is on."
+                ) {
+                    TextField("City or region", text: $session.profile.location)
+                        .focused($focusedField, equals: .location)
+                        .textContentType(.addressCity)
+                }
                 Toggle(isOn: $session.profile.useLocalContext) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Use for local food and fitness")
+                        Text("Use location for local food and fitness")
                             .font(.footnote.weight(.semibold))
-                        Text("Markets, meal staples, and nearby fitness when on.")
+                        Text("Markets, meal staples, and nearby options when on.")
                             .font(.caption2)
                             .foregroundStyle(steel)
                     }
                 }
                 .accessibilityIdentifier("settings.useLocalContext")
-                TextField(
-                    "Avoid (allergies, hard nos)",
-                    text: Binding(
-                        get: { session.profile.foodAvoidances },
-                        set: {
-                            session.profile.foodAvoidances = $0
-                            session.profile.foodAvoidancesConfirmed = true
-                        }
-                    ),
-                    axis: .vertical
-                )
-                .focused($focusedField, equals: .avoidances)
-                .lineLimit(2...4)
-                .accessibilityIdentifier("settings.foodAvoidances")
-                TextField("Ethnicity / culture", text: $session.profile.ethnicity)
-                    .focused($focusedField, equals: .ethnicity)
-                TextField("Preferred language", text: $session.profile.preferredLanguage)
-                    .focused($focusedField, equals: .language)
-                TextField(
-                    "Vibe (short coach-facing note)",
-                    text: $session.profile.culturalVibe,
-                    axis: .vertical
-                )
-                .focused($focusedField, equals: .vibe)
-                .lineLimit(2...4)
+
+                labeledField(
+                    title: "Food avoidances / allergies",
+                    help: "Hard nos for meal plans (peanuts, shellfish, no dairy). Leave blank if none."
+                ) {
+                    TextField(
+                        "e.g. peanuts, shellfish",
+                        text: Binding(
+                            get: { session.profile.foodAvoidances },
+                            set: {
+                                session.profile.foodAvoidances = $0
+                                session.profile.foodAvoidancesConfirmed = true
+                            }
+                        ),
+                        axis: .vertical
+                    )
+                    .focused($focusedField, equals: .avoidances)
+                    .lineLimit(2...4)
+                    .accessibilityIdentifier("settings.foodAvoidances")
+                }
+
+                labeledField(
+                    title: "Medical / habits (optional)",
+                    help: "Injuries, meds, alcohol, sleep quirks. On-device Coach context only; not a diagnosis."
+                ) {
+                    TextField(
+                        "e.g. knee tweak, weekend wine",
+                        text: $session.profile.healthContextNotes,
+                        axis: .vertical
+                    )
+                    .focused($focusedField, equals: .healthContext)
+                    .lineLimit(2...4)
+                    .accessibilityIdentifier("settings.healthContext")
+                }
+
+                labeledField(
+                    title: "Ethnicity / culture (optional)",
+                    help: "Only what you want Keel to respect in tone and food examples."
+                ) {
+                    TextField("Optional", text: $session.profile.ethnicity)
+                        .focused($focusedField, equals: .ethnicity)
+                }
+
+                labeledField(
+                    title: "Preferred language",
+                    help: "Language for Coach replies when live Keel is on."
+                ) {
+                    TextField("e.g. English, French", text: $session.profile.preferredLanguage)
+                        .focused($focusedField, equals: .language)
+                }
+
+                labeledField(
+                    title: "Vibe / cultural style (optional)",
+                    help: "Short coach-facing note (e.g. direct, soft, Filipina in HK)."
+                ) {
+                    TextField(
+                        "Short note for Keel",
+                        text: $session.profile.culturalVibe,
+                        axis: .vertical
+                    )
+                    .focused($focusedField, equals: .vibe)
+                    .lineLimit(2...4)
+                }
 
                 Divider().padding(.vertical, 4)
 
@@ -589,13 +750,13 @@ struct SettingsView: View {
                         }
                     )
                 )
-                Text("Sleep-wake ASAP when Health has wake time. Calendar fallback always arms at the clock below so Coach still drills when sleep data is soft.")
+                Text("Sleep-wake ASAP when Health has wake time (before 9:00). Calendar fallback arms before 9:00 only. Skips the day once you have already weighed.")
                     .font(.caption2)
                     .foregroundStyle(steel)
 
                 if session.notificationPreferences.morningWeighDrill {
                     HStack {
-                        Text("Fallback clock")
+                        Text("Fallback clock (before 9:00)")
                             .font(.caption)
                             .foregroundStyle(steel)
                         Spacer()
@@ -613,9 +774,13 @@ struct SettingsView: View {
                                 },
                                 set: {
                                     let comps = Calendar.current.dateComponents([.hour, .minute], from: $0)
+                                    let clamped = ProfileNumericBounds.clampMorningFallback(
+                                        hour: comps.hour ?? 7,
+                                        minute: comps.minute ?? 30
+                                    )
                                     var next = session.notificationPreferences
-                                    next.morningWeighFallbackHour = comps.hour ?? 7
-                                    next.morningWeighFallbackMinute = comps.minute ?? 30
+                                    next.morningWeighFallbackHour = clamped.hour
+                                    next.morningWeighFallbackMinute = clamped.minute
                                     session.notificationPreferences = next
                                     Task {
                                         await session.considerMorningWeighDrill()

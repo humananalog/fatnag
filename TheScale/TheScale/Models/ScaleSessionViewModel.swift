@@ -1045,19 +1045,50 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
 
-    /// After leaving sleep: one sergeant weigh ping (prefs + once/morning).
+    /// After leaving sleep: one sergeant weigh ping (prefs + once/morning before 09:00).
     func considerMorningWeighDrill(digest: FitnessDigest? = nil) async {
+        // Refresh Health mass samples so "already weighed today" is not stale.
+        if healthKitAvailable {
+            await refreshHealthBaseline()
+        }
         let snap = digest ?? lastFitnessDigest
-        let weighedToday: Bool = {
-            guard let last = historyWeights.last?.date else { return false }
-            return Calendar.current.isDateInToday(last)
-        }()
+        let weighedToday = hasValidWeighInToday()
         await MorningWeighDrillScheduler.consider(
             prefs: notificationPreferences,
             profileName: profile.greetingName,
             sleepWake: snap?.sleepWake,
             alreadyWeighedToday: weighedToday
         )
+    }
+
+    /// True when Apple Health bodyMass and/or an in-app save already logged mass today.
+    func hasValidWeighInToday(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        Self.detectWeighInToday(
+            historyWeights: historyWeights,
+            trendWeights: historyTrendWindowWeights,
+            recentWeights: recentHealthWeights,
+            now: now,
+            calendar: calendar
+        )
+    }
+
+    nonisolated static func detectWeighInToday(
+        historyWeights: [HealthMetricSample],
+        trendWeights: [HealthMetricSample],
+        recentWeights: [HealthWeightSample],
+        now: Date,
+        calendar: Calendar = .current
+    ) -> Bool {
+        if historyWeights.contains(where: { calendar.isDate($0.date, inSameDayAs: now) }) {
+            return true
+        }
+        if trendWeights.contains(where: { calendar.isDate($0.date, inSameDayAs: now) }) {
+            return true
+        }
+        if recentWeights.contains(where: { calendar.isDate($0.date, inSameDayAs: now) }) {
+            return true
+        }
+        return false
     }
 
     func presentSettings() {

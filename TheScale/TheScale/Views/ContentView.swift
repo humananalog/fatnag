@@ -92,24 +92,8 @@ struct ContentView: View {
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory {
-            if session.homeTab == .weigh {
-                Button {
-                    if session.selectedScaleID != nil {
-                        session.reopenWeighIn()
-                    } else {
-                        session.presentManualEntry()
-                    }
-                } label: {
-                    Label("Weigh now", systemImage: "scalemass.fill")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color(red: 0.12, green: 0.42, blue: 0.30))
-                .accessibilityLabel("Weigh now")
-            }
-        }
+        // Weigh-now lives inside the Weigh tab only. A conditional
+        // `tabViewBottomAccessory` left a blank white chrome bar on Settings / Coach / etc.
         .preferredColorScheme(.light)
         #if DEBUG
         .sheet(isPresented: $showDebugTools) {
@@ -193,6 +177,24 @@ struct ContentView: View {
                 #if DEBUG
                 debugOverlay
                 #endif
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Button {
+                    if session.selectedScaleID != nil {
+                        session.reopenWeighIn()
+                    } else {
+                        session.presentManualEntry()
+                    }
+                } label: {
+                    Label("Weigh now", systemImage: "scalemass.fill")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color(red: 0.12, green: 0.42, blue: 0.30))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .accessibilityLabel("Weigh now")
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)

@@ -89,7 +89,10 @@ final class OnboardingFlowModel: ObservableObject {
         case .body:
             return isAdultAge && hasChosenGender && !isInferring
         case .anatomy:
-            return heightCm >= 100 && heightCm <= 250
+            return heightCm >= ProfileNumericBounds.heightCm.lowerBound
+                && heightCm <= ProfileNumericBounds.heightCm.upperBound
+                && currentWeightKg >= ProfileNumericBounds.weightKg.lowerBound
+                && currentWeightKg <= ProfileNumericBounds.weightKg.upperBound
                 && currentWeightKg >= 30 && currentWeightKg <= 300
                 && !isInferring
         case .dream:
@@ -314,8 +317,12 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func clampIdealToBounds() {
-        let bounds = dreamBoundsKg
-        idealKg = min(max(idealKg, bounds.lowerBound), bounds.upperBound)
+        let result = ProfileNumericBounds.clampIdealWeightKg(
+            idealKg,
+            heightCm: heightCm,
+            currentKg: currentWeightKg
+        )
+        idealKg = result.value
     }
 
     /// Seed weekly mini-goal from dream weight + date (AggressiveWeeklyTargetEngine).
