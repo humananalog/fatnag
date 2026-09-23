@@ -177,6 +177,99 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
                 calendar: calendar
             )
         )
+        let junk = HealthWeightSample(id: UUID(), weightKg: 0, date: now)
+        XCTAssertFalse(
+            ScaleSessionViewModel.detectWeighInToday(
+                historyWeights: [],
+                trendWeights: [],
+                recentWeights: [junk],
+                now: now,
+                calendar: calendar
+            )
+        )
+    }
+
+    func testAutoPresentRequiresStablePlausibleAndNotWeighed() {
+        XCTAssertTrue(
+            ScaleSessionViewModel.shouldAutoPresentLiveSheet(
+                isAlreadyPresented: false,
+                isAutoPresenting: false,
+                alreadyWeighedToday: false,
+                purpose: .normal,
+                isEditingDraft: false,
+                cooldownActive: false,
+                measurementStabilized: true,
+                weightKg: 78.2,
+                phaseAllowsAutoOpen: true
+            )
+        )
+        XCTAssertFalse(
+            ScaleSessionViewModel.shouldAutoPresentLiveSheet(
+                isAlreadyPresented: false,
+                isAutoPresenting: false,
+                alreadyWeighedToday: false,
+                purpose: .normal,
+                isEditingDraft: false,
+                cooldownActive: false,
+                measurementStabilized: false,
+                weightKg: 78.2,
+                phaseAllowsAutoOpen: true
+            ),
+            "Unstable ad blips must not open the sheet"
+        )
+        XCTAssertFalse(
+            ScaleSessionViewModel.shouldAutoPresentLiveSheet(
+                isAlreadyPresented: false,
+                isAutoPresenting: false,
+                alreadyWeighedToday: true,
+                purpose: .normal,
+                isEditingDraft: false,
+                cooldownActive: false,
+                measurementStabilized: true,
+                weightKg: 78.2,
+                phaseAllowsAutoOpen: true
+            )
+        )
+        XCTAssertFalse(
+            ScaleSessionViewModel.shouldAutoPresentLiveSheet(
+                isAlreadyPresented: false,
+                isAutoPresenting: false,
+                alreadyWeighedToday: false,
+                purpose: .normal,
+                isEditingDraft: false,
+                cooldownActive: true,
+                measurementStabilized: true,
+                weightKg: 78.2,
+                phaseAllowsAutoOpen: true
+            )
+        )
+        XCTAssertFalse(
+            ScaleSessionViewModel.shouldAutoPresentLiveSheet(
+                isAlreadyPresented: false,
+                isAutoPresenting: false,
+                alreadyWeighedToday: false,
+                purpose: .normal,
+                isEditingDraft: false,
+                cooldownActive: false,
+                measurementStabilized: true,
+                weightKg: 0,
+                phaseAllowsAutoOpen: true
+            )
+        )
+        XCTAssertFalse(
+            ScaleSessionViewModel.shouldAutoPresentLiveSheet(
+                isAlreadyPresented: true,
+                isAutoPresenting: false,
+                alreadyWeighedToday: false,
+                purpose: .normal,
+                isEditingDraft: false,
+                cooldownActive: false,
+                measurementStabilized: true,
+                weightKg: 78.2,
+                phaseAllowsAutoOpen: true
+            ),
+            "No double-present"
+        )
     }
 
     func testNotificationPreferencesDefaultMorningDrillOn() {
@@ -214,6 +307,17 @@ final class ProfileNumericBoundsTests: XCTestCase {
     func testWeightClamp() {
         XCTAssertEqual(ProfileNumericBounds.clampWeightKg(10).value, 30, accuracy: 0.01)
         XCTAssertEqual(ProfileNumericBounds.clampWeightKg(400).value, 300, accuracy: 0.01)
+    }
+
+    func testPlausibleWeighKgRejectsZeroAndOutOfBounds() {
+        XCTAssertFalse(ProfileNumericBounds.isPlausibleWeighKg(0))
+        XCTAssertFalse(ProfileNumericBounds.isPlausibleWeighKg(-1))
+        XCTAssertFalse(ProfileNumericBounds.isPlausibleWeighKg(10))
+        XCTAssertFalse(ProfileNumericBounds.isPlausibleWeighKg(400))
+        XCTAssertFalse(ProfileNumericBounds.isPlausibleWeighKg(.nan))
+        XCTAssertTrue(ProfileNumericBounds.isPlausibleWeighKg(70))
+        XCTAssertNotNil(ProfileNumericBounds.rejectWeighKgMessage(0))
+        XCTAssertNil(ProfileNumericBounds.rejectWeighKgMessage(72.4))
     }
 
     func testBodyFatOptional() {

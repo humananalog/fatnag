@@ -59,16 +59,38 @@ enum ProfileNumericBounds {
             return ClampResult(
                 value: clamped,
                 didClamp: true,
-                message: String(
-                    format: "Weight must be between %.0f and %.0f kg (about %.0f-%.0f lb).",
-                    weightKg.lowerBound,
-                    weightKg.upperBound,
-                    weightKg.lowerBound * 2.20462,
-                    weightKg.upperBound * 2.20462
-                )
+                message: weighRangeMessage
             )
         }
         return ClampResult(value: clamped, didClamp: false, message: nil)
+    }
+
+    /// True when kg is finite and inside absolute human mass bounds (not 0 / junk).
+    /// Use for Health writes, auto-confirm, and hero. Calibration reference masses may be smaller.
+    static func isPlausibleWeighKg(_ kg: Double) -> Bool {
+        kg.isFinite && kg >= weightKg.lowerBound && kg <= weightKg.upperBound
+    }
+
+    /// Reject message for impossible live / manual / auto-confirm mass. Nil when ok.
+    static func rejectWeighKgMessage(_ kg: Double) -> String? {
+        guard !isPlausibleWeighKg(kg) else { return nil }
+        if !kg.isFinite {
+            return "Weight must be a real number."
+        }
+        if kg <= 0.05 {
+            return "Weight must be greater than 0 kg."
+        }
+        return weighRangeMessage
+    }
+
+    private static var weighRangeMessage: String {
+        String(
+            format: "Weight must be between %.0f and %.0f kg (about %.0f-%.0f lb).",
+            weightKg.lowerBound,
+            weightKg.upperBound,
+            weightKg.lowerBound * 2.20462,
+            weightKg.upperBound * 2.20462
+        )
     }
 
     /// Ideal / dream weight: absolute human bounds, then optional BMI-aware range.

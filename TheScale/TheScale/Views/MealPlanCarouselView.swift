@@ -88,7 +88,11 @@ struct MealPlanCarouselView: View {
                     .disabled(session.isMealPlanLoading)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Weigh") { session.selectHomeTab(.weigh) }
+                    if session.hasValidWeighInToday() {
+                        Button("Manual") { session.presentManualEntry() }
+                    } else {
+                        Button("Weigh") { session.selectHomeTab(.weigh) }
+                    }
                 }
             }
             .task {

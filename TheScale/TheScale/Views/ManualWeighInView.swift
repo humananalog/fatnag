@@ -18,8 +18,18 @@ struct ManualWeighInView: View {
 
     private var parsedKg: Double? {
         let normalized = weightText.replacingOccurrences(of: ",", with: ".")
-        guard let value = Double(normalized), value > 0.05, value < 400 else { return nil }
+        guard let value = Double(normalized) else { return nil }
+        guard ProfileNumericBounds.isPlausibleWeighKg(value) else { return nil }
         return value
+    }
+
+    private var weightValidationHint: String? {
+        let normalized = weightText.replacingOccurrences(of: ",", with: ".")
+        guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        guard let value = Double(normalized) else {
+            return "Enter a number in kilograms."
+        }
+        return ProfileNumericBounds.rejectWeighKgMessage(value)
     }
 
     var body: some View {
@@ -136,6 +146,15 @@ struct ManualWeighInView: View {
                 .foregroundStyle(steel.opacity(0.9))
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
+
+            if let hint = weightValidationHint {
+                Text(hint)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.48, green: 0.12, blue: 0.12))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("manual.weightRejection")
+            }
         }
     }
 

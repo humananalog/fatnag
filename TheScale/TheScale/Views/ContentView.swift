@@ -179,22 +179,36 @@ struct ContentView: View {
                 #endif
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                Button {
-                    if session.selectedScaleID != nil {
-                        session.reopenWeighIn()
-                    } else {
-                        session.presentManualEntry()
+                if session.hasValidWeighInToday() {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.30))
+                        Text("Weighed today")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(atmosphere.ink.opacity(0.78))
+                        Spacer(minLength: 0)
                     }
-                } label: {
-                    Label("Weigh now", systemImage: "scalemass.fill")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .accessibilityLabel("Already weighed today")
+                } else {
+                    Button {
+                        if session.selectedScaleID != nil {
+                            session.reopenWeighIn()
+                        } else {
+                            session.presentManualEntry()
+                        }
+                    } label: {
+                        Label("Weigh now", systemImage: "scalemass.fill")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Color(red: 0.12, green: 0.42, blue: 0.30))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .accessibilityLabel("Weigh now")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Color(red: 0.12, green: 0.42, blue: 0.30))
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .accessibilityLabel("Weigh now")
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -251,12 +265,19 @@ struct ContentView: View {
 
     private func homeStatusLine(compact: Bool) -> some View {
         VStack(spacing: compact ? 6 : 8) {
-            Text(session.phase == .scanning || session.selectedScaleID != nil
-                 ? "Listening…"
-                 : "Step on. Live card opens.")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(atmosphere.ink.opacity(0.78))
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if session.hasValidWeighInToday() {
+                Text("Already weighed today. Progress holds history.")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.ink.opacity(0.78))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text(session.phase == .scanning || session.selectedScaleID != nil
+                     ? "Listening…"
+                     : "Step on. Live card opens when weight settles.")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.ink.opacity(0.78))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
                 Text("Saved to Health")
@@ -454,7 +475,7 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(session.discoveredScales) { scale in
                         Button {
-                            session.selectScale(scale)
+                            session.selectScale(scale, presentSheet: true)
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {

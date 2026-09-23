@@ -37,7 +37,11 @@ struct ProgressSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Weigh") { session.selectHomeTab(.weigh) }
+                    if session.hasValidWeighInToday() {
+                        Button("Manual") { session.presentManualEntry() }
+                    } else {
+                        Button("Weigh") { session.selectHomeTab(.weigh) }
+                    }
                 }
             }
             .onAppear {

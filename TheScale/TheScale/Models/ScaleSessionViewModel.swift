@@ -141,6 +141,8 @@ final class ScaleSessionViewModel: ObservableObject {
     /// True while 10s auto-confirm countdown is armed on the live sheet.
     @Published var autoConfirmArmed = false
     @Published var autoConfirmSecondsRemaining = 10
+    /// Shown when live / auto-confirm / save rejects 0 or out-of-bounds kg.
+    @Published private(set) var weighRejectionMessage: String?
     /// Monday morning post-weigh weekly goal card.
     @Published private(set) var isMondayCardPresented = false
     @Published private(set) var mondayCard: MondayCardPayload?
@@ -165,6 +167,12 @@ final class ScaleSessionViewModel: ObservableObject {
     private var lastAcceptedSignature: String?
     private var impedanceWaitTask: Task<Void, Never>?
     private var lastHomeGaugeRefreshAt: Date?
+    /// Coalesce auto sheet open: ignore BLE reopen until this instant.
+    private var autoSheetCooldownUntil: Date?
+    /// Prevents concurrent discover + decode races from double-presenting.
+    private var isAutoPresentingSheet = false
+    /// Seconds after dismiss before BLE may auto-open again.
+    static let autoSheetCooldownSeconds: TimeInterval = 2.0
 
     init(
         scanner: ScaleScanning,
@@ -329,7 +337,9 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
 
-    func selectScale(_ scale: DiscoveredScale) {
+    /// Focus a discovered scale. Pass `presentSheet: true` for explicit user taps only.
+    /// Passive BLE discovery must not present (avoids sheet thrash on noisy ads).
+    func selectScale(_ scale: DiscoveredScale, presentSheet: Bool = true) {
         cancelImpedanceWait()
         selectedScaleID = scale.id
         scanner.focus(on: scale.id)
@@ -340,16 +350,16 @@ final class ScaleSessionViewModel: ObservableObject {
         } else {
             liveHint = "Listening for broadcasts from \(scale.name). Step on barefoot for body composition."
         }
-        isWeighInPresented = true
+        if presentSheet {
+            presentLiveSheetCoalesced(userInitiated: true)
+        }
         Task { await refreshHealthBaseline() }
-        syncWeighInLiveActivity(starting: true)
     }
 
     func reopenWeighIn() {
         guard selectedScaleID != nil else { return }
         weighInPurpose = .normal
-        isWeighInPresented = true
-        syncWeighInLiveActivity(starting: true)
+        presentLiveSheetCoalesced(userInitiated: true)
     }
 
     /// Primary calibration path: same live sheet as weigh-in, after the user sets reference mass.
@@ -386,16 +396,20 @@ final class ScaleSessionViewModel: ObservableObject {
 
     func dismissWeighIn() {
         isWeighInPresented = false
+        isAutoPresentingSheet = false
         isEditingDraft = false
         autoConfirmArmed = false
+        weighRejectionMessage = nil
         weighInPurpose = .normal
+        // Cooldown stops dismiss → immediate BLE re-open thrash.
+        autoSheetCooldownUntil = Date().addingTimeInterval(Self.autoSheetCooldownSeconds)
         WeighInLiveActivityController.end()
         if case .healthKitSuccess = phase {
             // Keep success state on home / results.
         } else if case .reviewing = phase {
             phase = .ready
         }
-        // Resume passive listen so the next step-on still auto-opens.
+        // Resume passive listen so the next confirmed step-on still auto-opens.
         startPassiveListening()
     }
 
@@ -406,8 +420,36 @@ final class ScaleSessionViewModel: ObservableObject {
 
     func armAutoConfirm(seconds: Int = 10) {
         guard weighInPurpose == .normal, !isEditingDraft else { return }
+        guard let kg = displayWeightKg, ProfileNumericBounds.isPlausibleWeighKg(kg) else {
+            cancelAutoConfirm()
+            if let kg = displayWeightKg, let message = ProfileNumericBounds.rejectWeighKgMessage(kg) {
+                weighRejectionMessage = message
+                liveHint = message
+            }
+            return
+        }
+        weighRejectionMessage = nil
         autoConfirmSecondsRemaining = seconds
         autoConfirmArmed = true
+    }
+
+    /// Clear a rejected impossible reading from the live sheet (UI reset).
+    func clearRejectedWeighReading() {
+        weighRejectionMessage = nil
+        cancelAutoConfirm()
+        latestMeasurement = nil
+        liveWeightKg = nil
+        composition = nil
+        draft = nil
+        isEditingDraft = false
+        impedanceMissingReason = nil
+        lastAcceptedSignature = nil
+        cancelImpedanceWait()
+        if case .ready = phase { phase = selectedScaleID == nil ? .scanning : .listening(scaleName: discoveredScales.first(where: { $0.id == selectedScaleID })?.name ?? "scale") }
+        if case .awaitingImpedance = phase { phase = .listening(scaleName: discoveredScales.first(where: { $0.id == selectedScaleID })?.name ?? "scale") }
+        if case .reviewing = phase { phase = .listening(scaleName: discoveredScales.first(where: { $0.id == selectedScaleID })?.name ?? "scale") }
+        liveHint = "Waiting for a valid weigh. Step on barefoot."
+        syncWeighInLiveActivity(starting: false)
     }
 
     func dismissWeighInAnalysis() {
@@ -1080,16 +1122,47 @@ final class ScaleSessionViewModel: ObservableObject {
         now: Date,
         calendar: Calendar = .current
     ) -> Bool {
-        if historyWeights.contains(where: { calendar.isDate($0.date, inSameDayAs: now) }) {
+        if historyWeights.contains(where: {
+            calendar.isDate($0.date, inSameDayAs: now)
+                && ProfileNumericBounds.isPlausibleWeighKg($0.value)
+        }) {
             return true
         }
-        if trendWeights.contains(where: { calendar.isDate($0.date, inSameDayAs: now) }) {
+        if trendWeights.contains(where: {
+            calendar.isDate($0.date, inSameDayAs: now)
+                && ProfileNumericBounds.isPlausibleWeighKg($0.value)
+        }) {
             return true
         }
-        if recentWeights.contains(where: { calendar.isDate($0.date, inSameDayAs: now) }) {
+        if recentWeights.contains(where: {
+            calendar.isDate($0.date, inSameDayAs: now)
+                && ProfileNumericBounds.isPlausibleWeighKg($0.weightKg)
+        }) {
             return true
         }
         return false
+    }
+
+    /// Pure auto-open gate (unit-tested). Hero is never gated here; that waits on Health save.
+    nonisolated static func shouldAutoPresentLiveSheet(
+        isAlreadyPresented: Bool,
+        isAutoPresenting: Bool,
+        alreadyWeighedToday: Bool,
+        purpose: WeighInPurpose,
+        isEditingDraft: Bool,
+        cooldownActive: Bool,
+        measurementStabilized: Bool,
+        weightKg: Double,
+        phaseAllowsAutoOpen: Bool
+    ) -> Bool {
+        guard !isAlreadyPresented, !isAutoPresenting else { return false }
+        guard purpose == .normal, !isEditingDraft else { return false }
+        guard !alreadyWeighedToday else { return false }
+        guard !cooldownActive else { return false }
+        guard phaseAllowsAutoOpen else { return false }
+        guard measurementStabilized else { return false }
+        guard ProfileNumericBounds.isPlausibleWeighKg(weightKg) else { return false }
+        return true
     }
 
     func presentSettings() {
@@ -1368,6 +1441,11 @@ final class ScaleSessionViewModel: ObservableObject {
 
     /// Mass-only Manual entry → Apple Health (weight + BMI). No fat/lean invented.
     func saveManualWeight(kg: Double, at date: Date) async throws {
+        if let message = ProfileNumericBounds.rejectWeighKgMessage(kg) {
+            weighRejectionMessage = message
+            throw ScaleWeighValidationError.impossibleWeight(message)
+        }
+        weighRejectionMessage = nil
         let draft = EditableMeasurementDraft.manual(weightKg: kg, at: date, profile: profile)
         try await healthStore.requestAuthorizationIfNeeded()
         try await healthStore.write(draft: draft, profile: profile)
@@ -1415,6 +1493,12 @@ final class ScaleSessionViewModel: ObservableObject {
 
     func updateDraftWeight(_ kg: Double) {
         guard var draft else { return }
+        if let message = ProfileNumericBounds.rejectWeighKgMessage(kg) {
+            weighRejectionMessage = message
+            // Keep prior draft mass; do not lock impossible edit into Health path.
+            return
+        }
+        weighRejectionMessage = nil
         draft.weightKg = kg
         draft.recalculate(using: profile)
         self.draft = draft
@@ -1583,6 +1667,15 @@ final class ScaleSessionViewModel: ObservableObject {
             )
         }
         guard let draft else { return }
+        if weighInPurpose == .normal,
+           let message = ProfileNumericBounds.rejectWeighKgMessage(draft.weightKg) {
+            weighRejectionMessage = message
+            liveHint = message
+            cancelAutoConfirm()
+            phase = .ready
+            return
+        }
+        weighRejectionMessage = nil
         phase = .healthKitWriting
         do {
             try await healthStore.requestAuthorizationIfNeeded()
@@ -1612,6 +1705,11 @@ final class ScaleSessionViewModel: ObservableObject {
             WeighInLiveActivityController.end()
             autoConfirmArmed = false
             let weighKg = draft.weightKg
+            // Hero only after confirmed Health save of a plausible kg.
+            guard ProfileNumericBounds.isPlausibleWeighKg(weighKg) else {
+                weighRejectionMessage = ProfileNumericBounds.rejectWeighKgMessage(weighKg)
+                return
+            }
             let previous = recentHealthWeights.dropFirst().first?.weightKg ?? healthBaselineKg
             // Prefer prior sample before this write when available.
             let priorKg: Double? = {
@@ -1682,6 +1780,7 @@ final class ScaleSessionViewModel: ObservableObject {
     private func accept(_ measurement: ScaleMeasurement) {
         rememberRawWeight(measurement.weightKg)
         if !measurement.isStabilized {
+            // Live stream only while sheet already open; never hero / auto-confirm off blips.
             liveWeightKg = measurement.weightKg
             if case .listening = phase {
                 phase = .measuring
@@ -1690,6 +1789,23 @@ final class ScaleSessionViewModel: ObservableObject {
             syncWeighInLiveActivity(starting: false)
             return
         }
+
+        let calibratedPreview = calibration.apply(toRawKg: measurement.weightKg)
+        if weighInPurpose == .normal,
+           let message = ProfileNumericBounds.rejectWeighKgMessage(calibratedPreview) {
+            weighRejectionMessage = message
+            liveHint = message
+            cancelAutoConfirm()
+            liveWeightKg = measurement.weightKg
+            // Do not lock draft / ready / auto-confirm on impossible mass.
+            if isWeighInPresented {
+                // Keep sheet open with clear rejection; wait for a real reading.
+                phase = .measuring
+            }
+            syncWeighInLiveActivity(starting: false)
+            return
+        }
+        weighRejectionMessage = nil
 
         // Never replace a good impedance reading with a later weight-only frame
         // for essentially the same weigh-in (ESPHome clear_impedance defaults false).
@@ -1792,12 +1908,49 @@ final class ScaleSessionViewModel: ObservableObject {
         )
     }
 
+    /// One coalesced present. User taps bypass cooldown and already-weighed auto gate.
+    private func presentLiveSheetCoalesced(userInitiated: Bool) {
+        if isWeighInPresented {
+            syncWeighInLiveActivity(starting: false)
+            return
+        }
+        if !userInitiated {
+            if isAutoPresentingSheet { return }
+            if let until = autoSheetCooldownUntil, Date() < until { return }
+            if hasValidWeighInToday() { return }
+        }
+        isAutoPresentingSheet = true
+        isWeighInPresented = true
+        isAutoPresentingSheet = false
+        syncWeighInLiveActivity(starting: true)
+    }
+
+    private var phaseAllowsBLEAutoOpen: Bool {
+        switch phase {
+        case .scanning, .idle, .healthKitSuccess, .listening, .measuring:
+            return true
+        default:
+            return false
+        }
+    }
+
     private var shouldSurfaceTransientHints: Bool {
         switch phase {
         case .listening, .measuring, .awaitingImpedance:
             return true
         default:
             return false
+        }
+    }
+}
+
+enum ScaleWeighValidationError: LocalizedError {
+    case impossibleWeight(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .impossibleWeight(let message):
+            return message
         }
     }
 }
@@ -1832,6 +1985,7 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
             cancelImpedanceWait()
             phase = .bluetoothUnavailable(message)
             isWeighInPresented = false
+            isAutoPresentingSheet = false
         } else if case .bluetoothUnavailable = phase {
             phase = .idle
         }
@@ -1845,34 +1999,42 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
         }
         discoveredScales.sort { $0.rssi > $1.rssi }
 
-        // Auto-focus strongest scale when passively listening (no Find Scale tap).
+        // Auto-focus strongest scale while passively listening. Do NOT present the sheet
+        // on advertisement alone (that caused flicker / races with decode).
         if selectedScaleID == nil,
            !isWeighInPresented,
            weighInPurpose == .normal,
            (phase == .scanning || phase == .idle || phase == .healthKitSuccess),
            let best = discoveredScales.first {
-            selectScale(best)
+            selectScale(best, presentSheet: false)
         }
     }
 
     private func handleDecode(_ measurement: ScaleMeasurement) {
-        // Auto-open live card on first BLE weight signal when idle/scanning.
-        if !isWeighInPresented, weighInPurpose == .normal, !isEditingDraft {
-            switch phase {
-            case .scanning, .idle, .healthKitSuccess, .listening:
+        let calibratedKg = calibration.apply(toRawKg: measurement.weightKg)
+        let cooldownActive = autoSheetCooldownUntil.map { Date() < $0 } ?? false
+        let shouldOpen = Self.shouldAutoPresentLiveSheet(
+            isAlreadyPresented: isWeighInPresented,
+            isAutoPresenting: isAutoPresentingSheet,
+            alreadyWeighedToday: hasValidWeighInToday(),
+            purpose: weighInPurpose,
+            isEditingDraft: isEditingDraft,
+            cooldownActive: cooldownActive,
+            measurementStabilized: measurement.isStabilized,
+            weightKg: calibratedKg,
+            phaseAllowsAutoOpen: phaseAllowsBLEAutoOpen
+        )
+        if shouldOpen {
+            if selectedScaleID == nil, let best = discoveredScales.first {
+                selectedScaleID = best.id
+                scanner.focus(on: best.id)
+            }
+            if selectedScaleID != nil || !discoveredScales.isEmpty {
                 if selectedScaleID == nil, let best = discoveredScales.first {
                     selectedScaleID = best.id
                     scanner.focus(on: best.id)
                 }
-                if selectedScaleID != nil || !discoveredScales.isEmpty {
-                    if selectedScaleID == nil, let best = discoveredScales.first {
-                        selectedScaleID = best.id
-                        scanner.focus(on: best.id)
-                    }
-                    isWeighInPresented = true
-                }
-            default:
-                break
+                presentLiveSheetCoalesced(userInitiated: false)
             }
         }
 

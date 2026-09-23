@@ -598,6 +598,22 @@ struct LiveWeighInSheet: View {
                 .minimumScaleFactor(0.85)
                 .frame(maxWidth: .infinity)
 
+            if let rejection = session.weighRejectionMessage, !isCalibration {
+                VStack(spacing: 8) {
+                    Text(rejection)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color(red: 0.48, green: 0.12, blue: 0.12))
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("live.weightRejection")
+                    Button("Clear reading") {
+                        session.clearRejectedWeighReading()
+                    }
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.48, green: 0.12, blue: 0.12))
+                    .accessibilityLabel("Clear rejected weight reading")
+                }
+            }
+
             if case .healthKitSuccess = session.phase, !isCalibration {
                 Label("Saved to Apple Health", systemImage: "checkmark.seal.fill")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -691,7 +707,12 @@ struct LiveWeighInSheet: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(ScalePrimaryButtonStyle(accent: atmosphere.accent))
-                .disabled(session.phase == .healthKitWriting || session.displayWeightKg == nil)
+                .disabled(
+                    session.phase == .healthKitWriting
+                        || session.displayWeightKg == nil
+                        || (!isCalibration && !(session.displayWeightKg.map(ProfileNumericBounds.isPlausibleWeighKg) ?? false))
+                        || session.weighRejectionMessage != nil
+                )
             }
         }
         .padding(panelInnerPad)
@@ -709,6 +730,11 @@ struct LiveWeighInSheet: View {
                 session.armAutoConfirm()
             }
         }
+        .onChange(of: session.weighRejectionMessage) { _, message in
+            if message != nil {
+                session.cancelAutoConfirm()
+            }
+        }
         .onAppear {
             if session.phase == .ready, !isCalibration, !session.isEditingDraft {
                 session.armAutoConfirm()
@@ -724,8 +750,14 @@ struct LiveWeighInSheet: View {
             guard session.autoConfirmArmed,
                   session.autoConfirmSecondsRemaining <= 0,
                   !session.isEditingDraft,
-                  session.phase == .ready || session.phase == .reviewing
-            else { return }
+                  session.phase == .ready || session.phase == .reviewing,
+                  session.weighRejectionMessage == nil,
+                  let kg = session.displayWeightKg,
+                  ProfileNumericBounds.isPlausibleWeighKg(kg)
+            else {
+                session.cancelAutoConfirm()
+                return
+            }
             session.cancelAutoConfirm()
             if session.isWeightOnlyReading || session.draft?.includeCompositionInHealth == false {
                 confirmWeightOnly = true

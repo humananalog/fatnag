@@ -59,8 +59,9 @@ struct EditableMeasurementDraft: Equatable, Sendable {
     }
 
     /// Mass-only draft for Manual entry (airports/hotels). Never invents fat/lean.
+    /// Caller must pass a plausible kg (`ProfileNumericBounds.isPlausibleWeighKg`).
     static func manual(weightKg: Double, at date: Date, profile: UserBodyProfile) -> EditableMeasurementDraft {
-        let kg = max(weightKg, 0.1)
+        let kg = weightKg
         return EditableMeasurementDraft(
             weightKg: kg,
             impedanceOhms: nil,
