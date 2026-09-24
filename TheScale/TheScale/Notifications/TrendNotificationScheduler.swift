@@ -18,13 +18,16 @@ enum TrendNotificationScheduler {
             return false
         case .notDetermined:
             do {
+                // Time Sensitive delivery uses the entitlement
+                // (com.apple.developer.usernotifications.time-sensitive) plus
+                // UNNotificationInterruptionLevel.timeSensitive on content.
+                // UNAuthorizationOptions.timeSensitive is deprecated since iOS 15.
                 return try await center.requestAuthorization(
                     options: [
                         .alert,
                         .sound,
                         .badge,
-                        .providesAppNotificationSettings,
-                        .timeSensitive
+                        .providesAppNotificationSettings
                     ]
                 )
             } catch {
