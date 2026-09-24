@@ -161,7 +161,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task {
-                session.refreshAlreadyWeighedToday()
+                await session.reconcileAlreadyWeighedTodayFromHealth()
                 await session.refreshHomeGauges(force: false)
                 await session.considerMorningWeighDrill()
                 await refreshPendingNotifBadge()
@@ -179,20 +179,10 @@ struct ContentView: View {
                 debugOverlay
                 #endif
             }
+            // Exact Weigh Now control: bottom safeAreaInset on Weigh tab only.
+            // Hidden entirely when `alreadyWeighedToday` (Health today and/or local day stamp).
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if session.alreadyWeighedToday {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.30))
-                        Text("Weighed today")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundStyle(atmosphere.ink.opacity(0.78))
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .accessibilityLabel("Already weighed today")
-                } else {
+                if !session.alreadyWeighedToday {
                     Button {
                         if session.selectedScaleID != nil {
                             session.reopenWeighIn()
@@ -208,13 +198,20 @@ struct ContentView: View {
                     .tint(Color(red: 0.12, green: 0.42, blue: 0.30))
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
+                    .accessibilityIdentifier("home.weighNow")
                     .accessibilityLabel("Weigh now")
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
-            .onAppear {
-                session.refreshAlreadyWeighedToday()
+            .task(id: session.homeTab) {
+                guard session.homeTab == .weigh else { return }
+                await session.reconcileAlreadyWeighedTodayFromHealth()
+            }
+            .onChange(of: session.alreadyWeighedToday) { _, weighed in
+                #if DEBUG
+                print("[TheScale] home alreadyWeighedToday=\(weighed)")
+                #endif
             }
         }
     }
@@ -262,37 +259,19 @@ struct ContentView: View {
             adviceBlock(compact: compact)
 
             homeStatusLine(compact: compact)
-            discoveryBlock
             Spacer(minLength: compact ? 12 : 24)
         }
     }
 
+    /// User-facing status only (Health unavailable). No BLE "Listening…" / scan chrome.
     private func homeStatusLine(compact: Bool) -> some View {
-        VStack(spacing: compact ? 6 : 8) {
-            if session.alreadyWeighedToday {
-                Text("Already weighed today. Progress holds history.")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(atmosphere.ink.opacity(0.78))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Text(session.phase == .scanning || session.selectedScaleID != nil
-                     ? "Listening…"
-                     : "Step on. Live card opens when weight settles.")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(atmosphere.ink.opacity(0.78))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            if case .healthKitSuccess = session.phase, !session.isWeighInPresented {
-                Text("Saved to Health")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color(red: 0.06, green: 0.32, blue: 0.20))
-            }
-
+        Group {
             if !session.healthKitAvailable {
                 Text("Health unavailable.")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(atmosphere.ink.opacity(0.7))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, compact ? 2 : 4)
             }
         }
     }
@@ -361,8 +340,8 @@ struct ContentView: View {
         async let baseline: Void = session.refreshHealthBaseline()
         _ = await gauges
         await baseline
+        await session.reconcileAlreadyWeighedTodayFromHealth()
         session.ensureWeeklyGoalBaseline()
-        session.refreshAlreadyWeighedToday()
         await session.refreshWeeklyGoalSurface()
         await session.refreshTrendNotifications()
         ScaleNotificationRouter.openDestination = { destination in
@@ -459,55 +438,6 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
-    }
-
-    @ViewBuilder
-    private var discoveryBlock: some View {
-        switch session.phase {
-        case .scanning where session.discoveredScales.isEmpty:
-            ProgressView()
-                .padding(.top, 16)
-                .tint(atmosphere.ink)
-        case .bluetoothUnavailable(let message):
-            Text(message)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(Color(red: 0.40, green: 0.06, blue: 0.06))
-                .multilineTextAlignment(.center)
-                .padding(.top, 12)
-        default:
-            if session.discoveredScales.isEmpty {
-                EmptyView()
-            } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(session.discoveredScales) { scale in
-                        Button {
-                            session.selectScale(scale, presentSheet: true)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(scale.name)
-                                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(atmosphere.ink)
-                                    Text("RSSI \(scale.rssi) dBm")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(atmosphere.ink.opacity(0.7))
-                                }
-                                Spacer()
-                                if session.selectedScaleID == scale.id {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(atmosphere.ink)
-                                }
-                            }
-                            .padding(.vertical, 14)
-                        }
-                        if scale.id != session.discoveredScales.last?.id {
-                            Divider().opacity(0.35)
-                        }
-                    }
-                }
-                .padding(.top, 8)
-            }
-        }
     }
 }
 

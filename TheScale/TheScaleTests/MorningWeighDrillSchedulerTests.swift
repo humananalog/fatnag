@@ -214,6 +214,22 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         )
     }
 
+    func testDetectWeighInTodayFromHealthEvenWithoutStamp() {
+        let now = date(year: 2026, month: 9, day: 24, hour: 14, minute: 0)
+        let sample = HealthMetricSample(value: 81.2, date: now)
+        XCTAssertTrue(
+            ScaleSessionViewModel.detectWeighInToday(
+                historyWeights: [sample],
+                trendWeights: [],
+                recentWeights: [],
+                localDayStamp: nil,
+                now: now,
+                calendar: calendar
+            ),
+            "Health today sample must hide Weigh Now even when local stamp is missing"
+        )
+    }
+
     func testAutoPresentRequiresStablePlausibleAndNotWeighed() {
         XCTAssertTrue(
             ScaleSessionViewModel.shouldAutoPresentLiveSheet(

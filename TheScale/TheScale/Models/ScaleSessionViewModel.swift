@@ -1124,21 +1124,78 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     /// Recompute published CTA gate from Health arrays + local same-day save stamp.
+    /// When Health already has a plausible today sample, backfill the local stamp so the
+    /// Weigh Now CTA stays hidden even if a later Health read fails.
     @discardableResult
     func refreshAlreadyWeighedToday(now: Date = Date(), calendar: Calendar = .current) -> Bool {
         let next = hasValidWeighInToday(now: now, calendar: calendar)
+        if next {
+            let stamp = Self.localDayStamp(now, calendar: calendar)
+            if Self.loadLocalWeighDayStamp() != stamp {
+                UserDefaults.standard.set(stamp, forKey: Self.localWeighDayKey)
+            }
+        }
         alreadyWeighedToday = next
         return next
     }
 
-    /// Immediate post-save: stamp local day, inject sample into in-memory series, flip published gate.
-    /// Does not wait on HealthKit read-back (which can lag and left Weigh Now stuck on).
+    /// Load Health recent weights (if needed), then refresh the published gate.
+    /// Call on home appear so Health-today samples hide Weigh Now without a prior local stamp.
+    func reconcileAlreadyWeighedTodayFromHealth() async {
+        refreshAlreadyWeighedToday()
+        if alreadyWeighedToday { return }
+        await refreshHealthBaseline()
+        if !alreadyWeighedToday, healthKitAvailable {
+            // Explicit today window in case recent-limit query missed a same-day sample.
+            await refreshTodayHealthWeightsForGate()
+        }
+        refreshAlreadyWeighedToday()
+    }
+
+    /// Immediate post-save: stamp **device local today** (not scale clock), inject sample, flip gate.
+    /// Scale `scaleDate` can be wrong TZ/day and left Weigh Now visible after a real save.
     func markValidWeighInToday(kg: Double, at date: Date = Date(), calendar: Calendar = .current) {
         guard ProfileNumericBounds.isPlausibleWeighKg(kg) else { return }
-        let stamp = Self.localDayStamp(date, calendar: calendar)
+        let now = Date()
+        let stamp = Self.localDayStamp(now, calendar: calendar)
         UserDefaults.standard.set(stamp, forKey: Self.localWeighDayKey)
-        injectOptimisticWeighSample(kg: kg, at: date, calendar: calendar)
+        // Prefer the Health sample date when it is still local-today; else stamp with now.
+        let injectAt = calendar.isDate(date, inSameDayAs: now) ? date : now
+        injectOptimisticWeighSample(kg: kg, at: injectAt, calendar: calendar)
         alreadyWeighedToday = true
+    }
+
+    /// Pull body-mass samples for local calendar today into `recentHealthWeights` for the gate.
+    private func refreshTodayHealthWeightsForGate(now: Date = Date(), calendar: Calendar = .current) async {
+        guard healthKitAvailable else { return }
+        let start = calendar.startOfDay(for: now)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? now.addingTimeInterval(86_400)
+        do {
+            try await healthStore.requestAuthorizationIfNeeded()
+            let today = try await healthStore.fetchWeights(from: start, to: end)
+            let plausible = today.filter { ProfileNumericBounds.isPlausibleWeighKg($0.value) }
+            guard let newest = plausible.last else { return }
+            let sample = HealthWeightSample(weightKg: newest.value, date: newest.date)
+            if !recentHealthWeights.contains(where: {
+                calendar.isDate($0.date, inSameDayAs: now)
+                    && ProfileNumericBounds.isPlausibleWeighKg($0.weightKg)
+            }) {
+                recentHealthWeights = [sample] + recentHealthWeights
+            }
+            if historyWeights.last?.date != newest.date || abs((historyWeights.last?.value ?? -1) - newest.value) > 0.05 {
+                if !historyWeights.contains(where: {
+                    calendar.isDate($0.date, inSameDayAs: now)
+                        && ProfileNumericBounds.isPlausibleWeighKg($0.value)
+                }) {
+                    historyWeights = historyWeights + [newest]
+                }
+            }
+        } catch {
+            // Soft-fail: gate still uses stamp / existing arrays.
+            #if DEBUG
+            print("[TheScale] Today weigh gate Health fetch failed: \(error.localizedDescription)")
+            #endif
+        }
     }
 
     nonisolated static let localWeighDayKey = "thescale.weighIn.lastValidLocalDay"
@@ -1516,7 +1573,7 @@ final class ScaleSessionViewModel: ObservableObject {
         phase = .healthKitSuccess
         noteSuccessfulWeighInForReview()
         // Flip Weigh Now off immediately (do not wait on HealthKit read-back).
-        markValidWeighInToday(kg: kg, at: date)
+        markValidWeighInToday(kg: kg)
         await refreshHealthBaseline()
         ensureWeeklyGoalBaseline()
         do {
@@ -1762,9 +1819,9 @@ final class ScaleSessionViewModel: ObservableObject {
                 liveHint = "Saved confirmed weight and BMI only. Body fat was not written."
             }
             let weighKg = draft.weightKg
-            // Flip Weigh Now off immediately (HealthKit read-back can lag or soft-fail).
+            // Flip Weigh Now off immediately (device-local today; ignore scale clock).
             if ProfileNumericBounds.isPlausibleWeighKg(weighKg) {
-                markValidWeighInToday(kg: weighKg, at: draft.scaleDate ?? draft.receivedAt)
+                markValidWeighInToday(kg: weighKg)
             }
             await refreshHealthBaseline()
             ensureWeeklyGoalBaseline()
