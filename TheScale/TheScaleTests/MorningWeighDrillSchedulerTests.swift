@@ -189,6 +189,31 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         )
     }
 
+    func testDetectWeighInTodayHonorsLocalDayStampWithoutHealth() {
+        let now = date(year: 2026, month: 9, day: 23, hour: 10, minute: 0)
+        let stamp = ScaleSessionViewModel.localDayStamp(now, calendar: calendar)
+        XCTAssertTrue(
+            ScaleSessionViewModel.detectWeighInToday(
+                historyWeights: [],
+                trendWeights: [],
+                recentWeights: [],
+                localDayStamp: stamp,
+                now: now,
+                calendar: calendar
+            )
+        )
+        XCTAssertFalse(
+            ScaleSessionViewModel.detectWeighInToday(
+                historyWeights: [],
+                trendWeights: [],
+                recentWeights: [],
+                localDayStamp: "2026-09-22",
+                now: now,
+                calendar: calendar
+            )
+        )
+    }
+
     func testAutoPresentRequiresStablePlausibleAndNotWeighed() {
         XCTAssertTrue(
             ScaleSessionViewModel.shouldAutoPresentLiveSheet(

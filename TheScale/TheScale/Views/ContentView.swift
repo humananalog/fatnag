@@ -161,6 +161,7 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task {
+                session.refreshAlreadyWeighedToday()
                 await session.refreshHomeGauges(force: false)
                 await session.considerMorningWeighDrill()
                 await refreshPendingNotifBadge()
@@ -179,7 +180,7 @@ struct ContentView: View {
                 #endif
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if session.hasValidWeighInToday() {
+                if session.alreadyWeighedToday {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.30))
@@ -212,6 +213,9 @@ struct ContentView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
+            .onAppear {
+                session.refreshAlreadyWeighedToday()
+            }
         }
     }
 
@@ -265,7 +269,7 @@ struct ContentView: View {
 
     private func homeStatusLine(compact: Bool) -> some View {
         VStack(spacing: compact ? 6 : 8) {
-            if session.hasValidWeighInToday() {
+            if session.alreadyWeighedToday {
                 Text("Already weighed today. Progress holds history.")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.ink.opacity(0.78))
@@ -351,12 +355,14 @@ struct ContentView: View {
     private func bootstrapHome() async {
         session.ensureWeeklyGoalBaseline()
         session.rebuildWeeklyGoalSurface()
+        session.refreshAlreadyWeighedToday()
         session.startPassiveListening()
         async let gauges = session.refreshHomeGauges(force: true)
         async let baseline: Void = session.refreshHealthBaseline()
         _ = await gauges
         await baseline
         session.ensureWeeklyGoalBaseline()
+        session.refreshAlreadyWeighedToday()
         await session.refreshWeeklyGoalSurface()
         await session.refreshTrendNotifications()
         ScaleNotificationRouter.openDestination = { destination in

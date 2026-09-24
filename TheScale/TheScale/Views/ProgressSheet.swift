@@ -37,7 +37,7 @@ struct ProgressSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    if session.hasValidWeighInToday() {
+                    if session.alreadyWeighedToday {
                         Button("Manual") { session.presentManualEntry() }
                     } else {
                         Button("Weigh") { session.selectHomeTab(.weigh) }
@@ -47,6 +47,7 @@ struct ProgressSheet: View {
             .onAppear {
                 goalDelta = session.weeklyGoal.targetDeltaKg
                 session.ensureWeeklyGoalBaseline()
+                session.refreshAlreadyWeighedToday()
             }
             .alert("Send trend summary to Keel?", isPresented: $showPrivacyGate) {
                 Button("Cancel", role: .cancel) {}

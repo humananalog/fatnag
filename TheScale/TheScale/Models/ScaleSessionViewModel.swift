@@ -143,6 +143,8 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var autoConfirmSecondsRemaining = 10
     /// Shown when live / auto-confirm / save rejects 0 or out-of-bounds kg.
     @Published private(set) var weighRejectionMessage: String?
+    /// Published gate for Weigh Now CTA (Health samples and/or local same-day save stamp).
+    @Published private(set) var alreadyWeighedToday = false
     /// Monday morning post-weigh weekly goal card.
     @Published private(set) var isMondayCardPresented = false
     @Published private(set) var mondayCard: MondayCardPayload?
@@ -198,6 +200,8 @@ final class ScaleSessionViewModel: ObservableObject {
         self.lastFitnessCoachReply = GrokFitnessMonitor.loadLastReply()
         self.mealPlan = MealPlanStore.load()
         rebuildWeeklyGoalSurface()
+        // Local stamp can hide Weigh Now before HealthKit catches up (and across relaunch).
+        refreshAlreadyWeighedToday()
         GrokFitnessMonitor.install { [weak self] force in
             guard let self else { return false }
             return await self.runBackgroundHealthWake(
@@ -459,6 +463,7 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Close the post-weigh hero moment, then open History (and Monday card if queued).
     func dismissWeighInHero() {
         isWeighInHeroPresented = false
+        refreshAlreadyWeighedToday()
         isResultsPresented = true
         let offerMonday = pendingMondayAfterHero
         let kg = pendingMondayWeighKg
@@ -537,6 +542,7 @@ final class ScaleSessionViewModel: ObservableObject {
 
     func dismissResults() {
         isResultsPresented = false
+        refreshAlreadyWeighedToday()
         // Settle home first so the soft sheet never fights the results dismiss.
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 700_000_000)
@@ -1087,13 +1093,13 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
 
-    /// After leaving sleep: one sergeant weigh ping (prefs + once/morning before 09:00).
+    /// After digest refresh / scene active: one sergeant weigh ping (prefs + once/morning before 09:00).
     func considerMorningWeighDrill(digest: FitnessDigest? = nil) async {
         // Prefer in-memory samples first; only hit Health when we do not already know today's mass.
-        var weighedToday = hasValidWeighInToday()
+        var weighedToday = refreshAlreadyWeighedToday()
         if !weighedToday, healthKitAvailable {
             await refreshHealthBaseline()
-            weighedToday = hasValidWeighInToday()
+            weighedToday = refreshAlreadyWeighedToday()
         }
         let snap = digest ?? lastFitnessDigest
         await MorningWeighDrillScheduler.consider(
@@ -1105,23 +1111,58 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     /// True when Apple Health bodyMass and/or an in-app save already logged mass today.
+    /// Prefer reading `alreadyWeighedToday` in SwiftUI (published). This method stays for callers.
     func hasValidWeighInToday(now: Date = Date(), calendar: Calendar = .current) -> Bool {
         Self.detectWeighInToday(
             historyWeights: historyWeights,
             trendWeights: historyTrendWindowWeights,
             recentWeights: recentHealthWeights,
+            localDayStamp: Self.loadLocalWeighDayStamp(),
             now: now,
             calendar: calendar
         )
+    }
+
+    /// Recompute published CTA gate from Health arrays + local same-day save stamp.
+    @discardableResult
+    func refreshAlreadyWeighedToday(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        let next = hasValidWeighInToday(now: now, calendar: calendar)
+        alreadyWeighedToday = next
+        return next
+    }
+
+    /// Immediate post-save: stamp local day, inject sample into in-memory series, flip published gate.
+    /// Does not wait on HealthKit read-back (which can lag and left Weigh Now stuck on).
+    func markValidWeighInToday(kg: Double, at date: Date = Date(), calendar: Calendar = .current) {
+        guard ProfileNumericBounds.isPlausibleWeighKg(kg) else { return }
+        let stamp = Self.localDayStamp(date, calendar: calendar)
+        UserDefaults.standard.set(stamp, forKey: Self.localWeighDayKey)
+        injectOptimisticWeighSample(kg: kg, at: date, calendar: calendar)
+        alreadyWeighedToday = true
+    }
+
+    nonisolated static let localWeighDayKey = "thescale.weighIn.lastValidLocalDay"
+
+    nonisolated static func localDayStamp(_ date: Date, calendar: Calendar = .current) -> String {
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    nonisolated static func loadLocalWeighDayStamp() -> String? {
+        UserDefaults.standard.string(forKey: localWeighDayKey)
     }
 
     nonisolated static func detectWeighInToday(
         historyWeights: [HealthMetricSample],
         trendWeights: [HealthMetricSample],
         recentWeights: [HealthWeightSample],
+        localDayStamp: String? = nil,
         now: Date,
         calendar: Calendar = .current
     ) -> Bool {
+        if let localDayStamp, localDayStamp == Self.localDayStamp(now, calendar: calendar) {
+            return true
+        }
         if historyWeights.contains(where: {
             calendar.isDate($0.date, inSameDayAs: now)
                 && ProfileNumericBounds.isPlausibleWeighKg($0.value)
@@ -1141,6 +1182,27 @@ final class ScaleSessionViewModel: ObservableObject {
             return true
         }
         return false
+    }
+
+    private func injectOptimisticWeighSample(kg: Double, at date: Date, calendar: Calendar) {
+        let recent = HealthWeightSample(weightKg: kg, date: date)
+        if !recentHealthWeights.contains(where: {
+            calendar.isDate($0.date, inSameDayAs: date) && abs($0.weightKg - kg) < 0.05
+        }) {
+            recentHealthWeights = [recent] + recentHealthWeights
+        }
+        healthBaselineKg = kg
+        let metric = HealthMetricSample(value: kg, date: date)
+        if !historyWeights.contains(where: {
+            calendar.isDate($0.date, inSameDayAs: date) && abs($0.value - kg) < 0.05
+        }) {
+            historyWeights = historyWeights + [metric]
+        }
+        if !historyTrendWindowWeights.contains(where: {
+            calendar.isDate($0.date, inSameDayAs: date) && abs($0.value - kg) < 0.05
+        }) {
+            historyTrendWindowWeights = historyTrendWindowWeights + [metric]
+        }
     }
 
     /// Pure auto-open gate (unit-tested). Hero is never gated here; that waits on Health save.
@@ -1423,6 +1485,7 @@ final class ScaleSessionViewModel: ObservableObject {
             historyWeights = []
             historyBodyFatPercents = []
             historyTrendWindowWeights = []
+            refreshAlreadyWeighedToday()
             return
         }
         let end = Date()
@@ -1437,6 +1500,7 @@ final class ScaleSessionViewModel: ObservableObject {
         } else {
             historyTrendWindowWeights = try await healthStore.fetchWeights(from: trendStart, to: end)
         }
+        refreshAlreadyWeighedToday()
     }
 
     /// Mass-only Manual entry → Apple Health (weight + BMI). No fat/lean invented.
@@ -1451,9 +1515,16 @@ final class ScaleSessionViewModel: ObservableObject {
         try await healthStore.write(draft: draft, profile: profile)
         phase = .healthKitSuccess
         noteSuccessfulWeighInForReview()
+        // Flip Weigh Now off immediately (do not wait on HealthKit read-back).
+        markValidWeighInToday(kg: kg, at: date)
         await refreshHealthBaseline()
         ensureWeeklyGoalBaseline()
-        try await loadHistory(for: historyRange)
+        do {
+            try await loadHistory(for: historyRange)
+        } catch {
+            // Keep optimistic samples; do not wipe today's gate.
+        }
+        refreshAlreadyWeighedToday()
         MorningWeighDrillScheduler.markSatisfied()
         await refreshTrendNotifications()
         isManualEntryPresented = false
@@ -1644,6 +1715,7 @@ final class ScaleSessionViewModel: ObservableObject {
         guard healthKitAvailable else {
             recentHealthWeights = []
             healthBaselineKg = nil
+            refreshAlreadyWeighedToday()
             return
         }
         do {
@@ -1655,6 +1727,7 @@ final class ScaleSessionViewModel: ObservableObject {
             // Soft-fail: trend stays unknown; weigh-in still works.
             liveHint = "Health history unavailable: \(error.localizedDescription)"
         }
+        refreshAlreadyWeighedToday()
     }
 
     func saveDraftToHealth() async {
@@ -1688,23 +1761,25 @@ final class ScaleSessionViewModel: ObservableObject {
             } else {
                 liveHint = "Saved confirmed weight and BMI only. Body fat was not written."
             }
+            let weighKg = draft.weightKg
+            // Flip Weigh Now off immediately (HealthKit read-back can lag or soft-fail).
+            if ProfileNumericBounds.isPlausibleWeighKg(weighKg) {
+                markValidWeighInToday(kg: weighKg, at: draft.scaleDate ?? draft.receivedAt)
+            }
             await refreshHealthBaseline()
             ensureWeeklyGoalBaseline()
             // Present the dual-chart history screen after a successful Health write.
             do {
                 try await loadHistory(for: .default)
             } catch {
-                // Soft-fail: still show the empty results screen with the error inline.
-                historyWeights = []
-                historyBodyFatPercents = []
-                historyTrendWindowWeights = []
+                // Soft-fail charts only. Never wipe optimistic today's sample / gate.
             }
+            refreshAlreadyWeighedToday()
             MorningWeighDrillScheduler.markSatisfied()
             await refreshTrendNotifications()
             isWeighInPresented = false
             WeighInLiveActivityController.end()
             autoConfirmArmed = false
-            let weighKg = draft.weightKg
             // Hero only after confirmed Health save of a plausible kg.
             guard ProfileNumericBounds.isPlausibleWeighKg(weighKg) else {
                 weighRejectionMessage = ProfileNumericBounds.rejectWeighKgMessage(weighKg)
