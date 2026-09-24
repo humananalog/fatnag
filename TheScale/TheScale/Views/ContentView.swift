@@ -180,9 +180,9 @@ struct ContentView: View {
                 #endif
             }
             // Exact Weigh Now control: bottom safeAreaInset on Weigh tab only.
-            // Hidden entirely when `alreadyWeighedToday` (Health today and/or local day stamp).
+            // Show only after gate resolved AND not already weighed (stamp-first, then Health today).
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if !session.alreadyWeighedToday {
+                if session.shouldShowWeighNowCTA {
                     Button {
                         if session.selectedScaleID != nil {
                             session.reopenWeighIn()
@@ -210,7 +210,7 @@ struct ContentView: View {
             }
             .onChange(of: session.alreadyWeighedToday) { _, weighed in
                 #if DEBUG
-                print("[TheScale] home alreadyWeighedToday=\(weighed)")
+                print("[TheScale] home alreadyWeighedToday=\(weighed) gateResolved=\(session.weighNowGateResolved)")
                 #endif
             }
         }

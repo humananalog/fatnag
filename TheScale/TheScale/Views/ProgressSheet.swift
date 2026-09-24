@@ -39,7 +39,7 @@ struct ProgressSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     if session.alreadyWeighedToday {
                         Button("Manual") { session.presentManualEntry() }
-                    } else {
+                    } else if session.weighNowGateResolved {
                         Button("Weigh") { session.selectHomeTab(.weigh) }
                     }
                 }
