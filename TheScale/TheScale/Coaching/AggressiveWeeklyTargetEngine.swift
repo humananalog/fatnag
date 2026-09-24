@@ -10,6 +10,26 @@ enum WeeklyTargetMode: String, Equatable, Sendable {
     case accelerate
     /// Near ideal: hold / tiny nudge.
     case hold
+
+    /// Short Monday-hero badge (Keel voice, no medical framing).
+    var mondayHeroBadge: String {
+        switch self {
+        case .hardcoreCatchUp: return "HARDCORE"
+        case .accelerate: return "AHEAD"
+        case .aggressive: return "AGGRESSIVE"
+        case .hold: return "HOLD"
+        }
+    }
+
+    /// One-line CTA under the Sunday target.
+    var mondayHeroCTA: String {
+        switch self {
+        case .hardcoreCatchUp: return "No coast. Close the gap."
+        case .accelerate: return "Celebrate, then push."
+        case .aggressive: return "Hit Sunday. Full send."
+        case .hold: return "Hold the line."
+        }
+    }
 }
 
 struct AggressiveWeeklyTarget: Equatable, Sendable {

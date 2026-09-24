@@ -106,7 +106,8 @@ struct WeeklyGoalSurface: Equatable, Sendable {
 }
 
 /// Atmosphere for the home weekly-goal hero.
-/// Soft pastel field + near-black ink so type stays readable on every band.
+/// Color rules: green = on target, lime = ahead/over target, coral = at risk.
+/// Dark scheme keeps tinted haze on void with ivory ink for contrast.
 struct WeeklyGoalAtmosphere: Equatable {
     let top: Color
     let mid: Color
@@ -115,48 +116,87 @@ struct WeeklyGoalAtmosphere: Equatable {
     let hazeB: Color
     let ink: Color
     let muted: Color
+    let accent: Color
     let panel: Color
 
-    /// Shared near-black for maximum contrast on pastel / haze fields.
     private static let deepInk = Color(red: 0.04, green: 0.05, blue: 0.07)
     private static let deepMuted = Color(red: 0.12, green: 0.13, blue: 0.16)
+    private static let ivory = Color(red: 0.96, green: 0.95, blue: 0.92)
+    private static let ivoryMuted = Color(red: 0.72, green: 0.74, blue: 0.78)
+    private static let voidTop = Color(red: 0.05, green: 0.06, blue: 0.08)
+    private static let voidMid = Color(red: 0.07, green: 0.08, blue: 0.10)
+    private static let voidBottom = Color(red: 0.04, green: 0.05, blue: 0.07)
 
-    static func forBand(_ band: WeeklyTrackBand) -> WeeklyGoalAtmosphere {
+    /// Progress / home band colors. `onTrack` = green, `ahead`/`crushed` = lime.
+    static func forBand(_ band: WeeklyTrackBand, colorScheme: ColorScheme = .light) -> WeeklyGoalAtmosphere {
+        let dark = colorScheme == .dark
         switch band {
-        case .crushed:
+        case .onTrack:
+            // Green: hitting the weekly target pace.
+            if dark {
+                return WeeklyGoalAtmosphere(
+                    top: voidTop,
+                    mid: voidMid,
+                    bottom: voidBottom,
+                    hazeA: Color(red: 0.18, green: 0.62, blue: 0.38).opacity(0.42),
+                    hazeB: Color(red: 0.28, green: 0.72, blue: 0.48).opacity(0.28),
+                    ink: ivory,
+                    muted: ivoryMuted,
+                    accent: Color(red: 0.42, green: 0.86, blue: 0.58),
+                    panel: Color.white.opacity(0.06)
+                )
+            }
             return WeeklyGoalAtmosphere(
                 top: Color(red: 0.88, green: 0.96, blue: 0.90),
                 mid: Color(red: 0.68, green: 0.88, blue: 0.74),
                 bottom: Color(red: 0.48, green: 0.76, blue: 0.58),
-                hazeA: Color(red: 0.35, green: 0.72, blue: 0.50).opacity(0.38),
-                hazeB: Color(red: 0.62, green: 0.90, blue: 0.74).opacity(0.42),
+                hazeA: Color(red: 0.28, green: 0.68, blue: 0.42).opacity(0.36),
+                hazeB: Color(red: 0.55, green: 0.86, blue: 0.64).opacity(0.40),
                 ink: deepInk,
                 muted: deepMuted,
+                accent: Color(red: 0.10, green: 0.46, blue: 0.28),
                 panel: Color.clear
             )
-        case .ahead:
+        case .ahead, .crushed:
+            // Lime: over / ahead of the weekly target.
+            if dark {
+                return WeeklyGoalAtmosphere(
+                    top: voidTop,
+                    mid: voidMid,
+                    bottom: voidBottom,
+                    hazeA: Color(red: 0.62, green: 0.88, blue: 0.22).opacity(0.40),
+                    hazeB: Color(red: 0.78, green: 0.94, blue: 0.32).opacity(0.26),
+                    ink: ivory,
+                    muted: ivoryMuted,
+                    accent: Color(red: 0.82, green: 0.96, blue: 0.38),
+                    panel: Color.white.opacity(0.06)
+                )
+            }
             return WeeklyGoalAtmosphere(
-                top: Color(red: 0.88, green: 0.95, blue: 0.94),
-                mid: Color(red: 0.64, green: 0.84, blue: 0.82),
-                bottom: Color(red: 0.44, green: 0.70, blue: 0.68),
-                hazeA: Color(red: 0.32, green: 0.66, blue: 0.64).opacity(0.36),
-                hazeB: Color(red: 0.60, green: 0.86, blue: 0.84).opacity(0.40),
+                top: Color(red: 0.94, green: 0.98, blue: 0.78),
+                mid: Color(red: 0.82, green: 0.94, blue: 0.42),
+                bottom: Color(red: 0.68, green: 0.86, blue: 0.28),
+                hazeA: Color(red: 0.72, green: 0.90, blue: 0.22).opacity(0.38),
+                hazeB: Color(red: 0.88, green: 0.96, blue: 0.42).opacity(0.36),
                 ink: deepInk,
                 muted: deepMuted,
-                panel: Color.clear
-            )
-        case .onTrack:
-            return WeeklyGoalAtmosphere(
-                top: Color(red: 0.90, green: 0.94, blue: 0.98),
-                mid: Color(red: 0.70, green: 0.82, blue: 0.92),
-                bottom: Color(red: 0.50, green: 0.66, blue: 0.82),
-                hazeA: Color(red: 0.34, green: 0.54, blue: 0.76).opacity(0.34),
-                hazeB: Color(red: 0.66, green: 0.80, blue: 0.92).opacity(0.40),
-                ink: deepInk,
-                muted: deepMuted,
+                accent: Color(red: 0.36, green: 0.52, blue: 0.06),
                 panel: Color.clear
             )
         case .atRisk:
+            if dark {
+                return WeeklyGoalAtmosphere(
+                    top: voidTop,
+                    mid: voidMid,
+                    bottom: voidBottom,
+                    hazeA: Color(red: 0.86, green: 0.38, blue: 0.28).opacity(0.40),
+                    hazeB: Color(red: 0.94, green: 0.56, blue: 0.36).opacity(0.26),
+                    ink: ivory,
+                    muted: ivoryMuted,
+                    accent: Color(red: 0.96, green: 0.58, blue: 0.42),
+                    panel: Color.white.opacity(0.06)
+                )
+            }
             return WeeklyGoalAtmosphere(
                 top: Color(red: 0.99, green: 0.92, blue: 0.88),
                 mid: Color(red: 0.94, green: 0.72, blue: 0.62),
@@ -165,9 +205,23 @@ struct WeeklyGoalAtmosphere: Equatable {
                 hazeB: Color(red: 0.94, green: 0.66, blue: 0.54).opacity(0.38),
                 ink: deepInk,
                 muted: deepMuted,
+                accent: Color(red: 0.52, green: 0.18, blue: 0.12),
                 panel: Color.clear
             )
         case .unknown:
+            if dark {
+                return WeeklyGoalAtmosphere(
+                    top: voidTop,
+                    mid: voidMid,
+                    bottom: voidBottom,
+                    hazeA: Color(red: 0.42, green: 0.48, blue: 0.56).opacity(0.34),
+                    hazeB: Color(red: 0.58, green: 0.62, blue: 0.70).opacity(0.24),
+                    ink: ivory,
+                    muted: ivoryMuted,
+                    accent: Color(red: 0.72, green: 0.76, blue: 0.82),
+                    panel: Color.white.opacity(0.06)
+                )
+            }
             return WeeklyGoalAtmosphere(
                 top: Color(red: 0.94, green: 0.95, blue: 0.96),
                 mid: Color(red: 0.82, green: 0.84, blue: 0.88),
@@ -176,6 +230,7 @@ struct WeeklyGoalAtmosphere: Equatable {
                 hazeB: Color(red: 0.74, green: 0.78, blue: 0.84).opacity(0.36),
                 ink: deepInk,
                 muted: deepMuted,
+                accent: Color(red: 0.22, green: 0.26, blue: 0.32),
                 panel: Color.clear
             )
         }
@@ -207,6 +262,7 @@ enum WeeklyGoalSurfaceEngine {
             progressFraction: rawFraction,
             expectedPace: expected,
             recovery: digest?.recovery?.band,
+            sleepHours: digest?.sleepHoursLastNight,
             stepsToday: digest?.stepsToday
         )
 
@@ -362,6 +418,7 @@ enum WeeklyGoalSurfaceEngine {
         progressFraction: Double?,
         expectedPace: Double,
         recovery: RecoveryLoadHeuristic.Band?,
+        sleepHours: Double? = nil,
         stepsToday: Double?
     ) -> WeeklyTrackBand {
         guard let progressFraction else { return .unknown }
@@ -377,10 +434,13 @@ enum WeeklyGoalSurfaceEngine {
             band = .atRisk
         }
 
-        if recovery == .red, band == .onTrack || band == .ahead {
+        // Only tip pace down for red recovery when sleep was actually short / missing.
+        // Strong HealthKit sleep nights must not flip On track → At risk.
+        let sleepLooksSolid = (sleepHours ?? 0) >= 6.5
+        if recovery == .red, !sleepLooksSolid, band == .onTrack || band == .ahead {
             band = .atRisk
         }
-        if recovery == .red, band == .crushed {
+        if recovery == .red, !sleepLooksSolid, band == .crushed {
             band = .ahead
         }
         if let steps = stepsToday, steps < 2500, expectedPace > 0.35, band == .onTrack {
@@ -439,7 +499,7 @@ enum WeeklyGoalSurfaceEngine {
         if band == .ahead || band == .crushed {
             steps = max(steps, targetMode == .accelerate ? 9_500 : 8_500)
         }
-        if digest?.recovery?.band == .red {
+        if digest?.recovery?.band == .red, (digest?.sleepHoursLastNight ?? 0) < 6.5 {
             steps = min(steps, 7_000)
         }
         // Don't inflate steps above what they already hit when intake is the issue.
@@ -694,10 +754,13 @@ enum WeeklyGoalSurfaceEngine {
             break
         }
 
-        if recovery == .red {
-            return "\(who), recovery's in the red. \(dayPart.capitalized): easy day, protein \(targets.proteinGrams) g, early lights-out, stay under \(targets.maxCalories) kcal. Ego lifts can wait."
+        if recovery == .red, (sleep ?? 0) < 6.5 {
+            return "\(who), recovery is flagged soft after a short night. \(dayPart.capitalized): easy day, protein \(targets.proteinGrams) g, early lights-out, stay under \(targets.maxCalories) kcal."
         }
-        if let sleep, sleep < 6.0 {
+        if recovery == .green, let sleep, sleep >= 6.5 {
+            // Do not bury a strong sleep night under unrelated pep talk.
+            // Fall through to pace / mode lines below.
+        } else if let sleep, sleep < 6.0 {
             return "\(who), \(String(format: "%.1f", sleep)) h sleep is thin. Protect bedtime \(dayPart), stay under \(targets.maxCalories) kcal with \(targets.proteinGrams) g protein."
         }
 

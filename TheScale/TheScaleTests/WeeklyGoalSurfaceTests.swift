@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import TheScale
 
 final class WeeklyGoalSurfaceTests: XCTestCase {
@@ -300,4 +301,33 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         XCTAssertEqual(card.tone, .skeptical)
         XCTAssertEqual(card.tone.badge, "SIDE-EYE")
     }
+    func testAtmosphereGreenOnTrackLimeAhead() {
+        let on = WeeklyGoalAtmosphere.forBand(.onTrack, colorScheme: .light)
+        let ahead = WeeklyGoalAtmosphere.forBand(.ahead, colorScheme: .light)
+        let crushed = WeeklyGoalAtmosphere.forBand(.crushed, colorScheme: .light)
+        // Green family for on-track; lime (high green + elevated red) for ahead/crushed.
+        let onUI = UIColor(on.mid)
+        let aheadUI = UIColor(ahead.mid)
+        var or = CGFloat(0), og = CGFloat(0), ob = CGFloat(0), oa = CGFloat(0)
+        var ar = CGFloat(0), ag = CGFloat(0), ab = CGFloat(0), aa = CGFloat(0)
+        XCTAssertTrue(onUI.getRed(&or, green: &og, blue: &ob, alpha: &oa))
+        XCTAssertTrue(aheadUI.getRed(&ar, green: &ag, blue: &ab, alpha: &aa))
+        XCTAssertGreaterThan(og, or)
+        XCTAssertGreaterThan(og, ob)
+        XCTAssertGreaterThan(ag, ab)
+        XCTAssertGreaterThan(ar, or) // lime pulls more yellow/red than pure green
+        XCTAssertEqual(ahead.accent, crushed.accent)
+    }
+
+    func testStrongSleepDoesNotTipOnTrackToAtRisk() {
+        let band = WeeklyGoalSurfaceEngine.trackBand(
+            progressFraction: 0.5,
+            expectedPace: 0.45,
+            recovery: .red,
+            sleepHours: 8.0,
+            stepsToday: 6_000
+        )
+        XCTAssertEqual(band, .onTrack)
+    }
+
 }

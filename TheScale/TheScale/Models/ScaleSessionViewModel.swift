@@ -659,7 +659,8 @@ final class ScaleSessionViewModel: ObservableObject {
         await refreshMealPlan(force: false)
     }
 
-    /// `force` regenerates even when the cache key still matches.
+    /// `force` regenerates even when a complete plan already exists for today.
+    /// Default path: reuse any complete same-day plan (no Grok). Refresh button passes `force: true`.
     @discardableResult
     func refreshMealPlan(force: Bool) async -> MealPlanPayload {
         rebuildWeeklyGoalSurface()
@@ -680,6 +681,16 @@ final class ScaleSessionViewModel: ObservableObject {
             now: now
         )
 
+        // Day cache wins: do not burn tokens when today's plan already exists.
+        if !force,
+           let cached = mealPlan ?? MealPlanStore.load(),
+           cached.dayKey == day,
+           cached.isComplete {
+            mealPlan = cached
+            return cached
+        }
+
+        // Exact key match still short-circuits incomplete drafts that share the day.
         if !force,
            let cached = mealPlan ?? MealPlanStore.load(),
            cached.cacheKey == key,

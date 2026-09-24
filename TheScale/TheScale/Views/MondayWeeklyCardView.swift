@@ -1,39 +1,97 @@
 import SwiftUI
 
-/// One-screen Monday morning post-weigh card: progress, Sunday goal, meals, Keel diagnostic.
+/// Full-screen Monday morning hero: motivation + insight + Sunday kg target.
+/// One composition (not a dashboard). Wires AggressiveWeeklyTargetEngine mode + difficulty tier.
 struct MondayWeeklyCardView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
+    @State private var appeared = false
+    @State private var showDetail = false
 
-    private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
-    private let steel = Color(red: 0.42, green: 0.45, blue: 0.50)
-    private let accent = Color(red: 0.12, green: 0.45, blue: 0.48)
+    private let void = Color(red: 0.04, green: 0.05, blue: 0.07)
+    private let deep = Color(red: 0.07, green: 0.10, blue: 0.14)
+    private let ivory = Color(red: 0.96, green: 0.95, blue: 0.92)
+    private let mist = Color(red: 0.62, green: 0.64, blue: 0.68)
+    private let gold = Color(red: 0.82, green: 0.66, blue: 0.40)
+
+    private var mode: WeeklyTargetMode {
+        session.mondayCard?.sundayGoal.mode ?? session.weeklyTargetMode
+    }
+
+    private var accent: Color {
+        switch mode {
+        case .hardcoreCatchUp: return Color(red: 0.86, green: 0.32, blue: 0.24)
+        case .accelerate: return Color(red: 0.72, green: 0.92, blue: 0.28)
+        case .aggressive: return Color(red: 0.35, green: 0.78, blue: 0.92)
+        case .hold: return gold
+        }
+    }
+
+    private var difficultyTitle: String? {
+        let raw = session.profile.goalDifficultyTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let raw, !raw.isEmpty else { return nil }
+        return raw
+    }
+
+    private var weekTitle: String {
+        if let difficultyTitle {
+            return "\(mode.mondayHeroBadge) · \(difficultyTitle)"
+        }
+        return mode.mondayHeroBadge
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar
-            if let card = session.mondayCard {
-                content(card)
-            } else {
-                loadingBlock
+        ZStack {
+            atmosphere.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                topBar
+                if let card = session.mondayCard {
+                    heroContent(card)
+                } else {
+                    loadingBlock
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 6)
+            .padding(.bottom, 20)
+        }
+        .preferredColorScheme(.dark)
+        .onAppear {
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                appeared = true
             }
         }
-        .padding(.horizontal, 22)
-        .padding(.top, 8)
-        .padding(.bottom, 14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.95, green: 0.97, blue: 0.98),
-                    Color(red: 0.88, green: 0.91, blue: 0.93),
-                    Color(red: 0.82, green: 0.86, blue: 0.88)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+        .accessibilityIdentifier("mondayHero")
+    }
+
+    private var atmosphere: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            let slow = t / 16.0
+            ZStack {
+                LinearGradient(
+                    colors: [deep, void, Color(red: 0.05, green: 0.08, blue: 0.10)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                Ellipse()
+                    .fill(accent.opacity(0.28))
+                    .frame(width: 340, height: 280)
+                    .blur(radius: 56)
+                    .offset(x: -70 + CGFloat(sin(slow)) * 36, y: -150 + CGFloat(cos(slow * 0.7)) * 28)
+                Ellipse()
+                    .fill(Color(red: 0.18, green: 0.42, blue: 0.48).opacity(0.18))
+                    .frame(width: 380, height: 300)
+                    .blur(radius: 64)
+                    .offset(x: 90 + CGFloat(cos(slow * 0.55)) * 32, y: 140 + CGFloat(sin(slow * 0.9)) * 24)
+                RadialGradient(
+                    colors: [accent.opacity(0.22), .clear],
+                    center: .topTrailing,
+                    startRadius: 20,
+                    endRadius: 420
+                )
+            }
         }
-        .preferredColorScheme(.light)
     }
 
     private var topBar: some View {
@@ -43,156 +101,146 @@ struct MondayWeeklyCardView: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(ink.opacity(0.85))
+                    .foregroundStyle(ivory.opacity(0.9))
                     .frame(width: 40, height: 40)
                     .background(.ultraThinMaterial, in: Circle())
             }
             .accessibilityLabel("Close Monday card")
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Monday")
-                    .font(.system(size: 22, weight: .semibold, design: .serif))
-                    .foregroundStyle(ink)
-                Text("Week plan after weigh-in")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(steel)
-            }
             Spacer(minLength: 8)
+
             if session.isMondayCardLoading {
                 ProgressView()
                     .controlSize(.small)
+                    .tint(ivory)
             }
         }
-        .padding(.bottom, 10)
+        .padding(.bottom, 8)
     }
 
     private var loadingBlock: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             Spacer()
             ProgressView()
+                .tint(ivory)
             Text("Building this week's card…")
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(steel)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(mist)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func content(_ card: MondayCardPayload) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            progressBlock(card.progress, currentKg: card.currentKg)
-            sundayBlock(card.sundayGoal)
-            Text(displayEncouragement(card))
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(ink.opacity(0.9))
-                .fixedSize(horizontal: false, vertical: true)
-                .lineLimit(3)
-                .minimumScaleFactor(0.85)
+    private func heroContent(_ card: MondayCardPayload) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 12)
 
-            mealsBlock(displayMeals(card))
-            diagnosticBlock(displayDiagnostic(card))
-            Spacer(minLength: 0)
+            Text(weekTitle)
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .tracking(2.2)
+                .foregroundStyle(accent)
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 12)
+                .accessibilityIdentifier("mondayHero.badge")
+
+            Text("This week")
+                .font(.system(size: 18, weight: .semibold, design: .serif))
+                .foregroundStyle(ivory.opacity(0.72))
+                .padding(.top, 14)
+                .opacity(appeared ? 1 : 0)
+
+            Text(String(format: "%.2f", card.sundayGoal.targetKg))
+                .font(.system(size: 72, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(ivory)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+                .padding(.top, 4)
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 16)
+                .accessibilityIdentifier("mondayHero.sundayKg")
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("kg Sunday")
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundStyle(mist)
+                Text(card.sundayGoal.sundayDate, format: .dateTime.month(.abbreviated).day())
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(ivory.opacity(0.78))
+            }
+            .padding(.top, 2)
+
+            Text(String(format: "%+.2f kg this week", card.sundayGoal.weeklyDeltaKg))
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(accent.opacity(0.95))
+                .padding(.top, 8)
+
+            Text(displayEncouragement(card))
+                .font(.system(size: 22, weight: .bold, design: .serif))
+                .foregroundStyle(ivory)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(4)
+                .minimumScaleFactor(0.85)
+                .padding(.top, 28)
+                .opacity(appeared ? 1 : 0)
+                .accessibilityIdentifier("mondayHero.insight")
+
+            if showDetail {
+                detailBlock(card)
+                    .padding(.top, 20)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            Spacer(minLength: 16)
+
+            Button {
+                session.dismissMondayCard()
+            } label: {
+                Text(mode.mondayHeroCTA)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(void)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .opacity(appeared ? 1 : 0)
+            .accessibilityIdentifier("mondayHero.cta")
+
+            Button {
+                withAnimation(.easeOut(duration: 0.25)) {
+                    showDetail.toggle()
+                }
+            } label: {
+                Text(showDetail ? "Hide detail" : "Meals & physics")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(mist)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 12)
+                    .padding(.bottom, 4)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("mondayHero.detailToggle")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func progressBlock(_ progress: MondayWeekProgress, currentKg: Double) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Last week")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(steel)
-                .textCase(.uppercase)
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(String(format: "%.1f", currentKg))
-                    .font(.system(size: 44, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(ink)
-                Text("kg")
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundStyle(steel)
-                Spacer(minLength: 8)
-                if let delta = progress.weightDeltaKg {
-                    Text(String(format: "%+.2f", delta))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(accent)
-                }
-            }
-            Text(progress.summaryLine)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundStyle(steel)
-                .lineLimit(2)
-                .minimumScaleFactor(0.85)
-            Text(progress.adherenceLine)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(steel.opacity(0.85))
-                .lineLimit(2)
-            Text(progress.signalLines.joined(separator: " · "))
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .foregroundStyle(steel.opacity(0.75))
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-        }
-    }
-
-    private func sundayBlock(_ goal: MondaySundayGoal) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Sunday goal")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(steel)
-                .textCase(.uppercase)
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(String(format: "%.2f", goal.targetKg))
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(accent)
-                Text("kg")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(steel)
-                Spacer(minLength: 6)
-                Text(goal.sundayDate, format: .dateTime.weekday(.wide).month(.abbreviated).day())
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(ink.opacity(0.8))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            Text(goal.pacingLine)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(steel)
-                .lineLimit(2)
-                .minimumScaleFactor(0.85)
-        }
-    }
-
-    private func mealsBlock(_ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Meals")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(steel)
-                .textCase(.uppercase)
-            Text(text)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(ink.opacity(0.88))
-                .lineLimit(4)
-                .minimumScaleFactor(0.85)
+    private func detailBlock(_ card: MondayCardPayload) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(displayMeals(card))
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(ivory.opacity(0.82))
                 .fixedSize(horizontal: false, vertical: true)
-        }
-    }
+                .lineLimit(5)
+                .minimumScaleFactor(0.85)
 
-    private func diagnosticBlock(_ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Instructor")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(steel)
-                .textCase(.uppercase)
-            ScrollView {
-                Text(text)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(ink.opacity(0.9))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxHeight: 140)
+            Text(displayDiagnostic(card))
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(mist)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(8)
+                .minimumScaleFactor(0.85)
         }
     }
 
@@ -217,5 +265,8 @@ struct MondayWeeklyCardView: View {
 
 #Preview {
     MondayWeeklyCardView()
-        .environmentObject(ScaleSessionViewModel())
+        .environmentObject({
+            let s = ScaleSessionViewModel()
+            return s
+        }())
 }

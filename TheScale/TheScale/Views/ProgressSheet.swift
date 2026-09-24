@@ -1,37 +1,107 @@
 import SwiftUI
 
-/// Progress: weekly mini-goal + optional Keel orchestrator roast.
+/// Progress: sparse weekly % + Sunday target. Green on pace, lime when ahead.
 struct ProgressSheet: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var coachReply: CoachReply?
     @State private var isCoaching = false
     @State private var showPrivacyGate = false
-    @State private var goalDelta: Double = -0.3
 
-    private var atmosphere: TrendAtmosphere {
-        TrendAtmosphere.forTrend(session.trendForDisplay)
+    private var surface: WeeklyGoalSurface {
+        session.weeklyGoalSurface
     }
 
-    private var name: String {
-        let n = session.profile.greetingName
-        return n.isEmpty ? "You" : n
+    private var atmosphere: WeeklyGoalAtmosphere {
+        WeeklyGoalAtmosphere.forBand(surface.band, colorScheme: colorScheme)
+    }
+
+    private var percent: Int {
+        surface.completionPercent
     }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    header
-                    weeklyCard
-                    coachCard
-                    privacyNote
-                }
-                .padding(20)
-            }
-            .background {
-                TrendAtmosphereBackground(atmosphere: atmosphere)
+            ZStack {
+                WeeklyGoalHazeBackground(atmosphere: atmosphere)
                     .ignoresSafeArea()
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Spacer(minLength: 28)
+
+                    Text(surface.band.statusLabel.uppercased())
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .tracking(2.0)
+                        .foregroundStyle(atmosphere.accent)
+
+                    Text("\(percent)%")
+                        .font(.system(size: 84, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(atmosphere.ink)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+                        .padding(.top, 6)
+                        .accessibilityIdentifier("progress.percent")
+
+                    Text("weekly progress")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(atmosphere.muted)
+                        .padding(.top, 2)
+
+                    ProgressView(value: min(Double(percent) / 100.0, 1.2), total: 1.0)
+                        .tint(atmosphere.accent)
+                        .padding(.top, 18)
+
+                    if let sunday = surface.sundayTargetKg {
+                        Text(String(format: "Sunday %.2f kg", sunday))
+                            .font(.system(size: 28, weight: .bold, design: .serif))
+                            .foregroundStyle(atmosphere.ink)
+                            .padding(.top, 28)
+                            .accessibilityIdentifier("progress.sundayKg")
+                    }
+
+                    Text(String(format: "%+.2f kg this week", surface.weeklyDeltaKg))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(atmosphere.accent)
+                        .padding(.top, 6)
+
+                    Spacer(minLength: 24)
+
+                    if isCoaching {
+                        ProgressView()
+                            .tint(atmosphere.accent)
+                            .padding(.bottom, 12)
+                    } else if let coachReply {
+                        Text(coachReply.text)
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(atmosphere.ink.opacity(0.9))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(5)
+                            .minimumScaleFactor(0.85)
+                            .padding(.bottom, 14)
+                    }
+
+                    Button {
+                        if GrokPrivacyConsent.isAccepted || !GrokSharedConfig.isLiveConfigured {
+                            Task { await runCoach() }
+                        } else {
+                            showPrivacyGate = true
+                        }
+                    } label: {
+                        Text(GrokSharedConfig.isLiveConfigured ? "Keel roast" : "Keel roast (offline)")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(colorScheme == .dark ? atmosphere.ink : Color(red: 0.04, green: 0.05, blue: 0.07))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background(atmosphere.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isCoaching)
+                    .padding(.bottom, 28)
+                }
+                .padding(.horizontal, 28)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .navigationTitle("Progress")
             .navigationBarTitleDisplayMode(.inline)
@@ -45,9 +115,9 @@ struct ProgressSheet: View {
                 }
             }
             .onAppear {
-                goalDelta = session.weeklyGoal.targetDeltaKg
                 session.ensureWeeklyGoalBaseline()
                 session.refreshAlreadyWeighedToday()
+                session.rebuildWeeklyGoalSurface()
             }
             .alert("Send trend summary to Keel?", isPresented: $showPrivacyGate) {
                 Button("Cancel", role: .cancel) {}
@@ -56,119 +126,9 @@ struct ProgressSheet: View {
                     Task { await runCoach() }
                 }
             } message: {
-                Text("Only a short weight/fat trend summary (no raw impedance, no Health dump) goes to the shared Keel backend when you tap Coach. You can revoke consent in Settings.")
+                Text("Only a short weight/fat trend summary goes to Keel when you tap roast. Revoke in Settings.")
             }
         }
-        .preferredColorScheme(.light)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("\(name), here's the week.")
-                .font(.system(size: 24, weight: .semibold, design: .serif))
-                .foregroundStyle(atmosphere.accent)
-            if let kg = session.healthBaselineKg {
-                Text(
-                    "Last Health weight \(UnitFormat.massString(kg, system: session.preferredUnits)) · ideal \(UnitFormat.massString(session.profile.idealWeightKg, system: session.preferredUnits))"
-                )
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.7))
-            }
-        }
-    }
-
-    private var weeklyCard: some View {
-        let fraction = session.weeklyGoal.progressFraction(currentKg: session.healthBaselineKg) ?? 0
-        return VStack(alignment: .leading, spacing: 12) {
-            Text("Weekly mini-goal")
-                .font(.headline)
-                .foregroundStyle(atmosphere.accent)
-            Text(session.weeklyGoal.title)
-                .font(.subheadline.weight(.semibold))
-            ProgressView(value: min(fraction, 1))
-                .tint(atmosphere.accent)
-            Text(session.weeklyGoal.statusLine(currentKg: session.healthBaselineKg))
-                .font(.footnote)
-                .foregroundStyle(atmosphere.accent.opacity(0.75))
-
-            HStack {
-                Text("Target delta kg")
-                Spacer()
-                TextField(
-                    "kg",
-                    value: $goalDelta,
-                    format: .number.precision(.fractionLength(2))
-                )
-                .keyboardType(.numbersAndPunctuation)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 72)
-                .onChange(of: goalDelta) { _, newValue in
-                    session.updateWeeklyGoalDelta(newValue)
-                }
-            }
-            .font(.footnote)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .scaleGlassPanel(cornerRadius: 18)
-    }
-
-    private var coachCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Coach", systemImage: "sparkles")
-                .font(.headline)
-                .foregroundStyle(atmosphere.accent)
-
-            if isCoaching {
-                ProgressView("Consulting the peanut gallery…")
-            } else if let coachReply {
-                Text(coachReply.text)
-                    .font(.system(size: 17, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.9))
-                HStack {
-                    Text(coachReply.usedNetwork ? CoachPersona.liveBadge() : "Offline fallback")
-                        .font(.caption2.weight(.semibold))
-                    Spacer()
-                    Text(coachReply.role.title)
-                        .font(.caption2)
-                }
-                .foregroundStyle(atmosphere.accent.opacity(0.55))
-            } else {
-                Text("Want a short roast of your week? Offline mock always works; live Keel needs shared build config + consent.")
-                    .font(.footnote)
-                    .foregroundStyle(atmosphere.accent.opacity(0.7))
-            }
-
-            Button {
-                if GrokPrivacyConsent.isAccepted || !GrokSharedConfig.isLiveConfigured {
-                    Task { await runCoach() }
-                } else {
-                    showPrivacyGate = true
-                }
-            } label: {
-                Text(GrokSharedConfig.isLiveConfigured ? "Quick roast" : "Quick roast (offline)")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(isCoaching)
-
-            Button {
-                session.presentCoach()
-            } label: {
-                Label("Open multi-agent chat", systemImage: "bubble.left.and.bubble.right")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .scaleGlassPanel(cornerRadius: 18)
-    }
-
-    private var privacyNote: some View {
-        Text("Privacy: weigh-ins stay on-device / Apple Health. Keel only runs when you tap Coach after consent. Shared key is operator-managed; revoke consent anytime in Settings.")
-            .font(.caption2)
-            .foregroundStyle(atmosphere.accent.opacity(0.55))
     }
 
     private func runCoach() async {

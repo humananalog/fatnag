@@ -3,7 +3,7 @@ import Foundation
 /// Sleep stage hours from HealthKit `HKCategoryTypeIdentifier.sleepAnalysis`.
 ///
 /// Apple Watch (watchOS 9+) writes Core / Deep / REM / Awake. Older sources may
-/// only write legacy `asleep` / `asleepUnspecified`. Missing stages stay nil —
+/// only write legacy `asleep` / `asleepUnspecified`. Missing stages stay nil:
 /// Coach must never invent them.
 struct SleepStageHours: Equatable, Sendable {
     var coreHours: Double?
@@ -68,7 +68,7 @@ struct RecoveryLoadHeuristic: Equatable, Sendable {
 
 /// Pure, unit-testable science helpers for Health digests and projections.
 ///
-/// Formulas are coaching heuristics with cited ballparks in comments — not medical devices.
+/// Formulas are coaching heuristics with cited ballparks in comments: not medical devices.
 enum HealthScienceMath {
     // MARK: - Sleep aggregation
 
@@ -240,18 +240,70 @@ enum HealthScienceMath {
 
     // MARK: - Recovery / training-load heuristic
 
-    /// Simple recovery band from sleep + HRV (SDNN) + RHR + recent workout load.
+    /// Sleep-quality proxy from HealthKit asleep duration + stages (0...100).
+    /// Apple’s proprietary Sleep score is not readable; this approximates a strong night
+    /// so 98-caliber duration/stage nights cannot be labeled red / "bad sleep".
     ///
-    /// **Not a diagnosis.** Transparent additive score starting at 70:
-    /// - Sleep duration vs ~7–9 h adult ballpark (consensus sleep-duration reviews)
-    /// - Deep sleep < ~45 min when stages present → mild penalty
-    /// - HRV SDNN: very rough adult coaching bands (<20 / 20–40 / >50 ms). Individual
-    ///   baselines dominate clinical HRV; we only nudge when absolute extremes appear,
-    ///   and prefer relative vs 7d median when both exist.
-    /// - RHR ≥ 85 bpm or ≥ +8 vs typical resting when only one reading exists → penalty
-    /// - Heavy recent workout (long duration or high kcal) → small load penalty
+    /// Returns nil when asleep hours are missing.
+    static func sleepQualityProxyScore(
+        sleepHours: Double?,
+        stages: SleepStageHours?
+    ) -> Int? {
+        guard let sleep = sleepHours, sleep > 0 else { return nil }
+        var score = 40.0
+
+        // Duration: adult coaching ballpark ~7-9 h.
+        if sleep >= 7.0 && sleep <= 9.0 {
+            score += 40
+        } else if sleep >= 6.5 && sleep < 7.0 {
+            score += 28
+        } else if sleep > 9.0 && sleep <= 10.0 {
+            score += 32
+        } else if sleep >= 6.0 {
+            score += 14
+        } else if sleep >= 5.0 {
+            score += 0
+        } else {
+            score -= 18
+        }
+
+        if let stages {
+            let deep = stages.deepHours ?? 0
+            let rem = stages.remHours ?? 0
+            let awake = stages.awakeHours ?? 0
+            let hasStaged = stages.coreHours != nil || stages.deepHours != nil || stages.remHours != nil
+
+            if hasStaged {
+                // Deep ~45-120 min and REM ~60+ min are healthy adult coaching bands.
+                if deep >= 0.75 { score += 10 }
+                else if deep >= 0.5 { score += 5 }
+                else if deep > 0 && deep < 0.35 { score -= 6 }
+
+                if rem >= 1.25 { score += 8 }
+                else if rem >= 0.75 { score += 4 }
+                else if rem > 0 && rem < 0.4 { score -= 4 }
+
+                let awakeFraction = sleep > 0 ? awake / max(sleep + awake, 0.1) : 0
+                if awakeFraction > 0.25 { score -= 10 }
+                else if awakeFraction > 0.15 { score -= 4 }
+                else if awake < 0.5 { score += 4 }
+            } else if stages.unspecifiedAsleepHours != nil {
+                // Legacy asleep samples only: duration already scored.
+                score += 4
+            }
+        }
+
+        return Int(min(100, max(0, score)).rounded())
+    }
+
+    /// Recovery band from sleep (primary) + HRV / RHR / load (secondary).
     ///
-    /// Bands: ≥70 green, 45–69 yellow, <45 red; unknown when almost no signals.
+    /// **Not a diagnosis.** Sleep quality floors the band:
+    /// - Proxy ≥ 85 (strong night): floor green, never red
+    /// - Proxy ≥ 70: never red
+    /// Secondary HRV / RHR / workout penalties cannot override a strong sleep night into "bad".
+    ///
+    /// Bands: >=70 green, 45-69 yellow, <45 red; unknown when almost no signals.
     static func recoveryHeuristic(
         sleepHours: Double?,
         stages: SleepStageHours?,
@@ -265,42 +317,70 @@ enum HealthScienceMath {
         var signals = 0
         var score = 70.0
         var factors: [String] = []
+        let sleepProxy = sleepQualityProxyScore(sleepHours: sleepHours, stages: stages)
+        let strongSleep = (sleepProxy ?? 0) >= 85
+        let solidSleep = (sleepProxy ?? 0) >= 70
 
         if let sleep = sleepHours {
             signals += 1
-            if sleep < 5.5 {
-                score -= 22
+            if let proxy = sleepProxy {
+                factors.append(
+                    String(format: "Sleep quality proxy %d/100 from %.1f h asleep + stages.", proxy, sleep)
+                )
+            }
+            if sleep < 5.0 {
+                score -= 24
                 factors.append(String(format: "Short sleep (%.1f h) vs ~7-9 h ballpark.", sleep))
+            } else if sleep < 6.0 {
+                score -= 12
+                factors.append(String(format: "Sleep %.1f h is short.", sleep))
             } else if sleep < 6.5 {
-                score -= 10
+                score -= 6
                 factors.append(String(format: "Sleep %.1f h is a bit short.", sleep))
             } else if sleep <= 9.0 {
-                score += 10
+                score += 12
                 factors.append(String(format: "Sleep %.1f h in a solid duration band.", sleep))
+            } else if sleep <= 10.5 {
+                score += 6
+                factors.append(String(format: "Long sleep (%.1f h); still recoverable.", sleep))
             } else {
-                score -= 4
-                factors.append(String(format: "Long sleep (%.1f h); check if recovering from load.", sleep))
+                factors.append(String(format: "Very long sleep (%.1f h).", sleep))
             }
         }
 
-        if let deep = stages?.deepHours {
-            signals += 1
-            if deep < 0.75 {
-                score -= 8
-                factors.append(String(format: "Deep sleep only %.1f h.", deep))
-            } else {
+        // Stages refine sleep; do not count as a second independent "signal" that unlocks red
+        // from thin secondary metrics alone.
+        if let deep = stages?.deepHours, stages?.coreHours != nil || stages?.remHours != nil {
+            if deep < 0.35, (sleepHours ?? 0) >= 6 {
+                if !strongSleep {
+                    score -= 5
+                    factors.append(String(format: "Deep sleep only %.1f h.", deep))
+                } else {
+                    factors.append(String(format: "Deep sleep %.1f h (secondary; strong night holds).", deep))
+                }
+            } else if deep >= 0.75 {
+                score += 4
                 factors.append(String(format: "Deep sleep %.1f h present.", deep))
+            } else if deep > 0 {
+                factors.append(String(format: "Deep sleep %.1f h.", deep))
             }
         }
 
         if let hrv = hrvSDNNMs {
             signals += 1
+            let penaltyScale = strongSleep ? 0.35 : (solidSleep ? 0.55 : 1.0)
             if let median = hrvMedian7dMs, median > 0 {
                 let ratio = hrv / median
-                if ratio < 0.7 {
-                    score -= 14
+                if ratio < 0.65 {
+                    let delta = 10.0 * penaltyScale
+                    score -= delta
                     factors.append(
-                        String(format: "HRV SDNN %.0f ms is low vs ~7d median %.0f ms.", hrv, median)
+                        String(format: "HRV SDNN %.0f ms low vs ~7d median %.0f ms.", hrv, median)
+                    )
+                } else if ratio < 0.75, !strongSleep {
+                    score -= 5.0 * penaltyScale
+                    factors.append(
+                        String(format: "HRV SDNN %.0f ms soft vs ~7d median %.0f ms.", hrv, median)
                     )
                 } else if ratio > 1.15 {
                     score += 8
@@ -310,8 +390,8 @@ enum HealthScienceMath {
                 } else {
                     factors.append(String(format: "HRV SDNN %.0f ms near recent median.", hrv))
                 }
-            } else if hrv < 20 {
-                score -= 12
+            } else if hrv < 18 {
+                score -= 10.0 * penaltyScale
                 factors.append(String(format: "HRV SDNN %.0f ms is low on absolute coaching bands.", hrv))
             } else if hrv >= 50 {
                 score += 6
@@ -323,12 +403,14 @@ enum HealthScienceMath {
 
         if let rhr = restingHRBpm {
             signals += 1
-            if rhr >= 85 {
-                score -= 14
+            let penaltyScale = strongSleep ? 0.35 : (solidSleep ? 0.55 : 1.0)
+            // 75 bpm is normal for many adults; only flag clearly elevated RHR.
+            if rhr >= 92 {
+                score -= 12.0 * penaltyScale
                 factors.append(String(format: "Resting HR %.0f bpm is elevated.", rhr))
-            } else if rhr >= 75 {
-                score -= 4
-                factors.append(String(format: "Resting HR %.0f bpm a bit high for recovery.", rhr))
+            } else if rhr >= 85, !strongSleep {
+                score -= 6.0 * penaltyScale
+                factors.append(String(format: "Resting HR %.0f bpm a bit high.", rhr))
             } else {
                 factors.append(String(format: "Resting HR %.0f bpm.", rhr))
             }
@@ -340,11 +422,14 @@ enum HealthScienceMath {
             || workoutCountLast24h >= 2
         if heavyWorkout {
             signals += 1
-            score -= 8
-            factors.append("Recent workout load looks meaningful; bias toward recovery.")
+            let loadPenalty = strongSleep ? 3.0 : (solidSleep ? 5.0 : 8.0)
+            score -= loadPenalty
+            factors.append("Recent workout load looks meaningful; keep recovery habits.")
         }
 
-        guard signals >= 2 else {
+        // Strong / solid sleep alone is enough to publish a band (never "unknown" after 7h+).
+        let sleepAloneOK = (sleepProxy ?? 0) >= 70
+        guard signals >= 2 || sleepAloneOK else {
             return RecoveryLoadHeuristic(
                 band: .unknown,
                 score0to100: nil,
@@ -355,8 +440,23 @@ enum HealthScienceMath {
             )
         }
 
-        let clamped = Int(min(100, max(0, score)).rounded())
-        let band: RecoveryLoadHeuristic.Band
+        // Floors: strong Apple-caliber nights cannot be labeled bad / red.
+        if let proxy = sleepProxy, proxy >= 85 {
+            score = max(score, 78)
+            factors.append("Strong sleep night floors recovery to green.")
+        } else if let proxy = sleepProxy, proxy >= 70 {
+            score = max(score, 55)
+            factors.append("Solid sleep night blocks red recovery.")
+        }
+
+        var clamped = Int(min(100, max(0, score)).rounded())
+        if let proxy = sleepProxy, proxy >= 85 {
+            clamped = max(clamped, 78)
+        } else if let proxy = sleepProxy, proxy >= 70 {
+            clamped = max(clamped, 55)
+        }
+
+        var band: RecoveryLoadHeuristic.Band
         if clamped >= 70 {
             band = .green
         } else if clamped >= 45 {
@@ -364,6 +464,17 @@ enum HealthScienceMath {
         } else {
             band = .red
         }
+        // Hard rule: never red after a solid/strong sleep proxy.
+        if band == .red, let proxy = sleepProxy, proxy >= 70 {
+            band = .yellow
+            clamped = max(clamped, 55)
+            factors.append("Red blocked: sleep quality proxy \(proxy)/100.")
+        }
+        if let proxy = sleepProxy, proxy >= 85, band != .green {
+            band = .green
+            clamped = max(clamped, 78)
+        }
+
         return RecoveryLoadHeuristic(
             band: band,
             score0to100: clamped,

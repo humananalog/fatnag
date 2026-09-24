@@ -74,7 +74,7 @@ final class HealthScienceMathTests: XCTestCase {
             stages: SleepStageHours(coreHours: 3, deepHours: 0.3, remHours: 0.5, awakeHours: 1.0, unspecifiedAsleepHours: nil),
             hrvSDNNMs: 18,
             hrvMedian7dMs: 45,
-            restingHRBpm: 88,
+            restingHRBpm: 96,
             workoutCountLast24h: 2,
             lastWorkoutDurationMinutes: 90,
             lastWorkoutKcal: 700
@@ -82,7 +82,7 @@ final class HealthScienceMathTests: XCTestCase {
         XCTAssertEqual(red.band, .red)
 
         let thin = HealthScienceMath.recoveryHeuristic(
-            sleepHours: 7,
+            sleepHours: 5.0,
             stages: nil,
             hrvSDNNMs: nil,
             hrvMedian7dMs: nil,
@@ -92,6 +92,54 @@ final class HealthScienceMathTests: XCTestCase {
             lastWorkoutKcal: nil
         )
         XCTAssertEqual(thin.band, .unknown)
+    }
+
+    /// Apple Sleep ~98 caliber night must never be labeled red / bad recovery.
+    func testStrongSleepNightNeverRedDespiteSecondaryPenalties() {
+        let stages = SleepStageHours(
+            coreHours: 4.2,
+            deepHours: 1.1,
+            remHours: 1.8,
+            awakeHours: 0.25,
+            unspecifiedAsleepHours: nil
+        )
+        let proxy = HealthScienceMath.sleepQualityProxyScore(sleepHours: 8.0, stages: stages)
+        XCTAssertGreaterThanOrEqual(proxy ?? 0, 85)
+
+        let recovery = HealthScienceMath.recoveryHeuristic(
+            sleepHours: 8.0,
+            stages: stages,
+            hrvSDNNMs: 28,
+            hrvMedian7dMs: 50,
+            restingHRBpm: 78,
+            workoutCountLast24h: 2,
+            lastWorkoutDurationMinutes: 90,
+            lastWorkoutKcal: 700
+        )
+        XCTAssertEqual(recovery.band, .green)
+        XCTAssertGreaterThanOrEqual(recovery.score0to100 ?? 0, 78)
+        XCTAssertFalse(recovery.summaryLine.lowercased().contains("bad"))
+    }
+
+    func testSolidSleepAloneIsGreenNotUnknown() {
+        let recovery = HealthScienceMath.recoveryHeuristic(
+            sleepHours: 7.4,
+            stages: SleepStageHours(
+                coreHours: 4,
+                deepHours: 1.0,
+                remHours: 1.4,
+                awakeHours: 0.2,
+                unspecifiedAsleepHours: nil
+            ),
+            hrvSDNNMs: nil,
+            hrvMedian7dMs: nil,
+            restingHRBpm: nil,
+            workoutCountLast24h: 0,
+            lastWorkoutDurationMinutes: nil,
+            lastWorkoutKcal: nil
+        )
+        XCTAssertEqual(recovery.band, .green)
+        XCTAssertNotNil(recovery.score0to100)
     }
 
     func testPreSleepHRUsesHRVBorderline() {

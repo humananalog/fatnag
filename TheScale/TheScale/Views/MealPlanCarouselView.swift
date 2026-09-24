@@ -3,16 +3,36 @@ import SwiftUI
 /// Card carousel for next-24h meals (interaction surface; OK to use cards here).
 struct MealPlanCarouselView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @State private var pageIndex = 0
 
-    private let ink = Color(red: 0.06, green: 0.07, blue: 0.09)
-    private let steel = Color(red: 0.28, green: 0.30, blue: 0.34)
+    private var ink: Color {
+        colorScheme == .dark
+            ? Color(red: 0.96, green: 0.95, blue: 0.92)
+            : Color(red: 0.06, green: 0.07, blue: 0.09)
+    }
+
+    private var steel: Color {
+        colorScheme == .dark
+            ? Color(red: 0.70, green: 0.72, blue: 0.76)
+            : Color(red: 0.28, green: 0.30, blue: 0.34)
+    }
+
     private let peek: CGFloat = 28
     private let cardGap: CGFloat = 12
-    /// Must match sheet background so cards do not read as mismatched white tiles.
-    private let sheetTop = Color(red: 0.95, green: 0.97, blue: 0.99)
-    private let sheetBottom = Color(red: 0.90, green: 0.93, blue: 0.96)
+
+    private var sheetTop: Color {
+        colorScheme == .dark
+            ? Color(red: 0.07, green: 0.08, blue: 0.10)
+            : Color(red: 0.95, green: 0.97, blue: 0.99)
+    }
+
+    private var sheetBottom: Color {
+        colorScheme == .dark
+            ? Color(red: 0.04, green: 0.05, blue: 0.07)
+            : Color(red: 0.90, green: 0.93, blue: 0.96)
+    }
 
     private let accents: [Color] = [
         Color(red: 0.18, green: 0.52, blue: 0.62),
@@ -103,7 +123,6 @@ struct MealPlanCarouselView: View {
                 pageIndex = 0
             }
         }
-        .preferredColorScheme(.light)
     }
 
     private var headerCopy: some View {

@@ -503,11 +503,12 @@ actor GrokClient {
         }
 
         let sundayLabel = sundayGoal.sundayDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+        let modeLine = "Weekly target mode: \(sundayGoal.mode.mondayHeroBadge). \(sundayGoal.mode.mondayHeroCTA)"
         let prompt = """
         Build the Monday morning post-weigh card. Reply ONLY with these three sections, exact headers:
 
         ===ENCOURAGEMENT===
-        (1-2 lines. Call \(brief.userName.isEmpty ? "them" : brief.userName) by name. Badass, dark humour OK.)
+        (1-2 lines. Call \(brief.userName.isEmpty ? "them" : brief.userName) by name. Badass, dark humour OK. Match mode: \(sundayGoal.mode.mondayHeroBadge). Respect goal difficulty flavor in persona if present.)
 
         ===MEALS===
         (Practical week meal pattern for their diet / IF / persona / Health context. Not a novel. Instructor pattern.)
@@ -516,12 +517,14 @@ actor GrokClient {
         (Energy-balance instructor block. Physics / plausible weekly weight-loss rates from the numbers.
         How to hit Sunday \(String(format: "%.2f", sundayGoal.targetKg)) kg on \(sundayLabel).
         Use last-week progress + Fitness digest only. Never invent missing Health samples.
-        Do not diagnose medical conditions. Fitness coaching only. No disclaimer lecture.)
+        Do not diagnose medical conditions. Fitness coaching only. No disclaimer lecture.
+        If sleep quality proxy / recovery is green after a solid night, do NOT call sleep bad.)
 
         Local progress summary: \(progress.summaryLine)
         Adherence: \(progress.adherenceLine)
         Signals: \(progress.signalLines.joined(separator: " · "))
         Sunday goal: \(String(format: "%.2f", sundayGoal.targetKg)) kg (\(String(format: "%+.2f", sundayGoal.weeklyDeltaKg)) kg/wk). \(sundayGoal.pacingLine)
+        \(modeLine)
         Long-range: \(goalDateLine)
         """
 

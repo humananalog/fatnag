@@ -5,6 +5,7 @@ import UIKit
 struct SettingsView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @ObservedObject private var subscription = ScaleSubscriptionStore.shared
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var focusedField: Field?
     @State private var confirmReset = false
     @State private var notificationAuthLine = "Notifications: checking..."
@@ -31,9 +32,31 @@ struct SettingsView: View {
         case preSleepWindow, preSleepHR
     }
 
-    private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
-    private let steel = Color(red: 0.35, green: 0.37, blue: 0.40)
-    private let accent = Color(red: 0.18, green: 0.52, blue: 0.62)
+    private var ink: Color {
+        colorScheme == .dark
+            ? Color(red: 0.96, green: 0.95, blue: 0.92)
+            : Color(red: 0.08, green: 0.09, blue: 0.11)
+    }
+
+    private var steel: Color {
+        colorScheme == .dark
+            ? Color(red: 0.70, green: 0.72, blue: 0.76)
+            : Color(red: 0.35, green: 0.37, blue: 0.40)
+    }
+
+    private var accent: Color {
+        colorScheme == .dark
+            ? Color(red: 0.42, green: 0.78, blue: 0.88)
+            : Color(red: 0.18, green: 0.52, blue: 0.62)
+    }
+
+    private var panelFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.78)
+    }
+
+    private var softPanelFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.55)
+    }
 
     var body: some View {
         ScrollView {
@@ -127,7 +150,7 @@ struct SettingsView: View {
         content()
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.white.opacity(0.78), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(panelFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     // MARK: - Weekly AI
@@ -500,7 +523,7 @@ struct SettingsView: View {
             content()
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
-                .background(Color.white.opacity(0.55), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .background(softPanelFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
     }
 
@@ -1338,7 +1361,7 @@ struct SettingsView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.55), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(softPanelFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func exportLocalData() {

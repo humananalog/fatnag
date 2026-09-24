@@ -50,6 +50,7 @@ struct WeeklyGoalHazeBackground: View {
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
     #if DEBUG
     @State private var showDebugTools = false
     #endif
@@ -61,7 +62,7 @@ struct ContentView: View {
     }
 
     private var atmosphere: WeeklyGoalAtmosphere {
-        WeeklyGoalAtmosphere.forBand(surface.band)
+        WeeklyGoalAtmosphere.forBand(surface.band, colorScheme: colorScheme)
     }
 
     var body: some View {
@@ -94,7 +95,7 @@ struct ContentView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         // Weigh-now lives inside the Weigh tab only. A conditional
         // `tabViewBottomAccessory` left a blank white chrome bar on Settings / Coach / etc.
-        .preferredColorScheme(.light)
+        // Follow system appearance so Progress / home / meals stay readable in dark mode.
         #if DEBUG
         .sheet(isPresented: $showDebugTools) {
             DebugToolsView()
@@ -250,8 +251,8 @@ struct ContentView: View {
                 metrics: surface.todayProgress,
                 targetChips: surface.dailyTargetChips,
                 ink: atmosphere.ink,
-                steel: atmosphere.ink.opacity(0.72),
-                accent: Color(red: 0.12, green: 0.42, blue: 0.30),
+                steel: atmosphere.muted,
+                accent: atmosphere.accent,
                 compact: compact
             )
             .onTapGesture { session.presentProgress() }
@@ -286,7 +287,11 @@ struct ContentView: View {
             Text(surface.todayAdvice)
                 .font(.system(size: compact ? 18 : 21, weight: .bold, design: .serif))
                 .foregroundStyle(atmosphere.ink)
-                .shadow(color: .white.opacity(0.4), radius: 0, y: 1)
+                .shadow(
+                    color: colorScheme == .dark ? .black.opacity(0.45) : .white.opacity(0.35),
+                    radius: 0,
+                    y: 1
+                )
                 .lineLimit(6)
                 .fixedSize(horizontal: false, vertical: true)
                 .minimumScaleFactor(0.9)

@@ -270,7 +270,18 @@ enum MondayCardEngine {
             }
             return "Fresh baseline."
         }()
-        let encouragement = "\(who), \(deltaBit) Sunday is \(String(format: "%.2f", goal.targetKg)) kg. Physics does not care about your feelings. Hit the number."
+        let encouragement: String = {
+            switch goal.mode {
+            case .hardcoreCatchUp:
+                return "\(who), \(deltaBit) Hardcore catch-up. Sunday is \(String(format: "%.2f", goal.targetKg)) kg. Close the gap."
+            case .accelerate:
+                return "\(who), \(deltaBit) You're ahead. Sunday is \(String(format: "%.2f", goal.targetKg)) kg. Celebrate, then push."
+            case .hold:
+                return "\(who), \(deltaBit) Hold near \(String(format: "%.2f", goal.targetKg)) kg Sunday. Steady wins."
+            case .aggressive:
+                return "\(who), \(deltaBit) Sunday is \(String(format: "%.2f", goal.targetKg)) kg. Physics does not care about your feelings. Hit the number."
+            }
+        }()
 
         let meals: String = {
             let protein: String = {

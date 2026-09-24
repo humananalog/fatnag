@@ -243,4 +243,46 @@ final class MealPlanEngineTests: XCTestCase {
         XCTAssertEqual(slots[2], 19.75, accuracy: 0.01)
         XCTAssertEqual(slots[1], 16.0, accuracy: 0.35)
     }
+
+    /// Same calendar day complete plan must win over a drifted cache key (no Grok).
+    func testDayKeyMatchIsEnoughForReuseSemantics() {
+        let day = MealPlanEngine.dayKey()
+        let plan = MealPlanEngine.offlinePlan(
+            name: "Alex",
+            diet: .omnivore,
+            maxKcal: 1800,
+            proteinGrams: 140,
+            dayKey: day,
+            weeklyDeltaKg: -0.3
+        )
+        XCTAssertEqual(plan.dayKey, day)
+        XCTAssertTrue(plan.isComplete)
+        // A later hour bucket changes cacheKey but dayKey stays: callers must reuse by day.
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone.current
+        let morning = cal.date(bySettingHour: 7, minute: 0, second: 0, of: Date())!
+        let evening = cal.date(bySettingHour: 19, minute: 0, second: 0, of: Date())!
+        let keyMorning = MealPlanEngine.cacheKey(
+            dayKey: day,
+            maxKcal: 1800,
+            proteinGrams: 140,
+            diet: .omnivore,
+            weeklyDeltaKg: -0.3,
+            fasting: .none,
+            now: morning,
+            calendar: cal
+        )
+        let keyEvening = MealPlanEngine.cacheKey(
+            dayKey: day,
+            maxKcal: 1800,
+            proteinGrams: 140,
+            diet: .omnivore,
+            weeklyDeltaKg: -0.3,
+            fasting: .none,
+            now: evening,
+            calendar: cal
+        )
+        XCTAssertNotEqual(keyMorning, keyEvening)
+        XCTAssertEqual(MealPlanEngine.dayKey(now: morning, calendar: cal), MealPlanEngine.dayKey(now: evening, calendar: cal))
+    }
 }
