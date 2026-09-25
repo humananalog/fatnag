@@ -1,20 +1,29 @@
 import SwiftUI
 import UserNotifications
 
-/// Slow-motion diffused haze behind the weekly-goal hero. Subtle, not noisy.
+/// Diffused haze behind the weekly-goal hero. Ambient drift + Core Motion tilt spring.
 struct WeeklyGoalHazeBackground: View {
     let atmosphere: WeeklyGoalAtmosphere
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var tilt = HazeTiltMotion.shared
+    @State private var motionHeld = false
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: reduceMotion)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
-            let slow = t / 18.0
+            // Was /18; modestly faster ambient drift (still calm).
+            let slow = reduceMotion ? 0 : t / 13.5
             let x1 = CGFloat(sin(slow) * 0.12)
             let y1 = CGFloat(cos(slow * 0.7) * 0.10)
             let x2 = CGFloat(cos(slow * 0.55) * 0.14)
             let y2 = CGFloat(sin(slow * 0.9) * 0.11)
             let x3 = CGFloat(sin(slow * 0.4 + 1.2) * 0.10)
             let y3 = CGFloat(cos(slow * 0.65 + 0.8) * 0.13)
+
+            let tx = reduceMotion ? 0 : tilt.offset.width
+            let ty = reduceMotion ? 0 : tilt.offset.height
 
             ZStack {
                 LinearGradient(
@@ -27,21 +36,41 @@ struct WeeklyGoalHazeBackground: View {
                     .fill(atmosphere.hazeA)
                     .frame(width: 340, height: 280)
                     .blur(radius: 52)
-                    .offset(x: -80 + x1 * 160, y: -120 + y1 * 140)
+                    .offset(x: -80 + x1 * 160 + tx * 0.85, y: -120 + y1 * 140 + ty * 0.85)
 
                 Ellipse()
                     .fill(atmosphere.hazeB)
                     .frame(width: 380, height: 300)
                     .blur(radius: 60)
-                    .offset(x: 90 + x2 * 150, y: 40 + y2 * 160)
+                    .offset(x: 90 + x2 * 150 + tx * 1.15, y: 40 + y2 * 160 + ty * 1.10)
 
                 Ellipse()
                     .fill(atmosphere.hazeA.opacity(0.65))
                     .frame(width: 260, height: 220)
                     .blur(radius: 44)
-                    .offset(x: 20 + x3 * 120, y: 180 + y3 * 100)
+                    .offset(x: 20 + x3 * 120 + tx * 0.55, y: 180 + y3 * 100 + ty * 0.60)
             }
             .ignoresSafeArea()
+        }
+        .onAppear { syncTiltMotion() }
+        .onDisappear {
+            if motionHeld {
+                HazeTiltMotion.shared.release()
+                motionHeld = false
+            }
+        }
+        .onChange(of: reduceMotion) { _, _ in syncTiltMotion() }
+        .onChange(of: scenePhase) { _, _ in syncTiltMotion() }
+    }
+
+    private func syncTiltMotion() {
+        let want = !reduceMotion && scenePhase == .active
+        if want, !motionHeld {
+            HazeTiltMotion.shared.retain()
+            motionHeld = true
+        } else if !want, motionHeld {
+            HazeTiltMotion.shared.release()
+            motionHeld = false
         }
     }
 }
