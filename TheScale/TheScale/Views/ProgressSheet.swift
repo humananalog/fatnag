@@ -35,8 +35,14 @@ struct ProgressSheet: View {
         surface.completionPercent
     }
 
+    /// Visual fill max is 1.2 (120%) so "ahead" can overshoot the track without feeding ProgressView `value > total`.
     private var targetGauge: Double {
-        min(Double(percent) / 100.0, 1.2)
+        ProgressBounds.clampedValue(Double(percent) / 100.0, total: 1.2)
+    }
+
+    /// Spring entrance can briefly overshoot; never paint outside `0...1.2`.
+    private var safeGaugeFill: Double {
+        ProgressBounds.clampedValue(gaugeFill, total: 1.2)
     }
 
     var body: some View {
@@ -144,17 +150,17 @@ struct ProgressSheet: View {
             .accessibilityValue("\(percent) percent")
     }
 
-    /// Thick ACTION gauge — fills 0 → value on each entrance.
+    /// Thick ACTION gauge — fills 0 → value on each entrance (custom bar; not `ProgressView(value:)`).
     private var chunkyGauge: some View {
         GeometryReader { geo in
-            let capped = min(max(gaugeFill, 0), 1.2)
-            let width = geo.size.width * CGFloat(capped / 1.2)
+            let fill = safeGaugeFill
+            let width = geo.size.width * CGFloat(fill / 1.2)
             ZStack(alignment: .leading) {
                 Capsule(style: .continuous)
                     .fill(atmosphere.ink.opacity(colorScheme == .dark ? 0.22 : 0.12))
                 Capsule(style: .continuous)
                     .fill(atmosphere.accent)
-                    .frame(width: max(width, gaugeFill > 0.001 ? 10 : 0))
+                    .frame(width: max(width, fill > 0.001 ? 10 : 0))
             }
         }
         .frame(height: 22)

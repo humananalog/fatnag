@@ -811,10 +811,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.45.0;
+				MARKETING_VERSION = 2.46.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -882,7 +882,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TheScale/Resources/Info.plist;
@@ -894,7 +894,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.45.0;
+				MARKETING_VERSION = 2.46.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -913,10 +913,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.45.0;
+				MARKETING_VERSION = 2.46.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -934,7 +934,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TheScale/Resources/Info.plist;
@@ -946,7 +946,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.45.0;
+				MARKETING_VERSION = 2.46.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1012,7 +1012,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TheScaleWidgets/TheScaleWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TheScaleWidgets/Info.plist;
@@ -1024,7 +1024,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.45.0;
+				MARKETING_VERSION = 2.46.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1039,7 +1039,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TheScaleWidgets/TheScaleWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TheScaleWidgets/Info.plist;
@@ -1051,7 +1051,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.45.0;
+				MARKETING_VERSION = 2.46.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

@@ -49,3 +49,18 @@ extension View {
         }
     }
 }
+
+/// Safe inputs for SwiftUI `ProgressView(value:total:)` and custom gauge fills.
+/// Spring / entrance animation can briefly drive values outside range; clamp before paint.
+enum ProgressBounds {
+    /// Guarantees finite `value` in `0...total` and `total > 0`. NaN / inf / negative → 0; `total ≤ 0` → 1.
+    static func clamp(_ value: Double, total: Double) -> (value: Double, total: Double) {
+        let safeTotal = (total.isFinite && total > 0) ? total : 1
+        guard value.isFinite else { return (0, safeTotal) }
+        return (min(max(value, 0), safeTotal), safeTotal)
+    }
+
+    static func clampedValue(_ value: Double, total: Double) -> Double {
+        clamp(value, total: total).value
+    }
+}

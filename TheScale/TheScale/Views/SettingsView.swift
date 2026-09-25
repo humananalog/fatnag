@@ -202,7 +202,8 @@ struct SettingsView: View {
                             .font(.title2.weight(.bold).monospacedDigit())
                             .foregroundStyle(snap.isExhausted ? Color.orange : ink)
                     }
-                    ProgressView(value: Double(snap.percentUsed), total: 100)
+                    let quotaProgress = ProgressBounds.clamp(Double(snap.percentUsed), total: 100)
+                    ProgressView(value: quotaProgress.value, total: quotaProgress.total)
                         .tint(snap.isExhausted ? .orange : accent)
                     HStack {
                         Text(snap.usageCountLine)
