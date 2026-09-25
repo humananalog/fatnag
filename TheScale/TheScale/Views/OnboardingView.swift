@@ -559,13 +559,39 @@ struct OnboardingView: View {
                 .font(.footnote.weight(.semibold))
                 .accessibilityIdentifier("onboarding.legal")
 
+            HStack(spacing: 12) {
+                NavigationLink {
+                    LegalDocumentView(document: .privacyPolicy)
+                } label: {
+                    Text("Privacy")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                }
+                .accessibilityIdentifier("onboarding.privacyLink")
+
+                NavigationLink {
+                    LegalDocumentView(document: .termsOfUse)
+                } label: {
+                    Text("Terms")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                }
+                .accessibilityIdentifier("onboarding.termsLink")
+
+                NavigationLink {
+                    LegalDocumentView(document: .medicalDisclaimer)
+                } label: {
+                    Text("Disclaimer")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                }
+                .accessibilityIdentifier("onboarding.medicalLink")
+            }
+
             Text(CoachCopySanitize.medicalDisclaimer)
                 .font(.system(size: 9, weight: .medium, design: .rounded))
                 .foregroundStyle(steel)
                 .lineLimit(3)
                 .minimumScaleFactor(0.8)
 
-            Text("Full Terms and Privacy are in Settings after launch. Age \(ScaleLegal.minimumAgeYears)+ required.")
+            Text("Age \(ScaleLegal.minimumAgeYears)+ required. Full copies stay in Settings → Privacy & Legal.")
                 .font(.system(size: 9, weight: .medium, design: .rounded))
                 .foregroundStyle(steel)
 

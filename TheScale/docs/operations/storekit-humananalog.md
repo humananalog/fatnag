@@ -73,7 +73,8 @@ In app:
 1. Settings commerce line shows loaded product IDs + prices.
 2. Paywall buttons show StoreKit `displayPrice`, not only hard-coded marketing copy.
 3. Buy → plan badge updates → weekly Keel credits match Plus (28) or Pro (120).
-4. Restore purchases returns the same entitlement.
+4. Restore purchases returns the same entitlement (paywall shows “Restored Plus/Pro” or “No active…found”).
+5. Empty catalog: with StoreKit config detached and ASC products missing, paywall shows **Subscriptions unavailable** + Retry (Release), not a silent dead Buy button.
 
 ## Common failures
 

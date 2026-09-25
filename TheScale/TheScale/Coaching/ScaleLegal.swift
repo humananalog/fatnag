@@ -291,6 +291,8 @@ enum ScaleLegal {
     Network: optional Keel Coach via HTTPS Worker after explicit consent. Store builds should leave GROK_API_KEY empty (Worker holds the secret).
     Notifications: local UNUserNotificationCenter; Time Sensitive only for user-requested wake pings; Communication-style Coach chrome when entitlement allows.
     Medical: disclaimer in onboarding + Settings → Legal only; never in notification bodies.
-    Privacy: GDPR/CCPA texts in Settings; in-app Export / Erase; Privacy Policy \(privacyPolicyURL.absoluteString); age gate \(minimumAgeYears)+.
+    Privacy: GDPR/CCPA texts in Settings; in-app Export / Erase; Privacy Policy \(privacyPolicyURL.absoluteString); Terms \(termsOfUseURL.absoluteString); age gate \(minimumAgeYears)+.
+    IAP: Plus \(ScaleStorefront.plusProductID) and Pro \(ScaleStorefront.proProductID) monthly under subscription group Coach. Restore Purchases on the paywall.
+    No native Watch app in 1.0 (iPhone notifications may mirror). Live Activity during weigh-in only.
     """
 }

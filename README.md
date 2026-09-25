@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 2.46.1 (build 83) |
+| **Version** | 2.47.0 (build 84) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -13,13 +13,16 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 No accounts. No analytics. Weigh-ins never leave the phone except into Apple Health. Users never paste an API key.
 
-### App Store release checklist (2.9.1+)
-- Privacy Manifest `PrivacyInfo.xcprivacy` ships in the app bundle
-- In-app + web Privacy Policy (`docs/privacy-policy.md` → host at `ScaleLegal.privacyPolicyURL`; set that URL in App Store Connect)
+### App Store release checklist (2.47.0+)
+- Privacy Manifest `PrivacyInfo.xcprivacy` ships in the app bundle (no GPS / no tracking)
+- In-app Privacy + Terms + Export/Erase (Settings); host public mirrors per `TheScale/docs/operations/legal-url-hosting.md`
+- App Store metadata stubs: `TheScale/docs/operations/app-store-metadata.md`
+- StoreKit / sandbox: `TheScale/docs/operations/storekit-humananalog.md` + `Config/Products.storekit`
 - `ITSAppUsesNonExemptEncryption = false` (HTTPS only)
 - Dev tools menu is **DEBUG-only** (stripped from Release / App Store)
-- Enable **Time Sensitive** + **Communication Notifications** on the App ID in Apple Developer before Archive (entitlements are already in the project)
+- Enable **Time Sensitive** + **Communication Notifications** on the App ID before Archive (`TheScale/docs/operations/app-id-entitlements.md`)
 - Leave `GROK_API_KEY` empty for store IPAs; Worker holds `XAI_API_KEY`
+- Watch app / home-screen widgets = **post-1.0**; Live Activities during weigh-in are shippable
 - Review notes: see `ScaleLegal.appStoreReviewNotes`
 
 ---

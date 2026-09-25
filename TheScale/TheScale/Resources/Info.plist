@@ -30,15 +30,15 @@
 		<string>bluetooth-le</string>
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>The Scale listens for your Mi Body Composition Scale 2 Bluetooth broadcasts to read weight and impedance on this iPhone only.</string>
+	<string>The Scale uses Bluetooth to read weight and body-composition advertisements from your nearby Mi Body Composition Scale 2. Data stays on this iPhone.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>The Scale listens for your Mi Body Composition Scale 2 Bluetooth broadcasts to read weight and impedance on this iPhone only.</string>
+	<string>The Scale uses Bluetooth to read weight and body-composition advertisements from your nearby Mi Body Composition Scale 2. Data stays on this iPhone.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>The Scale reads weight, body fat, heart rate, resting heart rate, HRV (SDNN), respiratory rate, sleeping wrist temperature, blood oxygen, VO2 max, sleep (including stages when available), steps, active energy, Exercise Time, walking/running distance, workouts, and nutrition (dietary energy, protein, fiber, iron, potassium) from Apple Health on this iPhone only. Used for local charts, daily target progress, fitness digests, and optional Keel coaching after you consent. Nothing is uploaded without that opt-in.</string>
+	<string>The Scale reads weight, body fat, heart rate, resting heart rate, HRV (SDNN), respiratory rate, sleeping wrist temperature, blood oxygen, VO2 max, sleep (including stages when available), steps, active energy, Exercise Time, walking and running distance, workouts, and nutrition (dietary energy, protein, fiber, iron, potassium) from Apple Health. Used only for charts, daily targets, fitness digests, and optional Keel coaching after you consent. Nothing is uploaded without that opt-in.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>The Scale saves confirmed weight, BMI, body fat percentage, and lean body mass to Apple Health when you tap Confirm. Nothing is uploaded.</string>
+	<string>The Scale saves confirmed weight, BMI, body fat percentage, and lean body mass to Apple Health when you tap Confirm. Data stays under your Health permissions.</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>The Scale can notify you when weight trends look bad versus your ideal, when you leave bedtime for a morning weigh drill, when Watch/sleep-HR signals look off, for optional weekly mini-goals, for Coach-scheduled wake or timed reminders, and for scheduled fitness-check nudges. No marketing spam.</string>
+	<string>The Scale sends local alerts for weight-trend nudges, morning weigh drills, sleep and heart-rate fitness signals you enable, optional weekly mini-goals, Coach-scheduled reminders, and fitness-check nudges. No marketing messages.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>

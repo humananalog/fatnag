@@ -27,7 +27,9 @@ Host this page at the URL set in `ScaleLegal.privacyPolicyURL` (default `https:/
 
 ## Contact
 
-- Human Analog Limited — use your App Store seller support email for privacy requests.
+- Human Analog Limited — **privacy@humananalog.ai**
+- Hosting the public policy: `TheScale/docs/operations/legal-url-hosting.md`
+- Target URL: `https://humananalog.github.io/the-scale/privacy` (`ScaleLegal.privacyPolicyURL`)
 
 ## Medical
 

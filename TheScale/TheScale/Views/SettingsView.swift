@@ -1283,6 +1283,20 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.privacyPolicyWeb")
+
+                Link(destination: ScaleLegal.termsOfUseURL) {
+                    Label("Terms of Use (web)", systemImage: "safari")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.termsWeb")
+
+                Text(
+                    "Public URLs must stay live for App Store Connect. Hosting steps: TheScale/docs/operations/legal-url-hosting.md. Until hosted, use in-app documents above."
+                )
+                .font(.caption2)
+                .foregroundStyle(steel)
 
                 Link(destination: ScaleLegal.privacyMailtoURL) {
                     Label("Email \(ScaleLegal.privacyEmail)", systemImage: "envelope")

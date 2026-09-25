@@ -196,6 +196,16 @@ struct PaywallView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 18)
 
+            if store.isLoading && store.products.isEmpty {
+                catalogLoading
+                    .padding(.horizontal, 24)
+                    .padding(.top, 18)
+            } else if store.hasEmptyCatalog && !store.allowsInstantDevTier {
+                catalogEmpty
+                    .padding(.horizontal, 24)
+                    .padding(.top, 18)
+            }
+
             tierStack
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
@@ -207,6 +217,52 @@ struct PaywallView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .opacity(appeared ? 1 : 0.4)
+    }
+
+    private var catalogLoading: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .controlSize(.small)
+                .tint(mist)
+            Text("Loading App Store prices…")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(mist)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(ivory.opacity(0.05), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityIdentifier("paywall.catalogLoading")
+    }
+
+    private var catalogEmpty: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Subscriptions unavailable")
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(ivory)
+            Text(
+                store.purchaseError
+                    ?? "Plus and Pro aren’t in the App Store catalog yet. Try Restore, or check back after products go live under Human Analog."
+            )
+            .font(.system(size: 12, weight: .medium, design: .rounded))
+            .foregroundStyle(mist)
+            .fixedSize(horizontal: false, vertical: true)
+            Button("Retry") {
+                Task { await store.refresh() }
+            }
+            .font(.system(size: 13, weight: .bold, design: .rounded))
+            .foregroundStyle(gold)
+            .disabled(store.isBusy)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(ivory.opacity(0.05), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color(red: 0.95, green: 0.45, blue: 0.42).opacity(0.35), lineWidth: 1)
+        )
+        .accessibilityIdentifier("paywall.catalogEmpty")
     }
 
     private func lockChip(_ message: String) -> some View {
@@ -353,13 +409,22 @@ struct PaywallView: View {
                         if ok { dismiss() }
                     }
                 } label: {
-                    Text(isPro ? "Go Pro" : "Choose \(plan.displayName)")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, isPro ? 14 : 12)
+                    HStack(spacing: 8) {
+                        if store.isPurchasing {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(isPro ? ink : ivory)
+                        }
+                        Text(isPro ? "Go Pro" : "Choose \(plan.displayName)")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, isPro ? 14 : 12)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(isPro ? ink : ivory)
+                .disabled(store.isBusy || store.product(for: plan) == nil)
+                .opacity(store.product(for: plan) == nil ? 0.45 : 1)
                 .background {
                     if isPro {
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -375,6 +440,7 @@ struct PaywallView: View {
                             .fill(ivory.opacity(0.12))
                     }
                 }
+                .accessibilityIdentifier("paywall.buy.\(plan.rawValue)")
             }
         }
         .padding(isPro ? 18 : 15)
@@ -401,13 +467,33 @@ struct PaywallView: View {
                     .foregroundStyle(Color(red: 0.95, green: 0.45, blue: 0.42))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("paywall.purchaseError")
             }
-            Button("Restore purchases") {
+            if let restore = store.restoreMessage {
+                Text(restore)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color(red: 0.55, green: 0.78, blue: 0.62))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("paywall.restoreMessage")
+            }
+            Button {
                 Task { await store.restore() }
+            } label: {
+                HStack(spacing: 8) {
+                    if store.isRestoring {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(mist)
+                    }
+                    Text(store.isRestoring ? "Restoring…" : "Restore purchases")
+                }
             }
             .font(.system(size: 14, weight: .semibold, design: .rounded))
             .foregroundStyle(mist)
-            Text("Cancel anytime in App Store subscriptions.")
+            .disabled(store.isBusy)
+            .accessibilityIdentifier("paywall.restore")
+            Text("Cancel anytime in App Store subscriptions. Privacy Policy and Terms are in Settings.")
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundStyle(mist.opacity(0.75))
                 .multilineTextAlignment(.center)
@@ -424,11 +510,6 @@ struct PaywallView: View {
                 .foregroundStyle(mist.opacity(0.55))
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("paywall.commerceLane")
-            if store.isLoading {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(mist)
-            }
         }
         .frame(maxWidth: .infinity)
     }

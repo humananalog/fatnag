@@ -30,11 +30,15 @@ Publish the same bodies at:
 - `https://humananalog.github.io/the-scale/privacy`
 - `https://humananalog.github.io/the-scale/terms`
 
+**Exact steps:** `docs/operations/legal-url-hosting.md` (HTML stubs under `/docs/legal-site/`). Do not invent live URLs — Pages (or equivalent) must actually deploy first.
+
 ASC Privacy Policy URL must stay live. Product Review notes reference these URLs (`ScaleLegal.appStoreReviewNotes`).
+
+Settings exposes both **in-app** documents and **web** links (Privacy + Terms). Until hosting is live, reviewers use in-app text.
 
 ## Nutrition label / PrivacyInfo.xcprivacy
 
-Declares optional collection (when Keel consented) of Health & Fitness, Other User Content, Name, Coarse Location, Purchases. Tracking = false. No tracking domains.
+Declares Health & Fitness, Other User Content (includes typed city/diet notes — **not** GPS / Core Location), Name, Purchases. Tracking = false. No tracking domains. Required-reason APIs: UserDefaults `CA92.1`, File Timestamp `C617.1`.
 
 ## Not legal advice
 

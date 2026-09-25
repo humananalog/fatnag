@@ -9,11 +9,21 @@ final class ScaleSubscriptionStore: ObservableObject {
     @Published private(set) var plan: ScalePlan = .free
     @Published private(set) var products: [Product] = []
     @Published private(set) var purchaseError: String?
+    @Published private(set) var restoreMessage: String?
     @Published private(set) var isLoading = false
+    @Published private(set) var isPurchasing = false
+    @Published private(set) var isRestoring = false
     /// Bumps when weekly Grok credits change so Settings / Coach refresh status lines.
     @Published private(set) var quotaEpoch: Int = 0
     /// Last product-load note for Settings / paywall diagnostics.
     @Published private(set) var productsStatusLine: String = "Products not loaded yet."
+
+    /// True when paid products failed to load and the paywall cannot sell yet.
+    var hasEmptyCatalog: Bool {
+        !isLoading && products.isEmpty
+    }
+
+    var isBusy: Bool { isLoading || isPurchasing || isRestoring }
 
     /// DEBUG / TestFlight QA: force a plan without StoreKit.
     #if DEBUG
@@ -146,9 +156,13 @@ final class ScaleSubscriptionStore: ObservableObject {
             Human Analog team \(ScaleStorefront.developmentTeamID): add it in App Store Connect \
             (or run Debug with \(ScaleStorefront.localStoreKitConfigPath) on the scheme).
             """
+            restoreMessage = nil
             return false
         }
         purchaseError = nil
+        restoreMessage = nil
+        isPurchasing = true
+        defer { isPurchasing = false }
         do {
             let result = try await product.purchase()
             switch result {
@@ -157,7 +171,10 @@ final class ScaleSubscriptionStore: ObservableObject {
                 await transaction.finish()
                 await refreshPlanFromEntitlements()
                 return true
-            case .userCancelled, .pending:
+            case .userCancelled:
+                return false
+            case .pending:
+                purchaseError = "Purchase is pending approval. You’ll unlock when Apple finishes it."
                 return false
             @unknown default:
                 return false
@@ -170,9 +187,18 @@ final class ScaleSubscriptionStore: ObservableObject {
     }
 
     func restore() async {
+        purchaseError = nil
+        restoreMessage = nil
+        isRestoring = true
+        defer { isRestoring = false }
         do {
             try await AppStore.sync()
             await refreshPlanFromEntitlements()
+            if plan == .free {
+                restoreMessage = "No active Plus or Pro subscription found for this Apple ID."
+            } else {
+                restoreMessage = "Restored \(plan.displayName)."
+            }
         } catch {
             purchaseError = error.localizedDescription
         }
