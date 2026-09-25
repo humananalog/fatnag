@@ -111,10 +111,15 @@ struct SettingsView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(
             LinearGradient(
-                colors: [
-                    Color(red: 0.94, green: 0.96, blue: 0.98),
-                    Color(red: 0.88, green: 0.91, blue: 0.94)
-                ],
+                colors: colorScheme == .dark
+                    ? [
+                        Color(red: 0.08, green: 0.09, blue: 0.11),
+                        Color(red: 0.12, green: 0.13, blue: 0.16)
+                    ]
+                    : [
+                        Color(red: 0.94, green: 0.96, blue: 0.98),
+                        Color(red: 0.88, green: 0.91, blue: 0.94)
+                    ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
