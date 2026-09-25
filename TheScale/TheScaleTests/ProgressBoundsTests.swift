@@ -39,4 +39,22 @@ final class ProgressBoundsTests: XCTestCase {
         XCTAssertEqual(ProgressBounds.clampedValue(1.35, total: 1.2), 1.2)
         XCTAssertEqual(ProgressBounds.clampedValue(0.85, total: 1.2), 0.85)
     }
+
+    func testScaleBoundedProgressClampsQuotaOvershoot() {
+        // Settings / Paywall quota bars must never feed SwiftUI ProgressView.
+        let bounds = ProgressBounds.clamp(140, total: 100)
+        XCTAssertEqual(bounds.value, 100)
+        XCTAssertEqual(bounds.total, 100)
+        XCTAssertEqual(ProgressBounds.clampedValue(Double(140), total: 100), 100)
+    }
+
+    func testDebugLogThrottleSuppressesBursts() {
+        #if DEBUG
+        ScaleDebugLog.resetThrottleStateForTests()
+        // First call prints; immediate second with same key is suppressed (no crash / no throw).
+        ScaleDebugLog.throttled("unit.test.throttle", every: 60, "first")
+        ScaleDebugLog.throttled("unit.test.throttle", every: 60, "second")
+        ScaleDebugLog.resetThrottleStateForTests()
+        #endif
+    }
 }

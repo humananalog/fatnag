@@ -100,6 +100,8 @@ extension View {
 /// Spring / entrance animation can briefly drive values outside range; clamp before paint.
 /// Prefer `ScaleBoundedProgress` over `ProgressView(value:total:)` — SwiftUI logs a console
 /// warning whenever `ProgressView` is initialized (or spring-interpolated) outside `0...total`.
+/// Ban: never reintroduce determinate `ProgressView(value:)` anywhere (see
+/// `scripts/assert_no_determinate_progressview.py`). Indeterminate `ProgressView()` is fine.
 enum ProgressBounds {
     /// Guarantees finite `value` in `0...total` and `total > 0`. NaN / inf / negative → 0; `total ≤ 0` → 1.
     static func clamp(_ value: Double, total: Double) -> (value: Double, total: Double) {

@@ -957,11 +957,9 @@ final class ScaleSessionViewModel: ObservableObject {
             digest.applyHomeDailyMetrics(metrics)
             lastHomeGaugeRefreshAt = Date()
             lastFitnessDigest = digest
-            // Success path is quiet — avoid spamming console next to FitnessDigest lines.
+            // Success path stays silent — never print Home gauges steps/move/diet on every wake.
         } catch {
-            #if DEBUG
-            print("[TheScale] Home gauges refresh FAILED: \(error.localizedDescription)")
-            #endif
+            ScaleDebugLog.throttled("homeGauges.fail", "Home gauges refresh FAILED: \(error.localizedDescription)")
             // Soft-fail: keep prior digest; still rebuild so UI settles.
             rebuildWeeklyGoalSurface()
         }
@@ -1092,18 +1090,14 @@ final class ScaleSessionViewModel: ObservableObject {
             )
             lastFitnessDigest = digest
             healthAccessStatusLine = digest.settingsStatusLine
-            #if DEBUG
-            print("[TheScale] Coach digest refresh: \(digest.debugSummaryLine)")
-            #endif
+            ScaleDebugLog.throttled("coachDigest.ok", "Coach digest refresh: \(digest.debugSummaryLine)")
             await considerMorningWeighDrill(digest: digest)
             return digest
         } catch {
             let digest = FitnessDigest.readFailed(message: error.localizedDescription)
             lastFitnessDigest = digest
             healthAccessStatusLine = digest.settingsStatusLine
-            #if DEBUG
-            print("[TheScale] Coach digest refresh FAILED: \(error.localizedDescription)")
-            #endif
+            ScaleDebugLog.throttled("coachDigest.fail", "Coach digest refresh FAILED: \(error.localizedDescription)")
             return digest
         }
     }
@@ -1244,9 +1238,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 historyTrendWindowWeights = historyTrendWindowWeights + [newest]
             }
         } catch {
-            #if DEBUG
-            print("[TheScale] Today weigh gate Health fetch failed: \(error.localizedDescription)")
-            #endif
+            ScaleDebugLog.throttled("weighGate.fail", "Today weigh gate Health fetch failed: \(error.localizedDescription)")
         }
     }
 

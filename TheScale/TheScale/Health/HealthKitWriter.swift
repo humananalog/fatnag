@@ -499,9 +499,7 @@ final class HealthKitWriter: HealthWriting {
             accessDetail: detail,
             generatedAt: now
         )
-        #if DEBUG
-        print("[TheScale] \(digest.debugSummaryLine)")
-        #endif
+        ScaleDebugLog.throttled("fitnessDigest.fetch", digest.debugSummaryLine)
         return digest
     }
 
@@ -591,9 +589,10 @@ final class HealthKitWriter: HealthWriting {
         do {
             return try await daySumQuantity(identifier, unit: unit, now: now) ?? 0
         } catch {
-            #if DEBUG
-            print("[TheScale] softDaySum \(identifier.rawValue) soft-fail: \(error.localizedDescription)")
-            #endif
+            ScaleDebugLog.throttled(
+                "softDaySum.\(identifier.rawValue)",
+                "softDaySum \(identifier.rawValue) soft-fail: \(error.localizedDescription)"
+            )
             return 0
         }
     }
@@ -608,9 +607,10 @@ final class HealthKitWriter: HealthWriting {
         do {
             return try await sumQuantity(identifier, unit: unit, from: start, to: end) ?? 0
         } catch {
-            #if DEBUG
-            print("[TheScale] softSum \(identifier.rawValue) soft-fail: \(error.localizedDescription)")
-            #endif
+            ScaleDebugLog.throttled(
+                "softSum.\(identifier.rawValue)",
+                "softSum \(identifier.rawValue) soft-fail: \(error.localizedDescription)"
+            )
             return 0
         }
     }
