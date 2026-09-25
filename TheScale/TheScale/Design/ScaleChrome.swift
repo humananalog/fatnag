@@ -1,12 +1,33 @@
 import SwiftUI
 
 /// Liquid Glass (iOS 26+) with material fallback. Built against the iOS 27 SDK.
+/// Accent chrome biases slightly by `ScalePaletteUniverse` when views pass sex.
 enum ScaleChrome {
     static let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
     static let steel = Color(red: 0.42, green: 0.45, blue: 0.50)
     static let void = Color(red: 0.04, green: 0.05, blue: 0.07)
     static let ember = Color(red: 0.92, green: 0.55, blue: 0.18)
     static let signal = Color(red: 0.35, green: 0.78, blue: 0.92)
+
+    /// Ember accent biased to the active universe (Glacier cool amber vs Bloom copper).
+    static func ember(for universe: ScalePaletteUniverse) -> Color {
+        switch universe {
+        case .glacierForge:
+            return Color(red: 0.86, green: 0.62, blue: 0.28)
+        case .bloomCopper:
+            return Color(red: 0.92, green: 0.52, blue: 0.32)
+        }
+    }
+
+    /// Signal accent biased to the active universe (teal ice vs soft rose signal).
+    static func signal(for universe: ScalePaletteUniverse) -> Color {
+        switch universe {
+        case .glacierForge:
+            return Color(red: 0.32, green: 0.78, blue: 0.90)
+        case .bloomCopper:
+            return Color(red: 0.90, green: 0.58, blue: 0.62)
+        }
+    }
 
     static var darkChatGradient: LinearGradient {
         LinearGradient(
@@ -18,6 +39,31 @@ enum ScaleChrome {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+    }
+
+    static func darkChatGradient(for universe: ScalePaletteUniverse) -> LinearGradient {
+        switch universe {
+        case .glacierForge:
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.04, green: 0.07, blue: 0.10),
+                    Color(red: 0.06, green: 0.09, blue: 0.13),
+                    Color(red: 0.03, green: 0.05, blue: 0.08)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case .bloomCopper:
+            return LinearGradient(
+                colors: [
+                    Color(red: 0.08, green: 0.05, blue: 0.07),
+                    Color(red: 0.11, green: 0.07, blue: 0.09),
+                    Color(red: 0.06, green: 0.04, blue: 0.05)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
     }
 }
 

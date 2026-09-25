@@ -28,7 +28,11 @@ struct ProgressSheet: View {
     }
 
     private var atmosphere: WeeklyGoalAtmosphere {
-        WeeklyGoalAtmosphere.forBand(surface.band, colorScheme: colorScheme)
+        WeeklyGoalAtmosphere.forBand(
+            surface.band,
+            colorScheme: colorScheme,
+            sex: session.profile.sex
+        )
     }
 
     private var percent: Int {
@@ -49,6 +53,7 @@ struct ProgressSheet: View {
         NavigationStack {
             ZStack {
                 WeeklyGoalHazeBackground(atmosphere: atmosphere)
+                    .animation(.easeInOut(duration: 0.55), value: session.profile.sex)
                     .ignoresSafeArea()
 
                 VStack(alignment: .leading, spacing: 0) {

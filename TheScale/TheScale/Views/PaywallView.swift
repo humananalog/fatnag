@@ -21,11 +21,15 @@ struct PaywallView: View {
     @State private var scrollY: CGFloat = 0
     @State private var appeared = false
 
-    private let ink = Color(red: 0.05, green: 0.055, blue: 0.07)
+    private var universe: ScalePaletteUniverse {
+        .resolve(sex: session.profile.sex)
+    }
+
+    private var ink: Color { universe.paywallInk }
     private let ivory = Color(red: 0.96, green: 0.95, blue: 0.92)
     private let mist = Color(red: 0.72, green: 0.70, blue: 0.66)
-    private let gold = Color(red: 0.82, green: 0.66, blue: 0.40)
-    private let goldDeep = Color(red: 0.48, green: 0.36, blue: 0.18)
+    private var gold: Color { universe.paywallGold }
+    private var goldDeep: Color { universe.paywallGoldDeep }
 
     /// Room under the sheet drag gripper before chrome controls.
     private let gripperClearance: CGFloat = 18

@@ -12,6 +12,13 @@ struct CoachChatView: View {
     private let messageFont = Font.system(size: 22, weight: .medium, design: .rounded)
     private let inputFont = Font.system(size: 20, weight: .medium, design: .rounded)
 
+    private var universe: ScalePaletteUniverse {
+        .resolve(sex: session.profile.sex)
+    }
+
+    private var signal: Color { ScaleChrome.signal(for: universe) }
+    private var ember: Color { ScaleChrome.ember(for: universe) }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -34,7 +41,8 @@ struct CoachChatView: View {
             }
             composer
         }
-        .background(ScaleChrome.darkChatGradient.ignoresSafeArea())
+        .background(ScaleChrome.darkChatGradient(for: universe).ignoresSafeArea())
+        .animation(.easeInOut(duration: 0.55), value: session.profile.sex)
         .preferredColorScheme(.dark)
         .onAppear {
             chat.seedWelcome(name: session.profile.greetingName)
@@ -82,7 +90,7 @@ struct CoachChatView: View {
                     .foregroundStyle(.white)
                 Text(statusLine)
                     .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(ScaleChrome.signal.opacity(0.85))
+                    .foregroundStyle(signal.opacity(0.85))
             }
             Spacer()
         }
@@ -131,16 +139,16 @@ struct CoachChatView: View {
                         Text("COACH")
                             .font(.system(size: 10, weight: .bold, design: .rounded))
                             .tracking(0.8)
-                            .foregroundStyle(ScaleChrome.ember.opacity(0.9))
+                            .foregroundStyle(ember.opacity(0.9))
                         if turn.usedNetwork {
                             Text("LIVE")
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
-                                .foregroundStyle(ScaleChrome.signal)
+                                .foregroundStyle(signal)
                         }
                         if turn.isStreaming {
                             Text("STREAM")
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
-                                .foregroundStyle(ScaleChrome.signal.opacity(0.75))
+                                .foregroundStyle(signal.opacity(0.75))
                         }
                         if turn.isFailure {
                             Text("ERROR")
@@ -156,7 +164,7 @@ struct CoachChatView: View {
                 }
                 Group {
                     if turn.kind == .assistant && turn.isStreaming && turn.text.isEmpty {
-                        StreamingCursor()
+                        StreamingCursor(tint: signal)
                     } else {
                         Text(turn.text + (turn.isStreaming ? "▍" : ""))
                             .font(messageFont)
@@ -174,7 +182,7 @@ struct CoachChatView: View {
                                 ? Color.orange.opacity(0.22)
                                 : (turn.isFailure
                                     ? Color.red.opacity(0.22)
-                                    : (turn.kind == .user ? ScaleChrome.signal : Color.white.opacity(0.08)))
+                                    : (turn.kind == .user ? signal : Color.white.opacity(0.08)))
                         )
                 )
                 .overlay(
@@ -223,7 +231,7 @@ struct CoachChatView: View {
                     .font(.body.weight(.bold))
                     .foregroundStyle(ScaleChrome.void)
                     .frame(width: 46, height: 46)
-                    .background(ScaleChrome.ember, in: Circle())
+                    .background(ember, in: Circle())
             }
             .accessibilityLabel(chat.isSending ? "Sending" : "Send to Coach")
             .disabled(chat.isSending || chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -234,11 +242,12 @@ struct CoachChatView: View {
 }
 
 private struct StreamingCursor: View {
+    var tint: Color = ScaleChrome.signal
     @State private var on = true
 
     var body: some View {
         RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-            .fill(ScaleChrome.signal)
+            .fill(tint)
             .frame(width: 10, height: 18)
             .opacity(on ? 1 : 0.15)
             .onAppear {

@@ -105,8 +105,9 @@ struct WeeklyGoalSurface: Equatable, Sendable {
     var targetMode: WeeklyTargetMode
 }
 
-/// Atmosphere for the home weekly-goal hero.
-/// Color rules: green = on target, lime = ahead/over target, coral = at risk.
+/// Atmosphere for the home weekly-goal hero + Progress haze.
+/// Color rules: band semantics (green / lime / coral) tinted by `ScalePaletteUniverse`
+/// (male Glacier Forge vs female Bloom Copper). Factory: `forBand(_:colorScheme:sex:)`.
 /// Dark scheme keeps tinted haze on void with ivory ink for contrast.
 struct WeeklyGoalAtmosphere: Equatable {
     let top: Color
@@ -118,123 +119,6 @@ struct WeeklyGoalAtmosphere: Equatable {
     let muted: Color
     let accent: Color
     let panel: Color
-
-    private static let deepInk = Color(red: 0.04, green: 0.05, blue: 0.07)
-    private static let deepMuted = Color(red: 0.12, green: 0.13, blue: 0.16)
-    private static let ivory = Color(red: 0.96, green: 0.95, blue: 0.92)
-    private static let ivoryMuted = Color(red: 0.72, green: 0.74, blue: 0.78)
-    private static let voidTop = Color(red: 0.05, green: 0.06, blue: 0.08)
-    private static let voidMid = Color(red: 0.07, green: 0.08, blue: 0.10)
-    private static let voidBottom = Color(red: 0.04, green: 0.05, blue: 0.07)
-
-    /// Progress / home band colors. `onTrack` = green, `ahead`/`crushed` = lime.
-    static func forBand(_ band: WeeklyTrackBand, colorScheme: ColorScheme = .light) -> WeeklyGoalAtmosphere {
-        let dark = colorScheme == .dark
-        switch band {
-        case .onTrack:
-            // Green: hitting the weekly target pace.
-            if dark {
-                return WeeklyGoalAtmosphere(
-                    top: voidTop,
-                    mid: voidMid,
-                    bottom: voidBottom,
-                    hazeA: Color(red: 0.18, green: 0.62, blue: 0.38).opacity(0.42),
-                    hazeB: Color(red: 0.28, green: 0.72, blue: 0.48).opacity(0.28),
-                    ink: ivory,
-                    muted: ivoryMuted,
-                    accent: Color(red: 0.42, green: 0.86, blue: 0.58),
-                    panel: Color.white.opacity(0.06)
-                )
-            }
-            return WeeklyGoalAtmosphere(
-                top: Color(red: 0.88, green: 0.96, blue: 0.90),
-                mid: Color(red: 0.68, green: 0.88, blue: 0.74),
-                bottom: Color(red: 0.48, green: 0.76, blue: 0.58),
-                hazeA: Color(red: 0.28, green: 0.68, blue: 0.42).opacity(0.36),
-                hazeB: Color(red: 0.55, green: 0.86, blue: 0.64).opacity(0.40),
-                ink: deepInk,
-                muted: deepMuted,
-                accent: Color(red: 0.10, green: 0.46, blue: 0.28),
-                panel: Color.clear
-            )
-        case .ahead, .crushed:
-            // Lime: over / ahead of the weekly target.
-            if dark {
-                return WeeklyGoalAtmosphere(
-                    top: voidTop,
-                    mid: voidMid,
-                    bottom: voidBottom,
-                    hazeA: Color(red: 0.62, green: 0.88, blue: 0.22).opacity(0.40),
-                    hazeB: Color(red: 0.78, green: 0.94, blue: 0.32).opacity(0.26),
-                    ink: ivory,
-                    muted: ivoryMuted,
-                    accent: Color(red: 0.82, green: 0.96, blue: 0.38),
-                    panel: Color.white.opacity(0.06)
-                )
-            }
-            return WeeklyGoalAtmosphere(
-                top: Color(red: 0.94, green: 0.98, blue: 0.78),
-                mid: Color(red: 0.82, green: 0.94, blue: 0.42),
-                bottom: Color(red: 0.68, green: 0.86, blue: 0.28),
-                hazeA: Color(red: 0.72, green: 0.90, blue: 0.22).opacity(0.38),
-                hazeB: Color(red: 0.88, green: 0.96, blue: 0.42).opacity(0.36),
-                ink: deepInk,
-                muted: deepMuted,
-                accent: Color(red: 0.36, green: 0.52, blue: 0.06),
-                panel: Color.clear
-            )
-        case .atRisk:
-            if dark {
-                return WeeklyGoalAtmosphere(
-                    top: voidTop,
-                    mid: voidMid,
-                    bottom: voidBottom,
-                    hazeA: Color(red: 0.86, green: 0.38, blue: 0.28).opacity(0.40),
-                    hazeB: Color(red: 0.94, green: 0.56, blue: 0.36).opacity(0.26),
-                    ink: ivory,
-                    muted: ivoryMuted,
-                    accent: Color(red: 0.96, green: 0.58, blue: 0.42),
-                    panel: Color.white.opacity(0.06)
-                )
-            }
-            return WeeklyGoalAtmosphere(
-                top: Color(red: 0.99, green: 0.92, blue: 0.88),
-                mid: Color(red: 0.94, green: 0.72, blue: 0.62),
-                bottom: Color(red: 0.86, green: 0.50, blue: 0.42),
-                hazeA: Color(red: 0.82, green: 0.36, blue: 0.28).opacity(0.32),
-                hazeB: Color(red: 0.94, green: 0.66, blue: 0.54).opacity(0.38),
-                ink: deepInk,
-                muted: deepMuted,
-                accent: Color(red: 0.52, green: 0.18, blue: 0.12),
-                panel: Color.clear
-            )
-        case .unknown:
-            if dark {
-                return WeeklyGoalAtmosphere(
-                    top: voidTop,
-                    mid: voidMid,
-                    bottom: voidBottom,
-                    hazeA: Color(red: 0.42, green: 0.48, blue: 0.56).opacity(0.34),
-                    hazeB: Color(red: 0.58, green: 0.62, blue: 0.70).opacity(0.24),
-                    ink: ivory,
-                    muted: ivoryMuted,
-                    accent: Color(red: 0.72, green: 0.76, blue: 0.82),
-                    panel: Color.white.opacity(0.06)
-                )
-            }
-            return WeeklyGoalAtmosphere(
-                top: Color(red: 0.94, green: 0.95, blue: 0.96),
-                mid: Color(red: 0.82, green: 0.84, blue: 0.88),
-                bottom: Color(red: 0.66, green: 0.70, blue: 0.76),
-                hazeA: Color(red: 0.42, green: 0.48, blue: 0.56).opacity(0.30),
-                hazeB: Color(red: 0.74, green: 0.78, blue: 0.84).opacity(0.36),
-                ink: deepInk,
-                muted: deepMuted,
-                accent: Color(red: 0.22, green: 0.26, blue: 0.32),
-                panel: Color.clear
-            )
-        }
-    }
 }
 
 /// Pure weekly-goal home math: progress %, track band, daily targets, today-ahead advice.

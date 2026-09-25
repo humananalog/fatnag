@@ -35,6 +35,8 @@
 		A1B2C3D4E5F60718293A0011 /* ProgressSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1011 /* ProgressSheet.swift */; };
 		A1B2C3D4E5F60718293A0012 /* CoachOfflineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1012 /* CoachOfflineTests.swift */; };
 		A1B2C3D4E5F60718293A0013 /* ScaleChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1013 /* ScaleChrome.swift */; };
+		A1B2C3D4E5F60718293A00PU1 /* ScalePaletteUniverse.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PU1 /* ScalePaletteUniverse.swift */; };
+		A1B2C3D4E5F60718293A00PU2 /* ScalePaletteUniverseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PU2 /* ScalePaletteUniverseTests.swift */; };
 		A1B2C3D4E5F60718293A0014 /* CoachChatController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1014 /* CoachChatController.swift */; };
 		A1B2C3D4E5F60718293A0015 /* CoachChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1015 /* CoachChatView.swift */; };
 		A1B2C3D4E5F60718293A0016 /* GrokSharedConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1016 /* GrokSharedConfig.swift */; };
@@ -164,6 +166,8 @@
 		A1B2C3D4E5F60718293A1011 /* ProgressSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressSheet.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1012 /* CoachOfflineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachOfflineTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1013 /* ScaleChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleChrome.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10PU1 /* ScalePaletteUniverse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScalePaletteUniverse.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10PU2 /* ScalePaletteUniverseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScalePaletteUniverseTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1014 /* CoachChatController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachChatController.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1015 /* CoachChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachChatView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1016 /* GrokSharedConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokSharedConfig.swift; sourceTree = "<group>"; };
@@ -473,6 +477,7 @@
 				A1B2C3D4E5F60718293A1027 /* HealthScienceMathTests.swift */,
 				A1B2C3D4E5F60718293A102A /* MondayCardTests.swift */,
 				A1B2C3D4E5F60718293A1042 /* WeeklyGoalSurfaceTests.swift */,
+				A1B2C3D4E5F60718293A10PU2 /* ScalePaletteUniverseTests.swift */,
 				A1B2C3D4E5F60718293A1046 /* MealPlanEngineTests.swift */,
 				A1B2C3D4E5F60718293A1052 /* AggressiveWeeklyTargetTests.swift */,
 				A1B2C3D4E5F60718293A10U1 /* UnitFormatTests.swift */,
@@ -530,6 +535,7 @@
 				A1B2C3D4E5F60718293A10HG1 /* HomeGlassBar.swift */,
 				A1B2C3D4E5F60718293A10HZ1 /* HazeTiltMotion.swift */,
 				A1B2C3D4E5F60718293A1013 /* ScaleChrome.swift */,
+				A1B2C3D4E5F60718293A10PU1 /* ScalePaletteUniverse.swift */,
 			);
 			path = Design;
 			sourceTree = "<group>";
@@ -692,6 +698,7 @@
 				A1B2C3D4E5F60718293A0027 /* HealthScienceMathTests.swift in Sources */,
 				A1B2C3D4E5F60718293A002A /* MondayCardTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0042 /* WeeklyGoalSurfaceTests.swift in Sources */,
+				A1B2C3D4E5F60718293A00PU2 /* ScalePaletteUniverseTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0046 /* MealPlanEngineTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0052 /* AggressiveWeeklyTargetTests.swift in Sources */,
 				A1B2C3D4E5F60718293A00U1 /* UnitFormatTests.swift in Sources */,
@@ -736,6 +743,7 @@
 				A1B2C3D4E5F60718293A0010 /* OnboardingView.swift in Sources */,
 				A1B2C3D4E5F60718293A0011 /* ProgressSheet.swift in Sources */,
 				A1B2C3D4E5F60718293A0013 /* ScaleChrome.swift in Sources */,
+				A1B2C3D4E5F60718293A00PU1 /* ScalePaletteUniverse.swift in Sources */,
 				A1B2C3D4E5F60718293A0014 /* CoachChatController.swift in Sources */,
 				A1B2C3D4E5F60718293A0015 /* CoachChatView.swift in Sources */,
 				A1B2C3D4E5F60718293A001A /* CoachMemoryStore.swift in Sources */,

@@ -91,7 +91,11 @@ struct ContentView: View {
     }
 
     private var atmosphere: WeeklyGoalAtmosphere {
-        WeeklyGoalAtmosphere.forBand(surface.band, colorScheme: colorScheme)
+        WeeklyGoalAtmosphere.forBand(
+            surface.band,
+            colorScheme: colorScheme,
+            sex: session.profile.sex
+        )
     }
 
     var body: some View {
@@ -204,6 +208,7 @@ struct ContentView: View {
         NavigationStack {
             ZStack {
                 WeeklyGoalHazeBackground(atmosphere: atmosphere)
+                    .animation(.easeInOut(duration: 0.55), value: session.profile.sex)
                 homeScroll
                 #if DEBUG
                 debugOverlay
