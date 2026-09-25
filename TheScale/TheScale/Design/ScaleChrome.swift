@@ -50,8 +50,10 @@ extension View {
     }
 }
 
-/// Safe inputs for SwiftUI `ProgressView(value:total:)` and custom gauge fills.
+/// Safe inputs for linear progress / gauge fills.
 /// Spring / entrance animation can briefly drive values outside range; clamp before paint.
+/// Prefer `ScaleBoundedProgress` over `ProgressView(value:total:)` — SwiftUI logs a console
+/// warning whenever `ProgressView` is initialized (or spring-interpolated) outside `0...total`.
 enum ProgressBounds {
     /// Guarantees finite `value` in `0...total` and `total > 0`. NaN / inf / negative → 0; `total ≤ 0` → 1.
     static func clamp(_ value: Double, total: Double) -> (value: Double, total: Double) {
@@ -62,5 +64,31 @@ enum ProgressBounds {
 
     static func clampedValue(_ value: Double, total: Double) -> Double {
         clamp(value, total: total).value
+    }
+}
+
+/// Linear quota / progress track that never touches `ProgressView(value:total:)`.
+/// Clamps every paint so spring overshoot / bad ratios cannot warn.
+struct ScaleBoundedProgress: View {
+    var value: Double
+    var total: Double = 100
+    var tint: Color
+    var track: Color = Color.primary.opacity(0.12)
+    var height: CGFloat = 6
+
+    var body: some View {
+        let bounds = ProgressBounds.clamp(value, total: total)
+        GeometryReader { geo in
+            let width = geo.size.width * CGFloat(bounds.value / bounds.total)
+            ZStack(alignment: .leading) {
+                Capsule(style: .continuous)
+                    .fill(track)
+                Capsule(style: .continuous)
+                    .fill(tint)
+                    .frame(width: max(width, bounds.value > 0.001 ? height : 0))
+            }
+        }
+        .frame(height: height)
+        .accessibilityHidden(true)
     }
 }

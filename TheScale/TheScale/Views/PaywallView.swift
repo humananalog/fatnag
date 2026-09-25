@@ -245,10 +245,13 @@ struct PaywallView: View {
                     .foregroundStyle(gold)
                 Spacer(minLength: 0)
             }
-            let quotaProgress = ProgressBounds.clamp(Double(snap.percentUsed), total: 100)
-            ProgressView(value: quotaProgress.value, total: quotaProgress.total)
-                .tint(snap.isExhausted ? Color.orange : gold)
-                .scaleEffect(x: 1, y: 1.15, anchor: .center)
+            ScaleBoundedProgress(
+                value: Double(snap.percentUsed),
+                total: 100,
+                tint: snap.isExhausted ? Color.orange : gold,
+                track: ivory.opacity(0.14),
+                height: 7
+            )
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

@@ -957,11 +957,7 @@ final class ScaleSessionViewModel: ObservableObject {
             digest.applyHomeDailyMetrics(metrics)
             lastHomeGaugeRefreshAt = Date()
             lastFitnessDigest = digest
-            #if DEBUG
-            print(
-                "[TheScale] Home gauges: steps \(Int(metrics.stepsToday)) · move \(Int(metrics.activeEnergyKcalToday)) · diet \(Int(metrics.dietaryEnergyKcalToday))"
-            )
-            #endif
+            // Success path is quiet — avoid spamming console next to FitnessDigest lines.
         } catch {
             #if DEBUG
             print("[TheScale] Home gauges refresh FAILED: \(error.localizedDescription)")
