@@ -35,6 +35,10 @@ struct ProgressSheet: View {
         )
     }
 
+    private var atmosphereBaseFill: Color {
+        colorScheme == .dark ? atmosphere.mid : atmosphere.top
+    }
+
     private var percent: Int {
         surface.completionPercent
     }
@@ -51,55 +55,57 @@ struct ProgressSheet: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                WeeklyGoalHazeBackground(atmosphere: atmosphere)
-                    .animation(.easeInOut(duration: 0.55), value: session.profile.sex)
-                    .ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 0) {
+                Spacer(minLength: 28)
 
-                VStack(alignment: .leading, spacing: 0) {
-                    Spacer(minLength: 28)
+                statusBlock
+                    .progressActionBlock(revealed: statusIn, reduceMotion: reduceMotion, slide: 36)
 
-                    statusBlock
-                        .progressActionBlock(revealed: statusIn, reduceMotion: reduceMotion, slide: 36)
+                heroPercentBlock
+                    .progressActionBlock(revealed: heroIn, reduceMotion: reduceMotion, slide: 48)
+                    .scaleEffect(percentScale, anchor: .leading)
+                    .padding(.top, 6)
 
-                    heroPercentBlock
-                        .progressActionBlock(revealed: heroIn, reduceMotion: reduceMotion, slide: 48)
-                        .scaleEffect(percentScale, anchor: .leading)
-                        .padding(.top, 6)
+                Text("weekly progress")
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.muted)
+                    .padding(.top, 2)
+                    .progressActionBlock(revealed: heroIn, reduceMotion: reduceMotion, slide: 28)
 
-                    Text("weekly progress")
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .foregroundStyle(atmosphere.muted)
-                        .padding(.top, 2)
-                        .progressActionBlock(revealed: heroIn, reduceMotion: reduceMotion, slide: 28)
+                chunkyGauge
+                    .padding(.top, 18)
+                    .progressActionBlock(revealed: gaugeIn, reduceMotion: reduceMotion, slide: 40)
 
-                    chunkyGauge
-                        .padding(.top, 18)
-                        .progressActionBlock(revealed: gaugeIn, reduceMotion: reduceMotion, slide: 40)
-
-                    if surface.sundayTargetKg != nil {
-                        sundayBlock
-                            .padding(.top, 28)
-                            .progressActionBlock(revealed: sundayIn, reduceMotion: reduceMotion, slide: 44)
-                    }
-
-                    Text(String(format: "%+.2f kg this week", surface.weeklyDeltaKg))
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(atmosphere.accent)
-                        .padding(.top, 6)
-                        .progressActionBlock(revealed: deltaIn, reduceMotion: reduceMotion, slide: 32)
-
-                    Spacer(minLength: 24)
-
-                    coachBlock
-                        .progressActionBlock(revealed: coachIn, reduceMotion: reduceMotion, slide: 28)
-
-                    actionsBlock
-                        .progressActionBlock(revealed: actionsIn, reduceMotion: reduceMotion, slide: 52)
+                if surface.sundayTargetKg != nil {
+                    sundayBlock
+                        .padding(.top, 28)
+                        .progressActionBlock(revealed: sundayIn, reduceMotion: reduceMotion, slide: 44)
                 }
-                .padding(.horizontal, 28)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+                Text(String(format: "%+.2f kg this week", surface.weeklyDeltaKg))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(atmosphere.accent)
+                    .padding(.top, 6)
+                    .progressActionBlock(revealed: deltaIn, reduceMotion: reduceMotion, slide: 32)
+
+                Spacer(minLength: 24)
+
+                coachBlock
+                    .progressActionBlock(revealed: coachIn, reduceMotion: reduceMotion, slide: 28)
+
+                actionsBlock
+                    .progressActionBlock(revealed: actionsIn, reduceMotion: reduceMotion, slide: 52)
+            }
+            .padding(.horizontal, 28)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background {
+                ZStack {
+                    atmosphereBaseFill
+                    WeeklyGoalHazeBackground(atmosphere: atmosphere)
+                }
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.55), value: session.profile.sex)
             }
             .navigationTitle("Progress")
             .navigationBarTitleDisplayMode(.inline)
@@ -114,10 +120,10 @@ struct ProgressSheet: View {
             }
             .onAppear {
                 refreshProgressData()
-                // First paint / cold tab load.
-                if session.homeTab == .progress {
-                    playEntrance()
-                }
+                // Always arm entrance on appear. TabView may preload this root while
+                // homeTab is still `.weigh`; waiting for onChange alone left opacity-0
+                // chrome on a night void (reads as a black screen).
+                playEntrance()
             }
             .onChange(of: session.homeTab) { _, tab in
                 // Re-fire every time the user tabs back to Progress (TabView keeps the root alive).
@@ -345,6 +351,7 @@ struct ProgressSheet: View {
 
 private extension View {
     /// Chunky section entrance: scale + slide up + opacity. Reduce Motion → opacity only / instant.
+    /// Floor opacity at 0.04 so a missed entrance can never leave pure invisible ink on a void.
     @ViewBuilder
     func progressActionBlock(
         revealed: Bool,
@@ -352,10 +359,10 @@ private extension View {
         slide: CGFloat
     ) -> some View {
         if reduceMotion {
-            self.opacity(revealed ? 1 : 0)
+            self.opacity(revealed ? 1 : 0.04)
         } else {
             self
-                .opacity(revealed ? 1 : 0)
+                .opacity(revealed ? 1 : 0.04)
                 .offset(y: revealed ? 0 : slide)
                 .scaleEffect(revealed ? 1 : 0.72, anchor: .leading)
         }

@@ -91,11 +91,18 @@ struct ContentView: View {
     }
 
     private var atmosphere: WeeklyGoalAtmosphere {
+        // Profile sex is non-optional; resolve still falls back to Glacier Forge if ever nil.
         WeeklyGoalAtmosphere.forBand(
             surface.band,
             colorScheme: colorScheme,
             sex: session.profile.sex
         )
+    }
+
+    /// Solid fill under haze so LaunchBackground never shows through as a dead black void
+    /// (which made deep day-ink look like invisible chrome).
+    private var atmosphereBaseFill: Color {
+        colorScheme == .dark ? atmosphere.mid : atmosphere.top
     }
 
     var body: some View {
@@ -207,12 +214,20 @@ struct ContentView: View {
     private var weighTabRoot: some View {
         NavigationStack {
             ZStack {
-                WeeklyGoalHazeBackground(atmosphere: atmosphere)
-                    .animation(.easeInOut(duration: 0.55), value: session.profile.sex)
                 homeScroll
                 #if DEBUG
                 debugOverlay
                 #endif
+            }
+            // Atmosphere as `.background` only (same contract as LiveWeighInSheet) so haze
+            // cannot cover content or leave LaunchBackground showing through.
+            .background {
+                ZStack {
+                    atmosphereBaseFill
+                    WeeklyGoalHazeBackground(atmosphere: atmosphere)
+                }
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.55), value: session.profile.sex)
             }
             // Exact Weigh Now control: bottom safeAreaInset on Weigh tab only.
             // Show only after gate resolved AND not already weighed (stamp-first, then Health today).
@@ -409,7 +424,11 @@ struct ContentView: View {
                 Text("The Scale")
                     .font(.system(size: 24, weight: .bold, design: .serif))
                     .foregroundStyle(atmosphere.ink)
-                    .shadow(color: .white.opacity(0.55), radius: 0, y: 1)
+                    .shadow(
+                        color: colorScheme == .dark ? .black.opacity(0.45) : .white.opacity(0.55),
+                        radius: 0,
+                        y: 1
+                    )
                 Text(greetingLine)
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.ink.opacity(0.78))

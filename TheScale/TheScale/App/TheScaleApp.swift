@@ -25,6 +25,11 @@ struct TheScaleApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
+                // Guaranteed base under splash/content so a failed first paint is never a
+                // pure LaunchBackground void with no chrome.
+                Color(red: 0.06, green: 0.08, blue: 0.11)
+                    .ignoresSafeArea()
+
                 Group {
                     if session.hasCompletedOnboarding {
                         ContentView()
@@ -51,6 +56,15 @@ struct TheScaleApp: App {
                 }
                 // Drop per-user paste keys from 2.0 / 2.1; coaching uses shared build config only.
                 GrokLegacyKeychain.clearUserEnteredKey()
+                // Failsafe: never leave the user on splash forever if its Task is cancelled.
+                if showSplash {
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 3_500_000_000)
+                        if showSplash {
+                            showSplash = false
+                        }
+                    }
+                }
                 // Do not prompt Health / BG tasks until onboarding finishes.
                 guard session.hasCompletedOnboarding else { return }
                 schedulePostOnboardingWork()

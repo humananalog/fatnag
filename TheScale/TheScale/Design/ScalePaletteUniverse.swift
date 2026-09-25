@@ -7,13 +7,16 @@ import SwiftUI
 ///
 /// Universes are obviously different at a glance (background + haze), not a tiny accent swap.
 /// Band semantics stay intact: green = on track, lime = ahead, coral = at risk.
+///
+/// **Contrast contract (P0):** night void fields always use ivory ink; day pastel fields always
+/// use deep ink. Never pair deep ink with a void base (black-on-black).
 enum ScalePaletteUniverse: String, CaseIterable, Equatable, Sendable {
     /// Male — cool graphite void, teal–cyan athletic steel haze.
     case glacierForge
     /// Female — warm rose-quartz dusk, champagne-copper haze (not cream/terracotta).
     case bloomCopper
 
-    /// Resolves profile sex → universe. `nil` / unknown → glacierForge.
+    /// Resolves profile sex → universe. `nil` / unknown → glacierForge (safe fallback).
     static func resolve(sex: UserBodyProfile.Sex?) -> ScalePaletteUniverse {
         switch sex {
         case .female: return .bloomCopper
@@ -33,19 +36,29 @@ enum ScalePaletteUniverse: String, CaseIterable, Equatable, Sendable {
     fileprivate static let deepInk = Color(red: 0.04, green: 0.05, blue: 0.07)
     fileprivate static let deepMuted = Color(red: 0.12, green: 0.13, blue: 0.16)
     fileprivate static let ivory = Color(red: 0.96, green: 0.95, blue: 0.92)
-    fileprivate static let ivoryMuted = Color(red: 0.72, green: 0.74, blue: 0.78)
+    fileprivate static let ivoryMuted = Color(red: 0.78, green: 0.80, blue: 0.84)
 
-    // MARK: - Void bases (night)
+    /// Ink guaranteed readable on void vs pastel fields.
+    fileprivate static func fieldInk(nightVoid: Bool) -> Color {
+        nightVoid ? ivory : deepInk
+    }
+
+    fileprivate static func fieldMuted(nightVoid: Bool) -> Color {
+        nightVoid ? ivoryMuted : deepMuted
+    }
+
+    // MARK: - Void bases (night) — lifted slightly off pure black so OLED + LaunchBackground
+    // never read as a dead void if haze layers are late to paint.
 
     /// Cool blue-black void — Glacier Forge night.
-    fileprivate static let glacierVoidTop = Color(red: 0.04, green: 0.07, blue: 0.10)
-    fileprivate static let glacierVoidMid = Color(red: 0.05, green: 0.08, blue: 0.12)
-    fileprivate static let glacierVoidBottom = Color(red: 0.03, green: 0.05, blue: 0.08)
+    fileprivate static let glacierVoidTop = Color(red: 0.06, green: 0.09, blue: 0.13)
+    fileprivate static let glacierVoidMid = Color(red: 0.07, green: 0.11, blue: 0.15)
+    fileprivate static let glacierVoidBottom = Color(red: 0.05, green: 0.07, blue: 0.11)
 
     /// Warm rose-black void — Bloom Copper night.
-    fileprivate static let bloomVoidTop = Color(red: 0.08, green: 0.05, blue: 0.07)
-    fileprivate static let bloomVoidMid = Color(red: 0.10, green: 0.06, blue: 0.08)
-    fileprivate static let bloomVoidBottom = Color(red: 0.06, green: 0.04, blue: 0.05)
+    fileprivate static let bloomVoidTop = Color(red: 0.10, green: 0.07, blue: 0.09)
+    fileprivate static let bloomVoidMid = Color(red: 0.12, green: 0.08, blue: 0.10)
+    fileprivate static let bloomVoidBottom = Color(red: 0.08, green: 0.05, blue: 0.07)
 
     /// Paywall / luxury gold biased to the active universe (continuity with sex-aware heroes).
     var paywallGold: Color {
@@ -68,6 +81,7 @@ enum ScalePaletteUniverse: String, CaseIterable, Equatable, Sendable {
         }
     }
 
+    /// Near-black paywall *background* (text on paywall stays ivory/gold).
     var paywallInk: Color {
         switch self {
         case .glacierForge:
@@ -79,6 +93,12 @@ enum ScalePaletteUniverse: String, CaseIterable, Equatable, Sendable {
 }
 
 extension WeeklyGoalAtmosphere {
+    /// Guaranteed-visible unknown-band atmosphere when profile/sex/band wiring fails.
+    /// Always Glacier Forge + scheme-correct ink (never black-on-black).
+    static func safeFallback(colorScheme: ColorScheme = .light) -> WeeklyGoalAtmosphere {
+        forBand(.unknown, colorScheme: colorScheme, universe: .glacierForge)
+    }
+
     /// Builds band atmosphere tinted by the gender universe.
     static func forBand(
         _ band: WeeklyTrackBand,
@@ -104,9 +124,9 @@ extension WeeklyGoalAtmosphere {
     // MARK: Glacier Forge (male)
 
     private static func glacierForge(band: WeeklyTrackBand, dark: Bool) -> WeeklyGoalAtmosphere {
-        let ink = dark ? ScalePaletteUniverse.ivory : ScalePaletteUniverse.deepInk
-        let muted = dark ? ScalePaletteUniverse.ivoryMuted : ScalePaletteUniverse.deepMuted
-        let panel = dark ? Color.white.opacity(0.06) : Color.clear
+        let ink = ScalePaletteUniverse.fieldInk(nightVoid: dark)
+        let muted = ScalePaletteUniverse.fieldMuted(nightVoid: dark)
+        let panel = dark ? Color.white.opacity(0.08) : Color.clear
         let voidT = ScalePaletteUniverse.glacierVoidTop
         let voidM = ScalePaletteUniverse.glacierVoidMid
         let voidB = ScalePaletteUniverse.glacierVoidBottom
@@ -116,8 +136,8 @@ extension WeeklyGoalAtmosphere {
             if dark {
                 return WeeklyGoalAtmosphere(
                     top: voidT, mid: voidM, bottom: voidB,
-                    hazeA: Color(red: 0.12, green: 0.58, blue: 0.52).opacity(0.44),
-                    hazeB: Color(red: 0.22, green: 0.72, blue: 0.78).opacity(0.30),
+                    hazeA: Color(red: 0.12, green: 0.58, blue: 0.52).opacity(0.52),
+                    hazeB: Color(red: 0.22, green: 0.72, blue: 0.78).opacity(0.38),
                     ink: ink, muted: muted,
                     accent: Color(red: 0.38, green: 0.88, blue: 0.78),
                     panel: panel
@@ -137,8 +157,8 @@ extension WeeklyGoalAtmosphere {
             if dark {
                 return WeeklyGoalAtmosphere(
                     top: voidT, mid: voidM, bottom: voidB,
-                    hazeA: Color(red: 0.48, green: 0.86, blue: 0.32).opacity(0.40),
-                    hazeB: Color(red: 0.62, green: 0.92, blue: 0.48).opacity(0.26),
+                    hazeA: Color(red: 0.48, green: 0.86, blue: 0.32).opacity(0.48),
+                    hazeB: Color(red: 0.62, green: 0.92, blue: 0.48).opacity(0.34),
                     ink: ink, muted: muted,
                     accent: Color(red: 0.72, green: 0.96, blue: 0.42),
                     panel: panel
@@ -158,8 +178,8 @@ extension WeeklyGoalAtmosphere {
             if dark {
                 return WeeklyGoalAtmosphere(
                     top: voidT, mid: voidM, bottom: voidB,
-                    hazeA: Color(red: 0.78, green: 0.36, blue: 0.32).opacity(0.40),
-                    hazeB: Color(red: 0.88, green: 0.52, blue: 0.40).opacity(0.26),
+                    hazeA: Color(red: 0.78, green: 0.36, blue: 0.32).opacity(0.48),
+                    hazeB: Color(red: 0.88, green: 0.52, blue: 0.40).opacity(0.34),
                     ink: ink, muted: muted,
                     accent: Color(red: 0.96, green: 0.58, blue: 0.48),
                     panel: panel
@@ -179,8 +199,8 @@ extension WeeklyGoalAtmosphere {
             if dark {
                 return WeeklyGoalAtmosphere(
                     top: voidT, mid: voidM, bottom: voidB,
-                    hazeA: Color(red: 0.32, green: 0.46, blue: 0.56).opacity(0.36),
-                    hazeB: Color(red: 0.48, green: 0.60, blue: 0.70).opacity(0.24),
+                    hazeA: Color(red: 0.32, green: 0.46, blue: 0.56).opacity(0.44),
+                    hazeB: Color(red: 0.48, green: 0.60, blue: 0.70).opacity(0.32),
                     ink: ink, muted: muted,
                     accent: Color(red: 0.68, green: 0.78, blue: 0.86),
                     panel: panel
@@ -202,9 +222,9 @@ extension WeeklyGoalAtmosphere {
     // MARK: Bloom Copper (female)
 
     private static func bloomCopper(band: WeeklyTrackBand, dark: Bool) -> WeeklyGoalAtmosphere {
-        let ink = dark ? ScalePaletteUniverse.ivory : ScalePaletteUniverse.deepInk
-        let muted = dark ? ScalePaletteUniverse.ivoryMuted : ScalePaletteUniverse.deepMuted
-        let panel = dark ? Color.white.opacity(0.06) : Color.clear
+        let ink = ScalePaletteUniverse.fieldInk(nightVoid: dark)
+        let muted = ScalePaletteUniverse.fieldMuted(nightVoid: dark)
+        let panel = dark ? Color.white.opacity(0.08) : Color.clear
         let voidT = ScalePaletteUniverse.bloomVoidTop
         let voidM = ScalePaletteUniverse.bloomVoidMid
         let voidB = ScalePaletteUniverse.bloomVoidBottom
@@ -215,8 +235,8 @@ extension WeeklyGoalAtmosphere {
                 return WeeklyGoalAtmosphere(
                     top: voidT, mid: voidM, bottom: voidB,
                     // Warm sage + rose copper — on-track still reads “alive green,” base stays rose void.
-                    hazeA: Color(red: 0.42, green: 0.68, blue: 0.48).opacity(0.40),
-                    hazeB: Color(red: 0.86, green: 0.52, blue: 0.48).opacity(0.30),
+                    hazeA: Color(red: 0.42, green: 0.68, blue: 0.48).opacity(0.48),
+                    hazeB: Color(red: 0.86, green: 0.52, blue: 0.48).opacity(0.38),
                     ink: ink, muted: muted,
                     accent: Color(red: 0.72, green: 0.90, blue: 0.68),
                     panel: panel
@@ -236,8 +256,8 @@ extension WeeklyGoalAtmosphere {
             if dark {
                 return WeeklyGoalAtmosphere(
                     top: voidT, mid: voidM, bottom: voidB,
-                    hazeA: Color(red: 0.88, green: 0.72, blue: 0.28).opacity(0.40),
-                    hazeB: Color(red: 0.94, green: 0.82, blue: 0.42).opacity(0.26),
+                    hazeA: Color(red: 0.88, green: 0.72, blue: 0.28).opacity(0.48),
+                    hazeB: Color(red: 0.94, green: 0.82, blue: 0.42).opacity(0.34),
                     ink: ink, muted: muted,
                     accent: Color(red: 0.96, green: 0.86, blue: 0.48),
                     panel: panel
@@ -257,8 +277,8 @@ extension WeeklyGoalAtmosphere {
             if dark {
                 return WeeklyGoalAtmosphere(
                     top: voidT, mid: voidM, bottom: voidB,
-                    hazeA: Color(red: 0.90, green: 0.32, blue: 0.40).opacity(0.42),
-                    hazeB: Color(red: 0.94, green: 0.48, blue: 0.42).opacity(0.28),
+                    hazeA: Color(red: 0.90, green: 0.32, blue: 0.40).opacity(0.50),
+                    hazeB: Color(red: 0.94, green: 0.48, blue: 0.42).opacity(0.36),
                     ink: ink, muted: muted,
                     accent: Color(red: 0.98, green: 0.62, blue: 0.58),
                     panel: panel
@@ -278,8 +298,8 @@ extension WeeklyGoalAtmosphere {
             if dark {
                 return WeeklyGoalAtmosphere(
                     top: voidT, mid: voidM, bottom: voidB,
-                    hazeA: Color(red: 0.56, green: 0.40, blue: 0.46).opacity(0.36),
-                    hazeB: Color(red: 0.72, green: 0.56, blue: 0.50).opacity(0.24),
+                    hazeA: Color(red: 0.56, green: 0.40, blue: 0.46).opacity(0.44),
+                    hazeB: Color(red: 0.72, green: 0.56, blue: 0.50).opacity(0.32),
                     ink: ink, muted: muted,
                     accent: Color(red: 0.86, green: 0.74, blue: 0.70),
                     panel: panel

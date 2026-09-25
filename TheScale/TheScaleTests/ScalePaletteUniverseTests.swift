@@ -9,6 +9,18 @@ final class ScalePaletteUniverseTests: XCTestCase {
         XCTAssertEqual(ScalePaletteUniverse.resolve(sex: .female), .bloomCopper)
     }
 
+    func testSafeFallbackNeverUsesDeepInkOnNightVoid() {
+        let night = WeeklyGoalAtmosphere.safeFallback(colorScheme: .dark)
+        let ink = rgba(night.ink)
+        XCTAssertGreaterThan(ink.r, 0.9, "Night fallback must use ivory ink, not deep void ink")
+        XCTAssertGreaterThan(ink.g, 0.9)
+        XCTAssertGreaterThan(ink.b, 0.85)
+
+        let day = WeeklyGoalAtmosphere.safeFallback(colorScheme: .light)
+        let dayInk = rgba(day.ink)
+        XCTAssertLessThan(dayInk.r, 0.2, "Day fallback must use deep ink on pastel")
+    }
+
     func testUniversesDifferAtGlanceOnTrackLight() {
         let male = WeeklyGoalAtmosphere.forBand(.onTrack, colorScheme: .light, sex: .male)
         let female = WeeklyGoalAtmosphere.forBand(.onTrack, colorScheme: .light, sex: .female)
@@ -26,12 +38,25 @@ final class ScalePaletteUniverseTests: XCTestCase {
     }
 
     func testNightModeKeepsIvoryInkBothUniverses() {
+        let bands: [WeeklyTrackBand] = [.onTrack, .ahead, .crushed, .atRisk, .unknown]
         for sex in UserBodyProfile.Sex.allCases {
-            let atm = WeeklyGoalAtmosphere.forBand(.onTrack, colorScheme: .dark, sex: sex)
+            for band in bands {
+                let atm = WeeklyGoalAtmosphere.forBand(band, colorScheme: .dark, sex: sex)
+                let ink = rgba(atm.ink)
+                XCTAssertGreaterThan(ink.r, 0.9, "\(sex) \(band) night ink")
+                XCTAssertGreaterThan(ink.g, 0.9, "\(sex) \(band) night ink")
+                XCTAssertGreaterThan(ink.b, 0.85, "\(sex) \(band) night ink")
+            }
+        }
+    }
+
+    func testDayModeKeepsDeepInkBothUniverses() {
+        for sex in UserBodyProfile.Sex.allCases {
+            let atm = WeeklyGoalAtmosphere.forBand(.onTrack, colorScheme: .light, sex: sex)
             let ink = rgba(atm.ink)
-            XCTAssertGreaterThan(ink.r, 0.9)
-            XCTAssertGreaterThan(ink.g, 0.9)
-            XCTAssertGreaterThan(ink.b, 0.85)
+            XCTAssertLessThan(ink.r, 0.2)
+            XCTAssertLessThan(ink.g, 0.2)
+            XCTAssertLessThan(ink.b, 0.2)
         }
     }
 
