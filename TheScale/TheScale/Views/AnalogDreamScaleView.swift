@@ -3,6 +3,7 @@ import UIKit
 
 /// Real bathroom-scale UX: fixed center marker, marks live on a rotating disc.
 /// Viewport shows roughly 25° of the disc (narrow window), not a full face dial.
+/// Used by onboarding dream-weight and Settings target weight (same haptic control).
 struct AnalogDreamScaleView: View {
     @Binding var weightKg: Double
     var boundsKg: ClosedRange<Double>
@@ -10,7 +11,10 @@ struct AnalogDreamScaleView: View {
     var ink: Color
     var steel: Color
     var accent: Color
+    var accessibilityId: String = "onboarding.dream.analog"
+    var caption: String = "Drag. Marks move. Needle stays."
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var lastMinorTick: Int = .min
     @State private var lastMajorTick: Int = .min
     @State private var dragStartKg: Double?
@@ -24,6 +28,19 @@ struct AnalogDreamScaleView: View {
 
     private var displayValue: Double {
         UnitFormat.mass(fromKg: weightKg, system: unitSystem)
+    }
+
+    private var housingColors: [Color] {
+        if colorScheme == .dark {
+            return [
+                Color(red: 0.22, green: 0.24, blue: 0.28),
+                Color(red: 0.14, green: 0.15, blue: 0.18)
+            ]
+        }
+        return [
+            Color(red: 0.93, green: 0.94, blue: 0.96),
+            Color(red: 0.82, green: 0.85, blue: 0.88)
+        ]
     }
 
     /// Disc rotation so the selected weight sits under the static needle (12 o'clock).
@@ -42,17 +59,14 @@ struct AnalogDreamScaleView: View {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(
                         LinearGradient(
-                            colors: [
-                                Color(red: 0.93, green: 0.94, blue: 0.96),
-                                Color(red: 0.82, green: 0.85, blue: 0.88)
-                            ],
+                            colors: housingColors,
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(ink.opacity(0.16), lineWidth: 1.5)
+                            .strokeBorder(ink.opacity(colorScheme == .dark ? 0.28 : 0.16), lineWidth: 1.5)
                     )
 
                 // Rotating disc clipped to a narrow window
@@ -63,9 +77,9 @@ struct AnalogDreamScaleView: View {
                     // Soft vignette inside window
                     LinearGradient(
                         colors: [
-                            Color.black.opacity(0.10),
+                            Color.black.opacity(colorScheme == .dark ? 0.28 : 0.10),
                             Color.clear,
-                            Color.black.opacity(0.10)
+                            Color.black.opacity(colorScheme == .dark ? 0.28 : 0.10)
                         ],
                         startPoint: .leading,
                         endPoint: .trailing
@@ -114,8 +128,8 @@ struct AnalogDreamScaleView: View {
             .frame(height: 200)
             .contentShape(Rectangle())
             .gesture(dragGesture)
-            .accessibilityIdentifier("onboarding.dream.analog")
-            .accessibilityLabel("Dream weight \(String(format: "%.1f", displayValue)) \(unitSystem.massLabel)")
+            .accessibilityIdentifier(accessibilityId)
+            .accessibilityLabel("Target weight \(String(format: "%.1f", displayValue)) \(unitSystem.massLabel)")
             .accessibilityValue(String(format: "%.1f %@", displayValue, unitSystem.massLabel))
             .accessibilityAdjustableAction { direction in
                 let step = unitSystem == .metric ? 0.5 : UnitFormat.kg(fromMass: 1, system: .imperial)
@@ -128,8 +142,14 @@ struct AnalogDreamScaleView: View {
                     break
                 }
             }
+            .onChange(of: boundsKg.lowerBound) { _, _ in
+                setKg(weightKg)
+            }
+            .onChange(of: boundsKg.upperBound) { _, _ in
+                setKg(weightKg)
+            }
 
-            Text("Drag. Marks move. Needle stays.")
+            Text(caption)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(steel)
         }
@@ -145,6 +165,9 @@ struct AnalogDreamScaleView: View {
 
             for i in -padTicks...(tickCount + padTicks) {
                 let kg = boundsKg.lowerBound + Double(i) * minorStepKg
+                // Outside the hard band: still draw faint pad ticks for disc continuity,
+                // but never label them as selectable values.
+                let inBand = kg >= boundsKg.lowerBound - 0.01 && kg <= boundsKg.upperBound + 0.01
                 let degFromZero = Double(i) * minorStepKg * degreesPerKg
                 // At rotation 0, lowerBound sits at 12 o'clock (-90° in standard math → top).
                 let deg = -90 + degFromZero
@@ -157,13 +180,14 @@ struct AnalogDreamScaleView: View {
                 var path = Path()
                 path.move(to: CGPoint(x: center.x + cosA * inner, y: center.y + sinA * inner))
                 path.addLine(to: CGPoint(x: center.x + cosA * outer, y: center.y + sinA * outer))
+                let tickOpacity = inBand ? (isMajor ? 0.72 : 0.42) : 0.18
                 context.stroke(
                     path,
-                    with: .color(isMajor ? ink.opacity(0.72) : steel.opacity(0.42)),
+                    with: .color(isMajor ? ink.opacity(tickOpacity) : steel.opacity(tickOpacity)),
                     lineWidth: isMajor ? 2.2 : 1.1
                 )
 
-                if isMajor, kg >= boundsKg.lowerBound - 0.01, kg <= boundsKg.upperBound + 0.01 {
+                if isMajor, inBand {
                     let labelKg = min(max(kg, boundsKg.lowerBound), boundsKg.upperBound)
                     let label = UnitFormat.mass(fromKg: labelKg, system: unitSystem)
                     let labelR = radius - 34
@@ -199,7 +223,8 @@ struct AnalogDreamScaleView: View {
 
     private func setKg(_ kg: Double) {
         let clamped = min(max(kg, boundsKg.lowerBound), boundsKg.upperBound)
-        let snapped = (clamped / minorStepKg).rounded() * minorStepKg
+        var snapped = (clamped / minorStepKg).rounded() * minorStepKg
+        snapped = min(max(snapped, boundsKg.lowerBound), boundsKg.upperBound)
         let minorIndex = Int((snapped / minorStepKg).rounded())
         if minorIndex != lastMinorTick {
             lastMinorTick = minorIndex
@@ -209,7 +234,9 @@ struct AnalogDreamScaleView: View {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.85)
             }
         }
-        weightKg = snapped
+        if abs(weightKg - snapped) > 0.001 {
+            weightKg = snapped
+        }
     }
 }
 

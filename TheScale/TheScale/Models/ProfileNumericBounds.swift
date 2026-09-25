@@ -93,24 +93,28 @@ enum ProfileNumericBounds {
         )
     }
 
-    /// Ideal / dream weight: absolute human bounds, then optional BMI-aware range.
+    /// Ideal / dream weight: absolute human bounds, then BMI-aware range for height + sex + age.
     static func clampIdealWeightKg(
         _ raw: Double,
         heightCm: Double,
-        currentKg: Double?
+        currentKg: Double?,
+        sex: UserBodyProfile.Sex,
+        ageYears: Double
     ) -> ClampResult {
         let absolute = clampWeightKg(raw)
         var value = absolute.value
         var message = absolute.message
         let bounds = GoalPaceGuard.dreamWeightBoundsKg(
             currentKg: currentKg ?? value,
-            heightCm: heightCm
+            heightCm: heightCm,
+            sex: sex,
+            ageYears: ageYears
         )
         let bmiClamped = min(bounds.upperBound, max(bounds.lowerBound, value))
         if abs(bmiClamped - value) > 0.05 {
             value = bmiClamped
             message = String(
-                format: "Dream weight must stay in a realistic band for your height (about %.0f-%.0f kg).",
+                format: "Dream weight must stay in a realistic band for your height, sex, and age (about %.0f-%.0f kg).",
                 bounds.lowerBound,
                 bounds.upperBound
             )

@@ -378,4 +378,54 @@ final class ProfileNumericBoundsTests: XCTestCase {
         XCTAssertEqual(ok.hour, 7)
         XCTAssertEqual(ok.minute, 30)
     }
+
+    func testIdealWeightClampUsesSexAgeBMIBand() {
+        // 40 kg at 170 cm is BMI ~13.8 — below female floor.
+        let thin = ProfileNumericBounds.clampIdealWeightKg(
+            40,
+            heightCm: 170,
+            currentKg: 70,
+            sex: .female,
+            ageYears: 28
+        )
+        XCTAssertTrue(thin.didClamp)
+        XCTAssertGreaterThan(thin.value, 40)
+        let floorBMI = TargetFeasibility.targetBMIHardFloor(sex: .female, ageYears: 28)
+        let expectedFloor = TargetFeasibility.weightKg(forBMI: floorBMI, heightCm: 170)
+        XCTAssertEqual(thin.value, expectedFloor, accuracy: 0.15)
+        XCTAssertNotNil(thin.message)
+
+        // Sensible mid-band target should pass through.
+        let ok = ProfileNumericBounds.clampIdealWeightKg(
+            62,
+            heightCm: 170,
+            currentKg: 70,
+            sex: .female,
+            ageYears: 28
+        )
+        XCTAssertFalse(ok.didClamp)
+        XCTAssertEqual(ok.value, 62, accuracy: 0.01)
+    }
+
+    func testDreamBoundsNeverBelowSexAgeBMIFloor() {
+        let bounds = GoalPaceGuard.dreamWeightBoundsKg(
+            currentKg: 55,
+            heightCm: 165,
+            sex: .female,
+            ageYears: 70
+        )
+        let floorBMI = TargetFeasibility.targetBMIHardFloor(sex: .female, ageYears: 70)
+        let floorKg = TargetFeasibility.weightKg(forBMI: floorBMI, heightCm: 165)
+        XCTAssertEqual(floorBMI, 18.5, accuracy: 0.01)
+        XCTAssertGreaterThanOrEqual(bounds.lowerBound, floorKg - 0.05)
+        XCTAssertLessThanOrEqual(bounds.upperBound, TargetFeasibility.weightKg(forBMI: 35, heightCm: 165) + 0.05)
+    }
+
+    func testMaleYoungAdultFloorLowerThanElderlyFemale() {
+        let maleYoung = TargetFeasibility.targetBMIHardFloor(sex: .male, ageYears: 30)
+        let femaleElder = TargetFeasibility.targetBMIHardFloor(sex: .female, ageYears: 70)
+        XCTAssertEqual(maleYoung, 16.0, accuracy: 0.01)
+        XCTAssertEqual(femaleElder, 18.5, accuracy: 0.01)
+        XCTAssertGreaterThan(femaleElder, maleYoung)
+    }
 }

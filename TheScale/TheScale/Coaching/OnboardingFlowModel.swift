@@ -71,7 +71,12 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     var dreamBoundsKg: ClosedRange<Double> {
-        GoalPaceGuard.dreamWeightBoundsKg(currentKg: currentWeightKg, heightCm: heightCm)
+        GoalPaceGuard.dreamWeightBoundsKg(
+            currentKg: currentWeightKg,
+            heightCm: heightCm,
+            sex: sex ?? .male,
+            ageYears: ageYears
+        )
     }
 
     var paceVerdict: GoalPaceVerdict {
@@ -320,7 +325,9 @@ final class OnboardingFlowModel: ObservableObject {
         let result = ProfileNumericBounds.clampIdealWeightKg(
             idealKg,
             heightCm: heightCm,
-            currentKg: currentWeightKg
+            currentKg: currentWeightKg,
+            sex: sex ?? .male,
+            ageYears: ageYears
         )
         idealKg = result.value
     }

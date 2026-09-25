@@ -26,10 +26,21 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable {
-        case name, height, age, targetWeight, bodyFat
+        case name, height, age, bodyFat
         case location, ethnicity, language, vibe, avoidances, healthContext
         case reference, offset
         case preSleepWindow, preSleepHR
+    }
+
+    private var dreamBoundsKg: ClosedRange<Double> {
+        GoalPaceGuard.dreamWeightBoundsKg(
+            currentKg: session.healthBaselineKg
+                ?? session.profile.startingWeightKg
+                ?? session.profile.idealWeightKg,
+            heightCm: session.profile.heightCm,
+            sex: session.profile.sex,
+            ageYears: session.profile.ageYears
+        )
     }
 
     private var ink: Color {
@@ -387,36 +398,47 @@ struct SettingsView: View {
                     validationLine(ageValidationNote)
                 }
 
-                labeledField(
-                    title: "Dream / target weight",
-                    help: "Where you want the scale to land. Clamped to a realistic human range for your height."
-                ) {
-                    HStack(spacing: 6) {
-                        TextField(
-                            session.preferredUnits.massLabel,
-                            value: Binding(
-                                get: {
-                                    UnitFormat.mass(fromKg: session.profile.idealWeightKg, system: session.preferredUnits)
-                                },
-                                set: { display in
-                                    let kg = UnitFormat.kg(fromMass: display, system: session.preferredUnits)
-                                    let result = ProfileNumericBounds.clampIdealWeightKg(
-                                        kg,
-                                        heightCm: session.profile.heightCm,
-                                        currentKg: session.healthBaselineKg ?? session.profile.startingWeightKg
-                                    )
-                                    session.profile.idealWeightKg = result.value
-                                    weightValidationNote = result.message
-                                }
-                            ),
-                            format: .number.precision(.fractionLength(1))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Dream / target weight")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(ink)
+                    Text(
+                        "Drag the scale. Range is BMI-safe for your height, sex, and age. Display follows Units above; storage stays kg."
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                    AnalogDreamScaleView(
+                        weightKg: Binding(
+                            get: { session.profile.idealWeightKg },
+                            set: { next in
+                                commitIdealWeightKg(next)
+                            }
+                        ),
+                        boundsKg: dreamBoundsKg,
+                        unitSystem: session.preferredUnits,
+                        ink: ink,
+                        steel: steel,
+                        accent: accent,
+                        accessibilityId: "settings.targetWeight.analog",
+                        caption: "Haptic ticks · impossible values blocked"
+                    )
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("settings.targetWeight")
+
+                    Text(
+                        String(
+                            format: "Allowed %.0f–%.0f %@",
+                            UnitFormat.mass(fromKg: dreamBoundsKg.lowerBound, system: session.preferredUnits),
+                            UnitFormat.mass(fromKg: dreamBoundsKg.upperBound, system: session.preferredUnits),
+                            session.preferredUnits.massLabel
                         )
-                        .focused($focusedField, equals: .targetWeight)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(minWidth: 64)
-                        Text(session.preferredUnits.massLabel).foregroundStyle(steel)
-                    }
+                    )
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(steel)
+                    .monospacedDigit()
+                    .accessibilityIdentifier("settings.targetWeight.bounds")
                 }
                 if let weightValidationNote {
                     validationLine(weightValidationNote)
@@ -504,6 +526,56 @@ struct SettingsView: View {
                 .pickerStyle(.menu)
                 .accessibilityIdentifier("settings.diet")
             }
+        }
+        .onAppear {
+            clampIdealWeightFromProfile(announce: false)
+        }
+        .onChange(of: session.profile.heightCm) { _, _ in
+            clampIdealWeightFromProfile(announce: true)
+        }
+        .onChange(of: session.profile.ageYears) { _, _ in
+            clampIdealWeightFromProfile(announce: true)
+        }
+        .onChange(of: session.profile.sex) { _, _ in
+            clampIdealWeightFromProfile(announce: true)
+        }
+    }
+
+    private func commitIdealWeightKg(_ raw: Double) {
+        let result = ProfileNumericBounds.clampIdealWeightKg(
+            raw,
+            heightCm: session.profile.heightCm,
+            currentKg: session.healthBaselineKg ?? session.profile.startingWeightKg,
+            sex: session.profile.sex,
+            ageYears: session.profile.ageYears
+        )
+        session.profile.idealWeightKg = result.value
+        weightValidationNote = result.message
+    }
+
+    /// When height / sex / age change, snap stored target into the new BMI-safe band.
+    private func clampIdealWeightFromProfile(announce: Bool) {
+        let before = session.profile.idealWeightKg
+        let result = ProfileNumericBounds.clampIdealWeightKg(
+            before,
+            heightCm: session.profile.heightCm,
+            currentKg: session.healthBaselineKg ?? session.profile.startingWeightKg,
+            sex: session.profile.sex,
+            ageYears: session.profile.ageYears
+        )
+        session.profile.idealWeightKg = result.value
+        guard announce else {
+            if !result.didClamp { weightValidationNote = nil }
+            return
+        }
+        if result.didClamp {
+            weightValidationNote = result.message
+                ?? String(
+                    format: "Target adjusted to %.1f kg so it stays realistic for your updated profile.",
+                    result.value
+                )
+        } else {
+            weightValidationNote = nil
         }
     }
 

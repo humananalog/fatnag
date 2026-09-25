@@ -110,12 +110,24 @@ enum GoalPaceGuard {
         )
     }
 
-    /// Display mass bounds for the analog dream scale (kg, always).
-    static func dreamWeightBoundsKg(currentKg: Double, heightCm: Double) -> ClosedRange<Double> {
-        let hardFloor = TargetFeasibility.weightKg(forBMI: TargetFeasibility.bmiHardFloor, heightCm: heightCm)
-        let hardCeiling = TargetFeasibility.weightKg(forBMI: TargetFeasibility.bmiHardCeiling, heightCm: heightCm)
-        let low = max(30, min(hardFloor, currentKg - 40))
-        let high = min(300, max(hardCeiling, currentKg + 40))
+    /// Display mass bounds for the analog dream / target scale (kg, always).
+    /// Hard BMI band from height + sex + age; absolute human mass caps from `ProfileNumericBounds`.
+    /// Does **not** expand past the BMI floor/ceiling — ticks cannot scroll into nonsense.
+    static func dreamWeightBoundsKg(
+        currentKg: Double,
+        heightCm: Double,
+        sex: UserBodyProfile.Sex,
+        ageYears: Double
+    ) -> ClosedRange<Double> {
+        let floorBMI = TargetFeasibility.targetBMIHardFloor(sex: sex, ageYears: ageYears)
+        let ceilingBMI = TargetFeasibility.targetBMIHardCeiling(sex: sex, ageYears: ageYears)
+        let hardFloor = TargetFeasibility.weightKg(forBMI: floorBMI, heightCm: heightCm)
+        let hardCeiling = TargetFeasibility.weightKg(forBMI: ceilingBMI, heightCm: heightCm)
+        let absolute = ProfileNumericBounds.weightKg
+        let low = max(absolute.lowerBound, hardFloor)
+        let high = min(absolute.upperBound, hardCeiling)
+        // `currentKg` kept in signature for call-site clarity / future centering; band is BMI-hard only.
+        _ = currentKg
         return low...max(low + 1, high)
     }
 }

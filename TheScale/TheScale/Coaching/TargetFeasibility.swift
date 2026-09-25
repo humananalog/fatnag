@@ -43,6 +43,35 @@ enum TargetFeasibility {
     /// Hard reject above this as a *goal* (nonsensical / harmful direction).
     static let bmiHardCeiling = 45.0
 
+    /// Sex- and age-aware BMI floor for dream / target weight selectors and clamps.
+    /// Female floor is slightly higher (essential fat); older adults avoid underweight targets.
+    static func targetBMIHardFloor(sex: UserBodyProfile.Sex, ageYears: Double) -> Double {
+        var floor = bmiHardFloor
+        if sex == .female {
+            floor = max(floor, 16.5)
+        }
+        let age = ageYears.isFinite ? ageYears : 30
+        if age >= 65 {
+            floor = max(floor, 18.5)
+        } else if age >= 50 {
+            floor = max(floor, 17.0)
+        }
+        return floor
+    }
+
+    /// Sex- and age-aware BMI ceiling for dream / target weight as a *goal*.
+    /// Caps extreme obesity targets; older adults get a tighter goal ceiling.
+    static func targetBMIHardCeiling(sex: UserBodyProfile.Sex, ageYears: Double) -> Double {
+        var ceiling = bmiHardCeiling
+        let age = ageYears.isFinite ? ageYears : 30
+        if age >= 65 {
+            ceiling = min(ceiling, 35.0)
+        } else if sex == .female {
+            ceiling = min(ceiling, 42.0)
+        }
+        return ceiling
+    }
+
     /// Essential / very-low floors by sex (ACE / sports-medicine ballparks).
     static func essentialBodyFatFloor(sex: UserBodyProfile.Sex) -> Double {
         switch sex {
@@ -128,11 +157,13 @@ enum TargetFeasibility {
         }
 
         let bmi = Self.bmi(weightKg: kg, heightCm: profile.heightCm)
-        let healthyLow = weightKg(forBMI: bmiUnderweight, heightCm: profile.heightCm)
+        let floorBMI = targetBMIHardFloor(sex: profile.sex, ageYears: profile.ageYears)
+        let ceilingBMI = targetBMIHardCeiling(sex: profile.sex, ageYears: profile.ageYears)
+        let healthyLow = weightKg(forBMI: max(bmiUnderweight, floorBMI), heightCm: profile.heightCm)
         let healthyHigh = weightKg(forBMI: bmiHealthyUpper, heightCm: profile.heightCm)
         let suggested = UserBodyProfile.suggestedIdealWeightKg(heightCm: profile.heightCm)
 
-        if bmi < bmiHardFloor {
+        if bmi < floorBMI {
             return TargetFeasibilityResult(
                 verdict: .rejected,
                 stated: stated,
@@ -143,12 +174,12 @@ enum TargetFeasibility {
                 statedBMI: bmi,
                 coachNote: String(
                     format: "%.1f kg is about BMI %.1f for your height. That is dangerously thin as a target. A safer floor is around %.1f kg (BMI %.1f). Not storing that.",
-                    kg, bmi, healthyLow, bmiUnderweight
+                    kg, bmi, healthyLow, max(bmiUnderweight, floorBMI)
                 )
             )
         }
 
-        if bmi > bmiHardCeiling {
+        if bmi > ceilingBMI {
             return TargetFeasibilityResult(
                 verdict: .rejected,
                 stated: stated,
