@@ -17,6 +17,8 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         )
         XCTAssertGreaterThanOrEqual(surface.completionPercent, 100)
         XCTAssertEqual(surface.band, .crushed)
+        XCTAssertEqual(surface.weekStartKg ?? -1, 84.0, accuracy: 0.01)
+        XCTAssertEqual(surface.sundayTargetKg ?? -1, 83.60, accuracy: 0.01)
         XCTAssertFalse(surface.targets.intakeTracked)
         XCTAssertTrue(surface.targets.honestyLine.lowercased().contains("not logged"))
     }

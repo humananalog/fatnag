@@ -32,4 +32,22 @@ final class UnitFormatTests: XCTestCase {
         PreferredUnitSystemStore.save(.metric)
         XCTAssertEqual(PreferredUnitSystemStore.load(), .metric)
     }
+
+    /// Sub-1 kg absolute magnitude → grams (metric) / ounces (imperial).
+    func testSubKilogramMassUsesGramsOrOunces() {
+        XCTAssertEqual(UnitFormat.massString(0.65, system: .metric), "650g")
+        XCTAssertEqual(UnitFormat.massDeltaString(0.65, system: .metric), "+650g")
+        XCTAssertEqual(UnitFormat.massDeltaString(-0.35, system: .metric), "-350g")
+        XCTAssertEqual(UnitFormat.massString(78.5, system: .metric, fractionDigits: 1), "78.5 kg")
+        XCTAssertEqual(UnitFormat.massDeltaString(-1.2, system: .metric), "-1.20 kg")
+
+        let oz = UnitFormat.massDeltaString(0.65, system: .imperial)
+        XCTAssertTrue(oz.contains("oz"), oz)
+        XCTAssertTrue(oz.hasPrefix("+"), oz)
+        XCTAssertFalse(oz.contains("lb"), oz)
+
+        let bigLb = UnitFormat.massString(80, system: .imperial, fractionDigits: 1)
+        XCTAssertTrue(bigLb.contains("lb"), bigLb)
+        XCTAssertFalse(bigLb.contains("oz"), bigLb)
+    }
 }

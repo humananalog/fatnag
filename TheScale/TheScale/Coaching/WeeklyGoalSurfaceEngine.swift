@@ -82,7 +82,9 @@ struct WeeklyGoalSurface: Equatable, Sendable {
     var completionPercent: Int
     var band: WeeklyTrackBand
     var weekTitle: String
-    /// Absolute Sunday weigh-in target (kg). Hero number on Home.
+    /// Locked Monday (week-start) weigh-in baseline (kg). Hero number on Progress.
+    var weekStartKg: Double?
+    /// Absolute Sunday weigh-in target (kg). Hero number on Home / Progress.
     var sundayTargetKg: Double?
     /// Signed weekly delta (kg), e.g. -0.35.
     var weeklyDeltaKg: Double
@@ -240,6 +242,7 @@ enum WeeklyGoalSurfaceEngine {
             completionPercent: percent,
             band: band,
             weekTitle: weeklyGoal.title,
+            weekStartKg: weeklyGoal.weekStartKg,
             sundayTargetKg: sundayKg,
             weeklyDeltaKg: weeklyGoal.targetDeltaKg,
             detailLine: detail,

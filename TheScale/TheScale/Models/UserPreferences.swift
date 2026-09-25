@@ -981,14 +981,46 @@ enum UnitFormat {
     }
 
     static func massString(_ kg: Double, system: PreferredUnitSystem, fractionDigits: Int = 1) -> String {
+        if abs(kg) < 1 {
+            return compactSubKilogram(kg, system: system, signed: false)
+        }
         let value = mass(fromKg: kg, system: system)
         return String(format: "%.\(fractionDigits)f %@", value, system.massLabel)
     }
 
     static func massDeltaString(_ kgDelta: Double, system: PreferredUnitSystem, fractionDigits: Int = 2) -> String {
+        if abs(kgDelta) < 1 {
+            return compactSubKilogram(kgDelta, system: system, signed: true)
+        }
         let value = mass(fromKg: kgDelta, system: system)
         let sign = value >= 0 ? "+" : ""
         return String(format: "%@%.\(fractionDigits)f %@", sign, value, system.massLabel)
+    }
+
+    /// Sub-1 kg magnitudes → grams (metric) or ounces (imperial). Matches unit prefs.
+    /// Examples: `650g`, `+650g`, `-350g`, `22.9 oz`, `+8.1 oz`.
+    static func compactSubKilogram(
+        _ kg: Double,
+        system: PreferredUnitSystem,
+        signed: Bool
+    ) -> String {
+        switch system {
+        case .metric:
+            let grams = Int((kg * 1000.0).rounded())
+            if signed {
+                if grams > 0 { return "+\(grams)g" }
+                return "\(grams)g"
+            }
+            return "\(abs(grams))g"
+        case .imperial:
+            let oz = mass(fromKg: kg, system: .imperial) * 16.0
+            let rounded = (oz * 10.0).rounded() / 10.0
+            if signed {
+                let sign = rounded >= 0 ? "+" : ""
+                return String(format: "%@%.1f oz", sign, rounded)
+            }
+            return String(format: "%.1f oz", abs(rounded))
+        }
     }
 
     static func heightString(_ cm: Double, system: PreferredUnitSystem, fractionDigits: Int = 0) -> String {
