@@ -381,6 +381,18 @@ struct ContentView: View {
                     .foregroundStyle(atmosphere.ink.opacity(0.78))
             }
             Spacer(minLength: 0)
+            Button {
+                session.reopenResults()
+            } label: {
+                Image(systemName: "chart.xyaxis.line")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(atmosphere.ink.opacity(0.9))
+                    .frame(width: 36, height: 36)
+                    .scaleGlassCircle()
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("home.charts")
+            .accessibilityLabel("Charts")
             HomeNotificationBell(isPresented: $showNotificationCenter, badgeCount: pendingNotifCount)
         }
         .accessibilityElement(children: .contain)

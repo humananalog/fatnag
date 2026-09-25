@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Progress: sparse weekly % + Sunday target. Green on pace, lime when ahead.
+/// Progress: sparse weekly % + Sunday target + Charts entry. Green on pace, lime when ahead.
 struct ProgressSheet: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.colorScheme) private var colorScheme
@@ -81,6 +81,27 @@ struct ProgressSheet: View {
                             .minimumScaleFactor(0.85)
                             .padding(.bottom, 14)
                     }
+
+                    Button {
+                        session.reopenResults()
+                    } label: {
+                        Label("Charts", systemImage: "chart.xyaxis.line")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(atmosphere.ink)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                            .background {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .strokeBorder(
+                                        atmosphere.ink.opacity(colorScheme == .dark ? 0.65 : 0.40),
+                                        lineWidth: 1.5
+                                    )
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("progress.charts")
+                    .accessibilityLabel("Open weight and body fat charts")
+                    .padding(.bottom, 12)
 
                     Button {
                         if GrokPrivacyConsent.isAccepted || !GrokSharedConfig.isLiveConfigured {
