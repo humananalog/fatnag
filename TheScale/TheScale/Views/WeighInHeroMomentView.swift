@@ -53,12 +53,25 @@ struct WeighInHeroMomentView: View {
                                 .accessibilityIdentifier("weighInHero.popLine")
                         }
 
-                        if let delta = card.deltaKg {
-                            Text(String(format: "%+.2f kg · %.1f kg now", delta, card.weighedKg))
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundStyle(ivory.opacity(0.7))
-                                .padding(.top, 8)
+                        if let deltaText = card.deltaDisplay(system: session.preferredUnits) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(deltaText)
+                                    .font(.system(size: card.isWinnerLoss ? 44 : 22, weight: .bold, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(card.isWinnerLoss ? accent : ivory.opacity(0.85))
+                                    .accessibilityIdentifier("weighInHero.delta")
+                                if card.isWinnerLoss {
+                                    Text("You're a winner.")
+                                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                                        .foregroundStyle(ivory)
+                                        .accessibilityIdentifier("weighInHero.winner")
+                                }
+                                Text(String(format: "%.1f kg now", card.weighedKg))
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(ivory.opacity(0.7))
+                            }
+                            .padding(.top, 8)
                         } else {
                             Text(String(format: "%.1f kg locked", card.weighedKg))
                                 .font(.system(size: 14, weight: .bold, design: .rounded))

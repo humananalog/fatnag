@@ -48,7 +48,7 @@ struct NotificationCenterSheet: View {
                                         profileName: session.profile.greetingName
                                     )
                                     testNote = ok
-                                        ? "Test drill in ~2s. Leave the app or lock the phone."
+                                        ? "Test 💩 drill in ~2s (Time Sensitive). Leave the app or lock the phone."
                                         : "Blocked. Allow notifications first."
                                     await reload()
                                 }

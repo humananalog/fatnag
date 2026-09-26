@@ -5,6 +5,7 @@ import SwiftUI
 struct HorizonArcBankView: View {
     var sundayTargetKg: Double?
     var weeklyDeltaKg: Double
+    var unitSystem: PreferredUnitSystem = .metric
     var bandLabel: String
     var weekTitle: String
     var metrics: [DailyMetricProgress]
@@ -13,6 +14,8 @@ struct HorizonArcBankView: View {
     var steel: Color
     var accent: Color
     var compact: Bool
+
+    private var isWinnerWeek: Bool { weeklyDeltaKg < -0.001 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 18 : 22) {
@@ -59,14 +62,22 @@ struct HorizonArcBankView: View {
                 Spacer(minLength: 0)
             }
 
-            HStack(spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(bandLabel)
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundStyle(ink)
                 Text(deltaChip)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(.system(size: isWinnerWeek ? 18 : 14, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(steel)
+                    .foregroundStyle(isWinnerWeek ? accent : steel)
+                    .accessibilityIdentifier("home.weekDelta")
+                if isWinnerWeek {
+                    Text("Winner")
+                        .font(.system(size: 12, weight: .heavy, design: .rounded))
+                        .tracking(0.6)
+                        .foregroundStyle(accent)
+                        .accessibilityIdentifier("home.weekWinner")
+                }
             }
         }
         .accessibilityElement(children: .combine)
@@ -75,8 +86,8 @@ struct HorizonArcBankView: View {
     }
 
     private var deltaChip: String {
-        let sign = weeklyDeltaKg >= 0 ? "+" : ""
-        return String(format: "%@%.2f kg this week", sign, weeklyDeltaKg)
+        let signed = UnitFormat.massDeltaString(weeklyDeltaKg, system: unitSystem)
+        return "\(signed) this week"
     }
 
     private var sundayAccessibilityLabel: String {

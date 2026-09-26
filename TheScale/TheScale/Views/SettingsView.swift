@@ -855,13 +855,13 @@ struct SettingsView: View {
                         }
                     )
                 )
-                Text("Sleep-wake ASAP when Health has wake time (before 9:00). Calendar fallback arms before 9:00 only. Skips the day once you have already weighed.")
+                Text("Fires ~06:30 local (or ASAP after Health wake). Window closes at 08:00. Skips the day if you already weighed. Time Sensitive. Test drill uses the shit-emoji Keel copy.")
                     .font(.caption2)
                     .foregroundStyle(steel)
 
                 if session.notificationPreferences.morningWeighDrill {
                     HStack {
-                        Text("Fallback clock (before 9:00)")
+                        Text("Fallback clock (before 8:00)")
                             .font(.caption)
                             .foregroundStyle(steel)
                         Spacer()
@@ -880,8 +880,8 @@ struct SettingsView: View {
                                 set: {
                                     let comps = Calendar.current.dateComponents([.hour, .minute], from: $0)
                                     let clamped = ProfileNumericBounds.clampMorningFallback(
-                                        hour: comps.hour ?? 7,
-                                        minute: comps.minute ?? 30
+                                        hour: comps.hour ?? NotificationPreferences.defaultMorningFallbackHour,
+                                        minute: comps.minute ?? NotificationPreferences.defaultMorningFallbackMinute
                                     )
                                     var next = session.notificationPreferences
                                     next.morningWeighFallbackHour = clamped.hour
@@ -905,7 +905,7 @@ struct SettingsView: View {
                             profileName: session.profile.greetingName
                         )
                         drillTestNote = ok
-                            ? "Test drill in ~2s. Lock the phone or leave the app."
+                            ? "Test 💩 drill in ~2s (Time Sensitive path). Lock the phone or leave the app."
                             : "Test drill blocked. Allow notifications first (or open System if denied)."
                         await refreshNotificationStatus()
                     }

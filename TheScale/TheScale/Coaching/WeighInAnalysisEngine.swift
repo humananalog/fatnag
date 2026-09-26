@@ -35,6 +35,18 @@ struct WeighInAnalysisCard: Equatable, Sendable {
     var createdAt: Date
     /// Short pop-culture tagline under the body (may be empty).
     var popLine: String
+
+    /// Negative day/week delta → winner energy (minus sign pays off the morning drill).
+    var isWinnerLoss: Bool {
+        guard let deltaKg else { return false }
+        return deltaKg < -0.001
+    }
+
+    /// Signed mass delta for UI (`-650g`, `-1.20 kg`). Nil when no prior baseline.
+    func deltaDisplay(system: PreferredUnitSystem) -> String? {
+        guard let deltaKg else { return nil }
+        return UnitFormat.massDeltaString(deltaKg, system: system)
+    }
 }
 
 enum WeighInAnalysisEngine {
@@ -47,6 +59,7 @@ enum WeighInAnalysisEngine {
         idealKg: Double,
         profile: UserBodyProfile? = nil,
         chartCommentsBlock: String = "",
+        unitSystem: PreferredUnitSystem = .metric,
         now: Date = Date()
     ) -> WeighInAnalysisCard {
         let who = name.isEmpty ? "Operator" : name
@@ -69,38 +82,77 @@ enum WeighInAnalysisEngine {
             if cutting {
                 if delta <= -0.15 {
                     tone = .encourage
-                    let pack = encouragePack(who: who, delta: delta, towardIdeal: towardIdeal, vibe: vibe, seed: seed)
+                    let pack = encouragePack(
+                        who: who,
+                        delta: delta,
+                        towardIdeal: towardIdeal,
+                        vibe: vibe,
+                        seed: seed,
+                        unitSystem: unitSystem
+                    )
                     headline = pack.headline
                     body = pack.body
                     pop = pack.pop
                 } else if delta <= 0.12 {
                     tone = .skeptical
-                    let pack = skepticalPack(who: who, delta: delta, vibe: vibe, seed: seed)
+                    let pack = skepticalPack(
+                        who: who,
+                        delta: delta,
+                        vibe: vibe,
+                        seed: seed,
+                        unitSystem: unitSystem
+                    )
                     headline = pack.headline
                     body = pack.body
                     pop = pack.pop
                 } else {
                     tone = .sergeant
-                    let pack = sergeantPack(who: who, delta: delta, vibe: vibe, seed: seed)
+                    let pack = sergeantPack(
+                        who: who,
+                        delta: delta,
+                        vibe: vibe,
+                        seed: seed,
+                        unitSystem: unitSystem
+                    )
                     headline = pack.headline
                     body = pack.body
                     pop = pack.pop
                 }
             } else if abs(delta) <= 0.15 {
                 tone = .skeptical
-                let pack = skepticalPack(who: who, delta: delta, vibe: vibe, seed: seed)
+                let pack = skepticalPack(
+                    who: who,
+                    delta: delta,
+                    vibe: vibe,
+                    seed: seed,
+                    unitSystem: unitSystem
+                )
                 headline = pack.headline
                 body = pack.body
                 pop = pack.pop
             } else if delta > 0.15 {
                 tone = .encourage
-                let pack = encouragePack(who: who, delta: delta, towardIdeal: towardIdeal, vibe: vibe, seed: seed, gaining: true)
+                let pack = encouragePack(
+                    who: who,
+                    delta: delta,
+                    towardIdeal: towardIdeal,
+                    vibe: vibe,
+                    seed: seed,
+                    gaining: true,
+                    unitSystem: unitSystem
+                )
                 headline = pack.headline
                 body = pack.body
                 pop = pack.pop
             } else {
                 tone = .sergeant
-                let pack = sergeantPack(who: who, delta: delta, vibe: vibe, seed: seed)
+                let pack = sergeantPack(
+                    who: who,
+                    delta: delta,
+                    vibe: vibe,
+                    seed: seed,
+                    unitSystem: unitSystem
+                )
                 headline = pack.headline
                 body = pack.body
                 pop = pack.pop
@@ -133,8 +185,10 @@ enum WeighInAnalysisEngine {
         who: String,
         delta: Double,
         vibe: PopCultureLens,
-        seed: Int
+        seed: Int,
+        unitSystem: PreferredUnitSystem
     ) -> (headline: String, body: String, pop: String) {
+        let signed = UnitFormat.massDeltaString(delta, system: unitSystem)
         let headlines = [
             "Drop and give me zero snacks, \(who).",
             "ATTENTION. The scale filed a complaint.",
@@ -142,9 +196,9 @@ enum WeighInAnalysisEngine {
             "That was not the mission brief."
         ]
         let bodies = [
-            String(format: "%+.2f kg since last. Not doom. Fix dinner tonight, not your personality.", delta),
-            String(format: "%+.2f kg. Kitchen lights out. Protein first. No negotiation.", delta),
-            String(format: "%+.2f kg walked on. March it back with boring food and an early close.", delta)
+            "\(signed) since last. Not doom. Fix dinner tonight, not your personality.",
+            "\(signed). Kitchen lights out. Protein first. No negotiation.",
+            "\(signed) walked on. March it back with boring food and an early close."
         ]
         return (
             pick(headlines, seed: seed),
@@ -159,8 +213,10 @@ enum WeighInAnalysisEngine {
         towardIdeal: Double,
         vibe: PopCultureLens,
         seed: Int,
-        gaining: Bool = false
+        gaining: Bool = false,
+        unitSystem: PreferredUnitSystem = .metric
     ) -> (headline: String, body: String, pop: String) {
+        let signed = UnitFormat.massDeltaString(delta, system: unitSystem)
         if gaining {
             let headlines = [
                 "Up is the job, \(who).",
@@ -168,31 +224,21 @@ enum WeighInAnalysisEngine {
                 "That's a builder's number."
             ]
             let bodies = [
-                String(format: "%+.2f kg. Keep eating like you mean the program.", delta),
-                String(format: "%+.2f kg on the board. Repeat the boring wins.", delta)
+                "\(signed). Keep eating like you mean the program.",
+                "\(signed) on the board. Repeat the boring wins."
             ]
             return (pick(headlines, seed: seed), pick(bodies, seed: seed &+ 2), vibe.encouragePop(seed: seed))
         }
         let headlines = [
-            "That's the number, \(who).",
-            "Quiet flex unlocked.",
-            "Physics clapped politely.",
-            "Main character energy: measured."
+            "\(signed). You're a winner, \(who).",
+            "Winner board: \(signed).",
+            "Minus sign locked. Parade for \(who).",
+            "That's the number, \(who)."
         ]
         let bodies = [
-            String(
-                format: "%.2f kg down since last. Keep the boring streak. Ideal still %.1f kg away.",
-                abs(delta),
-                max(0, towardIdeal)
-            ),
-            String(
-                format: "%.2f kg gone. Don't celebrate with chaos. Protein, then bed.",
-                abs(delta)
-            ),
-            String(
-                format: "%.2f kg lighter. The plot is working. Stay dull on purpose.",
-                abs(delta)
-            )
+            "\(signed) since last. Keep the boring streak. Ideal still \(String(format: "%.1f", max(0, towardIdeal))) kg away.",
+            "\(signed). You're a winner. Don't celebrate with chaos. Protein, then bed.",
+            "\(signed) lighter. The plot is working. Stay dull on purpose."
         ]
         return (
             pick(headlines, seed: seed),
@@ -205,8 +251,10 @@ enum WeighInAnalysisEngine {
         who: String,
         delta: Double,
         vibe: PopCultureLens,
-        seed: Int
+        seed: Int,
+        unitSystem: PreferredUnitSystem
     ) -> (headline: String, body: String, pop: String) {
+        let signed = UnitFormat.massDeltaString(delta, system: unitSystem)
         let headlines = [
             "Sure, \(who). The kg are listening.",
             "Plot twist pending.",
@@ -214,9 +262,9 @@ enum WeighInAnalysisEngine {
             "Flat-ish. The jury is still out."
         ]
         let bodies = [
-            String(format: "%+.2f kg. Noise happens. Hit protein and close the kitchen on time.", delta),
-            String(format: "%+.2f kg. Not a parade, not a funeral. Do the boring reps.", delta),
-            String(format: "%+.2f kg. Water, salt, or vibes. Tomorrow still counts.", delta)
+            "\(signed). Noise happens. Hit protein and close the kitchen on time.",
+            "\(signed). Not a parade, not a funeral. Do the boring reps.",
+            "\(signed). Water, salt, or vibes. Tomorrow still counts."
         ]
         return (
             pick(headlines, seed: seed),

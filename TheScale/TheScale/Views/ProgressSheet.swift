@@ -99,11 +99,19 @@ struct ProgressSheet: View {
                         .progressActionBlock(revealed: gaugeIn, reduceMotion: reduceMotion, slide: 52, fromScale: 0.5)
 
                     Text("\(UnitFormat.massDeltaString(surface.weeklyDeltaKg, system: units)) this week")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .font(.system(size: surface.weeklyDeltaKg < -0.001 ? 28 : 20, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(atmosphere.accent)
                         .padding(.top, 10)
                         .progressActionBlock(revealed: deltaIn, reduceMotion: reduceMotion, slide: 40, fromScale: 0.58)
+                        .accessibilityIdentifier("progress.weekDelta")
+
+                    if surface.weeklyDeltaKg < -0.001 {
+                        Text("You're a winner.")
+                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .foregroundStyle(atmosphere.ink)
+                            .accessibilityIdentifier("progress.weekWinner")
+                    }
 
                     coachBlock
                         .padding(.top, 28)

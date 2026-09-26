@@ -60,20 +60,27 @@ struct NotificationPreferences: Equatable, Codable, Sendable {
     /// Calendar fallback minute (local).
     var morningWeighFallbackMinute: Int
 
+    /// Previous default fallback (replaced by 06:30 in 2.50.0).
+    static let legacyMorningFallbackHour = 7
+    static let legacyMorningFallbackMinute = 30
+    /// Current default local fallback clock.
+    static let defaultMorningFallbackHour = 6
+    static let defaultMorningFallbackMinute = 30
+
     static let `default` = NotificationPreferences(
         notifyOnBadTrend: true,
         weeklyGoalReminders: true,
         morningWeighDrill: true,
-        morningWeighFallbackHour: 7,
-        morningWeighFallbackMinute: 30
+        morningWeighFallbackHour: defaultMorningFallbackHour,
+        morningWeighFallbackMinute: defaultMorningFallbackMinute
     )
 
     init(
         notifyOnBadTrend: Bool,
         weeklyGoalReminders: Bool,
         morningWeighDrill: Bool,
-        morningWeighFallbackHour: Int = 7,
-        morningWeighFallbackMinute: Int = 30
+        morningWeighFallbackHour: Int = defaultMorningFallbackHour,
+        morningWeighFallbackMinute: Int = defaultMorningFallbackMinute
     ) {
         self.notifyOnBadTrend = notifyOnBadTrend
         self.weeklyGoalReminders = weeklyGoalReminders
@@ -99,11 +106,25 @@ struct NotificationPreferences: Equatable, Codable, Sendable {
         notifyOnBadTrend = try c.decodeIfPresent(Bool.self, forKey: .notifyOnBadTrend) ?? true
         weeklyGoalReminders = try c.decodeIfPresent(Bool.self, forKey: .weeklyGoalReminders) ?? true
         morningWeighDrill = try c.decodeIfPresent(Bool.self, forKey: .morningWeighDrill) ?? true
-        let hour = try c.decodeIfPresent(Int.self, forKey: .morningWeighFallbackHour) ?? 7
-        let minute = try c.decodeIfPresent(Int.self, forKey: .morningWeighFallbackMinute) ?? 30
-        let clamped = ProfileNumericBounds.clampMorningFallback(hour: hour, minute: minute)
+        let hour = try c.decodeIfPresent(Int.self, forKey: .morningWeighFallbackHour)
+            ?? Self.defaultMorningFallbackHour
+        let minute = try c.decodeIfPresent(Int.self, forKey: .morningWeighFallbackMinute)
+            ?? Self.defaultMorningFallbackMinute
+        let migrated = Self.migrateLegacyFallback(hour: hour, minute: minute)
+        let clamped = ProfileNumericBounds.clampMorningFallback(
+            hour: migrated.hour,
+            minute: migrated.minute
+        )
         morningWeighFallbackHour = clamped.hour
         morningWeighFallbackMinute = clamped.minute
+    }
+
+    /// Replace the old 07:30 default with 06:30; leave intentional custom clocks alone.
+    static func migrateLegacyFallback(hour: Int, minute: Int) -> (hour: Int, minute: Int) {
+        if hour == legacyMorningFallbackHour, minute == legacyMorningFallbackMinute {
+            return (defaultMorningFallbackHour, defaultMorningFallbackMinute)
+        }
+        return (hour, minute)
     }
 
     func encode(to encoder: Encoder) throws {

@@ -3,12 +3,12 @@ import UserNotifications
 
 /// Out-of-bed sergeant ping: weigh yourself now.
 ///
-/// Rules (2.36+):
+/// Rules (2.50+):
 /// - Max once per local day (`lastFiredDayKey`).
-/// - Never schedule or fire at/after 09:00 local for "today."
-/// - If already weighed today: cancel today's ASAP; arm **tomorrow** morning only (idempotent).
-/// - Fallback schedule is **idempotent**: do not remove/re-add when the pending fire date already matches.
-/// - Sleep-wake ASAP when Health has wake (before 09:00); calendar fallback otherwise.
+/// - Never schedule or fire at/after **08:00** local for "today."
+/// - If already weighed today (body mass before 8:00 local day): cancel today's ASAP; arm **tomorrow** morning only (idempotent).
+/// - Fallback default **06:30** local; schedule is **idempotent**: do not remove/re-add when the pending fire date already matches.
+/// - Sleep-wake ASAP when Health has wake (before 08:00); calendar fallback otherwise.
 @MainActor
 enum MorningWeighDrillScheduler {
     static let requestId = "thescale.morning-weigh-drill"
@@ -17,6 +17,11 @@ enum MorningWeighDrillScheduler {
     private static let lastFiredDayKey = "thescale.morningWeighDrill.lastFiredDay"
     /// Match window when comparing pending vs intended fire (calendar trigger rebuild noise).
     nonisolated static let fireDateMatchTolerance: TimeInterval = 60
+
+    /// Canonical vulgar Keel drill lines (title / subtitle / body). Time Sensitive via kind.
+    nonisolated static let drillTitle = "Keel · 💩 drill"
+    nonisolated static let drillSubtitle = "Bladder empty. Scale now."
+    nonisolated static let drillBodyCore = "Go drop a 💩 and use The Scale after!"
 
     /// Call after digest refresh / scene active / trend refresh.
     /// Safe to call often: fallback `add` only runs when the intended fire date changed.
@@ -60,7 +65,7 @@ enum MorningWeighDrillScheduler {
             return
         }
 
-        // Past 09:00 local: no today fire; arm tomorrow only.
+        // Past 08:00 local: no today fire; arm tomorrow only.
         if !ProfileNumericBounds.isBeforeMorningDeadline(now, calendar: calendar) {
             UNUserNotificationCenter.current().removePendingNotificationRequests(
                 withIdentifiers: [requestId]
@@ -103,7 +108,7 @@ enum MorningWeighDrillScheduler {
     }
 
     /// Next local morning clock for the fallback sergeant drill (pure; testable).
-    /// Uses `calendar` date components (device local TZ). Always before 09:00 local.
+    /// Uses `calendar` date components (device local TZ). Always before 08:00 local.
     nonisolated static func nextFallbackFireDate(
         hour: Int,
         minute: Int,
@@ -136,6 +141,36 @@ enum MorningWeighDrillScheduler {
     ) -> Bool {
         guard let pending else { return false }
         return abs(pending.timeIntervalSince(intended)) <= tolerance
+    }
+
+    /// Punchy title/subtitle/body for the drill (greet optional). Pure; testable.
+    nonisolated static func drillCopy(profileName: String, variant: DrillCopyVariant = .fallback) -> (
+        title: String,
+        subtitle: String,
+        body: String
+    ) {
+        let name = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let greet = name.isEmpty ? "Soldier" : name
+        switch variant {
+        case .sleepWake, .fallback:
+            return (
+                title: drillTitle,
+                subtitle: drillSubtitle,
+                body: "\(greet). \(drillBodyCore)"
+            )
+        case .test:
+            return (
+                title: "Keel · test 💩",
+                subtitle: "Force-fire QA.",
+                body: "\(greet). Test ping. \(drillBodyCore)"
+            )
+        }
+    }
+
+    enum DrillCopyVariant: Sendable {
+        case sleepWake
+        case fallback
+        case test
     }
 
     /// DEBUG / Settings QA: schedule a sergeant test ping in ~2s. Does not burn the day stamp.
@@ -178,12 +213,6 @@ enum MorningWeighDrillScheduler {
 
     // MARK: - Private
 
-    private enum CopyVariant {
-        case sleepWake
-        case fallback
-        case test
-    }
-
     /// Schedule calendar fallback only when missing or fire date differs.
     private static func ensureFallbackScheduled(
         prefs: NotificationPreferences,
@@ -204,7 +233,7 @@ enum MorningWeighDrillScheduler {
             forceTomorrow: forceTomorrow
         )
 
-        // Never schedule a same-day slot at or after 09:00 local.
+        // Never schedule a same-day slot at or after 08:00 local.
         if calendar.isDate(fireAt, inSameDayAs: now),
            !ProfileNumericBounds.isBeforeMorningDeadline(fireAt, calendar: calendar)
         {
@@ -295,43 +324,8 @@ enum MorningWeighDrillScheduler {
         }
     }
 
-    private static func makeContent(profileName: String, variant: CopyVariant) -> UNNotificationContent {
-        let name = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let greet = name.isEmpty ? "Soldier" : name
-        let pick: (title: String, subtitle: String, body: String)
-        switch variant {
-        case .sleepWake:
-            let drafts = [
-                (
-                    title: "Keel · weigh drill",
-                    subtitle: "Out of bed. On the scale.",
-                    body: "\(greet). Boots off the mattress: barefoot, empty bladder, same scale. Hit the platform before coffee invents a narrative."
-                ),
-                (
-                    title: "Keel · morning weigh",
-                    subtitle: "Left bedtime. Move.",
-                    body: "\(greet). Sleep scored. Now the number. No doomscroll. Step on. Sunday target does not update itself."
-                ),
-                (
-                    title: "Keel · stand and weigh",
-                    subtitle: "Wake confirmed.",
-                    body: "\(greet). You left the nest. Scale first. Keel wants the morning kg before the day rewrites the plot."
-                )
-            ]
-            pick = drafts[abs(dayStamp(Date()).hashValue) % drafts.count]
-        case .fallback:
-            pick = (
-                title: "Keel · morning weigh",
-                subtitle: "Sergeant drill. Scale now.",
-                body: "\(greet). Wake data was soft. Drill still stands. Barefoot, empty bladder, same scale. Report the number."
-            )
-        case .test:
-            pick = (
-                title: "Keel · test drill",
-                subtitle: "Force-fire QA.",
-                body: "\(greet). Test ping only. If you see this banner, local notifications are armed."
-            )
-        }
+    private static func makeContent(profileName: String, variant: DrillCopyVariant) -> UNNotificationContent {
+        let pick = drillCopy(profileName: profileName, variant: variant)
         return ScaleNotificationContentFactory.make(
             .init(
                 kind: .morningWeigh,

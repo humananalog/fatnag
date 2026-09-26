@@ -10,8 +10,8 @@ enum ProfileNumericBounds {
     static let weightKg = 30.0...300.0
     /// Body fat % realistic adult range (essential floor ~3, extreme upper ~60).
     static let bodyFatPercent = 3.0...60.0
-    /// Local morning drill must fire strictly before this hour.
-    static let morningWeighDeadlineHour = 9
+    /// Local morning drill must fire strictly before this hour (skip / no-arm at or after).
+    static let morningWeighDeadlineHour = 8
 
     struct ClampResult: Equatable, Sendable {
         let value: Double
@@ -145,7 +145,7 @@ enum ProfileNumericBounds {
         return (raw, nil)
     }
 
-    /// Fallback morning clock must stay before 09:00 local.
+    /// Fallback morning clock must stay before 08:00 local.
     static func clampMorningFallback(hour: Int, minute: Int) -> (hour: Int, minute: Int) {
         var h = min(max(hour, 4), morningWeighDeadlineHour - 1)
         var m = min(max(minute, 0), 59)
@@ -156,7 +156,7 @@ enum ProfileNumericBounds {
         return (h, m)
     }
 
-    /// True when `now` is still in the morning drill window (local hour strictly before 9).
+    /// True when `now` is still in the morning drill window (local hour strictly before 8).
     static func isBeforeMorningDeadline(_ now: Date, calendar: Calendar = .current) -> Bool {
         calendar.component(.hour, from: now) < morningWeighDeadlineHour
     }

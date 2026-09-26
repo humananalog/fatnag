@@ -295,6 +295,7 @@ struct ContentView: View {
             HorizonArcBankView(
                 sundayTargetKg: surface.sundayTargetKg,
                 weeklyDeltaKg: surface.weeklyDeltaKg,
+                unitSystem: session.preferredUnits,
                 bandLabel: surface.band.statusLabel,
                 weekTitle: surface.weekTitle,
                 metrics: surface.todayProgress,
@@ -489,6 +490,17 @@ struct ContentView: View {
                 }
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(atmosphere.ink.opacity(0.7))
+            }
+            if let deltaText = card.deltaDisplay(system: session.preferredUnits), card.isWinnerLoss {
+                Text(deltaText)
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(atmosphere.accent)
+                    .accessibilityIdentifier("home.weighInWinnerDelta")
+                Text("You're a winner.")
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .foregroundStyle(atmosphere.ink)
+                    .accessibilityIdentifier("home.weighInWinner")
             }
             Text(card.headline)
                 .font(.system(size: 20, weight: .bold, design: .serif))

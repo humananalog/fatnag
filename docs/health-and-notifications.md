@@ -74,7 +74,7 @@ All local (`UNUserNotificationCenter`). Toggles live in Settings. **2.9.0+** shi
 |---------|-------------------------|------------------|--------|--------------|
 | Coach wake | Name + wake · clock/before · Coach line | Open Coach, Snooze 10 min | `thescale.coach` | **Time Sensitive** |
 | Coach reminder | Name + reminder · fire time · Coach line | Open Coach, Snooze | `thescale.coach` | Active |
-| Morning weigh drill | Keel sergeant · sleep-wake ASAP or calendar fallback **before 09:00**; skips if already weighed today | Open Coach / Weigh | `thescale.coach` | **Time Sensitive** |
+| Morning weigh drill | Keel · 💩 drill · **06:30** local fallback (or ASAP after Health wake); window closes **08:00**; skips if already weighed today | Open Coach / Weigh | `thescale.coach` | **Time Sensitive** |
 | Bad trend | Name + scale check · kg · reason | Open History, Progress, Snooze | `thescale.trend` | Active |
 | Monday mini-goal | Name + weekly · goal title · nudge | Open Progress, Coach | `thescale.trend` | Passive |
 | Fitness interval | Name + check · interval · open hint | Open Coach | `thescale.fitness` | Passive |
@@ -87,27 +87,36 @@ Also: Communication-style Coach avatar when appropriate (`INSendMessageIntent` /
 |---------|------|------|
 | Bad trend (above ideal + rising, or sharp weekly gain) | Algorithmic | FM polish after schedule (optional suppress) |
 | Monday mini-goal | Pref | Schedule first, FM polish optional |
-| Morning weigh drill (2.36.0+) | Pref on + auth; **before 09:00 local**; skip if already weighed today; **idempotent** fallback (no re-add spam) | Sleep-wake ASAP when Health has wake; calendar fallback before 09:00; max once/day |
+| Morning weigh drill (2.50.0+) | Pref on + auth; **before 08:00 local**; skip if already weighed today; **idempotent** fallback (no re-add spam) | Default **06:30** local (migrates legacy 07:30); sleep-wake ASAP when Health has wake; max once/day; vulgar 💩 Keel copy |
 | Coach-scheduled wake / reminder | Coach parse → **schedule first** | FM polish optional (never blocks) |
 | Fitness (Watch wear / pre-sleep HR) | Algorithm + cooldown | FM judgment + polish |
 | Fitness interval nudge | Monitor interval | FM polish |
 
 **Rule:** algorithms decide *whether work exists* and schedule local notifications; Foundation Models may refine wording afterward and may drop weak *trend/fitness* pings. Coach wake/timed reminders and morning weigh always schedule with algorithmic copy first. If Apple Intelligence is off or ineligible, algorithmic strings still fire (no silent drop regression).
 
+### Morning weigh drill (2.50.0+)
+
+- Default fallback clock **06:30** local (replaces legacy **07:30** when still on that default).
+- Morning window closes at **08:00** local — no same-day fire at/after 8.
+- Skip if any body-mass / weigh-in already logged for the **local calendar day** (before 8am gate aligns with that day).
+- Copy: title `Keel · 💩 drill`, body `Go drop a 💩 and use The Scale after!` (Keel/sergeant, Time Sensitive unchanged).
+- Settings **Send test drill** uses the same 💩 copy; docs note ~06:30 / before 8:00.
+- Loss delta surfaces a clear **minus** (`-650g`) + "You're a winner" on post-weigh hero, home, Progress, and History.
+
 ### Morning weigh drill (2.36.0+)
 
 Fallback schedule is **idempotent**: if a pending `thescale.morning-weigh-fallback` already targets the same local fire instant (±60s), consider() does not remove/re-add (stops DEBUG log spam on every digest/observer wake).
 
-`Date` debug prints show **UTC** (`+0000`). For Asia/Hong_Kong, **07:30 local next morning** appears as **23:30 UTC** the prior calendar day. Triggers use `Calendar.current` date components + `timeZone`.
+`Date` debug prints show **UTC** (`+0000`). For Asia/Hong_Kong, **06:30 local next morning** appears as **22:30 UTC** the prior calendar day. Triggers use `Calendar.current` date components + `timeZone`.
 
 ### Morning weigh drill (2.35.0+)
 
 Rules:
 
 1. Max **once per local day**.
-2. Never schedule or deliver at or after **09:00** local.
+2. Never schedule or deliver at or after **08:00** local (was 09:00 before 2.50).
 3. If HealthKit bodyMass (or in-app save) already logged today → cancel wake + fallback for today; arm tomorrow only.
-4. Calendar fallback default 07:30 (clamped before 09:00).
+4. Calendar fallback default **06:30** (clamped before 08:00).
 
 **Already weighed detection:** any `bodyMass` sample dated today in `recentHealthWeights` (HealthKit refresh), `historyWeights`, or `historyTrendWindowWeights`.
 
@@ -126,9 +135,9 @@ Fix:
 **Verify:**
 
 1. Settings → Notifications: status **allowed** (or tap Allow / System if denied).
-2. Morning weigh drill ON. Fallback clock e.g. 07:30.
+2. Morning weigh drill ON. Fallback clock e.g. 06:30.
 3. Home bell → Pending should list `morning fallback` with tomorrow/today fire time.
-4. Tap **Send test drill now** (Settings or Alerts sheet). Expect banner ~2s later.
+4. Tap **Send test drill now** (Settings or Alerts sheet). Expect 💩 Keel banner ~2s later (Time Sensitive).
 5. Coach still: `remind me in 2 minutes` for timed reminder path.
 
 ### Coach reminders (2.7.2+)

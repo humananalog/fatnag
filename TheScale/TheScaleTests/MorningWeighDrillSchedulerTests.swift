@@ -19,9 +19,9 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
     }
 
     func testFallbackSchedulesTodayWhenStillBeforeClock() {
-        let now = date(year: 2026, month: 9, day: 23, hour: 6, minute: 0)
+        let now = date(year: 2026, month: 9, day: 23, hour: 5, minute: 0)
         let fire = MorningWeighDrillScheduler.nextFallbackFireDate(
-            hour: 7,
+            hour: 6,
             minute: 30,
             alreadyWeighedToday: false,
             alreadyFiredToday: false,
@@ -30,14 +30,14 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         )
         let comps = calendar.dateComponents([.day, .hour, .minute], from: fire)
         XCTAssertEqual(comps.day, 23)
-        XCTAssertEqual(comps.hour, 7)
+        XCTAssertEqual(comps.hour, 6)
         XCTAssertEqual(comps.minute, 30)
     }
 
     func testFallbackRollsTomorrowWhenPastClock() {
-        let now = date(year: 2026, month: 9, day: 23, hour: 8, minute: 0)
+        let now = date(year: 2026, month: 9, day: 23, hour: 7, minute: 0)
         let fire = MorningWeighDrillScheduler.nextFallbackFireDate(
-            hour: 7,
+            hour: 6,
             minute: 30,
             alreadyWeighedToday: false,
             alreadyFiredToday: false,
@@ -46,14 +46,14 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         )
         let comps = calendar.dateComponents([.day, .hour, .minute], from: fire)
         XCTAssertEqual(comps.day, 24)
-        XCTAssertEqual(comps.hour, 7)
+        XCTAssertEqual(comps.hour, 6)
         XCTAssertEqual(comps.minute, 30)
     }
 
-    func testFallbackRollsTomorrowWhenPastNine() {
-        let now = date(year: 2026, month: 9, day: 23, hour: 9, minute: 5)
+    func testFallbackRollsTomorrowWhenPastEight() {
+        let now = date(year: 2026, month: 9, day: 23, hour: 8, minute: 5)
         let fire = MorningWeighDrillScheduler.nextFallbackFireDate(
-            hour: 7,
+            hour: 6,
             minute: 30,
             alreadyWeighedToday: false,
             alreadyFiredToday: false,
@@ -62,11 +62,11 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         )
         let comps = calendar.dateComponents([.day, .hour], from: fire)
         XCTAssertEqual(comps.day, 24)
-        XCTAssertEqual(comps.hour, 7)
+        XCTAssertEqual(comps.hour, 6)
     }
 
-    func testFallbackClampsHourAtOrAfterNineToBeforeNine() {
-        let now = date(year: 2026, month: 9, day: 23, hour: 6, minute: 0)
+    func testFallbackClampsHourAtOrAfterEightToBeforeEight() {
+        let now = date(year: 2026, month: 9, day: 23, hour: 5, minute: 0)
         let fire = MorningWeighDrillScheduler.nextFallbackFireDate(
             hour: 10,
             minute: 0,
@@ -77,14 +77,14 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         )
         let comps = calendar.dateComponents([.day, .hour, .minute], from: fire)
         XCTAssertEqual(comps.day, 23)
-        XCTAssertEqual(comps.hour, 8)
+        XCTAssertEqual(comps.hour, 7)
         XCTAssertEqual(comps.minute, 59)
     }
 
     func testFallbackRollsTomorrowWhenAlreadyWeighed() {
-        let now = date(year: 2026, month: 9, day: 23, hour: 6, minute: 0)
+        let now = date(year: 2026, month: 9, day: 23, hour: 5, minute: 0)
         let fire = MorningWeighDrillScheduler.nextFallbackFireDate(
-            hour: 7,
+            hour: 6,
             minute: 30,
             alreadyWeighedToday: true,
             alreadyFiredToday: false,
@@ -93,13 +93,13 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         )
         let comps = calendar.dateComponents([.day, .hour], from: fire)
         XCTAssertEqual(comps.day, 24)
-        XCTAssertEqual(comps.hour, 7)
+        XCTAssertEqual(comps.hour, 6)
     }
 
     func testFallbackRollsTomorrowWhenAlreadyFired() {
-        let now = date(year: 2026, month: 9, day: 23, hour: 6, minute: 0)
+        let now = date(year: 2026, month: 9, day: 23, hour: 5, minute: 0)
         let fire = MorningWeighDrillScheduler.nextFallbackFireDate(
-            hour: 7,
+            hour: 6,
             minute: 30,
             alreadyWeighedToday: false,
             alreadyFiredToday: true,
@@ -111,7 +111,7 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
     }
 
     func testPendingFireMatchesIntended() {
-        let intended = date(year: 2026, month: 9, day: 24, hour: 7, minute: 30)
+        let intended = date(year: 2026, month: 9, day: 24, hour: 6, minute: 30)
         XCTAssertTrue(
             MorningWeighDrillScheduler.pendingFireMatchesIntended(
                 pending: intended.addingTimeInterval(5),
@@ -129,11 +129,11 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         )
     }
 
-    func testFallbackPastNineUsesTomorrowLocalMorning() {
-        // 21:46 HKT on Sep 23 → next slot is Sep 24 07:30 HKT (= Sep 23 23:30 UTC).
+    func testFallbackPastEightUsesTomorrowLocalMorning() {
+        // 21:46 HKT on Sep 23 → next slot is Sep 24 06:30 HKT (= Sep 23 22:30 UTC).
         let now = date(year: 2026, month: 9, day: 23, hour: 21, minute: 46)
         let fire = MorningWeighDrillScheduler.nextFallbackFireDate(
-            hour: 7,
+            hour: 6,
             minute: 30,
             alreadyWeighedToday: false,
             alreadyFiredToday: false,
@@ -143,14 +143,13 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         )
         let comps = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fire)
         XCTAssertEqual(comps.day, 24)
-        XCTAssertEqual(comps.hour, 7)
+        XCTAssertEqual(comps.hour, 6)
         XCTAssertEqual(comps.minute, 30)
-        // Absolute instant must be 2026-09-23 23:30 UTC when TZ is HKT.
         var utcCal = Calendar(identifier: .gregorian)
         utcCal.timeZone = TimeZone(secondsFromGMT: 0)!
         let utc = utcCal.dateComponents([.day, .hour, .minute], from: fire)
         XCTAssertEqual(utc.day, 23)
-        XCTAssertEqual(utc.hour, 23)
+        XCTAssertEqual(utc.hour, 22)
         XCTAssertEqual(utc.minute, 30)
     }
 
@@ -318,7 +317,7 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         XCTAssertTrue(prefs.morningWeighDrill)
         XCTAssertTrue(prefs.notifyOnBadTrend)
         XCTAssertTrue(prefs.weeklyGoalReminders)
-        XCTAssertEqual(prefs.morningWeighFallbackHour, 7)
+        XCTAssertEqual(prefs.morningWeighFallbackHour, 6)
         XCTAssertEqual(prefs.morningWeighFallbackMinute, 30)
     }
 
@@ -327,9 +326,53 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         {"notifyOnBadTrend":true,"weeklyGoalReminders":true,"morningWeighDrill":true}
         """.data(using: .utf8)!
         let prefs = try JSONDecoder().decode(NotificationPreferences.self, from: json)
-        XCTAssertEqual(prefs.morningWeighFallbackHour, 7)
+        XCTAssertEqual(prefs.morningWeighFallbackHour, 6)
         XCTAssertEqual(prefs.morningWeighFallbackMinute, 30)
         XCTAssertTrue(prefs.morningWeighDrill)
+    }
+
+    func testNotificationPreferencesMigratesLegacySevenThirty() throws {
+        let json = """
+        {"notifyOnBadTrend":true,"weeklyGoalReminders":true,"morningWeighDrill":true,"morningWeighFallbackHour":7,"morningWeighFallbackMinute":30}
+        """.data(using: .utf8)!
+        let prefs = try JSONDecoder().decode(NotificationPreferences.self, from: json)
+        XCTAssertEqual(prefs.morningWeighFallbackHour, 6)
+        XCTAssertEqual(prefs.morningWeighFallbackMinute, 30)
+    }
+
+    func testNotificationPreferencesKeepsCustomClock() throws {
+        let json = """
+        {"notifyOnBadTrend":true,"weeklyGoalReminders":true,"morningWeighDrill":true,"morningWeighFallbackHour":5,"morningWeighFallbackMinute":15}
+        """.data(using: .utf8)!
+        let prefs = try JSONDecoder().decode(NotificationPreferences.self, from: json)
+        XCTAssertEqual(prefs.morningWeighFallbackHour, 5)
+        XCTAssertEqual(prefs.morningWeighFallbackMinute, 15)
+    }
+
+    func testDrillCopyHasShitEmojiAndKeelTitle() {
+        let copy = MorningWeighDrillScheduler.drillCopy(profileName: "Alex", variant: .fallback)
+        XCTAssertEqual(copy.title, "Keel · 💩 drill")
+        XCTAssertTrue(copy.body.contains("💩"))
+        XCTAssertTrue(copy.body.contains("Alex"))
+        XCTAssertTrue(copy.body.contains("The Scale"))
+        let test = MorningWeighDrillScheduler.drillCopy(profileName: "", variant: .test)
+        XCTAssertTrue(test.title.contains("💩"))
+        XCTAssertTrue(test.body.contains("Soldier"))
+    }
+
+    func testMorningWeighContentStaysTimeSensitive() {
+        let pick = MorningWeighDrillScheduler.drillCopy(profileName: "Alex", variant: .fallback)
+        let content = ScaleNotificationContentFactory.make(
+            .init(
+                kind: .morningWeigh,
+                title: pick.title,
+                subtitle: pick.subtitle,
+                body: pick.body
+            )
+        )
+        XCTAssertEqual(content.interruptionLevel, .timeSensitive)
+        XCTAssertEqual(content.categoryIdentifier, ScaleNotificationCategoryID.coachReminder)
+        XCTAssertTrue(content.body.contains("💩"))
     }
 }
 
@@ -372,11 +415,12 @@ final class ProfileNumericBoundsTests: XCTestCase {
 
     func testMorningFallbackClamp() {
         let late = ProfileNumericBounds.clampMorningFallback(hour: 10, minute: 0)
-        XCTAssertEqual(late.hour, 8)
+        XCTAssertEqual(late.hour, 7)
         XCTAssertEqual(late.minute, 59)
-        let ok = ProfileNumericBounds.clampMorningFallback(hour: 7, minute: 30)
-        XCTAssertEqual(ok.hour, 7)
+        let ok = ProfileNumericBounds.clampMorningFallback(hour: 6, minute: 30)
+        XCTAssertEqual(ok.hour, 6)
         XCTAssertEqual(ok.minute, 30)
+        XCTAssertEqual(ProfileNumericBounds.morningWeighDeadlineHour, 8)
     }
 
     func testIdealWeightClampUsesSexAgeBMIBand() {

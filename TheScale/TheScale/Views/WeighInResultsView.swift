@@ -226,10 +226,20 @@ struct WeighInResultsView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 if let analysis = session.lastWeighInAnalysis {
-                    Text(analysis.headline)
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(atmosphere.accent.opacity(0.8))
-                        .lineLimit(1)
+                    if let deltaText = analysis.deltaDisplay(system: session.preferredUnits),
+                       analysis.isWinnerLoss
+                    {
+                        Text("\(deltaText) · winner")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(atmosphere.accent.opacity(0.9))
+                            .lineLimit(1)
+                            .accessibilityIdentifier("history.winnerDelta")
+                    } else {
+                        Text(analysis.headline)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(atmosphere.accent.opacity(0.8))
+                            .lineLimit(1)
+                    }
                 } else {
                     Text("Apple Health")
                         .font(.system(size: 12, weight: .medium, design: .rounded))

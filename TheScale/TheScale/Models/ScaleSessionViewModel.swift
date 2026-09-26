@@ -1901,7 +1901,8 @@ final class ScaleSessionViewModel: ObservableObject {
                 weeklyGoal: weeklyGoal,
                 idealKg: profile.idealWeightKg,
                 profile: profile,
-                chartCommentsBlock: ChartCommentStore.analysisPayload()
+                chartCommentsBlock: ChartCommentStore.analysisPayload(),
+                unitSystem: preferredUnits
             )
             rebuildWeeklyGoalSurface()
             let offerMonday = MondayCardEngine.shouldOfferAfterWeighIn()
