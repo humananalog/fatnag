@@ -146,6 +146,15 @@ enum NotificationPreferencesStore {
         else {
             return .default
         }
+        // Persist 07:30 → 06:30 migration so consider() does not keep rewriting pending.
+        if let raw = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let hour = raw["morningWeighFallbackHour"] as? Int,
+           let minute = raw["morningWeighFallbackMinute"] as? Int,
+           hour == NotificationPreferences.legacyMorningFallbackHour,
+           minute == NotificationPreferences.legacyMorningFallbackMinute
+        {
+            save(prefs)
+        }
         return prefs
     }
 
