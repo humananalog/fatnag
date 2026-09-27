@@ -448,8 +448,10 @@ struct SettingsView: View {
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(steel)
                     .monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("settings.targetWeight.bounds")
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 if let weightValidationNote {
                     validationLine(weightValidationNote)
                 }

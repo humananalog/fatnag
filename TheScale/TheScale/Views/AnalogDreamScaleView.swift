@@ -4,6 +4,10 @@ import UIKit
 /// Real bathroom-scale UX: fixed marker at 12 o'clock; dial disc rotates under it.
 /// Pivot of rotation = true geometric center of the disc (same center ticks are drawn from).
 /// Used by onboarding dream-weight and Settings target weight (same haptic control).
+///
+/// Layout note: the disc is intentionally larger than the housing (arc window). It must
+/// live in an overlay so its square frame / rotationEffect never expand parent width
+/// past the safe area (Settings sheet overflow).
 struct AnalogDreamScaleView: View {
     @Binding var weightKg: Double
     var boundsKg: ClosedRange<Double>
@@ -26,12 +30,17 @@ struct AnalogDreamScaleView: View {
     /// Angular density: how many degrees per kg on the disc circumference.
     private let degreesPerKg: Double = 5
 
-    /// Full disc square — rotation pivot is its midpoint.
+    /// Full disc square — rotation pivot is its midpoint. Oversized on purpose;
+    /// only a slit is visible. Never use this as a layout child of the housing.
     private let discSide: CGFloat = 520
     /// Tick ring radius from true disc center.
     private let tickRadius: CGFloat = 240
     /// Narrow reading window height (clips the 12 o'clock arc).
     private let windowHeight: CGFloat = 88
+    /// Housing height (readout + window + padding).
+    private let housingHeight: CGFloat = 200
+    /// Cap dial width on large phones / iPad so it stays a dial, not a banner.
+    private let maxHousingWidth: CGFloat = 420
 
     private var displayValue: Double {
         UnitFormat.mass(fromKg: weightKg, system: unitSystem)
@@ -70,30 +79,72 @@ struct AnalogDreamScaleView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            ZStack {
-                // Housing
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: housingColors,
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(ink.opacity(colorScheme == .dark ? 0.28 : 0.16), lineWidth: 1.5)
-                    )
+            housing
+                .frame(maxWidth: maxHousingWidth)
+                .frame(maxWidth: .infinity)
+                .frame(height: housingHeight)
+                .clipped()
+                .contentShape(Rectangle())
+                .gesture(dragGesture)
+                .accessibilityIdentifier(accessibilityId)
+                .accessibilityLabel("Target weight \(String(format: "%.1f", displayValue)) \(unitSystem.massLabel)")
+                .accessibilityValue(String(format: "%.1f %@", displayValue, unitSystem.massLabel))
+                .accessibilityAdjustableAction { direction in
+                    let step = unitSystem == .metric ? 0.5 : UnitFormat.kg(fromMass: 1, system: .imperial)
+                    switch direction {
+                    case .increment:
+                        setKg(weightKg + step)
+                    case .decrement:
+                        setKg(weightKg - step)
+                    @unknown default:
+                        break
+                    }
+                }
+                .onChange(of: boundsKg.lowerBound) { _, _ in
+                    setKg(weightKg)
+                }
+                .onChange(of: boundsKg.upperBound) { _, _ in
+                    setKg(weightKg)
+                }
 
-                // Reading window: rotating disc clipped to a narrow top slit
-                ZStack {
+            Text(caption)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(steel)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var housing: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: housingColors,
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(ink.opacity(colorScheme == .dark ? 0.28 : 0.16), lineWidth: 1.5)
+                )
+
+            // Reading window: layout sized to housing; oversized disc is overlay-only
+            // so discSide / rotationEffect never propose width past the safe area.
+            Color.clear
+                .frame(height: windowHeight)
+                .frame(maxWidth: .infinity)
+                .overlay {
                     discFace
                         .frame(width: discSide, height: discSide)
                         // Pivot = true disc center (same point ticks are drawn around).
                         .rotationEffect(discRotation, anchor: .center)
                         .offset(y: discWindowOffsetY)
-
-                    // Soft vignette inside window
+                        .allowsHitTesting(false)
+                }
+                .overlay {
                     LinearGradient(
                         colors: [
                             Color.black.opacity(colorScheme == .dark ? 0.28 : 0.10),
@@ -106,71 +157,42 @@ struct AnalogDreamScaleView: View {
                     .blendMode(.multiply)
                     .allowsHitTesting(false)
                 }
-                .frame(height: windowHeight)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .strokeBorder(ink.opacity(0.22), lineWidth: 1)
                 )
-                .padding(.horizontal, 22)
+                .padding(.horizontal, 16)
                 .padding(.top, 18)
-                .frame(maxHeight: .infinity, alignment: .top)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-                // STATIC marker at 12 o'clock — does not rotate with the disc
-                VStack(spacing: 0) {
-                    Capsule()
-                        .fill(accent)
-                        .frame(width: 3, height: 28)
-                        .shadow(color: ink.opacity(0.35), radius: 1.5, y: 1)
-                    TriangleMarker()
-                        .fill(accent)
-                        .frame(width: 12, height: 10)
-                }
-                .padding(.top, 10)
-                .frame(maxHeight: .infinity, alignment: .top)
-                .allowsHitTesting(false)
+            // STATIC marker at 12 o'clock — does not rotate with the disc
+            VStack(spacing: 0) {
+                Capsule()
+                    .fill(accent)
+                    .frame(width: 3, height: 28)
+                    .shadow(color: ink.opacity(0.35), radius: 1.5, y: 1)
+                TriangleMarker()
+                    .fill(accent)
+                    .frame(width: 12, height: 10)
+            }
+            .padding(.top, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .allowsHitTesting(false)
 
-                // Readout
-                VStack(spacing: 2) {
-                    Text(String(format: "%.1f", displayValue))
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundStyle(ink)
-                        .monospacedDigit()
-                    Text(unitSystem.massLabel.uppercased())
-                        .font(.system(size: 11, weight: .heavy, design: .rounded))
-                        .tracking(1.2)
-                        .foregroundStyle(steel)
-                }
-                .padding(.bottom, 16)
-                .frame(maxHeight: .infinity, alignment: .bottom)
+            // Readout
+            VStack(spacing: 2) {
+                Text(String(format: "%.1f", displayValue))
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(ink)
+                    .monospacedDigit()
+                Text(unitSystem.massLabel.uppercased())
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .tracking(1.2)
+                    .foregroundStyle(steel)
             }
-            .frame(height: 200)
-            .contentShape(Rectangle())
-            .gesture(dragGesture)
-            .accessibilityIdentifier(accessibilityId)
-            .accessibilityLabel("Target weight \(String(format: "%.1f", displayValue)) \(unitSystem.massLabel)")
-            .accessibilityValue(String(format: "%.1f %@", displayValue, unitSystem.massLabel))
-            .accessibilityAdjustableAction { direction in
-                let step = unitSystem == .metric ? 0.5 : UnitFormat.kg(fromMass: 1, system: .imperial)
-                switch direction {
-                case .increment:
-                    setKg(weightKg + step)
-                case .decrement:
-                    setKg(weightKg - step)
-                @unknown default:
-                    break
-                }
-            }
-            .onChange(of: boundsKg.lowerBound) { _, _ in
-                setKg(weightKg)
-            }
-            .onChange(of: boundsKg.upperBound) { _, _ in
-                setKg(weightKg)
-            }
-
-            Text(caption)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(steel)
+            .padding(.bottom, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
     }
 
