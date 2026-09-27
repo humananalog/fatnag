@@ -36,13 +36,13 @@ struct DebugToolsView: View {
                     }
                 }
                 Section("Monday / notifications") {
-                    Button("Preview Monday card") {
+                    Button("Preview Monday card (ephemeral)") {
                         dismiss()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                             session.forcePresentMondayCard(regenerate: false)
                         }
                     }
-                    Button("Regenerate Monday card") {
+                    Button("Regenerate Monday card (ephemeral)") {
                         dismiss()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                             session.forcePresentMondayCard(regenerate: true)

@@ -1398,13 +1398,13 @@ struct SettingsView: View {
 
             #if DEBUG
             Menu {
-                Button("Preview Monday card") {
+                Button("Preview Monday card (ephemeral)") {
                     session.dismissSettings()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         session.forcePresentMondayCard(regenerate: false)
                     }
                 }
-                Button("Regenerate Monday card") {
+                Button("Regenerate Monday card (ephemeral)") {
                     session.dismissSettings()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         session.forcePresentMondayCard(regenerate: true)

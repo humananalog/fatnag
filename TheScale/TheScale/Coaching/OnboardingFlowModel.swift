@@ -344,7 +344,7 @@ final class OnboardingFlowModel: ObservableObject {
         return WeeklyMiniGoal(
             targetDeltaKg: aggressive.weeklyDeltaKg,
             weekStartKg: currentWeightKg,
-            weekStartDate: now,
+            weekStartDate: MondayCardEngine.startOfWeekMonday(now: now),
             title: String(format: "Sunday %.2f kg", aggressive.sundayTargetKg)
         )
     }

@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 2.50.1 (build 90) |
+| **Version** | 2.50.2 (build 91) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -80,6 +80,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **Paywall + Settings polish (2.14.1):** Unlock Coach one-pager (high contrast Free/Plus/Pro); meal cards match sheet background; Settings Done dismisses keyboard; Settings regrouped (You / Weekly AI / Coach / Alerts / Scale / Legal).
 - **AI usage / meals / units (2.14.0):** Settings shows weekly online AI % + used/limit with Upgrade; meal carousel peeks + page dots + color; quota-exhausted menus via Foundation Models or solid metric-portion templates; preferred metric/imperial units across Settings, live weigh-in, meal plan, and Coach prompts.
 - **Home day coach (2.13.0):** Today-ahead advice (local clock), macro-goal ETA vs planned date, passive BLE auto-open live card (no Find Scale primary), 10s auto-confirm, weigh-in analysis card (congratulate / reward / punish). Meal plan respects IF 16-8 + time of day; retro snake spinner while generating. Chart point comments (256 chars, on-device, last 30 days). Flat home (cards only for meal carousel).
+- **Monday week-start lock (2.50.2):** weekly progress always anchors to local Monday 00:00 (Mon→Sun). Settings/Debug Monday card preview is ephemeral — no rewrite of week-start kg / Sunday target / progress %. Bad stamps (e.g. “today”) reconcile from Health Monday history without inventing loss. Removed mid-week >2.5 kg baseline wipe.
 - **Analog dream scale pivot (2.50.1):** fixed reading marker at 12 o’clock; dial disc rotates about its true center so the chosen kg sits under the needle (Settings + onboarding).
 - **Morning weigh 💩 drill (2.50.0):** fallback **06:30** local (migrates legacy 07:30); window closes **08:00**; skip if already weighed today; Keel title `Keel · 💩 drill` / body `Go drop a 💩 and use The Scale after!`; Time Sensitive unchanged. Loss delta shows clear minus (`-650g`) + "You're a winner" on hero, home, Progress, History.
 - **ProgressView / console quiet (2.49.1):** re-audit — still zero determinate `ProgressView(value:total:)`; Settings/Paywall stay on `ScaleBoundedProgress`; Progress ACTION gauge remains custom. Home-gauge success logs stay silent; DEBUG FitnessDigest / Coach digest / soft-fail prints throttled via `ScaleDebugLog` (45s) so observer wakes cannot flood Console. Regression script `scripts/assert_no_determinate_progressview.py`.
@@ -88,7 +89,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **Gender palette universes (2.48.0):** male **Glacier Forge** (cool graphite + teal-cyan haze) vs female **Bloom Copper** (rose-quartz + champagne-copper haze). Driven by profile sex; live switch in Settings. Default when sex missing: Glacier Forge. Tokens in `Design/ScalePaletteUniverse.swift`; applied to home/Progress haze + Coach/paywall chrome continuity.
 - **Home weekly-goal hero (2.12.2+):** one composition (no home cards) with % + track haze, energy-balance advice, Meals carousel (Grok, day-keyed cache), daily targets. Coach chat type bumped. Tap % for Progress.
 - Weekly mini-goal (Δ kg), progress bar, offline or live Grok roast
-- **Monday morning card (2.8.0+):** after Confirm-to-Health (or Manual) on Monday local morning (04:00-12:00), full-screen week plan: last-week Δ, Sunday kg target paced to ideal + optional goal date, meals, Grok diagnostic. Cached per ISO week; regenerates on a new Monday weigh-in. Dev preview: Settings → Legal → **Dev**
+- **Monday morning card (2.8.0+ / 2.50.2):** after Confirm-to-Health (or Manual) on Monday local morning (04:00-12:00), full-screen week plan: last-week Δ, Sunday kg target paced to ideal + optional goal date, meals, Grok diagnostic. Cached per ISO week; regenerates on a new Monday weigh-in. Weekly progress always anchors to **local Monday 00:00** (Mon→Sun). Dev preview: Settings → Legal → **Dev** (ephemeral UI only — does **not** rewrite week-start / progress).
 - Bad-trend alerts, Monday mini-goal, Coach wake reminders (Settings toggles)
 - Dev sample SOTA ping: Settings → Legal → **Dev** → Fire sample SOTA notification
 

@@ -295,10 +295,13 @@ enum WeeklyGoalSurfaceEngine {
     // MARK: - Pace / band
 
     static func weekElapsedFraction(now: Date, calendar: Calendar = .current) -> Double {
-        guard let interval = calendar.dateInterval(of: .weekOfYear, for: now) else { return 0.5 }
-        let total = interval.end.timeIntervalSince(interval.start)
+        // Mon 00:00 → next Mon 00:00 (never locale Sunday-first weekOfYear).
+        let cal = MondayCardEngine.mondayBasedCalendar(from: calendar)
+        let start = MondayCardEngine.startOfWeekMonday(now: now, calendar: calendar)
+        let end = cal.date(byAdding: .day, value: 7, to: start) ?? start.addingTimeInterval(7 * 86_400)
+        let total = end.timeIntervalSince(start)
         guard total > 0 else { return 0.5 }
-        return min(1, max(0, now.timeIntervalSince(interval.start) / total))
+        return min(1, max(0, now.timeIntervalSince(start) / total))
     }
 
     static func trackBand(

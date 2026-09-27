@@ -725,6 +725,7 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     /// Dev / preview: force-show the Monday card (optionally regenerate past cache).
+    /// Preview is ephemeral — never rewrites live weekly progress or MondayCardStore.
     func forcePresentMondayCard(regenerate: Bool = true) {
         Task {
             await presentMondayCardIfNeeded(
@@ -737,6 +738,7 @@ final class ScaleSessionViewModel: ObservableObject {
 
     /// After Confirm-to-Health (or Manual) on Monday morning, or Dev force.
     /// Caches one card per ISO week unless weigh-in signature changes or regenerate.
+    /// `force` (Settings/Debug preview) is UI-only: no weeklyGoal / store mutations.
     func presentMondayCardIfNeeded(
         weighInKg: Double,
         force: Bool,
@@ -744,6 +746,9 @@ final class ScaleSessionViewModel: ObservableObject {
         now: Date = Date()
     ) async {
         guard force || MondayCardEngine.shouldOfferAfterWeighIn(now: now) else { return }
+
+        // Preview/test must never wipe live week-start / Sunday target / progress %.
+        let persistLiveWeeklyGoal = !force
 
         let week = MondayWeekKey.current(now: now)
         let signature = MondayCardEngine.weighInSignature(kg: weighInKg, at: now)
@@ -786,14 +791,16 @@ final class ScaleSessionViewModel: ObservableObject {
             now: now
         )
 
-        // Keep Progress mini-goal aligned with this week's Sunday pace.
-        var nextGoal = weeklyGoal
-        nextGoal.targetDeltaKg = sunday.weeklyDeltaKg
-        nextGoal.title = String(format: "Sunday %.2f kg", sunday.targetKg)
-        nextGoal.weekStartKg = weighInKg
-        nextGoal.weekStartDate = Calendar.current.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-        weeklyTargetMode = sunday.mode
-        weeklyGoal = nextGoal
+        // Real Monday morning only: lock Progress to this week's Monday weigh-in.
+        if persistLiveWeeklyGoal {
+            var nextGoal = weeklyGoal
+            nextGoal.targetDeltaKg = sunday.weeklyDeltaKg
+            nextGoal.title = String(format: "Sunday %.2f kg", sunday.targetKg)
+            nextGoal.weekStartKg = weighInKg
+            nextGoal.weekStartDate = MondayCardEngine.startOfWeekMonday(now: now)
+            weeklyTargetMode = sunday.mode
+            weeklyGoal = nextGoal
+        }
 
         let goalDateLine: String = {
             if let date = profile.goalDate {
@@ -848,7 +855,9 @@ final class ScaleSessionViewModel: ObservableObject {
         mondayCardStreamEncouragement = result.encouragement
         mondayCardStreamMeals = result.meals
         mondayCardStreamDiagnostic = result.diagnostic
-        MondayCardStore.save(draft)
+        if persistLiveWeeklyGoal {
+            MondayCardStore.save(draft)
+        }
         isMondayCardLoading = false
     }
 
@@ -868,26 +877,40 @@ final class ScaleSessionViewModel: ObservableObject {
         weeklyGoal = next
     }
 
-    /// Lock ISO-week baseline from the latest Health weight when missing or stale.
+    /// Lock Mon→Sun week baseline. Preview/test must not wipe this; bad stamps re-anchor to Monday.
     /// Also refreshes weekly delta from the macro goal (aggressive / catch-up / accelerate).
     func ensureWeeklyGoalBaseline() {
-        guard let baseline = healthBaselineKg else {
-            rebuildWeeklyGoalSurface()
-            return
-        }
         var next = weeklyGoal
         let cal = Calendar.current
-        let weekStart = cal.dateInterval(of: .weekOfYear, for: Date())?.start
+        let historySeries = historyWeights.isEmpty ? historyTrendWindowWeights : historyWeights
+        let history = historySeries.map { (kg: $0.value, date: $0.date) }
+        let reconciled = MondayCardEngine.reconcileWeekStart(
+            weekStartKg: next.weekStartKg,
+            weekStartDate: next.weekStartDate,
+            currentBaselineKg: healthBaselineKg,
+            history: history,
+            now: Date(),
+            calendar: cal
+        )
         var weekRolled = false
-        if next.weekStartKg == nil || next.weekStartDate == nil {
-            next.weekStartKg = baseline
-            next.weekStartDate = weekStart ?? Date()
-            weekRolled = true
-        } else if let stored = next.weekStartDate, let weekStart,
-                  !cal.isDate(stored, equalTo: weekStart, toGranularity: .weekOfYear) {
-            next.weekStartKg = baseline
-            next.weekStartDate = weekStart
-            weekRolled = true
+        if reconciled.didChange {
+            let priorMonday = next.weekStartDate.map {
+                MondayCardEngine.startOfWeekMonday(now: $0, calendar: cal)
+            }
+            let newMonday = reconciled.weekStartDate
+            if let priorMonday, !cal.isDate(priorMonday, equalTo: newMonday, toGranularity: .day) {
+                weekRolled = true
+            } else if next.weekStartKg == nil || next.weekStartDate == nil {
+                weekRolled = true
+            }
+            next.weekStartKg = reconciled.weekStartKg
+            next.weekStartDate = reconciled.weekStartDate
+        }
+
+        guard let baseline = healthBaselineKg ?? next.weekStartKg else {
+            weeklyGoal = next
+            rebuildWeeklyGoalSurface()
+            return
         }
 
         let hit = AggressiveWeeklyTargetEngine.compute(
@@ -901,6 +924,7 @@ final class ScaleSessionViewModel: ObservableObject {
 
         // Always re-sync delta + Sunday title from the biology-capped engine.
         // Stale titles (or pacing-line titles with other "X kg" tokens) must not stick.
+        // Do NOT rebase weekStartKg to today's baseline mid-week (that wiped progress).
         let titleNeedsRefresh: Bool = {
             guard let shown = WeeklyGoalSurfaceEngine.parseSundayKg(from: next.title) else { return true }
             return abs(shown - hit.sundayTargetKg) > 0.04
@@ -911,14 +935,6 @@ final class ScaleSessionViewModel: ObservableObject {
             || hit.mode == .hardcoreCatchUp
             || hit.mode == .accelerate
         {
-            next.targetDeltaKg = hit.weeklyDeltaKg
-            next.title = String(format: "Sunday %.2f kg", hit.sundayTargetKg)
-        }
-        // If week-start was locked far from today's baseline (manual edit / bad Health sample),
-        // keep the Sunday number anchored to the engine's live currentKg math.
-        if let start = next.weekStartKg, abs(start - baseline) > 2.5 {
-            next.weekStartKg = baseline
-            next.weekStartDate = weekStart ?? Date()
             next.targetDeltaKg = hit.weeklyDeltaKg
             next.title = String(format: "Sunday %.2f kg", hit.sundayTargetKg)
         }

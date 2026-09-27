@@ -8,12 +8,21 @@ struct MondayWeekKey: Equatable, Hashable, Codable, Sendable {
     var storageKey: String { "\(yearForWeekOfYear)-W\(weekOfYear)" }
 
     static func current(now: Date = Date(), calendar: Calendar = .current) -> MondayWeekKey {
-        let comps = calendar.dateComponents([.weekOfYear, .yearForWeekOfYear], from: now)
+        let cal = MondayCardEngine.mondayBasedCalendar(from: calendar)
+        let comps = cal.dateComponents([.weekOfYear, .yearForWeekOfYear], from: now)
         return MondayWeekKey(
             weekOfYear: comps.weekOfYear ?? 1,
-            yearForWeekOfYear: comps.yearForWeekOfYear ?? calendar.component(.year, from: now)
+            yearForWeekOfYear: comps.yearForWeekOfYear ?? cal.component(.year, from: now)
         )
     }
+}
+
+/// Result of re-anchoring weekly progress to the local Monday week start.
+struct WeekStartReconcile: Equatable, Sendable {
+    var weekStartKg: Double?
+    var weekStartDate: Date
+    var didChange: Bool
+    var reason: String
 }
 
 /// Deterministic last-week + Sunday-goal numbers. Live Keel fills voice / meals / diagnostic.
@@ -104,6 +113,136 @@ enum MondayCardEngine {
     /// Local morning window after a Monday weigh-in (inclusive start, exclusive end hour).
     static let morningHourStart = 4
     static let morningHourEnd = 12
+
+    /// Gregorian calendar forced to Monday-first weeks (ISO-style), keeping the caller's time zone.
+    static func mondayBasedCalendar(from calendar: Calendar = .current) -> Calendar {
+        var cal = calendar
+        cal.firstWeekday = 2 // Monday
+        return cal
+    }
+
+    /// Local Monday 00:00 for the week containing `now` (Mon→Sun week).
+    static func startOfWeekMonday(now: Date = Date(), calendar: Calendar = .current) -> Date {
+        let cal = mondayBasedCalendar(from: calendar)
+        let startOfDay = cal.startOfDay(for: now)
+        let weekday = cal.component(.weekday, from: startOfDay) // 1=Sun … 7=Sat
+        // Days since Monday: Mon=0 … Sun=6
+        let daysFromMonday = (weekday + 5) % 7
+        return cal.date(byAdding: .day, value: -daysFromMonday, to: startOfDay) ?? startOfDay
+    }
+
+    /// True when `date` falls on the Monday that opens the week containing `now`.
+    static func isAnchoredToCurrentMonday(
+        _ date: Date,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Bool {
+        let cal = mondayBasedCalendar(from: calendar)
+        let monday = startOfWeekMonday(now: now, calendar: calendar)
+        return cal.isDate(date, inSameDayAs: monday)
+    }
+
+    /// Weight at / carried into Monday: first Monday sample, else latest sample before Tuesday.
+    static func weekStartWeightKg(
+        from samples: [(kg: Double, date: Date)],
+        weekStartMonday: Date,
+        calendar: Calendar = .current
+    ) -> Double? {
+        let cal = mondayBasedCalendar(from: calendar)
+        let mondayEnd = cal.date(byAdding: .day, value: 1, to: weekStartMonday)
+            ?? weekStartMonday.addingTimeInterval(86_400)
+        let onMonday = samples
+            .filter { $0.date >= weekStartMonday && $0.date < mondayEnd }
+            .sorted { $0.date < $1.date }
+        if let first = onMonday.first { return first.kg }
+        let prior = samples
+            .filter { $0.date < mondayEnd }
+            .sorted { $0.date < $1.date }
+        return prior.last.map(\.kg)
+    }
+
+    /// Safe re-anchor: week always opens Monday 00:00. Never invent mid-week "loss"
+    /// by rebasing week-start kg to today's baseline (preview/test wipe recovery).
+    static func reconcileWeekStart(
+        weekStartKg: Double?,
+        weekStartDate: Date?,
+        currentBaselineKg: Double?,
+        history: [(kg: Double, date: Date)],
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> WeekStartReconcile {
+        let cal = mondayBasedCalendar(from: calendar)
+        let monday = startOfWeekMonday(now: now, calendar: calendar)
+        let historyKg = weekStartWeightKg(
+            from: history,
+            weekStartMonday: monday,
+            calendar: calendar
+        )
+
+        let storedInThisWeek: Bool = {
+            guard let stored = weekStartDate else { return false }
+            return cal.isDate(stored, equalTo: monday, toGranularity: .weekOfYear)
+        }()
+        let storedOnMonday = weekStartDate.map {
+            isAnchoredToCurrentMonday($0, now: now, calendar: calendar)
+        } ?? false
+
+        // Correctly anchored this Monday → keep live progress.
+        if storedOnMonday, let kg = weekStartKg {
+            let dateNeedsNormalize = !(weekStartDate.map { cal.isDate($0, equalTo: monday, toGranularity: .minute) } ?? false)
+            if dateNeedsNormalize {
+                return WeekStartReconcile(
+                    weekStartKg: kg,
+                    weekStartDate: monday,
+                    didChange: true,
+                    reason: "normalize-monday-midnight"
+                )
+            }
+            return WeekStartReconcile(
+                weekStartKg: kg,
+                weekStartDate: monday,
+                didChange: false,
+                reason: "ok"
+            )
+        }
+
+        // Same Mon→Sun week but stamp was wrong (e.g. "today" after Monday-card preview).
+        if storedInThisWeek {
+            var kg = weekStartKg
+            var reason = "reanchor-date-keep-kg"
+            // Detect wipe-to-today: stamped kg ≈ live baseline while Health still has Monday's weight.
+            if let stamped = weekStartKg,
+               let baseline = currentBaselineKg,
+               let mondayKg = historyKg,
+               abs(stamped - baseline) <= 0.15,
+               abs(mondayKg - stamped) > 0.05 {
+                kg = mondayKg
+                reason = "restore-monday-from-history"
+            } else if kg == nil {
+                kg = historyKg ?? currentBaselineKg
+                reason = "reanchor-date-seed-kg"
+            }
+            let changed = kg != weekStartKg
+                || !(weekStartDate.map { cal.isDate($0, equalTo: monday, toGranularity: .minute) } ?? false)
+            return WeekStartReconcile(
+                weekStartKg: kg,
+                weekStartDate: monday,
+                didChange: changed,
+                reason: reason
+            )
+        }
+
+        // Missing stamp or prior week → open this Monday from Health, never invent loss.
+        let kg = historyKg ?? weekStartKg ?? currentBaselineKg
+        let changed = kg != weekStartKg
+            || !(weekStartDate.map { cal.isDate($0, equalTo: monday, toGranularity: .minute) } ?? false)
+        return WeekStartReconcile(
+            weekStartKg: kg,
+            weekStartDate: monday,
+            didChange: changed,
+            reason: weekStartDate == nil ? "seed-monday" : "roll-to-monday"
+        )
+    }
 
     static func isMonday(now: Date = Date(), calendar: Calendar = .current) -> Bool {
         calendar.component(.weekday, from: now) == 2

@@ -169,7 +169,7 @@ enum NotificationPreferencesStore {
 struct WeeklyMiniGoal: Equatable, Codable, Sendable {
     /// Target kg change this week (negative = lose). Example: -0.3
     var targetDeltaKg: Double
-    /// Weight at the start of the ISO week (kg).
+    /// Weight at the start of the Mon→Sun week (kg). Always anchored to local Monday 00:00.
     var weekStartKg: Double?
     var weekStartDate: Date?
     /// Optional short label shown in Progress.

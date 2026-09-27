@@ -78,4 +78,75 @@ final class MondayCardTests: XCTestCase {
         let sigC = MondayCardEngine.weighInSignature(kg: 83.40, at: a, calendar: cal)
         XCTAssertNotEqual(sigA, sigC)
     }
+
+    func testStartOfWeekAlwaysMonday() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        cal.firstWeekday = 1 // Sunday-first locale must still yield Monday.
+        // 2026-09-24 is a Thursday.
+        let thursday = cal.date(from: DateComponents(year: 2026, month: 9, day: 24, hour: 15))!
+        let monday = MondayCardEngine.startOfWeekMonday(now: thursday, calendar: cal)
+        XCTAssertEqual(cal.component(.weekday, from: monday), 2)
+        XCTAssertEqual(cal.component(.day, from: monday), 21)
+        XCTAssertEqual(cal.component(.hour, from: monday), 0)
+        // Sunday still belongs to the week that started the prior Monday.
+        let sunday = cal.date(from: DateComponents(year: 2026, month: 9, day: 27, hour: 20))!
+        let sundayMonday = MondayCardEngine.startOfWeekMonday(now: sunday, calendar: cal)
+        XCTAssertEqual(cal.component(.day, from: sundayMonday), 21)
+    }
+
+    func testReconcileRestoresMondayWeightAfterTodayWipe() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let monday = cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 0))!
+        let thursday = cal.date(from: DateComponents(year: 2026, month: 9, day: 24, hour: 12))!
+        let history: [(kg: Double, date: Date)] = [
+            (84.0, cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 7))!),
+            (83.6, cal.date(from: DateComponents(year: 2026, month: 9, day: 23, hour: 7))!),
+            (83.4, thursday)
+        ]
+        // Preview wipe: weekStartDate = today, weekStartKg = live baseline.
+        let result = MondayCardEngine.reconcileWeekStart(
+            weekStartKg: 83.4,
+            weekStartDate: thursday,
+            currentBaselineKg: 83.4,
+            history: history,
+            now: thursday,
+            calendar: cal
+        )
+        XCTAssertTrue(result.didChange)
+        XCTAssertEqual(result.weekStartKg ?? -1, 84.0, accuracy: 0.01)
+        XCTAssertEqual(cal.component(.day, from: result.weekStartDate), 21)
+        XCTAssertEqual(cal.component(.weekday, from: result.weekStartDate), 2)
+        XCTAssertTrue(result.reason.contains("restore") || result.reason.contains("reanchor"))
+        // Correct Monday stamp must not be overwritten by today's lower weight.
+        let ok = MondayCardEngine.reconcileWeekStart(
+            weekStartKg: 84.0,
+            weekStartDate: monday,
+            currentBaselineKg: 83.4,
+            history: history,
+            now: thursday,
+            calendar: cal
+        )
+        XCTAssertFalse(ok.didChange)
+        XCTAssertEqual(ok.weekStartKg ?? -1, 84.0, accuracy: 0.01)
+    }
+
+    func testWeekStartWeightPrefersMondaySample() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let monday = cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 0))!
+        let samples: [(kg: Double, date: Date)] = [
+            (85.0, cal.date(from: DateComponents(year: 2026, month: 9, day: 20, hour: 8))!),
+            (84.2, cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 6))!),
+            (84.0, cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 9))!),
+            (83.5, cal.date(from: DateComponents(year: 2026, month: 9, day: 24, hour: 8))!)
+        ]
+        let kg = MondayCardEngine.weekStartWeightKg(
+            from: samples,
+            weekStartMonday: monday,
+            calendar: cal
+        )
+        XCTAssertEqual(kg ?? -1, 84.2, accuracy: 0.01)
+    }
 }

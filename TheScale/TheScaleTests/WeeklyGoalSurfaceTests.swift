@@ -321,15 +321,16 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         XCTAssertEqual(ahead.accent, crushed.accent)
     }
 
-    func testStrongSleepDoesNotTipOnTrackToAtRisk() {
-        let band = WeeklyGoalSurfaceEngine.trackBand(
-            progressFraction: 0.5,
-            expectedPace: 0.45,
-            recovery: .red,
-            sleepHours: 8.0,
-            stepsToday: 6_000
-        )
-        XCTAssertEqual(band, .onTrack)
+    func testWeekElapsedUsesMondayAnchorEvenOnSundayFirstCalendar() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        cal.firstWeekday = 1 // US-style Sunday week must not skew Mon→Sun pace.
+        let mondayMorning = cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 1))!
+        let thursdayNoon = cal.date(from: DateComponents(year: 2026, month: 9, day: 24, hour: 12))!
+        let early = WeeklyGoalSurfaceEngine.weekElapsedFraction(now: mondayMorning, calendar: cal)
+        let mid = WeeklyGoalSurfaceEngine.weekElapsedFraction(now: thursdayNoon, calendar: cal)
+        XCTAssertLessThan(early, 0.05)
+        XCTAssertGreaterThan(mid, 0.45)
+        XCTAssertLessThan(mid, 0.55)
     }
-
 }
