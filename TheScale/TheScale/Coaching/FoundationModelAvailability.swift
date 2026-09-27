@@ -10,8 +10,7 @@ enum FoundationModelAvailability {
     }
 
     /// Process-lifetime trip after a host / prompt-template failure so we stop spamming ModelManager.
-    private static let runtimeLock = NSLock()
-    private static var _runtimeDisabledReason: String?
+    private static let box = RuntimeGateBox()
 
     /// Snapshot of `SystemLanguageModel.default` availability, plus simulator / runtime gates.
     static var status: Status {
@@ -68,9 +67,9 @@ enum FoundationModelAvailability {
     }
 
     private static var runtimeDisabledReason: String? {
-        runtimeLock.lock()
-        defer { runtimeLock.unlock() }
-        return _runtimeDisabledReason
+        box.lock.lock()
+        defer { box.lock.unlock() }
+        return box.reason
     }
 
     /// Call after a LanguageModelSession / ModelManager host failure so later calls skip FM.
@@ -84,18 +83,23 @@ enum FoundationModelAvailability {
             || lower.contains("inferencefailed")
             || lower.contains("sensitivecontentanalysis")
         guard looksLikeHostGap else { return }
-        runtimeLock.lock()
-        defer { runtimeLock.unlock() }
-        if _runtimeDisabledReason == nil {
-            _runtimeDisabledReason =
+        box.lock.lock()
+        defer { box.lock.unlock() }
+        if box.reason == nil {
+            box.reason =
                 "On-device model host failed (prompt template missing). Using algorithmic copy until relaunch."
         }
     }
 
     /// Test hook.
     static func resetRuntimeFailureForTests() {
-        runtimeLock.lock()
-        defer { runtimeLock.unlock() }
-        _runtimeDisabledReason = nil
+        box.lock.lock()
+        defer { box.lock.unlock() }
+        box.reason = nil
     }
+}
+
+private final class RuntimeGateBox: @unchecked Sendable {
+    let lock = NSLock()
+    var reason: String?
 }

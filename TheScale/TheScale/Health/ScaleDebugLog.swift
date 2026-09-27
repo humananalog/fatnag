@@ -4,8 +4,7 @@ import Foundation
 /// Throttle keys so Health observer / scene-active wakes cannot flood Xcode Console
 /// with identical Home-gauge / FitnessDigest lines.
 enum ScaleDebugLog {
-    private static let lock = NSLock()
-    private static var lastPrintedAt: [String: Date] = [:]
+    private static let box = ThrottleBox()
 
     /// Default spacing between identical throttle keys (observer wakes + scene active).
     static let defaultInterval: TimeInterval = 45
@@ -24,14 +23,14 @@ enum ScaleDebugLog {
         _ message: @autoclosure () -> String
     ) {
         #if DEBUG
-        lock.lock()
+        box.lock.lock()
         let now = Date()
-        if let last = lastPrintedAt[key], now.timeIntervalSince(last) < interval {
-            lock.unlock()
+        if let last = box.lastPrintedAt[key], now.timeIntervalSince(last) < interval {
+            box.lock.unlock()
             return
         }
-        lastPrintedAt[key] = now
-        lock.unlock()
+        box.lastPrintedAt[key] = now
+        box.lock.unlock()
         Swift.print("[TheScale] \(message())")
         #endif
     }
@@ -39,9 +38,14 @@ enum ScaleDebugLog {
     #if DEBUG
     /// Test / DEBUG reset only.
     static func resetThrottleStateForTests() {
-        lock.lock()
-        lastPrintedAt.removeAll()
-        lock.unlock()
+        box.lock.lock()
+        box.lastPrintedAt.removeAll()
+        box.lock.unlock()
     }
     #endif
+}
+
+private final class ThrottleBox: @unchecked Sendable {
+    let lock = NSLock()
+    var lastPrintedAt: [String: Date] = [:]
 }

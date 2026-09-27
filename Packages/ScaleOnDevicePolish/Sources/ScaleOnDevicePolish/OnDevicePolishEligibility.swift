@@ -1,9 +1,5 @@
 import Foundation
 
-#if canImport(UIKit)
-import UIKit
-#endif
-
 /// Whether this handset should carry the Metal polish sidecar.
 public enum OnDevicePolishInstallPolicy: Equatable, Sendable {
     /// Apple Intelligence capable phone (15 Pro / 16+). Never install sidecar.
@@ -32,12 +28,11 @@ public enum OnDevicePolishEligibility: Sendable {
         guard physicalMemoryBytes >= OnDevicePolishCatalog.minimumPhysicalMemoryBytes else {
             return .unsupported(reason: "This iPhone does not have enough memory for on-device polish.")
         }
-        #if canImport(UIKit)
-        // iPhone only product. iPad / Mac Catalyst stay on heuristics.
-        if UIDevice.current.userInterfaceIdiom != .phone {
+        // Avoid UIDevice (MainActor). utsname is enough for product gating.
+        let machine = machineIdentifier
+        if machine.hasPrefix("iPad") || machine.hasPrefix("iPod") || machine.hasPrefix("Mac") {
             return .unsupported(reason: "On-device polish ships for iPhone only.")
         }
-        #endif
         return .installSidecar
         #endif
     }
@@ -50,17 +45,18 @@ public enum OnDevicePolishEligibility: Sendable {
     }
 
     public static var deviceModelIdentifier: String {
-        #if canImport(UIKit)
+        let identifier = machineIdentifier
+        return identifier.isEmpty ? "unknown" : identifier
+    }
+
+    /// Kernel machine string (e.g. `iPhone15,4`). Nonisolated-safe; no UIKit.
+    private static var machineIdentifier: String {
         var systemInfo = utsname()
         uname(&systemInfo)
         let mirror = Mirror(reflecting: systemInfo.machine)
-        let identifier = mirror.children.reduce(into: "") { result, element in
+        return mirror.children.reduce(into: "") { result, element in
             guard let value = element.value as? Int8, value != 0 else { return }
             result.append(Character(UnicodeScalar(UInt8(value))))
         }
-        return identifier.isEmpty ? UIDevice.current.model : identifier
-        #else
-        return "unknown"
-        #endif
     }
 }

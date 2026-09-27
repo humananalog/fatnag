@@ -61,12 +61,17 @@ struct MealPlanCarouselView: View {
                         Spacer()
                     } else if let plan = session.mealPlan, !plan.meals.isEmpty {
                         GeometryReader { geo in
-                            let cardWidth = max(240, geo.size.width - peek * 2)
+                            // GeometryReader can report 0 during the first layout pass; never
+                            // feed negative / non-finite sizes into `.frame`.
+                            let safeWidth = geo.size.width.isFinite ? max(0, geo.size.width) : 0
+                            let safeHeight = geo.size.height.isFinite ? max(0, geo.size.height) : 0
+                            let cardWidth = max(240, safeWidth - peek * 2)
+                            let cardHeight = max(1, safeHeight - 8)
                             ScrollView(.horizontal, showsIndicators: false) {
                                 LazyHStack(spacing: cardGap) {
                                     ForEach(Array(plan.meals.enumerated()), id: \.element.id) { index, meal in
                                         mealCard(meal, accent: accents[index % accents.count])
-                                            .frame(width: cardWidth, height: geo.size.height - 8)
+                                            .frame(width: cardWidth, height: cardHeight)
                                             .id(index)
                                     }
                                 }
