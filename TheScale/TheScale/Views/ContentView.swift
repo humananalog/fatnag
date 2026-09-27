@@ -190,6 +190,17 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: Binding(
+            get: { session.isFeedbackPresented },
+            set: { if !$0 { session.dismissFeedback() } }
+        )) {
+            FeedbackSheetView(
+                source: session.feedbackPresentationSource,
+                planTier: ScaleSubscriptionStore.shared.plan.rawValue
+            ) {
+                session.dismissFeedback()
+            }
+        }
+        .sheet(isPresented: Binding(
             get: { session.pendingProfileGap != nil },
             set: { if !$0 { session.dismissProfileGapSheet() } }
         )) {

@@ -9,5 +9,7 @@
 
 GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
 GROK_API_KEY =
+// Optional override for feedback Edge Function anon key (defaults baked in ScaleFeedbackConfig).
+SUPABASE_ANON_KEY =
 
 #include? "Secrets.xcconfig"

@@ -121,6 +121,10 @@ final class ScaleSessionViewModel: ObservableObject {
     }
     /// Soft star-rating sheet (non-invasive; only after real weigh-in success).
     @Published var isAppReviewPromptPresented = false
+    /// Consumer feedback sheet (Settings entry or optional post–happy-moment soft ask).
+    @Published var isFeedbackPresented = false
+    /// How the feedback sheet was opened (affects `source` field persisted to Supabase).
+    @Published var feedbackPresentationSource: ScaleFeedbackSource = .settings
     /// Selected system TabView destination (native Liquid Glass tab bar).
     @Published var homeTab: HomeGlassDestination = .weigh
     @Published var isProgressPresented = false
@@ -137,6 +141,8 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var pendingProfileGap: ProfileGapKind?
     /// Offer Monday card after the hero moment dismisses.
     private var pendingMondayAfterHero = false
+    /// Soft feedback ask after a clearly good hero moment (encourage / winner).
+    private var pendingFeedbackSoftAskAfterHero = false
     private var pendingMondayWeighKg: Double?
     /// True while 10s auto-confirm countdown is armed on the live sheet.
     @Published var autoConfirmArmed = false
@@ -483,9 +489,10 @@ final class ScaleSessionViewModel: ObservableObject {
         let kg = pendingMondayWeighKg
         pendingMondayAfterHero = false
         pendingMondayWeighKg = nil
-        guard offerMonday, let kg else { return }
-        Task {
-            await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
+        if offerMonday, let kg {
+            Task {
+                await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
+            }
         }
     }
 
@@ -501,6 +508,7 @@ final class ScaleSessionViewModel: ObservableObject {
               !isProgressPresented,
               !isMealPlanPresented,
               !isAppReviewPromptPresented,
+              !isFeedbackPresented,
               !isManualEntryPresented
         else { return }
         guard let gap = ProfileGapPromptEngine.nextGap(profile: profile) else { return }
@@ -557,11 +565,14 @@ final class ScaleSessionViewModel: ObservableObject {
     func dismissResults() {
         isResultsPresented = false
         refreshAlreadyWeighedToday()
-        // Settle home first so the soft sheet never fights the results dismiss.
+        // Settle home first so soft sheets never fight the results dismiss.
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 700_000_000)
             considerAppReviewPrompt()
             if !isAppReviewPromptPresented {
+                considerSoftFeedbackAsk()
+            }
+            if !isAppReviewPromptPresented, !isFeedbackPresented {
                 considerProfileGapPrompt()
             }
         }
@@ -571,23 +582,60 @@ final class ScaleSessionViewModel: ObservableObject {
         isAppReviewPromptPresented = false
     }
 
+    func presentFeedback(source: ScaleFeedbackSource) {
+        feedbackPresentationSource = source
+        isFeedbackPresented = true
+    }
+
+    func dismissFeedback() {
+        isFeedbackPresented = false
+    }
+
     /// Soft star prompt after enough successful Health saves — never mid-weigh-in.
+    /// Threshold: 6 weigh-ins; StoreKit requestReview at most once (`hasRequestedAppStoreReview`).
     func considerAppReviewPrompt() {
         guard ScaleAppReviewPrompt.shouldOfferSoftPrompt() else { return }
-        // Avoid stacking over Coach / Monday / settings.
+        // Avoid stacking over Coach / Monday / settings / feedback.
         guard !isCoachPresented,
               !isMondayCardPresented,
               !isSettingsPresented,
               !isWeighInPresented,
               !isWeighInHeroPresented,
               !isResultsPresented,
-              !isProgressPresented
+              !isProgressPresented,
+              !isFeedbackPresented
         else { return }
         isAppReviewPromptPresented = true
     }
 
+    /// Optional post–happy-moment soft ask (Settings remains the primary entry).
+    func considerSoftFeedbackAsk() {
+        guard pendingFeedbackSoftAskAfterHero else { return }
+        pendingFeedbackSoftAskAfterHero = false
+        guard ScaleFeedbackPrompt.shouldOfferSoftAsk() else { return }
+        guard !isCoachPresented,
+              !isMondayCardPresented,
+              !isSettingsPresented,
+              !isWeighInPresented,
+              !isWeighInHeroPresented,
+              !isResultsPresented,
+              !isProgressPresented,
+              !isAppReviewPromptPresented,
+              !isFeedbackPresented
+        else { return }
+        ScaleFeedbackPrompt.markSoftAskShown()
+        presentFeedback(source: .softAsk)
+    }
+
     private func noteSuccessfulWeighInForReview() {
         ScaleAppReviewPrompt.recordSuccessfulWeighIn()
+    }
+
+    private func noteHappyMomentForFeedback(_ card: WeighInAnalysisCard) {
+        // Encourage tone or clear loss vs prior = happy path for a soft ask (not a form wall).
+        if card.tone == .encourage || card.isWinnerLoss {
+            pendingFeedbackSoftAskAfterHero = true
+        }
     }
 
     func reopenResults() {
@@ -1945,6 +1993,9 @@ final class ScaleSessionViewModel: ObservableObject {
                 chartCommentsBlock: ChartCommentStore.analysisPayload(),
                 unitSystem: preferredUnits
             )
+            if let card = lastWeighInAnalysis {
+                noteHappyMomentForFeedback(card)
+            }
             rebuildWeeklyGoalSurface()
             let offerMonday = MondayCardEngine.shouldOfferAfterWeighIn()
             pendingMondayAfterHero = offerMonday

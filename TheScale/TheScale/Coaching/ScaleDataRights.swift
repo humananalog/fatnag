@@ -29,7 +29,11 @@ enum ScaleDataRights {
         "thescale.review.successfulWeighIns",
         "thescale.review.lastPromptAt",
         "thescale.review.lastSoftDismissAt",
-        "thescale.review.optedOutLowScore"
+        "thescale.review.optedOutLowScore",
+        "thescale.review.hasRequestedAppStoreReview",
+        "thescale.anonymousUserId",
+        "thescale.feedback.lastSoftAskAt",
+        "thescale.feedback.lastSubmitAt"
     ]
 
     /// JSON export of local preferences / profile / coach memory (no HealthKit bulk dump).

@@ -43,7 +43,7 @@ Three steps for adoption: **You** (name + freeform) → **Body** (height/age/sex
 
 ## App Review
 
-After 3+ confirmed Health saves, a soft star sheet may appear when home is idle. 4–5 stars → StoreKit `requestReview()`; ≤3 → quiet opt-out. 90-day cooldown.
+After **6+** confirmed Health weigh-in saves, a soft star sheet may appear when home is idle. 4–5 stars → StoreKit `requestReview()` **once per install**; ≤3 → quiet opt-out. Soft dismiss / cooldown still apply if the user skips. Settings **Send feedback** posts to Supabase Edge Function `submit-feedback` (table `app_feedback` + Resend).
 
 ## Network rules
 

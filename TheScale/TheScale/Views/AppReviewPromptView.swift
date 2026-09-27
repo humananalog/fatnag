@@ -86,6 +86,8 @@ struct AppReviewPromptView: View {
         if stars >= 4 {
             thanksLine = "Glad it’s landing. Opening the App Store rating sheet…"
             // Brief beat so the tap feels acknowledged before the system sheet.
+            // Gate: at most one StoreKit requestReview per install.
+            ScaleAppReviewPrompt.markAppStoreReviewRequested()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
                 requestReview()
                 finish()

@@ -241,11 +241,15 @@ final class OnboardingInferenceTests: XCTestCase {
     func testReviewPromptGatesOnWeighInCount() {
         ScaleAppReviewPrompt.debugReset()
         XCTAssertFalse(ScaleAppReviewPrompt.shouldOfferSoftPrompt())
-        ScaleAppReviewPrompt.successfulWeighIns = 2
+        ScaleAppReviewPrompt.successfulWeighIns = 5
         XCTAssertFalse(ScaleAppReviewPrompt.shouldOfferSoftPrompt())
-        ScaleAppReviewPrompt.successfulWeighIns = 3
+        ScaleAppReviewPrompt.successfulWeighIns = 6
         XCTAssertTrue(ScaleAppReviewPrompt.shouldOfferSoftPrompt())
         ScaleAppReviewPrompt.markSoftPromptShown()
+        XCTAssertFalse(ScaleAppReviewPrompt.shouldOfferSoftPrompt())
+        ScaleAppReviewPrompt.debugReset()
+        ScaleAppReviewPrompt.successfulWeighIns = 8
+        ScaleAppReviewPrompt.hasRequestedAppStoreReview = true
         XCTAssertFalse(ScaleAppReviewPrompt.shouldOfferSoftPrompt())
         ScaleAppReviewPrompt.debugReset()
     }

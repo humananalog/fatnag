@@ -87,6 +87,7 @@ In app:
 
 ## Related
 
+- Agent Store handoff: `docs/feedback-rating-sandbox-handoff.md` (exact Alex checklist)
 - `Config/Products.storekit` - local catalog
 - `TheScale.xcodeproj/xcshareddata/xcschemes/TheScale.xcscheme` - attaches the config on Run
 - `ScaleSubscriptionStore` / `PaywallView` / Settings Coach plan card

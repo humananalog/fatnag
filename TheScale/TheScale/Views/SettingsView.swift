@@ -24,6 +24,7 @@ struct SettingsView: View {
     @State private var bodyFatValidationNote: String?
     @State private var bodyFatText: String = ""
     @State private var showPaywall = false
+    @State private var showFeedback = false
     @State private var exportShareURL: URL?
     @State private var showEraseConfirm = false
     @State private var dataRightsNote: String?
@@ -106,6 +107,8 @@ struct SettingsView: View {
                 sectionLabel("Privacy & Legal")
                 privacyCard
                 legalCard
+                sectionLabel("Help")
+                feedbackCard
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -122,6 +125,12 @@ struct SettingsView: View {
             )
             .environmentObject(session)
             .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showFeedback) {
+            FeedbackSheetView(
+                source: .settings,
+                planTier: subscription.plan.rawValue
+            )
         }
         .scrollDismissesKeyboard(.interactively)
         .background(
@@ -1448,6 +1457,27 @@ struct SettingsView: View {
     }
 
     // MARK: - Privacy & Legal
+
+    private var feedbackCard: some View {
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Feedback", systemImage: "bubble.left.and.bubble.right")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text("Bug, idea, or praise — one short note. Optional email if you want a reply.")
+                    .font(.footnote)
+                    .foregroundStyle(steel)
+                Button {
+                    showFeedback = true
+                } label: {
+                    Label("Send feedback", systemImage: "paperplane")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("settings.sendFeedback")
+            }
+        }
+    }
 
     private var privacyCard: some View {
         settingsPanel {
