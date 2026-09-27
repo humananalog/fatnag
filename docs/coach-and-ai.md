@@ -30,7 +30,7 @@ npx wrangler deploy
 Tracked non-secret URL in `TheScale/Config/TheScale.xcconfig`:
 
 ```
-GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
+GROK_PROXY_URL = https:/$()/the-scale-grok.alexhuther.workers.dev
 GROK_API_KEY =
 GROK_APP_SECRET =
 ```
@@ -85,7 +85,7 @@ Never appended to chat, Progress roast, or notifications. Client sanitizer strip
 
 1. Pull `main`, Clean Build, Run on iPhone 15.
 2. Coach: consent, short ask → bubble streams (not one blob).
-3. `curl -s https://the-scale-grok.the-scale-grok.workers.dev` → ok + `stream: true`.
+3. `curl -s https://the-scale-grok.alexhuther.workers.dev` → ok + `stream: true`.
 4. FM (15 Pro / 16+): enable Apple Intelligence → Settings status ready → trigger alert / wake reminder.
 5. Sidecar (iPhone 15 / other non-AI): after onboarding on Wi-Fi, Settings shows download then Polish ready; trigger alert / wake reminder.
 6. Coach reminders (2.7.2+): `remind me in 2 minutes` → exact local time in chat + Settings pending list → banner lands.

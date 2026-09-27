@@ -25,7 +25,7 @@ enum GrokSharedConfig {
             case .missingAppSecret:
                 return "Offline mock: Keel proxy URL is set but GROK_APP_SECRET is empty. Copy Secrets.example.xcconfig → Secrets.xcconfig, set the same value as the Worker APP_SHARED_SECRET, and rebuild."
             case .malformedProxyURL(let raw):
-                return "Keel proxy URL is broken (\(raw)). Almost certainly xcconfig stripped https:// as a comment. Rebuild with GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev"
+                return "Keel proxy URL is broken (\(raw)). Almost certainly xcconfig stripped https:// as a comment. Rebuild with GROK_PROXY_URL = https:/$()/the-scale-grok.alexhuther.workers.dev"
             case .nonHTTPSProxy:
                 return "Keel proxy must be https. Check GROK_PROXY_URL in TheScale.xcconfig."
             }

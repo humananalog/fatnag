@@ -316,7 +316,7 @@ actor GrokClient {
             case .malformedProxy(let detail):
                 return detail
             case .badURL:
-                return "Keel proxy URL is invalid (NSURLError bad URL). Rebuild with GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev"
+                return "Keel proxy URL is invalid (NSURLError bad URL). Rebuild with GROK_PROXY_URL = https:/$()/the-scale-grok.alexhuther.workers.dev"
             case .unauthorized:
                 return "Keel proxy rejected this build (missing or wrong GROK_APP_SECRET). Set Secrets.xcconfig to match Worker APP_SHARED_SECRET and rebuild."
             case .rateLimited(let detail):

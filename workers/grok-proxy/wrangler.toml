@@ -1,6 +1,10 @@
 name = "the-scale-grok"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
+workers_dev = true
+# Canonical public URL after proton-account deploy:
+#   https://the-scale-grok.alexhuther.workers.dev
+# (Older the-scale-grok.the-scale-grok.workers.dev host is a different account — do not use.)
 
 # Secrets (never commit values):
 #   npx wrangler secret put XAI_API_KEY

@@ -177,11 +177,11 @@ final class CoachOfflineTests: XCTestCase {
 
     func testXcconfigHttpsEscapeExpands() {
         // Document the footgun fix: https:/$()/host → https://host
-        let escaped = "https:/$()/the-scale-grok.the-scale-grok.workers.dev"
+        let escaped = "https:/$()/the-scale-grok.alexhuther.workers.dev"
         let expanded = escaped.replacingOccurrences(of: "$()", with: "")
-        XCTAssertEqual(expanded, "https://the-scale-grok.the-scale-grok.workers.dev")
+        XCTAssertEqual(expanded, "https://the-scale-grok.alexhuther.workers.dev")
         let strippedComment: String = {
-            let raw = "GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev"
+            let raw = "GROK_PROXY_URL = https://the-scale-grok.alexhuther.workers.dev"
             if let idx = raw.range(of: "//") {
                 return String(raw[..<idx.lowerBound])
             }

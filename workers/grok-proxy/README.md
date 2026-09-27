@@ -52,7 +52,7 @@ Canonical tracked file: `TheScale/Config/TheScale.xcconfig` (Debug + Release `ba
 **xcconfig note:** never write `https://` literally (the `//` starts a comment). Use:
 
 ```
-GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
+GROK_PROXY_URL = https:/$()/the-scale-grok.alexhuther.workers.dev
 GROK_API_KEY =
 GROK_APP_SECRET =
 ```
@@ -79,7 +79,7 @@ node workers/grok-proxy/test/limits.test.mjs
 ### Health check
 
 ```bash
-curl -s https://the-scale-grok.the-scale-grok.workers.dev
+curl -s https://the-scale-grok.alexhuther.workers.dev
 # → ok, auth: shared_secret, weekly_limits, attest: stub
 ```
 
