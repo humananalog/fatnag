@@ -1,8 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// Real bathroom-scale UX: fixed center marker, marks live on a rotating disc.
-/// Viewport shows roughly 25° of the disc (narrow window), not a full face dial.
+/// Real bathroom-scale UX: fixed marker at 12 o'clock; dial disc rotates under it.
+/// Pivot of rotation = true geometric center of the disc (same center ticks are drawn from).
 /// Used by onboarding dream-weight and Settings target weight (same haptic control).
 struct AnalogDreamScaleView: View {
     @Binding var weightKg: Double
@@ -21,10 +21,17 @@ struct AnalogDreamScaleView: View {
 
     private let minorStepKg: Double = 0.5
     private let majorEvery: Int = 5
-    /// Degrees of disc visible in the window (real scale slit).
+    /// Degrees of disc visible in the reading window (real scale slit).
     private let viewportDegrees: Double = 25
-    /// Angular density: how many degrees per kg on the disc.
+    /// Angular density: how many degrees per kg on the disc circumference.
     private let degreesPerKg: Double = 5
+
+    /// Full disc square — rotation pivot is its midpoint.
+    private let discSide: CGFloat = 520
+    /// Tick ring radius from true disc center.
+    private let tickRadius: CGFloat = 240
+    /// Narrow reading window height (clips the 12 o'clock arc).
+    private let windowHeight: CGFloat = 88
 
     private var displayValue: Double {
         UnitFormat.mass(fromKg: weightKg, system: unitSystem)
@@ -44,8 +51,17 @@ struct AnalogDreamScaleView: View {
     }
 
     /// Disc rotation so the selected weight sits under the static needle (12 o'clock).
+    /// Positive SwiftUI rotation is clockwise; increasing kg rotates CCW so the higher
+    /// mark swings up under the fixed top marker.
     private var discRotation: Angle {
         .degrees(-(weightKg - boundsKg.lowerBound) * degreesPerKg)
+    }
+
+    /// How far to push the disc down so its 12 o'clock circumference sits in the window.
+    /// Window ZStack is `windowHeight` tall and centers children; after this offset the
+    /// disc's true center (rotation pivot) lies below the window, matching a real dial.
+    private var discWindowOffsetY: CGFloat {
+        tickRadius - windowHeight * 0.35
     }
 
     private var tickCount: Int {
@@ -69,10 +85,13 @@ struct AnalogDreamScaleView: View {
                             .strokeBorder(ink.opacity(colorScheme == .dark ? 0.28 : 0.16), lineWidth: 1.5)
                     )
 
-                // Rotating disc clipped to a narrow window
+                // Reading window: rotating disc clipped to a narrow top slit
                 ZStack {
                     discFace
+                        .frame(width: discSide, height: discSide)
+                        // Pivot = true disc center (same point ticks are drawn around).
                         .rotationEffect(discRotation, anchor: .center)
+                        .offset(y: discWindowOffsetY)
 
                     // Soft vignette inside window
                     LinearGradient(
@@ -87,7 +106,7 @@ struct AnalogDreamScaleView: View {
                     .blendMode(.multiply)
                     .allowsHitTesting(false)
                 }
-                .frame(height: 88)
+                .frame(height: windowHeight)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -97,7 +116,7 @@ struct AnalogDreamScaleView: View {
                 .padding(.top, 18)
                 .frame(maxHeight: .infinity, alignment: .top)
 
-                // STATIC marker / needle at viewport center
+                // STATIC marker at 12 o'clock — does not rotate with the disc
                 VStack(spacing: 0) {
                     Capsule()
                         .fill(accent)
@@ -155,13 +174,14 @@ struct AnalogDreamScaleView: View {
         }
     }
 
+    /// Full circular tick disc. Canvas center == view center == rotation pivot.
     private var discFace: some View {
         Canvas { context, size in
-            let center = CGPoint(x: size.width / 2, y: size.height + size.width * 0.55)
-            let radius = size.width * 0.92
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let radius = tickRadius
             let halfWindow = viewportDegrees / 2
             // Draw a wide band of ticks so rotation always has marks in the window.
-            let padTicks = Int((halfWindow / (degreesPerKg * minorStepKg)).rounded()) + 4
+            let padTicks = Int((halfWindow / (degreesPerKg * minorStepKg)).rounded()) + 8
 
             for i in -padTicks...(tickCount + padTicks) {
                 let kg = boundsKg.lowerBound + Double(i) * minorStepKg
@@ -169,7 +189,8 @@ struct AnalogDreamScaleView: View {
                 // but never label them as selectable values.
                 let inBand = kg >= boundsKg.lowerBound - 0.01 && kg <= boundsKg.upperBound + 0.01
                 let degFromZero = Double(i) * minorStepKg * degreesPerKg
-                // At rotation 0, lowerBound sits at 12 o'clock (-90° in standard math → top).
+                // Standard math: 0° = +x (3 o'clock), -90° = 12 o'clock (top).
+                // At rotation 0, lowerBound sits under the fixed top marker.
                 let deg = -90 + degFromZero
                 let rad = deg * .pi / 180
                 let isMajor = i % majorEvery == 0
@@ -190,7 +211,7 @@ struct AnalogDreamScaleView: View {
                 if isMajor, inBand {
                     let labelKg = min(max(kg, boundsKg.lowerBound), boundsKg.upperBound)
                     let label = UnitFormat.mass(fromKg: labelKg, system: unitSystem)
-                    let labelR = radius - 34
+                    let labelR = radius - 36
                     let pt = CGPoint(x: center.x + cosA * labelR, y: center.y + sinA * labelR)
                     let text = Text(String(format: "%.0f", label))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -199,7 +220,6 @@ struct AnalogDreamScaleView: View {
                 }
             }
         }
-        .frame(width: 320, height: 160)
     }
 
     private var dragGesture: some Gesture {
@@ -210,7 +230,7 @@ struct AnalogDreamScaleView: View {
                 }
                 guard let start = dragStartKg else { return }
                 // Horizontal drag rotates the disc under the needle.
-                // Positive dx → disc rotates clockwise → lower weight under needle.
+                // Positive dx → disc clockwise → lower weight under needle.
                 let kgDelta = -Double(value.translation.width) / degreesPerKg
                 let raw = start + kgDelta
                 let snapped = (raw / minorStepKg).rounded() * minorStepKg
