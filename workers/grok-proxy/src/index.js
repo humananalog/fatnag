@@ -68,7 +68,7 @@ export default {
     }
 
     const provided = (request.headers.get(AUTH_HEADER) || "").trim();
-    if (!provided || !timingSafeEqual(provided, sharedSecret)) {
+    if (!provided || !secretsMatch(provided, sharedSecret)) {
       return json({ error: "unauthorized" }, 401);
     }
 
@@ -308,18 +308,14 @@ async function checkRateLimit(binding, key) {
   }
 }
 
-/** Constant-time string compare for secrets (UTF-16 code units). */
-const timingSafe = {
-  equal(a, b) {
-    const left = String(a);
-    const right = String(b);
-    const len = Math.max(left.length, right.length);
-    let mismatch = left.length === right.length ? 0 : 1;
-    for (let i = 0; i < len; i++) {
-      const x = left.charCodeAt(i) || 0;
-      const y = right.charCodeAt(i) || 0;
-      mismatch |= x ^ y;
-    }
-    return mismatch === 0;
-  },
-};
+/** Constant-time-ish string compare for secrets (length mismatch fails fast). */
+function secretsMatch(provided, expected) {
+  const a = String(provided ?? "");
+  const b = String(expected ?? "");
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
