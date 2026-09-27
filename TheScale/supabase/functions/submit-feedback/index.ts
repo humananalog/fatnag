@@ -9,9 +9,12 @@ const CORS_HEADERS: Record<string, string> = {
 };
 
 const CATEGORIES = new Set(["bug", "idea", "praise"]);
-const SOURCES = new Set(["settings", "soft_ask", "debug"]);
+const SOURCES = new Set(["settings", "soft_ask", "debug", "coach_reply"]);
+const RATINGS = new Set(["up", "down"]);
 const MAX_MESSAGE = 2000;
 const MAX_CONTACT = 320;
+const MAX_EXCERPT = 800;
+const MAX_MODEL = 120;
 
 type FeedbackBody = {
   category?: string;
@@ -25,6 +28,11 @@ type FeedbackBody = {
   plan_tier?: string | null;
   anonymous_user_id?: string | null;
   source?: string | null;
+  rating?: string | null;
+  live_model?: string | null;
+  on_device_model?: string | null;
+  reply_excerpt?: string | null;
+  turn_id?: string | null;
 };
 
 function json(status: number, body: Record<string, unknown>) {
@@ -58,6 +66,11 @@ async function sendResendEmail(params: {
   planTier: string | null;
   anonymousUserId: string;
   source: string;
+  rating: string | null;
+  liveModel: string | null;
+  onDeviceModel: string | null;
+  replyExcerpt: string | null;
+  turnId: string | null;
   rowId: string;
 }): Promise<{ sent: boolean; detail: string }> {
   const apiKey = Deno.env.get("RESEND_API_KEY");
@@ -70,21 +83,28 @@ async function sendResendEmail(params: {
     "FATNAG Feedback <feedback@inbound.humananalog.ai>";
   const to = Deno.env.get("FEEDBACK_TO") ?? "dev@humananalog.ai";
 
+  const vote = params.rating ? ` · ${params.rating}` : "";
   const subject =
-    `[FATNAG] ${params.category} · ${params.appVersion ?? "?"} (${params.build ?? "?"})`;
+    `[FATNAG] ${params.category}${vote} · ${params.appVersion ?? "?"} (${params.build ?? "?"})`;
   const lines = [
     `Category: ${params.category}`,
     `Source: ${params.source}`,
+    `Rating: ${params.rating ?? "(none)"}`,
     `Plan: ${params.planTier ?? "unknown"}`,
     `App: ${params.appVersion ?? "?"} (${params.build ?? "?"}) · ${params.platform}`,
     `Locale: ${params.locale ?? "?"}`,
     `Device: ${params.deviceModel ?? "?"}`,
+    `Live model: ${params.liveModel ?? "(n/a)"}`,
+    `On-device model: ${params.onDeviceModel ?? "(n/a)"}`,
+    `Turn: ${params.turnId ?? "(n/a)"}`,
     `Anonymous user: ${params.anonymousUserId}`,
     `Row: ${params.rowId}`,
     `Contact: ${params.contact ?? "(none)"}`,
     "",
     params.message,
-  ];
+    "",
+    params.replyExcerpt ? `--- Reply excerpt ---\n${params.replyExcerpt}` : "",
+  ].filter((line, i, arr) => !(line === "" && arr[i - 1] === ""));
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -133,6 +153,11 @@ Deno.serve(async (req: Request) => {
   const locale = trimOrNull(body.locale, 40);
   const deviceModel = trimOrNull(body.device_model, 80);
   const planTier = trimOrNull(body.plan_tier, 40);
+  const ratingRaw = trimOrNull(body.rating, 16)?.toLowerCase() ?? null;
+  const liveModel = trimOrNull(body.live_model, MAX_MODEL);
+  const onDeviceModel = trimOrNull(body.on_device_model, MAX_MODEL);
+  const replyExcerpt = trimOrNull(body.reply_excerpt, MAX_EXCERPT);
+  const turnIdRaw = trimOrNull(body.turn_id, 40);
 
   if (!CATEGORIES.has(category)) {
     return json(400, { error: "invalid_category" });
@@ -140,11 +165,20 @@ Deno.serve(async (req: Request) => {
   if (!SOURCES.has(source)) {
     return json(400, { error: "invalid_source" });
   }
+  if (ratingRaw != null && !RATINGS.has(ratingRaw)) {
+    return json(400, { error: "invalid_rating" });
+  }
+  if (source === "coach_reply" && ratingRaw == null) {
+    return json(400, { error: "invalid_rating" });
+  }
   if (message.length < 1 || message.length > MAX_MESSAGE) {
     return json(400, { error: "invalid_message" });
   }
   if (!isUuid(anonymousUserId)) {
     return json(400, { error: "invalid_anonymous_user_id" });
+  }
+  if (turnIdRaw != null && !isUuid(turnIdRaw)) {
+    return json(400, { error: "invalid_turn_id" });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -171,6 +205,11 @@ Deno.serve(async (req: Request) => {
       plan_tier: planTier,
       anonymous_user_id: anonymousUserId,
       source,
+      rating: ratingRaw,
+      live_model: liveModel,
+      on_device_model: onDeviceModel,
+      reply_excerpt: replyExcerpt,
+      turn_id: turnIdRaw,
     })
     .select("id")
     .single();
@@ -192,6 +231,11 @@ Deno.serve(async (req: Request) => {
     planTier,
     anonymousUserId,
     source,
+    rating: ratingRaw,
+    liveModel,
+    onDeviceModel,
+    replyExcerpt,
+    turnId: turnIdRaw,
     rowId: data.id,
   });
 

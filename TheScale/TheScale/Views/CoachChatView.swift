@@ -7,6 +7,7 @@ struct CoachChatView: View {
     @ObservedObject private var subscription = ScaleSubscriptionStore.shared
     @Environment(\.dismiss) private var dismiss
     @State private var showPrivacyGate = false
+    @State private var feedbackTarget: CoachFeedbackTarget?
     @FocusState private var focused: Bool
 
     private let messageFont = Font.system(size: 22, weight: .medium, design: .rounded)
@@ -23,6 +24,9 @@ struct CoachChatView: View {
         VStack(spacing: 0) {
             header
             privacyLine
+            if let notice = chat.transientNotice {
+                transientBanner(notice)
+            }
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
@@ -65,6 +69,24 @@ struct CoachChatView: View {
             .environmentObject(session)
             .presentationDragIndicator(.visible)
         }
+        .sheet(item: $feedbackTarget) { target in
+            CoachReplyFeedbackSheet(
+                rating: target.rating,
+                turn: target.turn,
+                planTier: subscription.plan.rawValue
+            )
+        }
+        .onChange(of: chat.transientNotice) { _, notice in
+            guard notice != nil else { return }
+            Task {
+                try? await Task.sleep(nanoseconds: 3_500_000_000)
+                await MainActor.run {
+                    if chat.transientNotice == notice {
+                        chat.clearTransientNotice()
+                    }
+                }
+            }
+        }
     }
 
     private func scrollToLatest(_ proxy: ScrollViewProxy) {
@@ -73,6 +95,29 @@ struct CoachChatView: View {
                 proxy.scrollTo(last.id, anchor: .bottom)
             }
         }
+    }
+
+    private func transientBanner(_ notice: String) -> some View {
+        HStack(spacing: 10) {
+            Text(notice)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                chat.clearTransientNotice()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .accessibilityLabel("Dismiss")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.10))
+        .padding(.horizontal, 16)
+        .padding(.bottom, 6)
+        .accessibilityIdentifier("coach.transientNotice")
     }
 
     private var header: some View {
@@ -150,11 +195,6 @@ struct CoachChatView: View {
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
                                 .foregroundStyle(signal.opacity(0.75))
                         }
-                        if turn.isFailure {
-                            Text("ERROR")
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.red.opacity(0.9))
-                        }
                         if turn.isQuotaLock {
                             Text("LIMIT")
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
@@ -180,9 +220,7 @@ struct CoachChatView: View {
                         .fill(
                             turn.isQuotaLock
                                 ? Color.orange.opacity(0.22)
-                                : (turn.isFailure
-                                    ? Color.red.opacity(0.22)
-                                    : (turn.kind == .user ? signal : Color.white.opacity(0.08)))
+                                : (turn.kind == .user ? signal : Color.white.opacity(0.08))
                         )
                 )
                 .overlay(
@@ -198,6 +236,9 @@ struct CoachChatView: View {
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.orange.opacity(0.95))
                 }
+                if showsFeedback(for: turn) {
+                    feedbackRow(for: turn)
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture {
@@ -208,6 +249,45 @@ struct CoachChatView: View {
             .accessibilityHint(turn.isQuotaLock ? "Opens Unlock Coach paywall" : "")
             if turn.kind != .user { Spacer(minLength: 36) }
         }
+    }
+
+    private func showsFeedback(for turn: CoachChatTurn) -> Bool {
+        turn.kind == .assistant
+            && !turn.isStreaming
+            && !turn.isFailure
+            && !turn.isQuotaLock
+            && !turn.text.isEmpty
+    }
+
+    private func feedbackRow(for turn: CoachChatTurn) -> some View {
+        HStack(spacing: 14) {
+            Button {
+                feedbackTarget = CoachFeedbackTarget(rating: .up, turn: turn)
+            } label: {
+                Image(systemName: "hand.thumbsup")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .frame(width: 34, height: 34)
+                    .background(Color.white.opacity(0.08), in: Circle())
+            }
+            .accessibilityLabel("Thumbs up")
+            .accessibilityIdentifier("coach.feedback.up")
+
+            Button {
+                feedbackTarget = CoachFeedbackTarget(rating: .down, turn: turn)
+            } label: {
+                Image(systemName: "hand.thumbsdown")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .frame(width: 34, height: 34)
+                    .background(Color.white.opacity(0.08), in: Circle())
+            }
+            .accessibilityLabel("Thumbs down")
+            .accessibilityIdentifier("coach.feedback.down")
+
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 2)
     }
 
     private var composer: some View {
@@ -239,6 +319,12 @@ struct CoachChatView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
     }
+}
+
+private struct CoachFeedbackTarget: Identifiable {
+    var id: String { "\(turn.id.uuidString)-\(rating.rawValue)" }
+    let rating: ScaleFeedbackRating
+    let turn: CoachChatTurn
 }
 
 private struct StreamingCursor: View {

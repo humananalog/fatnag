@@ -5,13 +5,16 @@ Consumer feedback POSTs to Supabase Edge Function `submit-feedback` on project `
 ## Flow
 
 ```
-iOS FeedbackSheetView
+iOS FeedbackSheetView / CoachReplyFeedbackSheet
   → Authorization: Bearer <anon key>
   → POST …/functions/v1/submit-feedback
   → validate → insert public.app_feedback (service role)
   → Resend → dev@humananalog.ai
   → 200 { ok, id, email_sent }
 ```
+
+Coach reply votes use `source=coach_reply` with `rating` (`up`/`down`), plus
+`live_model`, `on_device_model`, `reply_excerpt`, and `turn_id`.
 
 ## Secrets (never in git / IPA)
 

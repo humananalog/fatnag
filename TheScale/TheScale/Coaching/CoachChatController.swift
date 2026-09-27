@@ -68,13 +68,13 @@ enum CoachChatHistoryStore {
         else {
             return []
         }
-        // Never restore a mid-stream placeholder.
-        return turns.filter { !($0.isStreaming || ($0.kind == .assistant && $0.text.isEmpty)) }
+        // Never restore mid-stream placeholders, empty assistants, or live-failure dumps.
+        return turns.filter { Self.shouldPersist($0) }
     }
 
     static func save(_ turns: [CoachChatTurn]) {
         let cleaned = turns
-            .filter { !($0.isStreaming || ($0.kind == .assistant && $0.text.isEmpty)) }
+            .filter { Self.shouldPersist($0) }
             .suffix(maxTurns)
         if let data = try? JSONEncoder().encode(Array(cleaned)) {
             UserDefaults.standard.set(data, forKey: key)
@@ -83,6 +83,14 @@ enum CoachChatHistoryStore {
 
     static func clear() {
         UserDefaults.standard.removeObject(forKey: key)
+    }
+
+    /// Failures / empty stream placeholders never enter the transcript the user (or model) sees again.
+    private static func shouldPersist(_ turn: CoachChatTurn) -> Bool {
+        if turn.isStreaming { return false }
+        if turn.kind == .assistant && turn.text.isEmpty { return false }
+        if turn.isFailure && !turn.isQuotaLock { return false }
+        return true
     }
 }
 
@@ -95,6 +103,8 @@ final class CoachChatController: ObservableObject {
     @Published var showPaywall = false
     @Published var paywallLockMessage: String?
     @Published var paywallHighlight: ScalePlan = .plus
+    /// Brief non-technical notice when a live call fails (never the operator dump).
+    @Published var transientNotice: String?
 
     /// Open Unlock Coach from a rate-limit bubble (or auto after lock).
     func openPaywall(from turn: CoachChatTurn? = nil) {
@@ -258,7 +268,10 @@ final class CoachChatController: ObservableObject {
         isSending = true
         defer { isSending = false }
 
-        let historySnapshot = turns.filter { $0.id != assistantID }
+        // Never feed prior failure / quota-lock bubbles back into Keel as "assistant" history.
+        let historySnapshot = turns.filter {
+            $0.id != assistantID && !$0.isFailure && !$0.isQuotaLock && !$0.text.isEmpty
+        }
 
         await GrokClient.shared.chatStreaming(
             userText: text,
@@ -267,11 +280,12 @@ final class CoachChatController: ObservableObject {
         ) { [weak self] reply in
             guard let self else { return }
             guard let idx = self.turns.firstIndex(where: { $0.id == assistantID }) else { return }
+            let failed = reply.failureReason != nil && !reply.isQuotaLock
             self.turns[idx] = CoachChatTurn(
                 id: assistantID,
                 kind: .assistant,
                 agent: .orchestrator,
-                text: reply.text,
+                text: failed ? "" : reply.text,
                 usedNetwork: reply.usedNetwork,
                 isFailure: reply.failureReason != nil,
                 isStreaming: true,
@@ -289,18 +303,28 @@ final class CoachChatController: ObservableObject {
 
         if let idx = turns.firstIndex(where: { $0.id == assistantID }) {
             let finished = turns[idx]
-            turns[idx] = CoachChatTurn(
-                id: assistantID,
-                kind: .assistant,
-                agent: .orchestrator,
-                text: finished.text,
-                usedNetwork: finished.usedNetwork,
-                isFailure: finished.isFailure,
-                isStreaming: false,
-                isQuotaLock: finished.isQuotaLock
-            )
+            if finished.isFailure && !finished.isQuotaLock {
+                // Drop the assistant turn entirely — no ERROR bubble, no system prose in chat.
+                turns.remove(at: idx)
+                transientNotice = "Couldn't reach Coach. Try again in a moment."
+            } else {
+                turns[idx] = CoachChatTurn(
+                    id: assistantID,
+                    kind: .assistant,
+                    agent: .orchestrator,
+                    text: finished.text,
+                    usedNetwork: finished.usedNetwork,
+                    isFailure: finished.isFailure,
+                    isStreaming: false,
+                    isQuotaLock: finished.isQuotaLock
+                )
+            }
         }
         persist()
+    }
+
+    func clearTransientNotice() {
+        transientNotice = nil
     }
 
     private func persist() {

@@ -37,6 +37,12 @@ enum ScaleFeedbackSource: String, Sendable {
     case settings
     case softAsk = "soft_ask"
     case debug
+    case coachReply = "coach_reply"
+}
+
+enum ScaleFeedbackRating: String, Sendable {
+    case up
+    case down
 }
 
 struct ScaleFeedbackPayload: Sendable {
@@ -45,6 +51,11 @@ struct ScaleFeedbackPayload: Sendable {
     var contact: String?
     var source: ScaleFeedbackSource
     var planTier: String
+    var rating: ScaleFeedbackRating? = nil
+    var liveModel: String? = nil
+    var onDeviceModel: String? = nil
+    var replyExcerpt: String? = nil
+    var turnId: UUID? = nil
 }
 
 enum ScaleFeedbackError: LocalizedError, Sendable {
@@ -104,6 +115,19 @@ enum ScaleFeedbackService {
         if let version { body["app_version"] = version }
         if let build { body["build"] = build }
         if let contactValue { body["contact"] = contactValue }
+        if let rating = payload.rating { body["rating"] = rating.rawValue }
+        if let live = payload.liveModel?.trimmingCharacters(in: .whitespacesAndNewlines), !live.isEmpty {
+            body["live_model"] = String(live.prefix(120))
+        }
+        if let local = payload.onDeviceModel?.trimmingCharacters(in: .whitespacesAndNewlines), !local.isEmpty {
+            body["on_device_model"] = String(local.prefix(120))
+        }
+        if let excerpt = payload.replyExcerpt?.trimmingCharacters(in: .whitespacesAndNewlines), !excerpt.isEmpty {
+            body["reply_excerpt"] = String(excerpt.prefix(800))
+        }
+        if let turnId = payload.turnId {
+            body["turn_id"] = turnId.uuidString
+        }
 
         var request = URLRequest(url: ScaleFeedbackConfig.submitFunctionURL)
         request.httpMethod = "POST"
@@ -140,6 +164,7 @@ enum ScaleFeedbackService {
         switch serverError {
         case "invalid_message": return "Add a short note before sending."
         case "invalid_category": return "Pick Bug, Idea, or Praise."
+        case "invalid_rating": return "Pick thumbs up or down."
         case "insert_failed", "server_misconfigured":
             return "Server hiccup. Your note wasn’t saved — try again in a minute."
         default:

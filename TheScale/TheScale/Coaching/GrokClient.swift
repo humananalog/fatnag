@@ -898,33 +898,24 @@ actor GrokClient {
     }
 
     private func offlineChat(userText: String, brief: CoachBrief, hint: String) -> CoachReply {
+        // Never dump config/system hints into the transcript — status line covers mock/offline.
+        _ = userText
+        _ = hint
         let base = CoachOfflineFallback.reply(role: .orchestrator, brief: brief)
-        let who = brief.userName.isEmpty ? "Operator" : brief.userName
-        let blended = """
-        \(base.text)
-
-        (\(who) asked: "\(userText)") \(hint)
-        """
         return CoachReply(
             role: .orchestrator,
-            text: blended,
+            text: base.text,
             usedNetwork: false
         )
     }
 
+    /// Live failures stay out of the chat bubble. Controller drops the turn; details stay in `failureReason` only.
     private func failureReply(_ failure: LiveFailure, brief: CoachBrief, userText: String) -> CoachReply {
-        let who = brief.userName.isEmpty ? "Operator" : brief.userName
-        let text = """
-        \(who), live Coach failed.
-
-        \(failure.userMessage)
-
-        (You asked: "\(userText)")
-        Fix the proxy / consent, then try again. Offline roast withheld on purpose so this doesn't look "fine".
-        """
+        _ = brief
+        _ = userText
         return CoachReply(
             role: .orchestrator,
-            text: text,
+            text: "",
             usedNetwork: false,
             failureReason: failure.userMessage
         )
