@@ -9,7 +9,7 @@
 
 Writes happen only on **Confirm to Health** or **Manual → Save**. Manual entries set `HKMetadataKeyWasUserEntered`.
 
-**Monday morning card (2.8.0+ / 2.50.3):** after a successful write, if local time is Monday 04:00-12:00, the app presents the weekly instructor card (progress + Sunday target + meals + Grok diagnostic). Cached per ISO week. Progress week-start kg = last Monday Health body mass (prefer morning 04:00–12:00; else any Monday sample; else last weigh before Tuesday); anchor date is always local Monday 00:00. Weekly % / Sunday target pace from that Monday kg. Preview anytime: Settings → Legal → **Dev** (ephemeral — does not reset live weekly progress).
+**Monday morning card (2.8.0+ / 2.50.4):** after a successful write, if local time is Monday 04:00-12:00, the app presents the weekly instructor card (progress + Sunday target + meals + Grok diagnostic). Cached per ISO week. Progress week-start kg = last Monday Health body mass (prefer morning 04:00–12:00; else any Monday sample; else last weigh before Tuesday); anchor date is always local Monday 00:00. Weekly % / Sunday target pace from that Monday kg. Preview anytime: Settings → Legal → **Dev** (ephemeral — does not reset live weekly progress).
 
 In-app only (no HealthKit quantity): muscle mass, bone mass, water %, visceral index, raw ohms.
 
