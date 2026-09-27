@@ -877,13 +877,13 @@ final class ScaleSessionViewModel: ObservableObject {
         weeklyGoal = next
     }
 
-    /// Lock Mon→Sun week baseline. Preview/test must not wipe this; bad stamps re-anchor to Monday.
-    /// Also refreshes weekly delta from the macro goal (aggressive / catch-up / accelerate).
+    /// Lock Mon→Sun week baseline to last Monday's weight (Health/history).
+    /// Preview/test must not wipe this; bad stamps (today / dream / mid-week first weigh)
+    /// re-anchor to Monday. Weekly Δ / Sunday target pace from that Monday kg — never "today".
     func ensureWeeklyGoalBaseline() {
         var next = weeklyGoal
         let cal = Calendar.current
-        let historySeries = historyWeights.isEmpty ? historyTrendWindowWeights : historyWeights
-        let history = historySeries.map { (kg: $0.value, date: $0.date) }
+        let history = mondayAnchorHistorySamples()
         let reconciled = MondayCardEngine.reconcileWeekStart(
             weekStartKg: next.weekStartKg,
             weekStartDate: next.weekStartDate,
@@ -907,14 +907,15 @@ final class ScaleSessionViewModel: ObservableObject {
             next.weekStartDate = reconciled.weekStartDate
         }
 
-        guard let baseline = healthBaselineKg ?? next.weekStartKg else {
+        // Pace Sunday from the Monday anchor — not live mid-week baseline.
+        guard let mondayKg = next.weekStartKg ?? healthBaselineKg else {
             weeklyGoal = next
             rebuildWeeklyGoalSurface()
             return
         }
 
         let hit = AggressiveWeeklyTargetEngine.compute(
-            currentKg: baseline,
+            currentKg: mondayKg,
             idealKg: profile.idealWeightKg,
             goalDate: profile.goalDate,
             priorSundayTargetKg: MondayCardStore.priorSundayTargetKg,
@@ -939,6 +940,17 @@ final class ScaleSessionViewModel: ObservableObject {
             next.title = String(format: "Sunday %.2f kg", hit.sundayTargetKg)
         }
         weeklyGoal = next
+    }
+
+    /// Weight series for Monday week-start reconcile (charts → trend window → recent baseline).
+    private func mondayAnchorHistorySamples() -> [(kg: Double, date: Date)] {
+        if !historyWeights.isEmpty {
+            return historyWeights.map { (kg: $0.value, date: $0.date) }
+        }
+        if !historyTrendWindowWeights.isEmpty {
+            return historyTrendWindowWeights.map { (kg: $0.value, date: $0.date) }
+        }
+        return recentHealthWeights.map { (kg: $0.weightKg, date: $0.date) }
     }
 
     /// Refresh home gauges from a lean HealthKit query (steps / move / nutrition only).

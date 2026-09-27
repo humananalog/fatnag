@@ -333,9 +333,16 @@ struct ProgressSheet: View {
     }
 
     private func refreshProgressData() {
+        // Sync path first so WEEK START paints immediately from persisted + cached Health.
         session.ensureWeeklyGoalBaseline()
         session.refreshAlreadyWeighedToday()
         session.rebuildWeeklyGoalSurface()
+        // Then re-pull recent Health weights and re-reconcile to last Monday's mass.
+        Task {
+            await session.refreshHealthBaseline()
+            session.ensureWeeklyGoalBaseline()
+            session.rebuildWeeklyGoalSurface()
+        }
     }
 
     /// Reset → stagger in. Fires on every Progress tab access.

@@ -142,7 +142,13 @@ enum MondayCardEngine {
         return cal.isDate(date, inSameDayAs: monday)
     }
 
-    /// Weight at / carried into Monday: first Monday sample, else latest sample before Tuesday.
+    /// Last Monday body mass for Progress / weekly %.
+    ///
+    /// Rule (local Mon→Sun week; anchor **date** is always `weekStartMonday` 00:00):
+    /// 1. Prefer earliest sample in Monday morning window (04:00–12:00 local)
+    /// 2. Else earliest sample any time Monday (`[Mon 00:00, Tue 00:00)`)
+    /// 3. Else latest sample strictly before Tuesday (carry-in: last weigh on/before that Monday)
+    /// Never picks Tue–Sun samples from the open week (that invents mid-week "loss").
     static func weekStartWeightKg(
         from samples: [(kg: Double, date: Date)],
         weekStartMonday: Date,
@@ -154,6 +160,12 @@ enum MondayCardEngine {
         let onMonday = samples
             .filter { $0.date >= weekStartMonday && $0.date < mondayEnd }
             .sorted { $0.date < $1.date }
+        if let morning = onMonday.first(where: {
+            let hour = cal.component(.hour, from: $0.date)
+            return hour >= morningHourStart && hour < morningHourEnd
+        }) {
+            return morning.kg
+        }
         if let first = onMonday.first { return first.kg }
         let prior = samples
             .filter { $0.date < mondayEnd }
@@ -161,8 +173,9 @@ enum MondayCardEngine {
         return prior.last.map(\.kg)
     }
 
-    /// Safe re-anchor: week always opens Monday 00:00. Never invent mid-week "loss"
-    /// by rebasing week-start kg to today's baseline (preview/test wipe recovery).
+    /// Safe re-anchor: week always opens Monday 00:00. Health's last-Monday weight wins
+    /// when present. Never invent mid-week "loss" by rebasing week-start kg to today's
+    /// baseline, dream weight, or a first mid-week weigh.
     static func reconcileWeekStart(
         weekStartKg: Double?,
         weekStartDate: Date?,
@@ -178,6 +191,41 @@ enum MondayCardEngine {
             weekStartMonday: monday,
             calendar: calendar
         )
+        let dateOnMondayMidnight = weekStartDate.map {
+            cal.isDate($0, equalTo: monday, toGranularity: .minute)
+        } ?? false
+
+        func kgDiffers(_ a: Double?, _ b: Double?) -> Bool {
+            switch (a, b) {
+            case let (x?, y?): return abs(x - y) > 0.05
+            case (nil, nil): return false
+            default: return true
+            }
+        }
+
+        // Authoritative: Health / history last-Monday mass when available.
+        if let mondayKg = historyKg {
+            let kgMismatch = kgDiffers(weekStartKg, mondayKg)
+            if !kgMismatch && dateOnMondayMidnight {
+                return WeekStartReconcile(
+                    weekStartKg: mondayKg,
+                    weekStartDate: monday,
+                    didChange: false,
+                    reason: "ok"
+                )
+            }
+            let reason: String = {
+                if weekStartDate == nil { return "seed-monday-from-history" }
+                if kgMismatch { return "align-monday-from-history" }
+                return "normalize-monday-midnight"
+            }()
+            return WeekStartReconcile(
+                weekStartKg: mondayKg,
+                weekStartDate: monday,
+                didChange: true,
+                reason: reason
+            )
+        }
 
         let storedInThisWeek: Bool = {
             guard let stored = weekStartDate else { return false }
@@ -187,55 +235,28 @@ enum MondayCardEngine {
             isAnchoredToCurrentMonday($0, now: now, calendar: calendar)
         } ?? false
 
-        // Correctly anchored this Monday → keep live progress.
-        if storedOnMonday, let kg = weekStartKg {
-            let dateNeedsNormalize = !(weekStartDate.map { cal.isDate($0, equalTo: monday, toGranularity: .minute) } ?? false)
-            if dateNeedsNormalize {
+        // No Health Monday sample yet — keep a same-week stamp (date → Monday 00:00).
+        // Do not replace with today's baseline (that wiped progress / invented loss).
+        if storedOnMonday || storedInThisWeek, let kg = weekStartKg {
+            if dateOnMondayMidnight {
                 return WeekStartReconcile(
                     weekStartKg: kg,
                     weekStartDate: monday,
-                    didChange: true,
-                    reason: "normalize-monday-midnight"
+                    didChange: false,
+                    reason: "ok-no-history"
                 )
             }
             return WeekStartReconcile(
                 weekStartKg: kg,
                 weekStartDate: monday,
-                didChange: false,
-                reason: "ok"
+                didChange: true,
+                reason: storedOnMonday ? "normalize-monday-midnight" : "reanchor-date-keep-kg"
             )
         }
 
-        // Same Mon→Sun week but stamp was wrong (e.g. "today" after Monday-card preview).
-        if storedInThisWeek {
-            var kg = weekStartKg
-            var reason = "reanchor-date-keep-kg"
-            // Detect wipe-to-today: stamped kg ≈ live baseline while Health still has Monday's weight.
-            if let stamped = weekStartKg,
-               let baseline = currentBaselineKg,
-               let mondayKg = historyKg,
-               abs(stamped - baseline) <= 0.15,
-               abs(mondayKg - stamped) > 0.05 {
-                kg = mondayKg
-                reason = "restore-monday-from-history"
-            } else if kg == nil {
-                kg = historyKg ?? currentBaselineKg
-                reason = "reanchor-date-seed-kg"
-            }
-            let changed = kg != weekStartKg
-                || !(weekStartDate.map { cal.isDate($0, equalTo: monday, toGranularity: .minute) } ?? false)
-            return WeekStartReconcile(
-                weekStartKg: kg,
-                weekStartDate: monday,
-                didChange: changed,
-                reason: reason
-            )
-        }
-
-        // Missing stamp or prior week → open this Monday from Health, never invent loss.
-        let kg = historyKg ?? weekStartKg ?? currentBaselineKg
-        let changed = kg != weekStartKg
-            || !(weekStartDate.map { cal.isDate($0, equalTo: monday, toGranularity: .minute) } ?? false)
+        // Missing stamp or prior week, still no history → seed carefully (baseline last).
+        let kg = weekStartKg ?? currentBaselineKg
+        let changed = kgDiffers(kg, weekStartKg) || !dateOnMondayMidnight
         return WeekStartReconcile(
             weekStartKg: kg,
             weekStartDate: monday,
