@@ -61,59 +61,55 @@ struct CoachReplyFeedbackSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    if didSucceed {
-                        thanksBlock
-                    } else {
-                        Text(title)
-                            .font(.system(size: 26, weight: .semibold, design: .serif))
-                            .foregroundStyle(ink)
-                        Text("Tap a reason (or a few). Optional note. Goes to Human Analog with app + model details — no Apple ID.")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(steel)
+            Group {
+                if didSucceed {
+                    thanksBlock
+                        .padding(22)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                } else {
+                    VStack(spacing: 0) {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 14) {
+                                Text(title)
+                                    .font(.system(size: 24, weight: .semibold, design: .serif))
+                                    .foregroundStyle(ink)
+                                Text("Tap a reason. Optional note.")
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(steel)
 
-                        FlowReasonChips(
-                            reasons: reasons,
-                            selected: $selectedReasons,
-                            ink: ink,
-                            steel: steel
-                        )
+                                FlowReasonChips(
+                                    reasons: reasons,
+                                    selected: $selectedReasons,
+                                    ink: ink,
+                                    steel: steel
+                                )
 
-                        TextField(
-                            rating == .up ? "Anything else? (optional)" : "What should Coach have done?",
-                            text: $freeText,
-                            axis: .vertical
-                        )
-                        .lineLimit(2...5)
-                        .focused($focused)
-                        .padding(14)
-                        .scaleGlassPanel(cornerRadius: 14)
-                        .accessibilityIdentifier("coachFeedback.freetext")
+                                TextField(
+                                    rating == .up ? "Anything else? (optional)" : "What should Coach have done?",
+                                    text: $freeText,
+                                    axis: .vertical
+                                )
+                                .lineLimit(2...4)
+                                .focused($focused)
+                                .padding(14)
+                                .scaleGlassPanel(cornerRadius: 14)
+                                .accessibilityIdentifier("coachFeedback.freetext")
 
-                        if let errorLine {
-                            Text(errorLine)
-                                .font(.footnote.weight(.medium))
-                                .foregroundStyle(Color(red: 0.78, green: 0.28, blue: 0.22))
-                        }
-
-                        Button {
-                            Task { await send() }
-                        } label: {
-                            HStack {
-                                if isSending { ProgressView().controlSize(.small) }
-                                Text(isSending ? "Sending…" : "Send")
-                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                if let errorLine {
+                                    Text(errorLine)
+                                        .font(.footnote.weight(.medium))
+                                        .foregroundStyle(Color(red: 0.78, green: 0.28, blue: 0.22))
+                                }
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                            .padding(.horizontal, 22)
+                            .padding(.top, 12)
+                            .padding(.bottom, 8)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isSending || !canSend)
-                        .accessibilityIdentifier("coachFeedback.send")
+                        .scrollDismissesKeyboard(.interactively)
+
+                        sendBar
                     }
                 }
-                .padding(22)
             }
             .background(atmosphere.ignoresSafeArea())
             .navigationTitle(rating == .up ? "Thumbs up" : "Thumbs down")
@@ -125,9 +121,35 @@ struct CoachReplyFeedbackSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
+        // Tall enough that chips + pinned Send fit without hunting for the button.
+        .presentationDetents([.fraction(0.62), .large])
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(isSending)
+    }
+
+    /// Always visible under the scroll content — never buried below the fold.
+    private var sendBar: some View {
+        VStack(spacing: 10) {
+            Divider().opacity(0.35)
+            Button {
+                Task { await send() }
+            } label: {
+                HStack {
+                    if isSending { ProgressView().controlSize(.small) }
+                    Text(isSending ? "Sending…" : "Send")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(isSending || !canSend)
+            .accessibilityIdentifier("coachFeedback.send")
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 4)
+        .padding(.bottom, 12)
+        .background(atmosphere)
     }
 
     private var thanksBlock: some View {
