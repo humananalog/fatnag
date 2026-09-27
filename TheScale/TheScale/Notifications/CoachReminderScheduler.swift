@@ -86,37 +86,23 @@ enum CoachReminderScheduler {
 
         let center = UNUserNotificationCenter.current()
         let name = profileName.isEmpty ? "Hey" : profileName
-        let fallbackTitle = liveRequest.title.isEmpty ? "\(name): reminder" : liveRequest.title
-        let fallbackBody = liveRequest.body.isEmpty
-            ? "You asked Coach to ping you. Open FATNAG when you're ready."
-            : liveRequest.body
+        let moment: ScaleNotificationCopy.Moment = {
+            if liveRequest.kind == .wakeUp {
+                return ScaleNotificationCopy.coachWake(
+                    profileName: name,
+                    beforeDeadline: liveRequest.beforeDeadline
+                )
+            }
+            return ScaleNotificationCopy.coachReminder(profileName: name, fireAt: fireAt)
+        }()
+        let fallbackTitle = moment.glanceTitle
+        let fallbackBody = moment.phoneBody
 
         let id = liveRequest.kind == .wakeUp
             ? wakeReminderId
             : notificationIdPrefix + UUID().uuidString
 
-        let kind: ScaleNotificationKind = liveRequest.kind == .wakeUp ? .coachWake : .coachReminder
-        let subtitle: String = {
-            if liveRequest.kind == .wakeUp, let deadline = liveRequest.beforeDeadline {
-                let t = DateFormatter.localizedString(
-                    from: deadline,
-                    dateStyle: .none,
-                    timeStyle: .short
-                )
-                return "Before \(t)"
-            }
-            return fireAt.formatted(date: .omitted, time: .shortened)
-        }()
-        let content = ScaleNotificationContentFactory.make(
-            .init(
-                kind: kind,
-                title: fallbackTitle,
-                subtitle: subtitle,
-                body: fallbackBody,
-                visualHeadline: liveRequest.kind == .wakeUp ? "Wake" : "Reminder",
-                visualDetail: subtitle
-            )
-        )
+        let content = ScaleNotificationContentFactory.make(moment)
 
         let trigger = makeTrigger(for: fireAt, now: now)
         let unRequest = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
@@ -295,28 +281,18 @@ enum CoachReminderScheduler {
         guard polished.usedFoundationModel else { return }
         guard polished.title != fallbackTitle || polished.body != fallbackBody else { return }
 
-        let kind: ScaleNotificationKind = request.kind == .wakeUp ? .coachWake : .coachReminder
-        let subtitle: String = {
-            if request.kind == .wakeUp, let deadline = request.beforeDeadline {
-                let t = DateFormatter.localizedString(
-                    from: deadline,
-                    dateStyle: .none,
-                    timeStyle: .short
+        var moment: ScaleNotificationCopy.Moment = {
+            if request.kind == .wakeUp {
+                return ScaleNotificationCopy.coachWake(
+                    profileName: profileName,
+                    beforeDeadline: request.beforeDeadline
                 )
-                return "Before \(t)"
             }
-            return request.fireAt.formatted(date: .omitted, time: .shortened)
+            return ScaleNotificationCopy.coachReminder(profileName: profileName, fireAt: request.fireAt)
         }()
-        let content = ScaleNotificationContentFactory.make(
-            .init(
-                kind: kind,
-                title: polished.title,
-                subtitle: subtitle,
-                body: polished.body,
-                visualHeadline: request.kind == .wakeUp ? "Wake" : "Reminder",
-                visualDetail: subtitle
-            )
-        )
+        moment.glanceTitle = ScaleNotificationCopy.glanceSanitize(polished.title)
+        moment.phoneBody = polished.body
+        let content = ScaleNotificationContentFactory.make(moment)
         let replacement = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         do {
             try await UNUserNotificationCenter.current().add(replacement)
@@ -428,17 +404,9 @@ enum CoachReminderExtractor {
 
     private static func bodyCopy(isWake: Bool, beforeDeadline: Date?) -> String {
         if isWake {
-            if let beforeDeadline {
-                let t = DateFormatter.localizedString(
-                    from: beforeDeadline,
-                    dateStyle: .none,
-                    timeStyle: .short
-                )
-                return "Up before \(t). Open FATNAG when you're ready."
-            }
-            return "Time to get up. Open FATNAG when you're ready."
+            return ScaleNotificationCopy.coachWake(profileName: "", beforeDeadline: beforeDeadline).phoneBody
         }
-        return "You asked Coach to ping you. Open FATNAG when you're ready."
+        return ScaleNotificationCopy.coachReminder(profileName: "", fireAt: Date()).phoneBody
     }
 
     private static func resolveDayOffset(lower: String) -> Int {

@@ -31,7 +31,7 @@ enum ScaleNotificationVisuals {
         headline: String,
         detail: String?
     ) -> Data? {
-        let size = CGSize(width: 360, height: 160)
+        let size = CGSize(width: 390, height: 168)
         let format = UIGraphicsImageRendererFormat.default()
         format.opaque = true
         format.scale = 2
@@ -53,22 +53,26 @@ enum ScaleNotificationVisuals {
                 )
             }
 
-            drawGlyph(style: style, in: CGRect(x: 18, y: 28, width: 56, height: 56), context: cg)
+            // Soft vignette for Lock Screen richness (iPhone); Watch ignores attachment.
+            cg.setFillColor(UIColor.black.withAlphaComponent(0.18).cgColor)
+            cg.fill(CGRect(x: 0, y: size.height - 48, width: size.width, height: 48))
+
+            drawGlyph(style: style, in: CGRect(x: 20, y: 30, width: 58, height: 58), context: cg)
 
             let title = headline as NSString
             let titleAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 28, weight: .semibold),
+                .font: UIFont.systemFont(ofSize: 30, weight: .bold),
                 .foregroundColor: UIColor.white
             ]
-            title.draw(at: CGPoint(x: 90, y: 34), withAttributes: titleAttrs)
+            title.draw(at: CGPoint(x: 92, y: 32), withAttributes: titleAttrs)
 
             if let detail, !detail.isEmpty {
                 let sub = detail as NSString
                 let subAttrs: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 15, weight: .medium),
-                    .foregroundColor: UIColor.white.withAlphaComponent(0.88)
+                    .font: UIFont.systemFont(ofSize: 16, weight: .semibold),
+                    .foregroundColor: UIColor.white.withAlphaComponent(0.9)
                 ]
-                sub.draw(at: CGPoint(x: 90, y: 78), withAttributes: subAttrs)
+                sub.draw(at: CGPoint(x: 92, y: 74), withAttributes: subAttrs)
             }
 
             let brandFat = "fat" as NSString

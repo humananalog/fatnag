@@ -16,7 +16,8 @@ enum ScaleNotificationKind: String, Sendable {
 
     var categoryId: String {
         switch self {
-        case .coachWake, .coachReminder, .morningWeigh: return ScaleNotificationCategoryID.coachReminder
+        case .coachWake, .coachReminder: return ScaleNotificationCategoryID.coachReminder
+        case .morningWeigh: return ScaleNotificationCategoryID.morningWeigh
         case .badTrend: return ScaleNotificationCategoryID.badTrend
         case .weeklyGoal: return ScaleNotificationCategoryID.weeklyGoal
         case .fitnessInterval: return ScaleNotificationCategoryID.fitnessInterval
@@ -94,6 +95,7 @@ enum ScaleNotificationKind: String, Sendable {
 
 enum ScaleNotificationCategoryID {
     static let coachReminder = "THESCALE_COACH_REMINDER"
+    static let morningWeigh = "THESCALE_MORNING_WEIGH"
     static let badTrend = "THESCALE_BAD_TREND"
     static let weeklyGoal = "THESCALE_WEEKLY_GOAL"
     static let fitnessInterval = "THESCALE_FITNESS_INTERVAL"
@@ -105,6 +107,7 @@ enum ScaleNotificationActionID {
     static let openCoach = "THESCALE_OPEN_COACH"
     static let openProgress = "THESCALE_OPEN_PROGRESS"
     static let openHistory = "THESCALE_OPEN_HISTORY"
+    static let openWeigh = "THESCALE_OPEN_WEIGH"
     static let snooze10 = "THESCALE_SNOOZE_10"
 }
 
@@ -120,6 +123,8 @@ enum ScaleNotificationUserInfoKey {
     static let destination = "thescale.destination"
     static let kind = "thescale.kind"
     static let visualHint = "thescale.visualHint"
+    static let glanceTitle = "thescale.glanceTitle"
+    static let phoneBody = "thescale.phoneBody"
 }
 
 enum ScaleNotificationVisualStyle: String, Sendable {
@@ -153,6 +158,12 @@ enum ScaleNotificationCategories {
             options: [.foreground],
             icon: UNNotificationActionIcon(systemImageName: "chart.xyaxis.line")
         )
+        let openWeigh = UNNotificationAction(
+            identifier: ScaleNotificationActionID.openWeigh,
+            title: "Weigh now",
+            options: [.foreground],
+            icon: UNNotificationActionIcon(systemImageName: "scalemass.fill")
+        )
         let snooze = UNNotificationAction(
             identifier: ScaleNotificationActionID.snooze10,
             title: "Snooze 10 min",
@@ -166,6 +177,14 @@ enum ScaleNotificationCategories {
             intentIdentifiers: [],
             hiddenPreviewsBodyPlaceholder: "Coach reminder",
             categorySummaryFormat: "%u Coach reminders",
+            options: [.customDismissAction, .hiddenPreviewsShowTitle, .hiddenPreviewsShowSubtitle]
+        )
+        let morning = UNNotificationCategory(
+            identifier: ScaleNotificationCategoryID.morningWeigh,
+            actions: [openWeigh, snooze],
+            intentIdentifiers: [],
+            hiddenPreviewsBodyPlaceholder: "Morning weigh",
+            categorySummaryFormat: "%u morning weighs",
             options: [.customDismissAction, .hiddenPreviewsShowTitle, .hiddenPreviewsShowSubtitle]
         )
         let badTrend = UNNotificationCategory(
@@ -210,7 +229,7 @@ enum ScaleNotificationCategories {
         )
 
         UNUserNotificationCenter.current().setNotificationCategories([
-            coach, badTrend, weekly, interval, signal, sample
+            coach, morning, badTrend, weekly, interval, signal, sample
         ])
     }
 }

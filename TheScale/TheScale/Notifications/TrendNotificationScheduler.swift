@@ -106,19 +106,14 @@ enum TrendNotificationScheduler {
                 )
                 if judgment.shouldNotify {
                     let units = PreferredUnitSystemStore.load()
-                    let kgBit = currentKg.map { UnitFormat.massString($0, system: units, fractionDigits: 1) } ?? "weight"
-                    let fallbackTitle = "\(name): scale check"
-                    let fallbackSubtitle = kgBit + " · above pace"
-                    let content = ScaleNotificationContentFactory.make(
-                        .init(
-                            kind: .badTrend,
-                            title: fallbackTitle,
-                            subtitle: fallbackSubtitle,
-                            body: reason,
-                            visualHeadline: kgBit,
-                            visualDetail: "Ideal \(UnitFormat.massString(idealKg, system: units, fractionDigits: 1))"
-                        )
+                    let moment = ScaleNotificationCopy.badTrend(
+                        profileName: name,
+                        currentKg: currentKg,
+                        idealKg: idealKg,
+                        reason: reason,
+                        system: units
                     )
+                    let content = ScaleNotificationContentFactory.make(moment)
                     let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 18 * 3600, repeats: false)
                     let request = UNNotificationRequest(identifier: badTrendId, content: content, trigger: trigger)
                     try? await center.add(request)
@@ -127,23 +122,17 @@ enum TrendNotificationScheduler {
                         let polished = await FoundationModelCoach.refineNotificationCopy(
                             profileName: name,
                             kind: "bad-trend",
-                            fallbackTitle: fallbackTitle,
-                            fallbackBody: reason,
+                            fallbackTitle: moment.glanceTitle,
+                            fallbackBody: moment.phoneBody,
                             context: reason,
                             sex: sex
                         )
                         guard polished.usedFoundationModel else { return }
-                        guard polished.title != fallbackTitle || polished.body != reason else { return }
-                        let updated = ScaleNotificationContentFactory.make(
-                            .init(
-                                kind: .badTrend,
-                                title: polished.title,
-                                subtitle: fallbackSubtitle,
-                                body: polished.body,
-                                visualHeadline: kgBit,
-                                visualDetail: "Ideal \(UnitFormat.massString(idealKg, system: units, fractionDigits: 1))"
-                            )
-                        )
+                        guard polished.title != moment.glanceTitle || polished.body != moment.phoneBody else { return }
+                        var updatedMoment = moment
+                        updatedMoment.glanceTitle = ScaleNotificationCopy.glanceSanitize(polished.title)
+                        updatedMoment.phoneBody = polished.body
+                        let updated = ScaleNotificationContentFactory.make(updatedMoment)
                         let replacement = UNNotificationRequest(
                             identifier: badTrendId,
                             content: updated,
@@ -167,19 +156,12 @@ enum TrendNotificationScheduler {
             date.hour = 8
             date.minute = 15
             let units = PreferredUnitSystemStore.load()
-            let fallbackTitle = "\(name): weekly mini-goal"
-            let fallbackSubtitle = weeklyGoal.title
-            let fallbackBody = "\(weeklyGoal.title) Open Progress when you're ready."
-            let content = ScaleNotificationContentFactory.make(
-                .init(
-                    kind: .weeklyGoal,
-                    title: fallbackTitle,
-                    subtitle: fallbackSubtitle,
-                    body: fallbackBody,
-                    visualHeadline: UnitFormat.massDeltaString(weeklyGoal.targetDeltaKg, system: units),
-                    visualDetail: "Monday mini-goal"
-                )
+            let moment = ScaleNotificationCopy.weeklyGoal(
+                profileName: name,
+                weeklyGoal: weeklyGoal,
+                system: units
             )
+            let content = ScaleNotificationContentFactory.make(moment)
             let trigger = UNCalendarNotificationTrigger(dateMatching: date, repeats: true)
             let request = UNNotificationRequest(identifier: weeklyGoalId, content: content, trigger: trigger)
             try? await center.add(request)
@@ -188,23 +170,17 @@ enum TrendNotificationScheduler {
                 let polished = await FoundationModelCoach.refineNotificationCopy(
                     profileName: name,
                     kind: "weekly-goal",
-                    fallbackTitle: fallbackTitle,
-                    fallbackBody: fallbackBody,
+                    fallbackTitle: moment.glanceTitle,
+                    fallbackBody: moment.phoneBody,
                     context: "Weekly mini-goal: \(weeklyGoal.title)",
                     sex: sex
                 )
                 guard polished.usedFoundationModel else { return }
-                guard polished.title != fallbackTitle || polished.body != fallbackBody else { return }
-                let updated = ScaleNotificationContentFactory.make(
-                    .init(
-                        kind: .weeklyGoal,
-                        title: polished.title,
-                        subtitle: fallbackSubtitle,
-                        body: polished.body,
-                        visualHeadline: UnitFormat.massDeltaString(weeklyGoal.targetDeltaKg, system: units),
-                        visualDetail: "Monday mini-goal"
-                    )
-                )
+                guard polished.title != moment.glanceTitle || polished.body != moment.phoneBody else { return }
+                var updatedMoment = moment
+                updatedMoment.glanceTitle = ScaleNotificationCopy.glanceSanitize(polished.title)
+                updatedMoment.phoneBody = polished.body
+                let updated = ScaleNotificationContentFactory.make(updatedMoment)
                 let replacement = UNNotificationRequest(
                     identifier: weeklyGoalId,
                     content: updated,

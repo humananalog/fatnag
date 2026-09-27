@@ -18,10 +18,10 @@ enum MorningWeighDrillScheduler {
     /// Match window when comparing pending vs intended fire (calendar trigger rebuild noise).
     nonisolated static let fireDateMatchTolerance: TimeInterval = 60
 
-    /// Canonical vulgar Keel drill lines (title / subtitle / body). Time Sensitive via kind.
-    nonisolated static let drillTitle = "Keel · 💩 drill"
-    nonisolated static let drillSubtitle = "Bladder empty. Scale now."
-    nonisolated static let drillBodyCore = "Go drop a 💩 and use FATNAG after!"
+    /// Watch glance + iPhone body. Time Sensitive via kind.
+    nonisolated static let drillTitle = "Weigh now"
+    nonisolated static let drillSubtitle = "Empty bladder · scale"
+    nonisolated static let drillBodyCore = "Drop a load, step on the scale, then open fatnag. Morning mass locks the week."
 
     /// Call after digest refresh / scene active / trend refresh.
     /// Safe to call often: fallback `add` only runs when the intended fire date changed.
@@ -143,21 +143,16 @@ enum MorningWeighDrillScheduler {
         return abs(pending.timeIntervalSince(intended)) <= tolerance
     }
 
-    /// Punchy title/subtitle/body for the drill (greet optional). Pure; testable.
+    /// Watch glance title/subtitle + iPhone body. Pure; testable.
     nonisolated static func drillCopy(profileName: String, variant: DrillCopyVariant = .fallback) -> (
         title: String,
         subtitle: String,
         body: String
     ) {
-        let name = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let greet = name.isEmpty ? "Soldier" : name
+        let moment = ScaleNotificationCopy.morningWeigh(profileName: profileName)
         switch variant {
         case .sleepWake, .fallback:
-            return (
-                title: drillTitle,
-                subtitle: drillSubtitle,
-                body: "\(greet). \(drillBodyCore)"
-            )
+            return (moment.glanceTitle, moment.glanceLine, moment.phoneBody)
         }
     }
 
@@ -297,16 +292,9 @@ enum MorningWeighDrillScheduler {
     }
 
     private static func makeContent(profileName: String, variant: DrillCopyVariant) -> UNNotificationContent {
-        let pick = drillCopy(profileName: profileName, variant: variant)
+        _ = variant
         return ScaleNotificationContentFactory.make(
-            .init(
-                kind: .morningWeigh,
-                title: pick.title,
-                subtitle: pick.subtitle,
-                body: pick.body,
-                visualHeadline: "Weigh now",
-                visualDetail: "Morning drill"
-            )
+            ScaleNotificationCopy.morningWeigh(profileName: profileName)
         )
     }
 

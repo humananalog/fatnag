@@ -55,6 +55,8 @@ public final class OnDevicePolishService: ObservableObject {
             Fallback title: \(fallbackTitle)
             Fallback body: \(fallbackBody)
             Prefer a sharper rewrite of the fallback; keep the same facts.
+            TITLE is Watch glance: max 20 chars, verb or number first, no emoji, no name prefix.
+            BODY is iPhone expanded: name OK, max ~120 chars.
             Reply with exactly two lines:
             TITLE: ...
             BODY: ...

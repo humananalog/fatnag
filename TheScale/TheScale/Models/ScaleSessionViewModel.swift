@@ -1606,6 +1606,7 @@ final class ScaleSessionViewModel: ObservableObject {
                             return triggers.map(\.message).joined(separator: " | ")
                         }()
 
+                        var keySummary: String?
                         if GrokPrivacyConsent.isAccepted, GrokSharedConfig.isLiveConfigured {
                             let reply = await GrokClient.shared.fitnessCheck(
                                 brief: makeCoachBrief(digest: digest),
@@ -1621,6 +1622,7 @@ final class ScaleSessionViewModel: ObservableObject {
                                 ) {
                                     lastFitnessCoachReply = fmSummary
                                     GrokFitnessMonitor.storeLastReply(fmSummary)
+                                    keySummary = fmSummary
                                 } else if let top = triggers.first {
                                     lastFitnessCoachReply = top.message
                                     GrokFitnessMonitor.storeLastReply(top.message)
@@ -1628,6 +1630,7 @@ final class ScaleSessionViewModel: ObservableObject {
                             } else {
                                 lastFitnessCoachReply = reply.text
                                 GrokFitnessMonitor.storeLastReply(reply.text)
+                                keySummary = reply.text
                             }
                         } else if let fmSummary = await FoundationModelCoach.summarizeFitnessDigest(
                             profileName: profile.greetingName,
@@ -1638,11 +1641,21 @@ final class ScaleSessionViewModel: ObservableObject {
                         ) {
                             lastFitnessCoachReply = fmSummary
                             GrokFitnessMonitor.storeLastReply(fmSummary)
+                            keySummary = fmSummary
                         } else if let top = triggers.first {
                             lastFitnessCoachReply = top.message
                             GrokFitnessMonitor.storeLastReply(top.message)
                         }
                         prefs.lastAutomatedCheckAt = Date()
+                        // Heavy lift already ran in background. Surface one key moment
+                        // (short Watch glance + iPhone body) when there was no trigger ping.
+                        if let keySummary {
+                            await GrokFitnessMonitor.notifyKeyMomentIfNeeded(
+                                profileName: profile.greetingName,
+                                summary: keySummary,
+                                hadTriggerAlerts: !triggers.isEmpty
+                            )
+                        }
                     }
 
                     fitnessMonitorPreferences = prefs

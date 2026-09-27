@@ -279,7 +279,7 @@ docs/                     # Architecture, Coach/AI, Health/notifications
 
 ## Version
 
-Current: **1.0.7** (build **110**).
+Current: **1.0.8** (build **111**).
 
 Bump marketing + build together when shipping code:
 

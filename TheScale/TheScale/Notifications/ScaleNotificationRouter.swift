@@ -26,6 +26,8 @@ enum ScaleNotificationRouter {
                 return .progress
             case ScaleNotificationActionID.openHistory:
                 return .history
+            case ScaleNotificationActionID.openWeigh:
+                return .weigh
             case UNNotificationDefaultActionIdentifier:
                 if let raw = userInfo[ScaleNotificationUserInfoKey.destination] as? String,
                    let dest = ScaleNotificationDestination(rawValue: raw) {

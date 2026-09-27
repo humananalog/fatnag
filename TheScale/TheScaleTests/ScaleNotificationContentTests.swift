@@ -8,9 +8,9 @@ final class ScaleNotificationContentTests: XCTestCase {
             profileName: "Alex",
             currentKg: 82.4
         )
-        XCTAssertTrue(content.title.contains("Alex"))
+        XCTAssertEqual(content.title, "Sample ping")
         XCTAssertFalse(content.subtitle.isEmpty)
-        XCTAssertFalse(content.body.isEmpty)
+        XCTAssertTrue(content.body.contains("Alex"))
         XCTAssertEqual(content.categoryIdentifier, ScaleNotificationCategoryID.sample)
         XCTAssertEqual(content.threadIdentifier, "thescale.sample")
         XCTAssertEqual(
@@ -23,30 +23,46 @@ final class ScaleNotificationContentTests: XCTestCase {
 
     func testWakeUsesTimeSensitiveAndCoachCategory() {
         let content = ScaleNotificationContentFactory.make(
-            .init(
-                kind: .coachWake,
-                title: "Alex: wake up",
-                subtitle: "Before 7:30",
-                body: "Up before 7:30. Open FATNAG when you're ready."
-            )
+            ScaleNotificationCopy.coachWake(profileName: "Alex", beforeDeadline: nil)
         )
         XCTAssertEqual(content.interruptionLevel, .timeSensitive)
         XCTAssertEqual(content.categoryIdentifier, ScaleNotificationCategoryID.coachReminder)
         XCTAssertEqual(content.threadIdentifier, "thescale.coach")
+        XCTAssertEqual(content.title, "Wake up")
+        XCTAssertLessThanOrEqual(content.title.count, 22)
         XCTAssertGreaterThan(content.relevanceScore, 0.9)
     }
 
     func testIntervalIsPassiveNoSound() {
         let content = ScaleNotificationContentFactory.make(
-            .init(
-                kind: .fitnessInterval,
-                title: "Alex: fitness check",
-                subtitle: "Every 12 hours",
-                body: "Open Coach for the digest."
+            ScaleNotificationCopy.fitnessInterval(
+                profileName: "Alex",
+                intervalTitle: "Every 12 hours"
             )
         )
         XCTAssertEqual(content.interruptionLevel, .passive)
         XCTAssertNil(content.sound)
+        XCTAssertEqual(content.title, "Coach check")
+    }
+
+    func testGlanceSanitizeStripsEmojiAndNamePrefix() {
+        let cleaned = ScaleNotificationCopy.glanceSanitize("Alex: Keel · 💩 drill")
+        XCTAssertFalse(cleaned.contains("💩"))
+        XCTAssertFalse(cleaned.hasPrefix("Alex"))
+        XCTAssertLessThanOrEqual(cleaned.count, 22)
+    }
+
+    func testBadTrendMomentIsMetricFirst() {
+        let moment = ScaleNotificationCopy.badTrend(
+            profileName: "Alex",
+            currentKg: 81.0,
+            idealKg: 75.0,
+            reason: "Up +0.6 kg this week and still above ideal."
+        )
+        let content = ScaleNotificationContentFactory.make(moment)
+        XCTAssertTrue(content.title.contains("81") || content.title.lowercased().contains("kg"))
+        XCTAssertTrue(content.body.contains("Alex"))
+        XCTAssertEqual(content.categoryIdentifier, ScaleNotificationCategoryID.badTrend)
     }
 
     func testVisualPNGRenders() {
@@ -72,5 +88,13 @@ final class ScaleNotificationContentTests: XCTestCase {
         )
         XCTAssertNotNil(reason)
         XCTAssertTrue(reason?.contains("kg") == true)
+    }
+
+    func testFirstGlancePhrasePullsMassToken() {
+        let phrase = ScaleNotificationCopy.firstGlancePhrase(
+            from: "You're up +0.6 kg this week. Keep dinner tight."
+        )
+        XCTAssertNotNil(phrase)
+        XCTAssertTrue(phrase?.contains("0.6") == true)
     }
 }

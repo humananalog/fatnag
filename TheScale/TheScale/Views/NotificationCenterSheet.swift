@@ -210,7 +210,7 @@ struct NotificationCenterSheet: View {
                     .multilineTextAlignment(.trailing)
             }
 
-            Text(title.isEmpty ? "FATNAG" : title)
+            Text(title.isEmpty ? "fatnag" : title)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(ink)
 
@@ -255,11 +255,15 @@ struct NotificationCenterSheet: View {
         case MorningWeighDrillScheduler.testRequestId: return "Test drill"
         case TrendNotificationScheduler.weeklyGoalId: return "Weekly goal"
         case TrendNotificationScheduler.badTrendId: return "Trend check"
+        case "thescale.key-coach-moment": return "Key moment"
         default:
             if identifier.hasPrefix(CoachReminderScheduler.notificationIdPrefix)
                 || identifier == CoachReminderScheduler.wakeReminderId
             {
                 return "Coach reminder"
+            }
+            if identifier.hasPrefix("thescale.fitness-trigger.") {
+                return "Watch signal"
             }
             return "Alert"
         }

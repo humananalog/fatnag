@@ -349,30 +349,28 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         XCTAssertEqual(prefs.morningWeighFallbackMinute, 15)
     }
 
-    func testDrillCopyHasShitEmojiAndKeelTitle() {
+    func testDrillCopyIsWatchGlanceFirst() {
         let copy = MorningWeighDrillScheduler.drillCopy(profileName: "Alex", variant: .fallback)
-        XCTAssertEqual(copy.title, "Keel · 💩 drill")
-        XCTAssertTrue(copy.body.contains("💩"))
+        XCTAssertEqual(copy.title, "Weigh now")
+        XCTAssertFalse(copy.title.contains("💩"))
+        XCTAssertLessThanOrEqual(copy.title.count, 22)
+        XCTAssertTrue(copy.subtitle.lowercased().contains("bladder") || copy.subtitle.lowercased().contains("scale"))
         XCTAssertTrue(copy.body.contains("Alex"))
-        XCTAssertTrue(copy.body.contains("FATNAG"))
+        XCTAssertTrue(copy.body.lowercased().contains("fatnag"))
         let anonymous = MorningWeighDrillScheduler.drillCopy(profileName: "", variant: .fallback)
-        XCTAssertTrue(anonymous.title.contains("💩"))
+        XCTAssertEqual(anonymous.title, "Weigh now")
         XCTAssertTrue(anonymous.body.contains("Soldier"))
     }
 
     func testMorningWeighContentStaysTimeSensitive() {
-        let pick = MorningWeighDrillScheduler.drillCopy(profileName: "Alex", variant: .fallback)
         let content = ScaleNotificationContentFactory.make(
-            .init(
-                kind: .morningWeigh,
-                title: pick.title,
-                subtitle: pick.subtitle,
-                body: pick.body
-            )
+            ScaleNotificationCopy.morningWeigh(profileName: "Alex")
         )
         XCTAssertEqual(content.interruptionLevel, .timeSensitive)
-        XCTAssertEqual(content.categoryIdentifier, ScaleNotificationCategoryID.coachReminder)
-        XCTAssertTrue(content.body.contains("💩"))
+        XCTAssertEqual(content.categoryIdentifier, ScaleNotificationCategoryID.morningWeigh)
+        XCTAssertEqual(content.title, "Weigh now")
+        XCTAssertFalse(content.title.contains("💩"))
+        XCTAssertTrue(content.body.lowercased().contains("scale"))
     }
 }
 

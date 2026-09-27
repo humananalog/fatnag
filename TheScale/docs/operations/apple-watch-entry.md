@@ -5,7 +5,7 @@
 | Surface | Status |
 |---------|--------|
 | Weigh-in **Live Activity** + Dynamic Island | Shippable. `WeighInLiveActivityController` + `TheScaleWidgets` Live Activity target. Starts/updates/ends with live weigh-in; gracefully no-ops if Live Activities disabled. |
-| Local notifications mirrored to Watch | Shippable via iOS “Mirror iPhone Alerts” (system). No native watchOS app required. |
+| Local notifications mirrored to Watch | Shippable via iOS “Mirror iPhone Alerts” (system). No native watchOS app required. Copy is Watch-glance-first (`title` ≤22, metric/verb) with richer iPhone `body` + attachment chrome (1.0.8+). |
 
 ## Post-1.0 (do not block submit)
 

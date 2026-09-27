@@ -90,24 +90,11 @@ enum GrokFitnessMonitor {
         guard allowed else { return }
 
         let name = profileName.isEmpty ? "Hey" : profileName
-        let fallbackTitle = "\(name): fitness check"
-        let fallbackSubtitle = prefs.interval.title
-        let fallbackBody = "Health updated in the background. Open Coach if you want the full read. iOS throttles wakes."
-        let polished = await FoundationModelCoach.refineNotificationCopy(
-            profileName: name,
-            kind: "fitness-interval",
-            fallbackTitle: fallbackTitle,
-            fallbackBody: fallbackBody,
-            context: "Scheduled Health↔Coach interval: \(prefs.interval.title)"
-        )
+        // Interval is a quiet wake hint — keep Watch glance short; skip FM essay polish.
         let content = ScaleNotificationContentFactory.make(
-            .init(
-                kind: .fitnessInterval,
-                title: polished.title,
-                subtitle: fallbackSubtitle,
-                body: polished.body,
-                visualHeadline: "Check-in",
-                visualDetail: prefs.interval.title
+            ScaleNotificationCopy.fitnessInterval(
+                profileName: name,
+                intervalTitle: prefs.interval.title
             )
         )
 
@@ -190,36 +177,40 @@ enum GrokFitnessMonitor {
                 prefs.lastPreSleepAlertAt = now
             }
 
-            let kind: ScaleNotificationKind = {
+            let moment: ScaleNotificationCopy.Moment = {
                 switch trigger.kind {
-                case .watchLikelyNotWorn: return .watchWear
-                case .preSleepHRElevated, .preSleepHRMissing: return .preSleepHR
-                }
-            }()
-            let subtitle: String = {
-                switch trigger.kind {
-                case .watchLikelyNotWorn: return "Watch wear"
-                case .preSleepHRElevated: return "Pre-sleep HR high"
-                case .preSleepHRMissing: return "Pre-sleep HR missing"
+                case .watchLikelyNotWorn:
+                    return ScaleNotificationCopy.watchWear(
+                        profileName: name,
+                        algorithmicMessage: trigger.message
+                    )
+                case .preSleepHRElevated:
+                    return ScaleNotificationCopy.preSleepHR(
+                        profileName: name,
+                        elevated: true,
+                        algorithmicMessage: trigger.message
+                    )
+                case .preSleepHRMissing:
+                    return ScaleNotificationCopy.preSleepHR(
+                        profileName: name,
+                        elevated: false,
+                        algorithmicMessage: trigger.message
+                    )
                 }
             }()
             let polished = await FoundationModelCoach.refineNotificationCopy(
                 profileName: name,
                 kind: trigger.kind.rawValue,
-                fallbackTitle: "\(name): Coach signal",
-                fallbackBody: trigger.message,
+                fallbackTitle: moment.glanceTitle,
+                fallbackBody: moment.phoneBody,
                 context: trigger.message
             )
-            let content = ScaleNotificationContentFactory.make(
-                .init(
-                    kind: kind,
-                    title: polished.title,
-                    subtitle: subtitle,
-                    body: polished.body,
-                    visualHeadline: subtitle,
-                    visualDetail: name
-                )
-            )
+            var fired = moment
+            if polished.usedFoundationModel {
+                fired.glanceTitle = ScaleNotificationCopy.glanceSanitize(polished.title)
+                fired.phoneBody = polished.body
+            }
+            let content = ScaleNotificationContentFactory.make(fired)
             let id = triggerNotifyPrefix + trigger.kind.rawValue
             let request = UNNotificationRequest(
                 identifier: id,
@@ -227,6 +218,48 @@ enum GrokFitnessMonitor {
                 trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
             )
             try? await center.add(request)
+        }
+    }
+
+    private static let keyMomentNotifyId = "thescale.key-coach-moment"
+    private static let lastKeyMomentHashKey = "thescale.lastKeyMomentHash"
+    private static let lastKeyMomentAtKey = "thescale.lastKeyMomentAt"
+
+    /// After heavy background analysis: one short Watch glance + rich iPhone body.
+    /// Skips duplicates / cooldown so we push relevance, not noise.
+    static func notifyKeyMomentIfNeeded(
+        profileName: String,
+        summary: String,
+        hadTriggerAlerts: Bool,
+        now: Date = Date()
+    ) async {
+        let trimmed = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 24 else { return }
+        // Trigger alerts already carried the key signal this wake.
+        guard !hadTriggerAlerts else { return }
+        let hash = String(trimmed.prefix(80))
+        if UserDefaults.standard.string(forKey: lastKeyMomentHashKey) == hash { return }
+        if let last = UserDefaults.standard.object(forKey: lastKeyMomentAtKey) as? Date,
+           now.timeIntervalSince(last) < 6 * 3600 {
+            return
+        }
+        let allowed = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
+        guard allowed else { return }
+
+        let content = ScaleNotificationContentFactory.make(
+            ScaleNotificationCopy.keyCoachMoment(profileName: profileName, summary: trimmed)
+        )
+        let request = UNNotificationRequest(
+            identifier: keyMomentNotifyId,
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1.2, repeats: false)
+        )
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+            UserDefaults.standard.set(hash, forKey: lastKeyMomentHashKey)
+            UserDefaults.standard.set(now, forKey: lastKeyMomentAtKey)
+        } catch {
+            // Soft-fail: analysis stays stored for Coach UI.
         }
     }
 

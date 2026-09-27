@@ -4,12 +4,12 @@ import ScaleOnDevicePolish
 
 // MARK: - Structured outputs
 
-@Generable(description: "Local notification title and body for FATNAG coach")
+@Generable(description: "Local notification glance title (Watch) and expanded body (iPhone) for fatnag")
 struct NotificationCopyDraft: Equatable, Sendable {
-    @Guide(description: "Notification title. Include the user's name. Max ~40 characters. No em dashes. No AI markers.")
+    @Guide(description: "Watch glance title. Max 20 characters. Verb or number first. NO emoji. NO name prefix. No em dashes. No AI markers.")
     var title: String
 
-    @Guide(description: "Notification body. Friendly badass dark humour. Call user by name when natural. Max ~110 characters. No em dashes. No medical disclaimer. No AI markers.")
+    @Guide(description: "iPhone expanded body. Friendly badass dark humour. Call user by name when natural. Max ~120 characters. No em dashes. No medical disclaimer. No AI markers.")
     var body: String
 }
 
@@ -129,7 +129,9 @@ enum FoundationModelCoach {
             let draft = response.content
             let title = CoachCopySanitize.clean(draft.title)
             let body = CoachCopySanitize.clean(draft.body)
-            let safeTitle = title.isEmpty ? fallbackTitle : clamp(title, max: 48)
+            let safeTitle = title.isEmpty
+                ? fallbackTitle
+                : ScaleNotificationCopy.glanceSanitize(title, max: 22)
             let safeBody = body.isEmpty ? fallbackBody : clamp(body, max: 140)
             return (safeTitle, safeBody, true)
         } catch {
