@@ -944,13 +944,17 @@ struct SettingsView: View {
 
     private var notificationsCard: some View {
         settingsPanel {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
                 Label("Notifications", systemImage: "bell.badge")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Local banners with actions. Focus/DND can still silence them.")
+
+                Text("Local banners with actions. Focus and Do Not Disturb can still silence them.")
                     .font(.footnote)
                     .foregroundStyle(steel)
+                    .padding(.top, 6)
+
+                notificationsSubsectionDivider(title: "Permission")
 
                 Text(notificationAuthLine)
                     .font(.caption)
@@ -961,6 +965,7 @@ struct SettingsView: View {
                     Text("Coach cannot fire drills while denied. Tap System, then allow alerts for The Scale.")
                         .font(.caption2)
                         .foregroundStyle(Color.orange)
+                        .padding(.top, 4)
                 }
 
                 HStack(spacing: 8) {
@@ -984,6 +989,9 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.bordered)
                 }
+                .padding(.top, 10)
+
+                notificationsSubsectionDivider(title: "What you get")
 
                 Toggle(
                     "Bad-trend alerts",
@@ -1009,6 +1017,9 @@ struct SettingsView: View {
                         }
                     )
                 )
+
+                notificationsSubsectionDivider(title: "Morning weigh")
+
                 Toggle(
                     "Morning weigh drill",
                     isOn: Binding(
@@ -1024,9 +1035,10 @@ struct SettingsView: View {
                         }
                     )
                 )
-                Text("Fires ~06:30 local (or ASAP after Health wake). Window closes at 08:00. Skips the day if you already weighed. Time Sensitive. Test drill uses the shit-emoji Keel copy.")
+                Text("About 06:30 local, or soon after Health wake. Window closes at 08:00. Skips the day if you already weighed.")
                     .font(.caption2)
                     .foregroundStyle(steel)
+                    .padding(.top, 2)
 
                 if session.notificationPreferences.morningWeighDrill {
                     HStack {
@@ -1066,41 +1078,18 @@ struct SettingsView: View {
                         )
                         .labelsHidden()
                     }
-                }
-
-                Button {
-                    Task {
-                        let ok = await MorningWeighDrillScheduler.forceFireTest(
-                            profileName: session.profile.greetingName
-                        )
-                        drillTestNote = ok
-                            ? "Test 💩 drill in ~2s (Time Sensitive path). Lock the phone or leave the app."
-                            : "Test drill blocked. Allow notifications first (or open System if denied)."
-                        await refreshNotificationStatus()
-                    }
-                } label: {
-                    Label("Send test drill now", systemImage: "bell.and.waves.left.and.right")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(accent)
-                .accessibilityIdentifier("settings.sendTestDrill")
-
-                if let drillTestNote {
-                    Text(drillTestNote)
-                        .font(.caption2)
-                        .foregroundStyle(steel)
+                    .padding(.top, 8)
                 }
 
                 if !pendingCoachReminders.isEmpty {
-                    Text("Pending Coach reminders")
-                        .font(.caption.weight(.semibold))
-                        .padding(.top, 4)
+                    notificationsSubsectionDivider(title: "Coach reminders")
+
                     ForEach(pendingCoachReminders) { item in
                         HStack(alignment: .top, spacing: 10) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.title)
                                     .font(.caption.weight(.semibold))
+                                    .foregroundStyle(ink)
                                 if let fire = item.nextFire {
                                     Text(fire.formatted(date: .abbreviated, time: .shortened))
                                         .font(.caption2)
@@ -1115,6 +1104,7 @@ struct SettingsView: View {
                             .font(.caption)
                             .buttonStyle(.bordered)
                         }
+                        .padding(.vertical, 2)
                     }
                     Button("Cancel all Coach reminders") {
                         Task {
@@ -1124,8 +1114,46 @@ struct SettingsView: View {
                     }
                     .font(.caption)
                     .buttonStyle(.bordered)
+                    .padding(.top, 4)
+                }
+
+                notificationsSubsectionDivider(title: "Developer")
+
+                Button {
+                    Task {
+                        let ok = await MorningWeighDrillScheduler.forceFireTest(
+                            profileName: session.profile.greetingName
+                        )
+                        drillTestNote = ok
+                            ? "Test drill in about 2 seconds. Lock the phone or leave the app."
+                            : "Test drill blocked. Allow notifications first (or open System if denied)."
+                        await refreshNotificationStatus()
+                    }
+                } label: {
+                    Label("Send test drill now", systemImage: "bell.and.waves.left.and.right")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.sendTestDrill")
+
+                if let drillTestNote {
+                    Text(drillTestNote)
+                        .font(.caption2)
+                        .foregroundStyle(steel)
+                        .padding(.top, 6)
                 }
             }
+        }
+    }
+
+    private func notificationsSubsectionDivider(title: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+                .padding(.vertical, 12)
+            Text(title.uppercased())
+                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .tracking(0.8)
+                .foregroundStyle(steel.opacity(0.95))
         }
     }
 
