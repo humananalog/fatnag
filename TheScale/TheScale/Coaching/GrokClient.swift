@@ -304,6 +304,8 @@ actor GrokClient {
         case rateLimited(String)
         case quotaExhausted(String)
         case httpStatus(Int)
+        /// Upstream / Worker JSON error with a safe operator-facing detail.
+        case upstream(String)
         case emptyResponse
         case transport(String)
 
@@ -325,6 +327,8 @@ actor GrokClient {
                 return detail
             case .httpStatus(let code):
                 return "Keel proxy returned HTTP \(code). Check Worker health / XAI_API_KEY / APP_SHARED_SECRET."
+            case .upstream(let detail):
+                return detail
             case .emptyResponse:
                 return "Keel returned an empty reply. Try again in a moment."
             case .transport(let message):
@@ -1135,9 +1139,17 @@ actor GrokClient {
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         let error = (json?["error"] as? String) ?? ""
         let detail = (json?["detail"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let host = GrokSharedConfig.proxyURL?.host ?? "(no proxy host)"
         switch status {
         case 401:
             return .unauthorized
+        case 400 where error == "missing_device_id":
+            return .upstream("Keel proxy needs X-Scale-Device-Id. Rebuild the app from latest main/branch.")
+        case 400 where error.localizedCaseInsensitiveContains("Incorrect API key")
+            || (json?["code"] as? String) == "invalid-argument":
+            return .upstream(
+                "Keel hit the OLD proxy host or a bad XAI_API_KEY (\(host)). Use https://the-scale-grok.alexhuther.workers.dev — pull 1.0.2+, fix Secrets.xcconfig (do not blank GROK_PROXY_URL), Clean Build."
+            )
         case 429 where error == "quota_exhausted":
             let message = detail?.isEmpty == false
                 ? detail!
@@ -1147,6 +1159,9 @@ actor GrokClient {
             let scope = (json?["scope"] as? String) ?? "request"
             return .rateLimited("Keel rate limit (\(scope)). Wait a minute and try again.")
         default:
+            if !error.isEmpty {
+                return .upstream("Keel proxy HTTP \(status) (\(host)): \(error)")
+            }
             return .httpStatus(status)
         }
     }

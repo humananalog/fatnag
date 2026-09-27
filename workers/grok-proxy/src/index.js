@@ -68,7 +68,13 @@ export default {
     }
 
     const provided = (request.headers.get(AUTH_HEADER) || "").trim();
-    if (!provided || !secretsMatch(provided, sharedSecret)) {
+    let authed = false;
+    try {
+      authed = Boolean(provided) && secretsMatch(provided, sharedSecret);
+    } catch {
+      authed = false;
+    }
+    if (!authed) {
       return json({ error: "unauthorized" }, 401);
     }
 

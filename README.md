@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 1.0.2 (build 105) |
+| **Version** | 1.0.3 (build 106) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -81,7 +81,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **Paywall + Settings polish (2.14.1):** Unlock Coach one-pager (high contrast Free/Plus/Pro); meal cards match sheet background; Settings Done dismisses keyboard; Settings regrouped (You / Weekly AI / Coach / Alerts / Scale / Legal).
 - **AI usage / meals / units (2.14.0):** Settings shows weekly online AI % + used/limit with Upgrade; meal carousel peeks + page dots + color; quota-exhausted menus via Foundation Models or solid metric-portion templates; preferred metric/imperial units across Settings, live weigh-in, meal plan, and Coach prompts.
 - **Home day coach (2.13.0):** Today-ahead advice (local clock), macro-goal ETA vs planned date, passive BLE auto-open live card (no Find Scale primary), 10s auto-confirm, weigh-in analysis card (congratulate / reward / punish). Meal plan respects IF 16-8 + time of day; retro snake spinner while generating. Chart point comments (256 chars, on-device, last 30 days). Flat home (cards only for meal carousel).
-- **Grok proxy hardening (1.0.2):** Worker at `the-scale-grok.alexhuther.workers.dev`; requires `APP_SHARED_SECRET`; IP + device rate limits; KV weekly Free/Plus/Pro caps (5/28/120). iOS sends device id + plan + credit; fail closed without `GROK_APP_SECRET` in Secrets.xcconfig.
+- **Grok proxy hardening (1.0.3):** Worker at `the-scale-grok.alexhuther.workers.dev`; requires `APP_SHARED_SECRET`; IP + device rate limits; KV weekly Free/Plus/Pro caps (5/28/120). iOS sends device id + plan + credit; fail closed without `GROK_APP_SECRET` in Secrets.xcconfig.
 - **Consumer Settings 1.0.0:** FATNAG brand header; App details shows marketing **1.0.0**; Glacier Forge / Bloom Copper contrast; StoreKit **Restore purchases** on Weekly AI; privacy/feedback/legal links; export filename `fatnag-data-export.json`. All Settings Developer/QA chrome deleted (plan override, force Monday, force review, sample notifications, calibration presets, DEBUG commerce).
 - **Feedback + App Store rating (2.53.0):** Settings **Send feedback** (and optional soft ask after a happy weigh-in) → Supabase `app_feedback` via Edge Function `submit-feedback` → Resend to `dev@humananalog.ai`. Soft star sheet after **6** successful weigh-ins; system `requestReview` at most once per install. Sandbox IAP checklist: Agent Store `docs/feedback-rating-sandbox-handoff.md` + `TheScale/docs/operations/storekit-humananalog.md`.
 - **App Store commercial polish (2.52.5):** Release strips Alerts Developer QA chrome and personal calibration preset. Paywall has tappable Privacy/Terms (in-app sheets) plus auto-renew copy. Public Privacy / Terms / Support pages live at `humananalog.github.io/the-scale`. Consumer copy scrub (Diet/Location not set; Settings web-link footnote).

@@ -85,8 +85,9 @@ enum GrokSharedConfig {
                 return issue.userMessage
             }
         }
-        if proxyURL != nil, appSecret != nil {
-            return "Shared proxy + app secret configured for all installs of this build."
+        if let url = proxyURL, appSecret != nil {
+            let host = url.host ?? url.absoluteString
+            return "Shared proxy + app secret OK · \(host)"
         }
         if bakedAPIKey != nil {
             return "Shared build-time key present. Prefer the Worker proxy for distribution; a baked key can be extracted from the IPA."
