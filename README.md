@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 2.54.0 (build 102) |
+| **Version** | 1.0.0 (build 103) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -20,7 +20,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - StoreKit / sandbox: `TheScale/docs/operations/storekit-humananalog.md` + `Config/Products.storekit`
 - Feedback / Resend: `TheScale/docs/operations/feedback-supabase-resend.md`
 - `ITSAppUsesNonExemptEncryption = false` (HTTPS only)
-- Dev tools menu is **DEBUG-only** (stripped from Release / App Store)
+- Settings has **no** Developer / QA chrome (removed for 1.0.0; Notification Center DEBUG tools stay compile-gated)
 - Enable **Time Sensitive** + **Communication Notifications** on the App ID before Archive (`TheScale/docs/operations/app-id-entitlements.md`)
 - Leave `GROK_API_KEY` empty for store IPAs; Worker holds `XAI_API_KEY`
 - Watch app / home-screen widgets = **post-1.0**; Live Activities during weigh-in are shippable
@@ -81,8 +81,9 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **Paywall + Settings polish (2.14.1):** Unlock Coach one-pager (high contrast Free/Plus/Pro); meal cards match sheet background; Settings Done dismisses keyboard; Settings regrouped (You / Weekly AI / Coach / Alerts / Scale / Legal).
 - **AI usage / meals / units (2.14.0):** Settings shows weekly online AI % + used/limit with Upgrade; meal carousel peeks + page dots + color; quota-exhausted menus via Foundation Models or solid metric-portion templates; preferred metric/imperial units across Settings, live weigh-in, meal plan, and Coach prompts.
 - **Home day coach (2.13.0):** Today-ahead advice (local clock), macro-goal ETA vs planned date, passive BLE auto-open live card (no Find Scale primary), 10s auto-confirm, weigh-in analysis card (congratulate / reward / punish). Meal plan respects IF 16-8 + time of day; retro snake spinner while generating. Chart point comments (256 chars, on-device, last 30 days). Flat home (cards only for meal carousel).
+- **Consumer Settings 1.0.0:** FATNAG brand header; App details shows marketing **1.0.0**; Glacier Forge / Bloom Copper contrast; StoreKit **Restore purchases** on Weekly AI; privacy/feedback/legal links; export filename `fatnag-data-export.json`. All Settings Developer/QA chrome deleted (plan override, force Monday, force review, sample notifications, calibration presets, DEBUG commerce).
 - **Feedback + App Store rating (2.53.0):** Settings **Send feedback** (and optional soft ask after a happy weigh-in) → Supabase `app_feedback` via Edge Function `submit-feedback` → Resend to `dev@humananalog.ai`. Soft star sheet after **6** successful weigh-ins; system `requestReview` at most once per install. Sandbox IAP checklist: Agent Store `docs/feedback-rating-sandbox-handoff.md` + `TheScale/docs/operations/storekit-humananalog.md`.
-- **App Store commercial polish (2.52.5):** Release strips Alerts/Settings Developer QA chrome and personal calibration preset. Paywall has tappable Privacy/Terms (in-app sheets) plus auto-renew copy. Public Privacy / Terms / Support pages live at `humananalog.github.io/the-scale`. Consumer copy scrub (Diet/Location not set; Settings web-link footnote).
+- **App Store commercial polish (2.52.5):** Release strips Alerts Developer QA chrome and personal calibration preset. Paywall has tappable Privacy/Terms (in-app sheets) plus auto-renew copy. Public Privacy / Terms / Support pages live at `humananalog.github.io/the-scale`. Consumer copy scrub (Diet/Location not set; Settings web-link footnote).
 - **Swift 6 concurrency + meal carousel frame (2.52.4):** Meal plan carousel clamps GeometryReader sizes (no negative/non-finite frames). On-device polish eligibility uses `utsname` only (no MainActor `UIDevice`). `ScaleDebugLog` and Foundation Models runtime gate use `@unchecked Sendable` lock boxes for Swift 6.
 - **Alerts layout (2.52.3):** Notification Center and Settings Notifications use clear Permission / Coming up / Recent / Developer sections.
 - **Simulator FM quiet fallback (2.52.2):** Simulator skips Apple Intelligence (avoids `promptTemplateNotFound` spam). Device host failures trip a process-lifetime breaker and fall back to algorithmic / Metal polish copy.

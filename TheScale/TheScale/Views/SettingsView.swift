@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import ScaleOnDevicePolish
 
-/// Profile, AI usage, Coach, Health, calibration, legal.
+/// Profile, AI usage, Coach, Health, calibration, legal — consumer Settings (App Review clean).
 struct SettingsView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @ObservedObject private var subscription = ScaleSubscriptionStore.shared
@@ -14,10 +14,6 @@ struct SettingsView: View {
     @State private var notificationAuthDenied = false
     @State private var pendingCoachReminders: [PendingCoachReminder] = []
     @State private var healthBackgroundLine = "Health background: checking..."
-    @State private var samplePingNote: String?
-    #if DEBUG
-    @State private var drillTestNote: String?
-    #endif
     @State private var heightValidationNote: String?
     @State private var ageValidationNote: String?
     @State private var weightValidationNote: String?
@@ -59,6 +55,10 @@ struct SettingsView: View {
         )
     }
 
+    private var universe: ScalePaletteUniverse {
+        ScalePaletteUniverse.resolve(sex: session.profile.sex)
+    }
+
     private var ink: Color {
         colorScheme == .dark
             ? Color(red: 0.96, green: 0.95, blue: 0.92)
@@ -67,27 +67,39 @@ struct SettingsView: View {
 
     private var steel: Color {
         colorScheme == .dark
-            ? Color(red: 0.70, green: 0.72, blue: 0.76)
-            : Color(red: 0.35, green: 0.37, blue: 0.40)
+            ? Color(red: 0.72, green: 0.74, blue: 0.78)
+            : Color(red: 0.32, green: 0.34, blue: 0.38)
     }
 
     private var accent: Color {
-        colorScheme == .dark
-            ? Color(red: 0.42, green: 0.78, blue: 0.88)
-            : Color(red: 0.18, green: 0.52, blue: 0.62)
+        ScaleChrome.signal(for: universe)
+    }
+
+    private var copper: Color {
+        ScaleChrome.ember(for: universe)
     }
 
     private var panelFill: Color {
-        colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.78)
+        colorScheme == .dark ? Color.white.opacity(0.09) : Color.white.opacity(0.82)
     }
 
     private var softPanelFill: Color {
-        colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.55)
+        colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.58)
+    }
+
+    private var appMarketingVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+    }
+
+    private var appBuildVersion: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
+                brandHeader
+
                 sectionLabel("You")
                 profileCard
 
@@ -107,8 +119,12 @@ struct SettingsView: View {
                 sectionLabel("Privacy & Legal")
                 privacyCard
                 legalCard
+
                 sectionLabel("Help")
                 feedbackCard
+
+                sectionLabel("App")
+                aboutCard
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -133,22 +149,7 @@ struct SettingsView: View {
             )
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(
-            LinearGradient(
-                colors: colorScheme == .dark
-                    ? [
-                        Color(red: 0.08, green: 0.09, blue: 0.11),
-                        Color(red: 0.12, green: 0.13, blue: 0.16)
-                    ]
-                    : [
-                        Color(red: 0.94, green: 0.96, blue: 0.98),
-                        Color(red: 0.88, green: 0.91, blue: 0.94)
-                    ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-        )
+        .background(settingsBackground.ignoresSafeArea())
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -223,12 +224,57 @@ struct SettingsView: View {
         )
     }
 
+    private var settingsBackground: some View {
+        let dayTop: Color
+        let dayBottom: Color
+        let nightTop: Color
+        let nightBottom: Color
+        switch universe {
+        case .glacierForge:
+            dayTop = Color(red: 0.93, green: 0.96, blue: 0.98)
+            dayBottom = Color(red: 0.86, green: 0.91, blue: 0.95)
+            nightTop = Color(red: 0.06, green: 0.09, blue: 0.13)
+            nightBottom = Color(red: 0.05, green: 0.07, blue: 0.11)
+        case .bloomCopper:
+            dayTop = Color(red: 0.98, green: 0.94, blue: 0.93)
+            dayBottom = Color(red: 0.95, green: 0.88, blue: 0.86)
+            nightTop = Color(red: 0.10, green: 0.07, blue: 0.09)
+            nightBottom = Color(red: 0.08, green: 0.05, blue: 0.07)
+        }
+        return LinearGradient(
+            colors: colorScheme == .dark ? [nightTop, nightBottom] : [dayTop, dayBottom],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var brandHeader: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("FATNAG")
+                .font(.system(size: 28, weight: .semibold, design: .serif))
+                .foregroundStyle(ink)
+                .tracking(0.4)
+                .accessibilityIdentifier("settings.brand")
+            Text("Nag until the fat folds.")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(copper)
+            Text("Profile, Coach, Health, and privacy — all on this iPhone.")
+                .font(.footnote)
+                .foregroundStyle(steel)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 4)
+        .accessibilityElement(children: .combine)
+    }
+
     private func sectionLabel(_ title: String) -> some View {
         Text(title.uppercased())
             .font(.system(size: 12, weight: .bold, design: .rounded))
             .foregroundStyle(steel)
-            .tracking(0.8)
+            .tracking(1.0)
             .padding(.bottom, -12)
+            .accessibilityAddTraits(.isHeader)
     }
 
     private func settingsPanel<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -236,6 +282,10 @@ struct SettingsView: View {
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(panelFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(ink.opacity(colorScheme == .dark ? 0.12 : 0.06), lineWidth: 1)
+            )
     }
 
     // MARK: - Weekly AI
@@ -256,7 +306,7 @@ struct SettingsView: View {
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(ink)
                     Spacer()
-                    Text(subscription.plan.priceLabel)
+                    Text(subscription.priceLabel(for: subscription.plan))
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(steel)
                 }
@@ -320,67 +370,71 @@ struct SettingsView: View {
                     .buttonStyle(.bordered)
                 }
 
-                Text(subscription.commerceStatusLine)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(steel)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("settings.commerceStatus")
+                Button {
+                    Task { await subscription.restore() }
+                } label: {
+                    Label(
+                        subscription.isRestoring ? "Restoring…" : "Restore purchases",
+                        systemImage: "arrow.clockwise"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(subscription.isRestoring)
+                .accessibilityIdentifier("settings.restorePurchases")
 
-                #if DEBUG
-                Text("DEBUG commerce")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(steel)
-                Text(subscription.commerceLane.detail)
+                if let restore = subscription.restoreMessage {
+                    Text(restore)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(accent)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("settings.restoreMessage")
+                }
+                if let err = subscription.purchaseError {
+                    Text(err)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Text("Subscriptions via Apple. Restore if you already bought Plus or Pro on this Apple ID.")
                     .font(.caption2)
                     .foregroundStyle(steel)
                     .fixedSize(horizontal: false, vertical: true)
-
-                Button {
-                    subscription.useRealStoreKit()
-                } label: {
-                    Label("Use StoreKit (Human Analog)", systemImage: "cart")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(ink)
-                .accessibilityIdentifier("settings.useStoreKit")
-
-                Picker(
-                    "DEBUG plan override",
-                    selection: Binding(
-                        get: { subscription.debugOverride?.rawValue ?? "storekit" },
-                        set: { raw in
-                            if raw == "storekit" {
-                                subscription.useRealStoreKit()
-                            } else if let plan = ScalePlan(rawValue: raw) {
-                                subscription.debugOverride = plan
-                            }
-                        }
-                    )
-                ) {
-                    Text("StoreKit").tag("storekit")
-                    ForEach(ScalePlan.allCases) { plan in
-                        Text(plan.displayName).tag(plan.rawValue)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .accessibilityIdentifier("settings.debugPlanOverride")
-
-                Button("Reload StoreKit products") {
-                    Task { await subscription.refresh() }
-                }
-                .font(.caption)
-                .accessibilityIdentifier("settings.reloadProducts")
-
-                Button("DEBUG reset weekly quota") {
-                    CoachWeeklyQuota.debugReset()
-                    subscription.noteQuotaChange()
-                }
-                .font(.caption)
-                #endif
+                    .accessibilityIdentifier("settings.commerceStatus")
             }
         }
         .id(subscription.quotaEpoch)
+    }
+
+    // MARK: - App
+
+    private var aboutCard: some View {
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("App details", systemImage: "info.circle")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("FATNAG")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(ink)
+                    Spacer()
+                    Text("v\(appMarketingVersion)")
+                        .font(.title3.weight(.bold).monospacedDigit())
+                        .foregroundStyle(copper)
+                        .accessibilityIdentifier("settings.appVersion")
+                }
+                Text("Build \(appBuildVersion) · Human Analog Limited")
+                    .font(.caption)
+                    .foregroundStyle(steel)
+                    .accessibilityIdentifier("settings.appBuild")
+                Text(universe.displayName)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(accent)
+                    .accessibilityIdentifier("settings.paletteUniverse")
+            }
+        }
     }
 
     // MARK: - You
@@ -1127,34 +1181,6 @@ struct SettingsView: View {
                     .buttonStyle(.bordered)
                     .padding(.top, 4)
                 }
-
-                #if DEBUG
-                notificationsSubsectionDivider(title: "Developer")
-
-                Button {
-                    Task {
-                        let ok = await MorningWeighDrillScheduler.forceFireTest(
-                            profileName: session.profile.greetingName
-                        )
-                        drillTestNote = ok
-                            ? "Test drill in about 2 seconds. Lock the phone or leave the app."
-                            : "Test drill blocked. Allow notifications first (or open System if denied)."
-                        await refreshNotificationStatus()
-                    }
-                } label: {
-                    Label("Send test drill now", systemImage: "bell.and.waves.left.and.right")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("settings.sendTestDrill")
-
-                if let drillTestNote {
-                    Text(drillTestNote)
-                        .font(.caption2)
-                        .foregroundStyle(steel)
-                        .padding(.top, 6)
-                }
-                #endif
             }
         }
     }
@@ -1403,21 +1429,6 @@ struct SettingsView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(accent)
 
-                #if DEBUG
-                Button {
-                    dismissKeyboard()
-                    _ = session.recordCalibration(
-                        referenceKg: 7.926,
-                        rawKg: 7.90,
-                        mode: .offset
-                    )
-                } label: {
-                    Label("Store Alex's 7.926 / 7.90 offset", systemImage: "checkmark.seal")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                #endif
-
                 Text(session.calibration.summaryLine)
                     .font(.footnote.weight(.medium))
                 Toggle(
@@ -1594,108 +1605,48 @@ struct SettingsView: View {
     }
 
     private var legalCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Legal", systemImage: "doc.text")
-                .font(.headline)
-                .foregroundStyle(ink)
-            Text(CoachCopySanitize.medicalDisclaimer)
-                .font(.caption)
-                .foregroundStyle(steel)
-            Text("Shown at onboarding. Coach chat and notifications do not repeat this.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-
-            ForEach(ScaleLegal.Document.allCases.filter { $0 != .privacyPolicy && $0 != .usStatePrivacy }) { doc in
-                NavigationLink {
-                    LegalDocumentView(document: doc)
-                } label: {
-                    Label(doc.title, systemImage: "doc.richtext")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("settings.legal.\(doc.rawValue)")
-            }
-
-            Text("Age gate: \(ScaleLegal.minimumAgeYears)+. Controller: \(ScaleLegal.controllerName).")
-                .font(.caption2)
-                .foregroundStyle(steel)
-
-            if let accepted = LegalAcceptanceStore.acceptedAt {
-                Text("Terms accepted: \(accepted.formatted(date: .abbreviated, time: .shortened))")
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Legal", systemImage: "doc.text")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text(CoachCopySanitize.medicalDisclaimer)
+                    .font(.caption)
+                    .foregroundStyle(steel)
+                Text("Shown at onboarding. Coach chat and notifications do not repeat this.")
                     .font(.caption2)
                     .foregroundStyle(steel)
-                    .accessibilityIdentifier("settings.legalAcceptedAt")
-            }
 
-            #if DEBUG
-            Menu {
-                Button("Preview Monday card (ephemeral)") {
-                    session.dismissSettings()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        session.forcePresentMondayCard(regenerate: false)
+                ForEach(ScaleLegal.Document.allCases.filter { $0 != .privacyPolicy && $0 != .usStatePrivacy }) { doc in
+                    NavigationLink {
+                        LegalDocumentView(document: doc)
+                    } label: {
+                        Label(doc.title, systemImage: "doc.richtext")
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("settings.legal.\(doc.rawValue)")
                 }
-                Button("Regenerate Monday card (ephemeral)") {
-                    session.dismissSettings()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        session.forcePresentMondayCard(regenerate: true)
-                    }
-                }
-                Button("Fire sample SOTA notification") {
-                    Task {
-                        let ok = await GrokFitnessMonitor.fireSampleSOTANotification(
-                            profileName: session.profile.greetingName,
-                            currentKg: session.healthBaselineKg
-                        )
-                        samplePingNote = ok
-                            ? "Sample ping scheduled (~1.5s). Lock phone or leave app."
-                            : "Sample ping failed. Allow notifications first."
-                        await refreshNotificationStatus()
-                    }
-                }
-                Button("Force soft review prompt") {
-                    ScaleAppReviewPrompt.successfulWeighIns = max(
-                        ScaleAppReviewPrompt.successfulWeighIns,
-                        ScaleAppReviewPrompt.minimumWeighIns
-                    )
-                    session.dismissSettings()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                        session.isAppReviewPromptPresented = true
-                    }
-                }
-                Button("Reset review prompt state") {
-                    ScaleAppReviewPrompt.debugReset()
-                    samplePingNote = "Review prompt state cleared."
-                }
-                Button("Reset onboarding (relaunch flow)") {
-                    OnboardingStore.hasCompleted = false
-                    session.hasCompletedOnboarding = false
-                    session.dismissSettings()
-                }
-            } label: {
-                Text("Dev")
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(.tertiary)
-            }
-            .accessibilityLabel("Developer tools")
 
-            if let samplePingNote {
-                Text(samplePingNote)
+                Text("Age gate: \(ScaleLegal.minimumAgeYears)+. Controller: \(ScaleLegal.controllerName).")
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(steel)
+
+                if let accepted = LegalAcceptanceStore.acceptedAt {
+                    Text("Terms accepted: \(accepted.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption2)
+                        .foregroundStyle(steel)
+                        .accessibilityIdentifier("settings.legalAcceptedAt")
+                }
             }
-            #endif
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(softPanelFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func exportLocalData() {
         do {
             let data = try ScaleDataRights.exportLocalDataJSON(profile: session.profile)
             let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("the-scale-data-export.json")
+                .appendingPathComponent("fatnag-data-export.json")
             try data.write(to: url, options: .atomic)
             exportShareURL = url
             dataRightsNote = "Export ready to share or save."

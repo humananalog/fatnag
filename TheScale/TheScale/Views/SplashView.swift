@@ -104,6 +104,11 @@ struct SplashView: View {
                         .foregroundStyle(mist)
                         .tracking(0.4)
                         .multilineTextAlignment(.center)
+                    Text(splashVersionLine)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(mist.opacity(0.75))
+                        .monospacedDigit()
+                        .accessibilityIdentifier("splash.version")
                 }
                 .opacity(wordOpacity)
                 .accessibilityElement(children: .combine)
@@ -114,6 +119,11 @@ struct SplashView: View {
         .preferredColorScheme(.dark)
         .accessibilityAddTraits(.isHeader)
         .onAppear { runSequence() }
+    }
+
+    private var splashVersionLine: String {
+        let marketing = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        return "v\(marketing)"
     }
 
     private func runSequence() {
