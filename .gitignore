@@ -19,3 +19,6 @@ TheScale/Config/Secrets.xcconfig
 **/Secrets.xcconfig
 workers/grok-proxy/.dev.vars
 workers/grok-proxy/.wrangler/
+
+# Supabase CLI local cache
+TheScale/supabase/.temp/

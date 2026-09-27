@@ -21,9 +21,11 @@ Coach reply votes use `source=coach_reply` with `rating` (`up`/`down`), plus
 | Secret | Where |
 |--------|--------|
 | `RESEND_API_KEY` | Supabase Edge Function secrets |
-| `RESEND_FROM` | Optional; default `FATNAG Feedback <feedback@inbound.humananalog.ai>` |
+| `RESEND_FROM` | Must be `Name <email@domain>` (e.g. `FATNAG Feedback <feedback@inbound.humananalog.ai>`). Bare/invalid `from` → Resend 422; insert still succeeds with `email_sent: false`. |
 | `FEEDBACK_TO` | Optional; default `dev@humananalog.ai` |
 | Service role | Auto in Edge runtime only |
+
+Verified 2026-09-27: `source=coach_reply` insert + Resend email OK after correcting `RESEND_FROM`.
 
 ## Local / Debug without Resend
 
