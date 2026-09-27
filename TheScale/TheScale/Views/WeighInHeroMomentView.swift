@@ -131,6 +131,7 @@ struct WeighInHeroMomentView: View {
     }
 }
 
+#if DEBUG
 #Preview("Sergeant") {
     WeighInHeroMomentView()
         .environmentObject({
@@ -150,3 +151,4 @@ struct WeighInHeroMomentView: View {
             return s
         }())
 }
+#endif

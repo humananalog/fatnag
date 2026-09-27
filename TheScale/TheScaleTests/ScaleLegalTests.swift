@@ -17,6 +17,7 @@ final class ScaleLegalTests: XCTestCase {
         XCTAssertEqual(ScaleLegal.minimumAgeYears, 18)
         XCTAssertTrue(ScaleLegal.privacyPolicyURL.absoluteString.contains("humananalog"))
         XCTAssertTrue(ScaleLegal.termsOfUseURL.absoluteString.contains("humananalog"))
+        XCTAssertTrue(ScaleLegal.supportURL.absoluteString.contains("the-scale/support"))
     }
 
     func testPrivacyMentionsGDPRAndNoSale() {

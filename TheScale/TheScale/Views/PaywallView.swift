@@ -20,6 +20,7 @@ struct PaywallView: View {
 
     @State private var scrollY: CGFloat = 0
     @State private var appeared = false
+    @State private var legalDocument: ScaleLegal.Document?
 
     private var universe: ScalePaletteUniverse {
         .resolve(sex: session.profile.sex)
@@ -102,6 +103,17 @@ struct PaywallView: View {
             withAnimation(.easeOut(duration: 0.55)) {
                 appeared = true
             }
+        }
+        .sheet(item: $legalDocument) { document in
+            NavigationStack {
+                LegalDocumentView(document: document)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { legalDocument = nil }
+                        }
+                    }
+            }
+            .preferredColorScheme(.light)
         }
     }
 
@@ -497,10 +509,18 @@ struct PaywallView: View {
             .foregroundStyle(mist)
             .disabled(store.isBusy)
             .accessibilityIdentifier("paywall.restore")
-            Text("Cancel anytime in App Store subscriptions. Privacy Policy and Terms are in Settings.")
+            Text("Cancel anytime in App Store subscriptions. Auto-renews monthly until you cancel at least 24 hours before the period ends.")
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundStyle(mist.opacity(0.75))
                 .multilineTextAlignment(.center)
+            HStack(spacing: 18) {
+                Button("Privacy Policy") { legalDocument = .privacyPolicy }
+                    .accessibilityIdentifier("paywall.privacyPolicy")
+                Button("Terms of Use") { legalDocument = .termsOfUse }
+                    .accessibilityIdentifier("paywall.termsOfUse")
+            }
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
+            .foregroundStyle(gold.opacity(0.9))
             #if DEBUG
             if store.isDevPlanOverrideActive {
                 Text("Active via DEV override · \(store.plan.displayName)")

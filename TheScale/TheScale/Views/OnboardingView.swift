@@ -602,8 +602,8 @@ struct OnboardingView: View {
     private var lifestyleSummaryChip: some View {
         let loc = flow.location.trimmingCharacters(in: .whitespacesAndNewlines)
         let avoid = flow.foodAvoidances.trimmingCharacters(in: .whitespacesAndNewlines)
-        let dietBit = flow.dietConfirmed ? flow.diet.title : "Diet TBD"
-        let locBit = loc.isEmpty ? "Location TBD" : loc
+        let dietBit = flow.dietConfirmed ? flow.diet.title : "Diet not set"
+        let locBit = loc.isEmpty ? "Location not set" : loc
         let avoidBit = avoid.isEmpty ? "No avoids yet" : "Avoid: \(avoid)"
         return Text("\(dietBit) · \(locBit) · \(avoidBit)")
             .font(.caption.weight(.semibold))

@@ -2,7 +2,7 @@ import SwiftUI
 import UserNotifications
 
 /// Pending + delivered local notifications for The Scale.
-/// Clear section hierarchy: status → coming up → recent → developer tools.
+/// Clear section hierarchy: status → coming up → recent (DEBUG: developer tools).
 struct NotificationCenterSheet: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.dismiss) private var dismiss
@@ -12,8 +12,10 @@ struct NotificationCenterSheet: View {
     @State private var isLoading = true
     @State private var authLine = ""
     @State private var authDenied = false
+    #if DEBUG
     @State private var testNote: String?
     @State private var showDeveloperTools = false
+    #endif
 
     private struct PendingNotifRow: Identifiable {
         let id: String
@@ -99,6 +101,7 @@ struct NotificationCenterSheet: View {
                             sectionHeader("Recently delivered", systemImage: "tray.full")
                         }
 
+                        #if DEBUG
                         Section {
                             DisclosureGroup(isExpanded: $showDeveloperTools) {
                                 Button {
@@ -132,6 +135,7 @@ struct NotificationCenterSheet: View {
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(mist)
                         }
+                        #endif
                     }
                     .listStyle(.insetGrouped)
                     .listSectionSpacing(.compact)

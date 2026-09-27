@@ -9,6 +9,9 @@ enum ScaleLegal {
     /// Public terms URL (mirror of in-app Terms).
     static let termsOfUseURL = URL(string: "https://humananalog.github.io/the-scale/terms")!
 
+    /// Public support page for App Store Connect Support URL.
+    static let supportURL = URL(string: "https://humananalog.github.io/the-scale/support")!
+
     /// Controller / seller of record.
     static let controllerName = "Human Analog Limited"
 

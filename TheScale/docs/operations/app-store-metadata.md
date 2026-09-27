@@ -18,7 +18,7 @@ Fill these in ASC before Submit for Review. Binary alone is not enough.
 
 - **Not a medical device.** Wellness / fitness only.
 - Age gate in-app: **18+** (BIA / adult fitness).
-- ASC Age Rating questionnaire: answer **Medical/Treatment Information** carefully — the app discusses fitness/nutrition coaching, **not** diagnosis or treatment. Prefer answers that reflect educational fitness content; avoid claiming clinical care.
+- ASC Age Rating questionnaire: answer **Medical/Treatment Information** carefully - the app discusses fitness/nutrition coaching, **not** diagnosis or treatment. Prefer answers that reflect educational fitness content; avoid claiming clinical care.
 - Unrestricted Web Access: No
 - Gambling / Contests: No
 
@@ -37,7 +37,7 @@ Match `PrivacyInfo.xcprivacy` + in-app policy:
 | Data type | Linked | Tracking | Purpose |
 |-----------|--------|----------|---------|
 | Health & Fitness | Yes (on-device profile / optional Coach) | No | App Functionality |
-| Other User Content (Coach chat when consented; typed city/diet notes — **not** GPS) | Yes | No | App Functionality |
+| Other User Content (Coach chat when consented; typed city/diet notes - **not** GPS) | Yes | No | App Functionality |
 | Name (greeting name user types) | Yes | No | App Functionality |
 | Purchases (StoreKit) | Yes (via Apple) | No | App Functionality |
 
@@ -47,11 +47,11 @@ No advertising data. No tracking domains. No third-party analytics SDKs.
 
 Capture on the latest required iPhone sizes in ASC (typically 6.7" + 6.1"):
 
-1. **Home** — weekly goal / day gauges (no debug chrome).
-2. **Live weigh-in** — Mi Scale live sheet with settled weight.
-3. **Progress / charts** — weight history with ideal line.
-4. **Coach** — chat thread (consent already granted on the demo device).
-5. **Paywall** — Free / Plus / Pro (luxury sheet).
+1. **Home** - weekly goal / day gauges (no debug chrome).
+2. **Live weigh-in** - Mi Scale live sheet with settled weight.
+3. **Progress / charts** - weight history with ideal line.
+4. **Coach** - chat thread (consent already granted on the demo device).
+5. **Paywall** - Free / Plus / Pro (luxury sheet).
 6. Optional: **Settings → Privacy** showing Export / Erase.
 
 Do **not** include DEBUG menus, plan overrides, or sample notification buttons.
@@ -61,7 +61,7 @@ Do **not** include DEBUG menus, plan overrides, or sample notification buttons.
 **Promotional text (updatable):** Stay sharp. Weigh on your Mi Scale, sync to Apple Health, and keep weekly Coach credits honest.
 
 **Description (draft):**
-The Scale is a privacy-first companion for the Xiaomi Mi Body Composition Scale 2. Weigh-ins stay on your iPhone, confirm into Apple Health, and optional Keel Coach helps when you go soft — with weekly credit caps, not endless chat spam.
+The Scale is a privacy-first companion for the Xiaomi Mi Body Composition Scale 2. Weigh-ins stay on your iPhone, confirm into Apple Health, and optional Keel Coach helps when you go soft - with weekly credit caps, not endless chat spam.
 
 - Bluetooth LE read of Mi Scale advertisements (no manufacturer cloud pairing)
 - Body composition estimates + Apple Health write on Confirm
@@ -79,7 +79,7 @@ Not a medical device. Fitness guidance only.
 
 | Field | Value |
 |-------|--------|
-| Support URL | Your support page or `mailto:` landing (ASC needs HTTPS — use a simple support page) |
+| Support URL | `https://humananalog.github.io/the-scale/support` (`ScaleLegal.supportURL`) |
 | Marketing URL | Optional product page |
 | Privacy | See above |
 

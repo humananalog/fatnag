@@ -15,7 +15,9 @@ struct SettingsView: View {
     @State private var pendingCoachReminders: [PendingCoachReminder] = []
     @State private var healthBackgroundLine = "Health background: checking..."
     @State private var samplePingNote: String?
+    #if DEBUG
     @State private var drillTestNote: String?
+    #endif
     @State private var heightValidationNote: String?
     @State private var ageValidationNote: String?
     @State private var weightValidationNote: String?
@@ -1117,6 +1119,7 @@ struct SettingsView: View {
                     .padding(.top, 4)
                 }
 
+                #if DEBUG
                 notificationsSubsectionDivider(title: "Developer")
 
                 Button {
@@ -1142,6 +1145,7 @@ struct SettingsView: View {
                         .foregroundStyle(steel)
                         .padding(.top, 6)
                 }
+                #endif
             }
         }
     }
@@ -1390,6 +1394,7 @@ struct SettingsView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(accent)
 
+                #if DEBUG
                 Button {
                     dismissKeyboard()
                     _ = session.recordCalibration(
@@ -1402,6 +1407,7 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                #endif
 
                 Text(session.calibration.summaryLine)
                     .font(.footnote.weight(.medium))
@@ -1489,11 +1495,9 @@ struct SettingsView: View {
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("settings.termsWeb")
 
-                Text(
-                    "Public URLs must stay live for App Store Connect. Hosting steps: TheScale/docs/operations/legal-url-hosting.md. Until hosted, use in-app documents above."
-                )
-                .font(.caption2)
-                .foregroundStyle(steel)
+                Text("Web links open our public Privacy Policy and Terms. Full copies also live in Settings above.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
 
                 Link(destination: ScaleLegal.privacyMailtoURL) {
                     Label("Email \(ScaleLegal.privacyEmail)", systemImage: "envelope")
