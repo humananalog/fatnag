@@ -20,6 +20,37 @@ enum WeeklyTrackBand: String, Equatable, Sendable {
     }
 }
 
+/// Moment-of-week framing for Progress / home (Mon plan vs mid-week pace vs Sunday push).
+enum ProgressWeekMoment: String, Equatable, Sendable {
+    case mondayFresh
+    case earlyWeek
+    case midWeek
+    case lateWeek
+
+    static func resolve(elapsed: Double, now: Date = Date(), calendar: Calendar = .current) -> ProgressWeekMoment {
+        let weekday = calendar.component(.weekday, from: now) // 1=Sun … 2=Mon
+        if weekday == 2 || elapsed < 0.14 {
+            return .mondayFresh
+        }
+        if elapsed < 0.42 {
+            return .earlyWeek
+        }
+        if elapsed < 0.72 {
+            return .midWeek
+        }
+        return .lateWeek
+    }
+
+    var statusHeadline: String {
+        switch self {
+        case .mondayFresh: return "This week's plan"
+        case .earlyWeek: return "Building the week"
+        case .midWeek: return "Mid-week check"
+        case .lateWeek: return "Sunday push"
+        }
+    }
+}
+
 /// Daily coaching targets derived from profile + activity (not logged food %).
 struct DailyGoalTargets: Equatable, Sendable {
     var steps: Int
@@ -86,8 +117,16 @@ struct WeeklyGoalSurface: Equatable, Sendable {
     var weekStartKg: Double?
     /// Absolute Sunday weigh-in target (kg). Hero number on Home / Progress.
     var sundayTargetKg: Double?
-    /// Signed weekly delta (kg), e.g. -0.35.
+    /// Planned weekly target delta (kg), e.g. -0.65. Never "achievement".
     var weeklyDeltaKg: Double
+    /// Actual moved this week: `currentKg - weekStartKg` (nil until both exist).
+    var movedDeltaKg: Double?
+    /// True when moved meaningfully meets/beats a cut (or gain) target — not merely "plan is negative".
+    var isWinnerWeek: Bool
+    /// Day/moment framing for Progress status chrome.
+    var weekMoment: ProgressWeekMoment
+    /// Day-aware status line (overrides raw band early Monday).
+    var statusHeadline: String
     var detailLine: String
     /// What's ahead for the rest of TODAY (local clock), not tomorrow-after-weigh-in.
     var todayAdvice: String
@@ -139,18 +178,30 @@ enum WeeklyGoalSurfaceEngine {
         calendar: Calendar = .current
     ) -> WeeklyGoalSurface {
         let elapsed = weekElapsedFraction(now: now, calendar: calendar)
+        let moment = ProgressWeekMoment.resolve(elapsed: elapsed, now: now, calendar: calendar)
         let expected = max(0.08, elapsed)
+        let movedDelta: Double? = {
+            guard let currentKg, let start = weeklyGoal.weekStartKg else { return nil }
+            return currentKg - start
+        }()
         let rawFraction = weeklyGoal.progressFraction(currentKg: currentKg)
-        let fraction = rawFraction ?? 0
-        let percent = Int((min(max(fraction, 0), 1.2) * 100).rounded())
+        // Early Monday: near-zero move must not inherit last week's "crushed" chrome.
+        let earlyWeekQuiet = moment == .mondayFresh
+            && abs(movedDelta ?? 0) < 0.08
+        let fractionForBand: Double? = earlyWeekQuiet ? (rawFraction.map { min($0, 0.12) } ?? 0) : rawFraction
+        let fraction = fractionForBand ?? 0
+        let percent = Int((min(max(earlyWeekQuiet ? 0 : (rawFraction ?? 0), 0), 1.2) * 100).rounded())
 
         var band = trackBand(
-            progressFraction: rawFraction,
+            progressFraction: fractionForBand,
             expectedPace: expected,
             recovery: digest?.recovery?.band,
             sleepHours: digest?.sleepHoursLastNight,
             stepsToday: digest?.stepsToday
         )
+        if earlyWeekQuiet, band == .crushed || band == .ahead {
+            band = .onTrack
+        }
 
         let targets = dailyTargets(
             profile: profile,
@@ -247,6 +298,13 @@ enum WeeklyGoalSurfaceEngine {
             diet: profile.dietPreference
         )
         let sundayKg = sundayTargetKg(from: weeklyGoal, currentKg: currentKg)
+        let winner = isWinnerWeek(
+            movedDeltaKg: movedDelta,
+            targetDeltaKg: weeklyGoal.targetDeltaKg,
+            band: band,
+            moment: moment
+        )
+        let headline = statusHeadline(moment: moment, band: band, isWinner: winner)
 
         return WeeklyGoalSurface(
             completionPercent: percent,
@@ -255,6 +313,10 @@ enum WeeklyGoalSurfaceEngine {
             weekStartKg: weeklyGoal.weekStartKg,
             sundayTargetKg: sundayKg,
             weeklyDeltaKg: weeklyGoal.targetDeltaKg,
+            movedDeltaKg: movedDelta,
+            isWinnerWeek: winner,
+            weekMoment: moment,
+            statusHeadline: headline,
             detailLine: detail,
             todayAdvice: advice,
             mealSuggestion: showMeals,
@@ -267,6 +329,42 @@ enum WeeklyGoalSurfaceEngine {
             expectedPaceFraction: expected,
             targetMode: targetMode
         )
+    }
+
+    /// Winner = achieved progress, never "plan is a cut".
+    static func isWinnerWeek(
+        movedDeltaKg: Double?,
+        targetDeltaKg: Double,
+        band: WeeklyTrackBand,
+        moment: ProgressWeekMoment
+    ) -> Bool {
+        guard moment != .mondayFresh else { return false }
+        guard let moved = movedDeltaKg, abs(targetDeltaKg) > 0.01 else { return false }
+        if targetDeltaKg < 0 {
+            return moved <= targetDeltaKg + 0.02 || band == .crushed
+        }
+        return moved >= targetDeltaKg - 0.02 || band == .crushed
+    }
+
+    static func statusHeadline(
+        moment: ProgressWeekMoment,
+        band: WeeklyTrackBand,
+        isWinner: Bool
+    ) -> String {
+        if moment == .mondayFresh { return ProgressWeekMoment.mondayFresh.statusHeadline }
+        if isWinner { return "Crushed" }
+        switch moment {
+        case .mondayFresh:
+            return moment.statusHeadline
+        case .earlyWeek:
+            return band == .unknown ? moment.statusHeadline : band.statusLabel
+        case .midWeek:
+            return band.statusLabel
+        case .lateWeek:
+            if band == .atRisk { return "Sunday push" }
+            if band == .onTrack || band == .ahead { return "Finish strong" }
+            return band.statusLabel
+        }
     }
 
     /// Absolute Sunday target kg. Prefer live math from week-start / current + clamped delta.

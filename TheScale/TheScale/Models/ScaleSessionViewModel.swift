@@ -116,6 +116,9 @@ final class ScaleSessionViewModel: ObservableObject {
     )
     /// Last computed weekly target mode (catch-up / accelerate / aggressive).
     @Published private(set) var weeklyTargetMode: WeeklyTargetMode = .aggressive
+    /// True after history + baseline have warmed Progress / week-start math.
+    @Published private(set) var progressSurfaceWarmed = false
+    private var lastProgressWarmAt: Date?
     @Published var hasCompletedOnboarding: Bool {
         didSet { OnboardingStore.hasCompleted = hasCompletedOnboarding }
     }
@@ -933,6 +936,34 @@ final class ScaleSessionViewModel: ObservableObject {
         next.targetDeltaKg = deltaKg
         next.title = "Nudge \(UnitFormat.massDeltaString(deltaKg, system: preferredUnits, fractionDigits: 1)) this week"
         weeklyGoal = next
+    }
+
+    /// Prefetch Health history + baseline, then reconcile week-start so Progress paints
+    /// this week's plan immediately (no first-tab Health stall / last-week ghost %).
+    @discardableResult
+    func warmProgressSurface(force: Bool = false) async -> WeeklyGoalSurface {
+        if !force,
+           progressSurfaceWarmed,
+           let last = lastProgressWarmAt,
+           Date().timeIntervalSince(last) < 45 {
+            ensureWeeklyGoalBaseline()
+            rebuildWeeklyGoalSurface()
+            return weeklyGoalSurface
+        }
+
+        if historyWeights.isEmpty {
+            do {
+                try await loadHistory(for: .lastTwoWeeks)
+            } catch {
+                // Soft-fail: baseline path below still helps Monday roll.
+            }
+        }
+        await refreshHealthBaseline()
+        ensureWeeklyGoalBaseline()
+        rebuildWeeklyGoalSurface()
+        progressSurfaceWarmed = true
+        lastProgressWarmAt = Date()
+        return weeklyGoalSurface
     }
 
     /// Lock Mon→Sun week baseline to last Monday's weight (Health/history).

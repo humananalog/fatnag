@@ -5,6 +5,8 @@ import SwiftUI
 struct HorizonArcBankView: View {
     var sundayTargetKg: Double?
     var weeklyDeltaKg: Double
+    var movedDeltaKg: Double? = nil
+    var isWinnerWeek: Bool = false
     var unitSystem: PreferredUnitSystem = .metric
     var bandLabel: String
     var weekTitle: String
@@ -14,8 +16,6 @@ struct HorizonArcBankView: View {
     var steel: Color
     var accent: Color
     var compact: Bool
-
-    private var isWinnerWeek: Bool { weeklyDeltaKg < -0.001 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 18 : 22) {
@@ -66,11 +66,18 @@ struct HorizonArcBankView: View {
                 Text(bandLabel)
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundStyle(ink)
-                Text(deltaChip)
-                    .font(.system(size: isWinnerWeek ? 18 : 14, weight: .bold, design: .rounded))
+                Text(goalChip)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(isWinnerWeek ? accent : steel)
+                    .foregroundStyle(steel)
                     .accessibilityIdentifier("home.weekDelta")
+                if let movedChip {
+                    Text(movedChip)
+                        .font(.system(size: isWinnerWeek ? 16 : 13, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(isWinnerWeek ? accent : ink.opacity(0.72))
+                        .accessibilityIdentifier("home.movedDelta")
+                }
                 if isWinnerWeek {
                     Text("Winner")
                         .font(.system(size: 12, weight: .heavy, design: .rounded))
@@ -85,17 +92,22 @@ struct HorizonArcBankView: View {
         .accessibilityIdentifier("home.weekHero")
     }
 
-    private var deltaChip: String {
-        let signed = UnitFormat.massDeltaString(weeklyDeltaKg, system: unitSystem)
-        return "\(signed) this week"
+    private var goalChip: String {
+        "Goal \(UnitFormat.massDeltaString(weeklyDeltaKg, system: unitSystem))"
+    }
+
+    private var movedChip: String? {
+        guard let movedDeltaKg else { return nil }
+        return "Moved \(UnitFormat.massDeltaString(movedDeltaKg, system: unitSystem))"
     }
 
     private var sundayAccessibilityLabel: String {
+        let moveBit = movedChip.map { ". \($0)" } ?? ""
         if let kg = sundayTargetKg {
             let mass = UnitFormat.massString(kg, system: unitSystem, fractionDigits: 1)
-            return "Sunday target \(mass). \(bandLabel). \(deltaChip)"
+            return "Sunday target \(mass). \(bandLabel). \(goalChip)\(moveBit)"
         }
-        return "\(weekTitle). \(bandLabel). \(deltaChip)"
+        return "\(weekTitle). \(bandLabel). \(goalChip)\(moveBit)"
     }
 
     private var activityGauges: some View {

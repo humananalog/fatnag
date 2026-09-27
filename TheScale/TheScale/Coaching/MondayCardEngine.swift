@@ -254,8 +254,16 @@ enum MondayCardEngine {
             )
         }
 
-        // Missing stamp or prior week, still no history → seed carefully (baseline last).
-        let kg = weekStartKg ?? currentBaselineKg
+        // Missing stamp or prior week, still no history → seed carefully.
+        // On week roll (prior-week stamp), prefer live baseline so Progress does not
+        // paint last week's completed loss as this week's % / "winner" chrome.
+        let rollingFromPriorWeek = weekStartDate != nil && !storedInThisWeek
+        let kg: Double? = {
+            if rollingFromPriorWeek {
+                return currentBaselineKg ?? weekStartKg
+            }
+            return weekStartKg ?? currentBaselineKg
+        }()
         let changed = kgDiffers(kg, weekStartKg) || !dateOnMondayMidnight
         return WeekStartReconcile(
             weekStartKg: kg,

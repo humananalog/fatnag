@@ -223,4 +223,25 @@ final class MondayCardTests: XCTestCase {
         XCTAssertNotEqual(result.weekStartKg ?? -1, 83.2, accuracy: 0.01)
         _ = monday
     }
+
+    func testWeekRollWithoutHistoryUsesLiveBaselineNotLastWeekWin() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        // Prior Monday 21 Sep week-start 90.0; today is next Monday 28 Sep at 89.35 (−650g last week).
+        let priorMonday = cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 0))!
+        let thisMonday = cal.date(from: DateComponents(year: 2026, month: 9, day: 28, hour: 8))!
+        let result = MondayCardEngine.reconcileWeekStart(
+            weekStartKg: 90.0,
+            weekStartDate: priorMonday,
+            currentBaselineKg: 89.35,
+            history: [],
+            now: thisMonday,
+            calendar: cal
+        )
+        XCTAssertEqual(result.reason, "roll-to-monday")
+        XCTAssertEqual(result.weekStartKg ?? -1, 89.35, accuracy: 0.01)
+        XCTAssertEqual(cal.component(.day, from: result.weekStartDate), 28)
+        // Must not keep 90.0 or Progress paints last week's −650g as this week's win.
+        XCTAssertNotEqual(result.weekStartKg ?? -1, 90.0, accuracy: 0.01)
+    }
 }

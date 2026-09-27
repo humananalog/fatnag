@@ -211,6 +211,9 @@ struct ContentView: View {
             Task {
                 await session.reconcileAlreadyWeighedTodayFromHealth()
                 await session.refreshHomeGauges(force: false)
+                // Monday / overnight week-roll: re-warm Progress so last week's
+                // achievement never sticks as this week's %.
+                await session.warmProgressSurface(force: MondayCardEngine.isMonday())
                 await session.considerMorningWeighDrill()
                 await refreshPendingNotifBadge()
             }
@@ -259,6 +262,7 @@ struct ContentView: View {
             .task(id: session.homeTab) {
                 guard session.homeTab == .weigh else { return }
                 await session.reconcileAlreadyWeighedTodayFromHealth()
+                await session.warmProgressSurface(force: false)
             }
         }
     }
@@ -292,8 +296,10 @@ struct ContentView: View {
             HorizonArcBankView(
                 sundayTargetKg: surface.sundayTargetKg,
                 weeklyDeltaKg: surface.weeklyDeltaKg,
+                movedDeltaKg: surface.movedDeltaKg,
+                isWinnerWeek: surface.isWinnerWeek,
                 unitSystem: session.preferredUnits,
-                bandLabel: surface.band.statusLabel,
+                bandLabel: surface.statusHeadline,
                 weekTitle: surface.weekTitle,
                 metrics: surface.todayProgress,
                 targetChips: surface.dailyTargetChips,
@@ -358,16 +364,15 @@ struct ContentView: View {
     }
 
     private func bootstrapHome() async {
-        session.ensureWeeklyGoalBaseline()
-        session.rebuildWeeklyGoalSurface()
         session.refreshAlreadyWeighedToday()
         session.startPassiveListening()
+        // Warm Progress (history → baseline → Monday reconcile) in parallel with gauges
+        // so the Progress tab is ready on first swipe / tap.
         async let gauges = session.refreshHomeGauges(force: true)
-        async let baseline: Void = session.refreshHealthBaseline()
+        async let progressWarm = session.warmProgressSurface(force: true)
         _ = await gauges
-        await baseline
+        _ = await progressWarm
         await session.reconcileAlreadyWeighedTodayFromHealth()
-        session.ensureWeeklyGoalBaseline()
         await session.refreshWeeklyGoalSurface()
         await session.refreshTrendNotifications()
         ScaleNotificationRouter.openDestination = { destination in

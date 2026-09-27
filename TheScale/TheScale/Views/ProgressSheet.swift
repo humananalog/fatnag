@@ -73,22 +73,39 @@ struct ProgressSheet: View {
                         .padding(.top, 20)
                         .progressActionBlock(revealed: statusIn, reduceMotion: reduceMotion, slide: 48, fromScale: 0.55)
 
-                    weekHeroBlock
-                        .padding(.top, 18)
-                        .scaleEffect(weekStartScale, anchor: .leading)
-                        .progressActionBlock(revealed: weekStartIn, reduceMotion: reduceMotion, slide: 56, fromScale: 0.48)
+                    momentCaption
+                        .padding(.top, 6)
+                        .progressActionBlock(revealed: statusIn, reduceMotion: reduceMotion, slide: 28, fromScale: 0.7)
 
-                    sundayHeroBlock
-                        .padding(.top, 16)
-                        .scaleEffect(sundayScale, anchor: .leading)
-                        .progressActionBlock(revealed: sundayIn, reduceMotion: reduceMotion, slide: 56, fromScale: 0.48)
+                    // Monday / fresh week: lead with THIS week's Sunday target.
+                    if surface.weekMoment == .mondayFresh {
+                        sundayHeroBlock
+                            .padding(.top, 18)
+                            .scaleEffect(sundayScale, anchor: .leading)
+                            .progressActionBlock(revealed: sundayIn, reduceMotion: reduceMotion, slide: 56, fromScale: 0.48)
+
+                        weekHeroBlock
+                            .padding(.top, 16)
+                            .scaleEffect(weekStartScale, anchor: .leading)
+                            .progressActionBlock(revealed: weekStartIn, reduceMotion: reduceMotion, slide: 56, fromScale: 0.48)
+                    } else {
+                        weekHeroBlock
+                            .padding(.top, 18)
+                            .scaleEffect(weekStartScale, anchor: .leading)
+                            .progressActionBlock(revealed: weekStartIn, reduceMotion: reduceMotion, slide: 56, fromScale: 0.48)
+
+                        sundayHeroBlock
+                            .padding(.top, 16)
+                            .scaleEffect(sundayScale, anchor: .leading)
+                            .progressActionBlock(revealed: sundayIn, reduceMotion: reduceMotion, slide: 56, fromScale: 0.48)
+                    }
 
                     heroPercentBlock
                         .padding(.top, 28)
                         .progressActionBlock(revealed: heroIn, reduceMotion: reduceMotion, slide: 64, fromScale: 0.42)
                         .scaleEffect(percentScale, anchor: .leading)
 
-                    Text("weekly progress")
+                    Text(progressCaption)
                         .font(.system(size: 18, weight: .semibold, design: .rounded))
                         .foregroundStyle(atmosphere.muted)
                         .padding(.top, 4)
@@ -98,15 +115,11 @@ struct ProgressSheet: View {
                         .padding(.top, 16)
                         .progressActionBlock(revealed: gaugeIn, reduceMotion: reduceMotion, slide: 52, fromScale: 0.5)
 
-                    Text("\(UnitFormat.massDeltaString(surface.weeklyDeltaKg, system: units)) this week")
-                        .font(.system(size: surface.weeklyDeltaKg < -0.001 ? 28 : 20, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(atmosphere.accent)
+                    deltaBlock
                         .padding(.top, 10)
                         .progressActionBlock(revealed: deltaIn, reduceMotion: reduceMotion, slide: 40, fromScale: 0.58)
-                        .accessibilityIdentifier("progress.weekDelta")
 
-                    if surface.weeklyDeltaKg < -0.001 {
+                    if surface.isWinnerWeek {
                         Text("You're a winner.")
                             .font(.system(size: 16, weight: .heavy, design: .rounded))
                             .foregroundStyle(atmosphere.ink)
@@ -171,10 +184,51 @@ struct ProgressSheet: View {
     }
 
     private var statusBlock: some View {
-        Text(surface.band.statusLabel.uppercased())
+        Text(surface.statusHeadline.uppercased())
             .font(.system(size: 14, weight: .heavy, design: .rounded))
             .tracking(2.2)
             .foregroundStyle(atmosphere.accent)
+            .accessibilityIdentifier("progress.status")
+    }
+
+    private var momentCaption: some View {
+        Text(surface.detailLine)
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .foregroundStyle(atmosphere.muted)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("progress.detail")
+    }
+
+    private var progressCaption: String {
+        switch surface.weekMoment {
+        case .mondayFresh: return "week just opened"
+        case .earlyWeek: return "early-week pace"
+        case .midWeek: return "mid-week progress"
+        case .lateWeek: return "finish to Sunday"
+        }
+    }
+
+    private var deltaBlock: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Goal \(UnitFormat.massDeltaString(surface.weeklyDeltaKg, system: units))")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(atmosphere.accent)
+                .accessibilityIdentifier("progress.weekDelta")
+
+            if let moved = surface.movedDeltaKg {
+                Text("Moved \(UnitFormat.massDeltaString(moved, system: units)) so far")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(atmosphere.ink.opacity(0.78))
+                    .accessibilityIdentifier("progress.movedDelta")
+            } else {
+                Text("Weigh in to lock this week's move")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.muted)
+                    .accessibilityIdentifier("progress.movedDelta")
+            }
+        }
     }
 
     @ViewBuilder
@@ -333,22 +387,24 @@ struct ProgressSheet: View {
     }
 
     private func refreshProgressData() {
-        // Sync path first so WEEK START paints immediately from persisted + cached Health.
-        session.ensureWeeklyGoalBaseline()
         session.refreshAlreadyWeighedToday()
-        session.rebuildWeeklyGoalSurface()
-        // Then re-pull recent Health weights and re-reconcile to last Monday's mass.
-        Task {
-            await session.refreshHealthBaseline()
+        if session.progressSurfaceWarmed {
             session.ensureWeeklyGoalBaseline()
             session.rebuildWeeklyGoalSurface()
+            Task { await session.warmProgressSurface(force: false) }
+        } else {
+            // First visit before launch warm finishes — sync paint, then full warm.
+            session.ensureWeeklyGoalBaseline()
+            session.rebuildWeeklyGoalSurface()
+            Task { await session.warmProgressSurface(force: true) }
         }
     }
 
-    /// Reset → stagger in. Fires on every Progress tab access.
+    /// Reset → stagger in. Lighter when Progress was pre-warmed on launch.
     private func playEntrance() {
         entranceToken &+= 1
         let token = entranceToken
+        let warmed = session.progressSurfaceWarmed
 
         // Instant reset (no animation) so the next beat always starts from zero.
         var reset = Transaction()
@@ -358,18 +414,18 @@ struct ProgressSheet: View {
             weekStartIn = false
             sundayIn = false
             heroIn = false
-            percentScale = reduceMotion ? 1 : 0.34
-            weekStartScale = reduceMotion ? 1 : 0.42
-            sundayScale = reduceMotion ? 1 : 0.42
+            percentScale = reduceMotion || warmed ? 1 : 0.34
+            weekStartScale = reduceMotion || warmed ? 1 : 0.42
+            sundayScale = reduceMotion || warmed ? 1 : 0.42
             gaugeIn = false
-            gaugeFill = 0
+            gaugeFill = warmed || reduceMotion ? targetGauge : 0
             deltaIn = false
             coachIn = false
             actionsIn = false
-            displayedPercent = reduceMotion ? percent : 0
+            displayedPercent = reduceMotion || warmed ? percent : 0
         }
 
-        if reduceMotion {
+        if reduceMotion || warmed {
             statusIn = true
             weekStartIn = true
             sundayIn = true

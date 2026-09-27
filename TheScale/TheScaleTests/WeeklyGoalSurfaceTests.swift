@@ -334,4 +334,56 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         XCTAssertGreaterThan(mid, 0.45)
         XCTAssertLessThan(mid, 0.55)
     }
+
+    func testMondayFreshFocusesPlanNotLastWeekWin() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let monday = cal.date(from: DateComponents(year: 2026, month: 9, day: 28, hour: 8))!
+        var goal = WeeklyMiniGoal.default
+        goal.targetDeltaKg = -0.65
+        goal.weekStartKg = 89.35
+        goal.weekStartDate = monday
+        let surface = WeeklyGoalSurfaceEngine.build(
+            weeklyGoal: goal,
+            currentKg: 89.35,
+            profile: .default,
+            digest: nil,
+            now: monday,
+            calendar: cal
+        )
+        XCTAssertEqual(surface.weekMoment, .mondayFresh)
+        XCTAssertEqual(surface.statusHeadline, "This week's plan")
+        XCTAssertEqual(surface.weeklyDeltaKg, -0.65, accuracy: 0.001)
+        XCTAssertEqual(surface.movedDeltaKg ?? 99, 0, accuracy: 0.01)
+        XCTAssertEqual(surface.completionPercent, 0)
+        XCTAssertFalse(surface.isWinnerWeek)
+        XCTAssertNotEqual(surface.band, .crushed)
+    }
+
+    func testWinnerRequiresMovedNotJustNegativePlan() {
+        XCTAssertFalse(
+            WeeklyGoalSurfaceEngine.isWinnerWeek(
+                movedDeltaKg: 0,
+                targetDeltaKg: -0.65,
+                band: .onTrack,
+                moment: .midWeek
+            )
+        )
+        XCTAssertTrue(
+            WeeklyGoalSurfaceEngine.isWinnerWeek(
+                movedDeltaKg: -0.66,
+                targetDeltaKg: -0.65,
+                band: .crushed,
+                moment: .lateWeek
+            )
+        )
+        XCTAssertFalse(
+            WeeklyGoalSurfaceEngine.isWinnerWeek(
+                movedDeltaKg: -0.66,
+                targetDeltaKg: -0.65,
+                band: .crushed,
+                moment: .mondayFresh
+            )
+        )
+    }
 }
