@@ -11,7 +11,7 @@ FATNAG is a native iOS app. BLE and HealthKit stay on-device. Optional coaching 
 | **UserDefaults** | Profile, persona, calibration, Coach memory, notification prefs |
 | **Foundation Models** | On-device `SystemLanguageModel` / `LanguageModelSession` (Apple Intelligence) |
 | **ScaleOnDevicePolish** | Metal 0.5B sidecar for non-AI iPhones (`Packages/ScaleOnDevicePolish`) |
-| **Grok proxy Worker** | Holds `XAI_API_KEY`; streams or returns Grok completions |
+| **Grok proxy Worker** | Holds `XAI_API_KEY`; requires `APP_SHARED_SECRET`; rate limits + weekly KV caps; streams or returns Grok completions |
 | **xAI Grok** | Full Coach chat + specialist consults behind one user-facing voice |
 
 ```
@@ -35,7 +35,7 @@ Mi Scale 2 ──BLE ads──► FATNAG ──write/read──► Apple Health
 | `OnDevicePolish/` | Host bridge for `ScaleOnDevicePolish` install gate |
 | `Notifications/` | Bad-trend + Coach wake schedulers |
 | `Views/` | Home, live weigh-in, History, Manual, Coach, Progress, Monday card, Settings, 3-step onboarding, soft App Review sheet |
-| `Config/` | `TheScale.xcconfig` → Info.plist `GrokProxyURL` / `GrokAPIKey` |
+| `Config/` | `TheScale.xcconfig` → Info.plist `GrokProxyURL` / `GrokAPIKey` / `GrokAppSecret` (secret via gitignored `Secrets.xcconfig`) |
 
 ## Onboarding (2.11.0+)
 

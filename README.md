@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 1.0.0 (build 103) |
+| **Version** | 1.0.1 (build 104) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -22,7 +22,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - `ITSAppUsesNonExemptEncryption = false` (HTTPS only)
 - Settings has **no** Developer / QA chrome (removed for 1.0.0; Notification Center DEBUG tools stay compile-gated)
 - Enable **Time Sensitive** + **Communication Notifications** on the App ID before Archive (`TheScale/docs/operations/app-id-entitlements.md`)
-- Leave `GROK_API_KEY` empty for store IPAs; Worker holds `XAI_API_KEY`
+- Leave `GROK_API_KEY` empty for store IPAs; Worker holds `XAI_API_KEY`. Set `GROK_APP_SECRET` via gitignored `Secrets.xcconfig` to match Worker `APP_SHARED_SECRET` (fail closed if missing).
 - Watch app / home-screen widgets = **post-1.0**; Live Activities during weigh-in are shippable
 - Review notes: see `ScaleLegal.appStoreReviewNotes`
 
@@ -81,6 +81,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **Paywall + Settings polish (2.14.1):** Unlock Coach one-pager (high contrast Free/Plus/Pro); meal cards match sheet background; Settings Done dismisses keyboard; Settings regrouped (You / Weekly AI / Coach / Alerts / Scale / Legal).
 - **AI usage / meals / units (2.14.0):** Settings shows weekly online AI % + used/limit with Upgrade; meal carousel peeks + page dots + color; quota-exhausted menus via Foundation Models or solid metric-portion templates; preferred metric/imperial units across Settings, live weigh-in, meal plan, and Coach prompts.
 - **Home day coach (2.13.0):** Today-ahead advice (local clock), macro-goal ETA vs planned date, passive BLE auto-open live card (no Find Scale primary), 10s auto-confirm, weigh-in analysis card (congratulate / reward / punish). Meal plan respects IF 16-8 + time of day; retro snake spinner while generating. Chart point comments (256 chars, on-device, last 30 days). Flat home (cards only for meal carousel).
+- **Grok proxy hardening (1.0.1):** Worker requires `APP_SHARED_SECRET` (`X-Scale-App-Secret`); IP + device rate limits; KV weekly Free/Plus/Pro caps (5/28/120); iOS sends device id + plan + credit headers. Fail closed without `GROK_APP_SECRET` in Secrets.xcconfig.
 - **Consumer Settings 1.0.0:** FATNAG brand header; App details shows marketing **1.0.0**; Glacier Forge / Bloom Copper contrast; StoreKit **Restore purchases** on Weekly AI; privacy/feedback/legal links; export filename `fatnag-data-export.json`. All Settings Developer/QA chrome deleted (plan override, force Monday, force review, sample notifications, calibration presets, DEBUG commerce).
 - **Feedback + App Store rating (2.53.0):** Settings **Send feedback** (and optional soft ask after a happy weigh-in) → Supabase `app_feedback` via Edge Function `submit-feedback` → Resend to `dev@humananalog.ai`. Soft star sheet after **6** successful weigh-ins; system `requestReview` at most once per install. Sandbox IAP checklist: Agent Store `docs/feedback-rating-sandbox-handoff.md` + `TheScale/docs/operations/storekit-humananalog.md`.
 - **App Store commercial polish (2.52.5):** Release strips Alerts Developer QA chrome and personal calibration preset. Paywall has tappable Privacy/Terms (in-app sheets) plus auto-renew copy. Public Privacy / Terms / Support pages live at `humananalog.github.io/the-scale`. Consumer copy scrub (Diet/Location not set; Settings web-link footnote).
@@ -149,11 +150,12 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
 ### Shared Grok proxy
 
-Preferred: key stays on the Worker (never in the IPA).
+Preferred: xAI key stays on the Worker (never in the IPA). App authenticates with a separate shared secret.
 
 ```bash
 cd workers/grok-proxy
-npx wrangler secret put XAI_API_KEY   # paste at prompt; never commit
+npx wrangler secret put XAI_API_KEY          # paste at prompt; never commit
+npx wrangler secret put APP_SHARED_SECRET    # openssl rand -hex 32; same value → Secrets.xcconfig
 npx wrangler deploy
 ```
 
@@ -168,11 +170,14 @@ GROK_PROXY_URL = https://the-scale-grok.the-scale-grok.workers.dev
 # RIGHT (empty $() splice)
 GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
 GROK_API_KEY =
+GROK_APP_SECRET =
 ```
 
-Optional gitignored override: copy `Secrets.example.xcconfig` → `Secrets.xcconfig`. Prefer Worker over baking `GROK_API_KEY` into the IPA.
+Gitignored override: copy `Secrets.example.xcconfig` → `Secrets.xcconfig` and set `GROK_APP_SECRET`. Empty secret → fail closed (offline Coach). Never bake `XAI_API_KEY` into the IPA.
 
-Health check: `curl -s https://the-scale-grok.the-scale-grok.workers.dev` → `{"ok":true,...,"stream":true}`
+Worker also rate-limits IP/device and enforces Free/Plus/Pro weekly caps in KV. Details: `workers/grok-proxy/README.md`.
+
+Health check: `curl -s https://the-scale-grok.the-scale-grok.workers.dev` → `ok`, `auth: shared_secret`, `weekly_limits`.
 
 ### Apple Intelligence + on-device polish sidecar (2.51.0)
 

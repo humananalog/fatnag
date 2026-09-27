@@ -22,6 +22,8 @@ Hybrid routing: **Grok Worker** for full Coach chat; **Foundation Models** (Appl
 ```bash
 cd workers/grok-proxy
 npx wrangler secret put XAI_API_KEY
+# Same random value as GROK_APP_SECRET in Secrets.xcconfig:
+npx wrangler secret put APP_SHARED_SECRET
 npx wrangler deploy
 ```
 
@@ -30,11 +32,14 @@ Tracked non-secret URL in `TheScale/Config/TheScale.xcconfig`:
 ```
 GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
 GROK_API_KEY =
+GROK_APP_SECRET =
 ```
+
+Put `GROK_APP_SECRET` only in gitignored `Secrets.xcconfig` (copy from `Secrets.example.xcconfig`). Empty secret → **fail closed** (offline Coach) even when the proxy URL is set. Never put `XAI_API_KEY` in xcconfig.
 
 Xcode `.xcconfig` treats `//` as a comment. A literal `https://…` silently becomes `https:` and breaks with `NSURLErrorDomain -1000`. Always use `https:/$()/host`.
 
-Optional gitignored `Secrets.xcconfig` can override URL or bake a key (IPA-extractable; prefer Worker). Intentionally empty config → offline mock replies. Revoke for a user by turning off consent.
+iOS sends `X-Scale-App-Secret`, `X-Scale-Device-Id` (`ScaleAnonymousIdentity`), `X-Scale-Plan`, and `X-Scale-Credit` on every proxy POST. Worker rate-limits IP/device and enforces weekly caps server-side.
 
 Worker notes: [workers/grok-proxy/README.md](../workers/grok-proxy/README.md).
 

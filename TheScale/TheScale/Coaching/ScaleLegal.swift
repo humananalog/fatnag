@@ -292,7 +292,7 @@ enum ScaleLegal {
     Hardware: Xiaomi Mi Body Composition Scale 2 via Bluetooth LE advertisements (no pairing cloud).
     HealthKit: write mass/BMI/fat%/lean on Confirm; read only types used for charts + fitness coaching digests.
     Background: healthkit observers + enableBackgroundDelivery for workouts/sleep/weight/steps/HR; BGAppRefresh + BGProcessing as backups for fitness checks. iOS may throttle.
-    Network: optional Keel Coach via HTTPS Worker after explicit consent. Store builds should leave GROK_API_KEY empty (Worker holds the secret).
+    Network: optional Keel Coach via HTTPS Worker after explicit consent. Store builds should leave GROK_API_KEY empty (Worker holds XAI_API_KEY). App sends GROK_APP_SECRET (shared Worker secret via Secrets.xcconfig), never the xAI master key.
     Notifications: local UNUserNotificationCenter; Time Sensitive only for user-requested wake pings; Communication-style Coach chrome when entitlement allows.
     Medical: disclaimer in onboarding + Settings → Legal only; never in notification bodies.
     Privacy: GDPR/CCPA texts in Settings; in-app Export / Erase; Privacy Policy \(privacyPolicyURL.absoluteString); Terms \(termsOfUseURL.absoluteString); age gate \(minimumAgeYears)+.

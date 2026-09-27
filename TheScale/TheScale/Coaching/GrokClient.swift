@@ -300,6 +300,9 @@ actor GrokClient {
         case notConfigured(String)
         case malformedProxy(String)
         case badURL
+        case unauthorized
+        case rateLimited(String)
+        case quotaExhausted(String)
         case httpStatus(Int)
         case emptyResponse
         case transport(String)
@@ -314,13 +317,24 @@ actor GrokClient {
                 return detail
             case .badURL:
                 return "Keel proxy URL is invalid (NSURLError bad URL). Rebuild with GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev"
+            case .unauthorized:
+                return "Keel proxy rejected this build (missing or wrong GROK_APP_SECRET). Set Secrets.xcconfig to match Worker APP_SHARED_SECRET and rebuild."
+            case .rateLimited(let detail):
+                return detail
+            case .quotaExhausted(let detail):
+                return detail
             case .httpStatus(let code):
-                return "Keel proxy returned HTTP \(code). Check Worker health / XAI_API_KEY secret."
+                return "Keel proxy returned HTTP \(code). Check Worker health / XAI_API_KEY / APP_SHARED_SECRET."
             case .emptyResponse:
                 return "Keel returned an empty reply. Try again in a moment."
             case .transport(let message):
                 return "Keel request failed: \(message)"
             }
+        }
+
+        var isQuotaLock: Bool {
+            if case .quotaExhausted = self { return true }
+            return false
         }
     }
 
@@ -428,7 +442,8 @@ actor GrokClient {
             if let notes = try? await fetchSpecialistNotes(
                 specialty: specialty,
                 brief: brief,
-                transport: transport
+                transport: transport,
+                burnsCredit: false
             ), !notes.isEmpty {
                 consultNotes = "\n\nInternal \(specialty.title) consult (do not mention this role):\n\(notes)"
             }
@@ -483,7 +498,19 @@ actor GrokClient {
                 CoachReply(role: .orchestrator, text: cleaned, usedNetwork: true)
             )
         } catch let failure as LiveFailure {
-            await onUpdate(failureReply(failure, brief: brief, userText: userText))
+            if failure.isQuotaLock {
+                await onUpdate(
+                    CoachReply(
+                        role: .orchestrator,
+                        text: failure.userMessage,
+                        usedNetwork: false,
+                        failureReason: failure.userMessage,
+                        isQuotaLock: true
+                    )
+                )
+            } else {
+                await onUpdate(failureReply(failure, brief: brief, userText: userText))
+            }
         } catch {
             if let urlError = error as? URLError, urlError.code == .badURL {
                 await onUpdate(failureReply(.badURL, brief: brief, userText: userText))
@@ -955,7 +982,8 @@ actor GrokClient {
     private func fetchSpecialistNotes(
         specialty: CoachAgentRole,
         brief: CoachBrief,
-        transport: Transport
+        transport: Transport,
+        burnsCredit: Bool
     ) async throws -> String {
         let body: [String: Any] = [
             "model": Self.liveModel,
@@ -970,12 +998,21 @@ actor GrokClient {
                 ]
             ]
         ]
-        let data = try await postChat(body: body, transport: transport, timeout: 25)
+        let data = try await postChat(
+            body: body,
+            transport: transport,
+            timeout: 25,
+            burnsCredit: burnsCredit
+        )
         return Self.parseContent(from: data)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
     private func resolveTransport() -> Transport? {
-        if let proxy = GrokSharedConfig.proxyURL {
+        // Authenticated proxy preferred; baked key is a private-build escape hatch only.
+        if GrokSharedConfig.proxyURL != nil {
+            guard GrokSharedConfig.appSecret != nil, let proxy = GrokSharedConfig.proxyURL else {
+                return nil
+            }
             return .proxy(proxy)
         }
         if let key = GrokSharedConfig.bakedAPIKey {
@@ -994,13 +1031,27 @@ actor GrokClient {
         }
     }
 
-    private func makeRequest(body: [String: Any], transport: Transport, timeout: TimeInterval) throws -> URLRequest {
+    private func makeRequest(
+        body: [String: Any],
+        transport: Transport,
+        timeout: TimeInterval,
+        burnsCredit: Bool
+    ) async throws -> URLRequest {
         var request: URLRequest
         switch transport {
         case .proxy(let proxy):
             request = URLRequest(url: proxy)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            guard let secret = GrokSharedConfig.appSecret else {
+                throw LiveFailure.unauthorized
+            }
+            request.setValue(secret, forHTTPHeaderField: "X-Scale-App-Secret")
+            let deviceId = await MainActor.run { ScaleAnonymousIdentity.userId.uuidString }
+            let plan = await MainActor.run { ScaleSubscriptionStore.shared.plan.rawValue }
+            request.setValue(deviceId, forHTTPHeaderField: "X-Scale-Device-Id")
+            request.setValue(plan, forHTTPHeaderField: "X-Scale-Plan")
+            request.setValue(burnsCredit ? "1" : "0", forHTTPHeaderField: "X-Scale-Credit")
         case .direct(let apiKey):
             request = URLRequest(url: directEndpoint)
             request.httpMethod = "POST"
@@ -1012,8 +1063,18 @@ actor GrokClient {
         return request
     }
 
-    private func postChat(body: [String: Any], transport: Transport, timeout: TimeInterval) async throws -> Data {
-        let request = try makeRequest(body: body, transport: transport, timeout: timeout)
+    private func postChat(
+        body: [String: Any],
+        transport: Transport,
+        timeout: TimeInterval,
+        burnsCredit: Bool = true
+    ) async throws -> Data {
+        let request = try await makeRequest(
+            body: body,
+            transport: transport,
+            timeout: timeout,
+            burnsCredit: burnsCredit
+        )
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await session.data(for: request)
@@ -1024,7 +1085,7 @@ actor GrokClient {
             throw LiveFailure.transport("No HTTP response")
         }
         guard (200..<300).contains(http.statusCode) else {
-            throw LiveFailure.httpStatus(http.statusCode)
+            throw Self.mapHTTPFailure(status: http.statusCode, data: data)
         }
         return data
     }
@@ -1034,9 +1095,15 @@ actor GrokClient {
         body: [String: Any],
         transport: Transport,
         timeout: TimeInterval,
+        burnsCredit: Bool = true,
         onDelta: @Sendable (String) async -> Void
     ) async throws {
-        let request = try makeRequest(body: body, transport: transport, timeout: timeout)
+        let request = try await makeRequest(
+            body: body,
+            transport: transport,
+            timeout: timeout,
+            burnsCredit: burnsCredit
+        )
         let (bytes, response): (URLSession.AsyncBytes, URLResponse)
         do {
             (bytes, response) = try await session.bytes(for: request)
@@ -1047,13 +1114,40 @@ actor GrokClient {
             throw LiveFailure.transport("No HTTP response")
         }
         guard (200..<300).contains(http.statusCode) else {
-            throw LiveFailure.httpStatus(http.statusCode)
+            // Drain a small error body when the Worker returns JSON instead of SSE.
+            var errorChunks: [UInt8] = []
+            for try await byte in bytes {
+                errorChunks.append(byte)
+                if errorChunks.count >= 4_096 { break }
+            }
+            throw Self.mapHTTPFailure(status: http.statusCode, data: Data(errorChunks))
         }
 
         for try await line in bytes.lines {
             if let delta = Self.parseSSEDelta(line: line) {
                 await onDelta(delta)
             }
+        }
+    }
+
+    /// Map Worker / upstream HTTP failures into typed LiveFailure (never logs secrets).
+    nonisolated private static func mapHTTPFailure(status: Int, data: Data) -> LiveFailure {
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let error = (json?["error"] as? String) ?? ""
+        let detail = (json?["detail"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch status {
+        case 401:
+            return .unauthorized
+        case 429 where error == "quota_exhausted":
+            let message = detail?.isEmpty == false
+                ? detail!
+                : "Weekly Keel limit hit on the proxy. Unlock a higher plan or wait until next Monday."
+            return .quotaExhausted(message)
+        case 429:
+            let scope = (json?["scope"] as? String) ?? "request"
+            return .rateLimited("Keel rate limit (\(scope)). Wait a minute and try again.")
+        default:
+            return .httpStatus(status)
         }
     }
 

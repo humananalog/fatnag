@@ -2,8 +2,38 @@ name = "the-scale-grok"
 main = "src/index.js"
 compatibility_date = "2025-09-01"
 
-# Put the xAI key on the Worker (never in the iOS IPA):
+# Secrets (never commit values):
 #   npx wrangler secret put XAI_API_KEY
-#
-# Optional: restrict callers (comma-separated Origin or bundle id markers). Leave unset for private apps.
+#   npx wrangler secret put APP_SHARED_SECRET
+# Optional: comma-separated Origin allowlist
 #   npx wrangler secret put ALLOWED_ORIGINS
+#
+# [secrets]
+# required = ["XAI_API_KEY", "APP_SHARED_SECRET"]
+# Uncomment after both secrets exist on the Worker so deploy fails closed if missing.
+
+# Weekly credit ledger + fallback counters (ISO week × device).
+# Created via Cloudflare API / dashboard as "the-scale-grok-limits".
+# If deploy targets a different account, recreate and paste the new id:
+#   npx wrangler kv namespace create the-scale-grok-limits
+[[kv_namespaces]]
+binding = "LIMITS"
+id = "7f30cbbe1353401985a58eaab48a6277"
+
+# Burst protection (Cloudflare Rate Limiting binding; period must be 10 or 60).
+# namespace_id is an account-local integer label, not a KV id.
+[[ratelimits]]
+name = "IP_RATE_LIMIT"
+namespace_id = "6101"
+
+  [ratelimits.simple]
+  limit = 30
+  period = 60
+
+[[ratelimits]]
+name = "DEVICE_RATE_LIMIT"
+namespace_id = "6102"
+
+  [ratelimits.simple]
+  limit = 20
+  period = 60

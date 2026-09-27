@@ -56,6 +56,8 @@
 	<string>$(GROK_PROXY_URL)</string>
 	<key>GrokAPIKey</key>
 	<string>$(GROK_API_KEY)</string>
+	<key>GrokAppSecret</key>
+	<string>$(GROK_APP_SECRET)</string>
 	<key>SupabaseAnonKey</key>
 	<string>$(SUPABASE_ANON_KEY)</string>
 	<key>UIApplicationSceneManifest</key>

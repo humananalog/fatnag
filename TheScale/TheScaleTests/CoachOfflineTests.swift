@@ -192,10 +192,15 @@ final class CoachOfflineTests: XCTestCase {
     }
 
     func testSharedConfigStatusWithoutSecretsIsOffline() {
-        // Bundle Info.plist in unit tests has empty / unset Grok keys → offline path.
+        // Bundle Info.plist in unit tests has empty / unset Grok keys or secret → offline path.
         XCTAssertFalse(GrokSharedConfig.isLiveConfigured)
-        XCTAssertTrue(GrokSharedConfig.statusSummary.lowercased().contains("offline")
-            || GrokSharedConfig.statusSummary.lowercased().contains("no shared"))
+        let summary = GrokSharedConfig.statusSummary.lowercased()
+        XCTAssertTrue(
+            summary.contains("offline")
+                || summary.contains("no shared")
+                || summary.contains("secret")
+                || summary.contains("grok_app_secret")
+        )
     }
 
     func testLegacyKeychainClearIsIdempotent() {

@@ -9,6 +9,9 @@
 
 GROK_PROXY_URL = https:/$()/the-scale-grok.the-scale-grok.workers.dev
 GROK_API_KEY =
+// App ↔ Worker shared secret (NOT the xAI master key). Leave empty in git; set in Secrets.xcconfig.
+// Empty → fail closed (offline Coach) even when GROK_PROXY_URL is set.
+GROK_APP_SECRET =
 // Optional override for feedback Edge Function anon key (defaults baked in ScaleFeedbackConfig).
 SUPABASE_ANON_KEY =
 

@@ -11,9 +11,18 @@ Industry-standard tier names: **Free**, **Plus**, **Pro**.
 ## Product rules
 
 - Every tier keeps the **full app experience** (weigh-in, Health sync, charts, Monday card UI, notifications, Foundation Models polish).
-- Only **live Grok** network calls consume credits (chat turn, Monday card rewrite, fitness Grok check). Each counts as **1** credit; specialist consults behind a chat turn do not add extra burns.
+- Only **live Grok** network calls consume credits (chat turn, Monday card rewrite, fitness Grok check, meal plan). Each counts as **1** credit; specialist consults behind a chat turn do not add extra burns (`X-Scale-Credit: 0` on the Worker).
 - Credits reset each **ISO week** (Monday). Exhausted Free → unlock Plus; exhausted Plus → unlock Pro; Pro waits for Monday.
 - Model: `grok-4.20-non-reasoning` (Human Analog console). Avoid reasoning SKUs for COGS.
+
+## Server-side enforcement (Worker)
+
+Client `CoachWeeklyQuota` (UserDefaults) is UX only. The Cloudflare Worker (`the-scale-grok`) enforces the same Free **5** / Plus **28** / Pro **120** caps in KV, keyed by anonymous device id + UTC ISO week. See [workers/grok-proxy/README.md](../workers/grok-proxy/README.md).
+
+| Divergence | Detail |
+|------------|--------|
+| Week boundary | iOS uses the device calendar; Worker uses **UTC** ISO week. Near Monday UTC midnight, counts can disagree briefly. Server wins for spend. |
+| Plan claim | Worker trusts `X-Scale-Plan` from the app until App Store receipt verification lands. Shared secret + rate limits raise the abuse bar. |
 
 ## StoreKit
 
