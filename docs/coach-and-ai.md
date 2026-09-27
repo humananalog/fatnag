@@ -86,3 +86,7 @@ Never appended to chat, Progress roast, or notifications. Client sanitizer strip
 6. Coach reminders (2.7.2+): `remind me in 2 minutes` → exact local time in chat + Settings pending list → banner lands.
 
 See [health-and-notifications.md](health-and-notifications.md) for alert surfaces.
+
+## Female coach voice (2.52.0)
+
+When profile sex is female, Keel uses a nurturing, praise-heavy, funny coach tone for Grok, Apple Intelligence, and the Metal polish sidecar. Daily energy and protein targets are phrased as visual plates (palm of protein, fist of carbs, handful of greens) instead of leading with bare calorie figures. Pace lines avoid jargon like ETA.

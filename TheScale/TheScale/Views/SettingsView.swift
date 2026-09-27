@@ -25,6 +25,17 @@ struct SettingsView: View {
     @State private var exportShareURL: URL?
     @State private var showEraseConfirm = false
     @State private var dataRightsNote: String?
+    /// Draft age on the wheel before Confirm.
+    @State private var draftAgeYears: Int = 30
+    @State private var pendingHeightCm: Double?
+    @State private var pendingAgeYears: Double?
+    @State private var pendingIdealKg: Double?
+    @State private var pendingSex: UserBodyProfile.Sex?
+    @State private var confirmHeightChange = false
+    @State private var confirmAgeChange = false
+    @State private var confirmDreamWeightChange = false
+    @State private var confirmSexChange = false
+    @State private var draftHeightDisplay: Double = 170
     @Environment(\.dismiss) private var dismiss
 
     private enum Field: Hashable {
@@ -143,6 +154,51 @@ struct SettingsView: View {
             }
         } message: {
             Text("Removes the stored scale factor and offset. Your reference mass value is kept.")
+        }
+        .alert("Confirm height change?", isPresented: $confirmHeightChange) {
+            Button("No", role: .cancel) {
+                pendingHeightCm = nil
+                syncDraftHeightFromProfile()
+            }
+            Button("Yes") { applyPendingHeight() }
+        } message: {
+            if let cm = pendingHeightCm {
+                Text(
+                    "Update height to \(UnitFormat.heightString(cm, system: session.preferredUnits, fractionDigits: session.preferredUnits == .metric ? 0 : 1))? BMI, dream weight band, and body-fat math will refresh."
+                )
+            }
+        }
+        .alert("Confirm age change?", isPresented: $confirmAgeChange) {
+            Button("No", role: .cancel) {
+                pendingAgeYears = nil
+                draftAgeYears = Int(session.profile.ageYears.rounded())
+            }
+            Button("Yes") { applyPendingAge() }
+        } message: {
+            if let age = pendingAgeYears {
+                Text("Update age to \(Int(age.rounded())) years? Dream targets and suggested body fat will refresh.")
+            }
+        }
+        .alert("Confirm dream weight?", isPresented: $confirmDreamWeightChange) {
+            Button("No", role: .cancel) {
+                pendingIdealKg = nil
+            }
+            Button("Yes") { applyPendingDreamWeight() }
+        } message: {
+            if let kg = pendingIdealKg {
+                Text(
+                    "Set dream weight to \(UnitFormat.massString(kg, system: session.preferredUnits, fractionDigits: 1))?"
+                )
+            }
+        }
+        .alert(
+            "Changing gender is a painful process, are you sure you want to do that?",
+            isPresented: $confirmSexChange
+        ) {
+            Button("No", role: .cancel) { pendingSex = nil }
+            Button("Yes") { applyPendingSex() }
+        } message: {
+            Text("Targets and body-composition formulas will recalibrate for the new gender. Not the same variables for women and men.")
         }
     }
 
@@ -352,30 +408,27 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Height",
-                    help: "Used for BMI and body-fat math. About 120-250 cm / 3'11\"-8'2\"."
+                    help: "Used for BMI and body-fat math. Changing asks for confirmation. About 120-250 cm / 3'11\"-8'2\"."
                 ) {
                     HStack(spacing: 6) {
                         TextField(
                             session.preferredUnits.heightLabel,
-                            value: Binding(
-                                get: {
-                                    UnitFormat.height(fromCm: session.profile.heightCm, system: session.preferredUnits)
-                                },
-                                set: { display in
-                                    let cm = UnitFormat.cm(fromHeight: display, system: session.preferredUnits)
-                                    let result = ProfileNumericBounds.clampHeightCm(cm)
-                                    session.profile.heightCm = result.value
-                                    heightValidationNote = result.message
-                                }
-                            ),
+                            value: $draftHeightDisplay,
                             format: .number.precision(.fractionLength(session.preferredUnits == .metric ? 0 : 1))
                         )
                         .focused($focusedField, equals: .height)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(minWidth: 64)
+                        .onChange(of: focusedField) { _, field in
+                            if field != .height {
+                                proposeHeightFromDraft()
+                            }
+                        }
                         Text(session.preferredUnits.heightLabel)
                             .foregroundStyle(steel)
+                        Button("Apply") { proposeHeightFromDraft() }
+                            .font(.caption.weight(.semibold))
                     }
                 }
                 if let heightValidationNote {
@@ -384,26 +437,22 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Age",
-                    help: "Adults only. 18 to 100."
+                    help: "Adults only. Apple wheel selector. Changing asks for confirmation."
                 ) {
-                    HStack(spacing: 6) {
-                        TextField(
-                            "years",
-                            value: Binding(
-                                get: { session.profile.ageYears },
-                                set: { raw in
-                                    let result = ProfileNumericBounds.clampAgeYears(raw)
-                                    session.profile.ageYears = result.value
-                                    ageValidationNote = result.message
-                                }
-                            ),
-                            format: .number.precision(.fractionLength(0))
-                        )
-                        .focused($focusedField, equals: .age)
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
-                        .frame(minWidth: 64)
-                        Text("years").foregroundStyle(steel)
+                    VStack(spacing: 8) {
+                        Picker("Age", selection: $draftAgeYears) {
+                            ForEach(Int(UserBodyProfile.minimumAgeYears)...Int(UserBodyProfile.maximumAgeYears), id: \.self) { year in
+                                Text("\(year) years").tag(year)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(maxHeight: 120)
+                        .accessibilityIdentifier("settings.age.wheel")
+                        Button("Apply age") {
+                            proposeAgeFromDraft()
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
                     }
                 }
                 if let ageValidationNote {
@@ -415,7 +464,7 @@ struct SettingsView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(ink)
                     Text(
-                        "Drag the scale. Range is BMI-safe for your height, sex, and age. Display follows Units above; storage stays kg."
+                        "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Markers follow metric or imperial Units."
                     )
                     .font(.caption2)
                     .foregroundStyle(steel)
@@ -423,9 +472,9 @@ struct SettingsView: View {
 
                     AnalogDreamScaleView(
                         weightKg: Binding(
-                            get: { session.profile.idealWeightKg },
+                            get: { pendingIdealKg ?? session.profile.idealWeightKg },
                             set: { next in
-                                commitIdealWeightKg(next)
+                                pendingIdealKg = next
                             }
                         ),
                         boundsKg: dreamBoundsKg,
@@ -434,14 +483,20 @@ struct SettingsView: View {
                         steel: steel,
                         accent: accent,
                         accessibilityId: "settings.targetWeight.analog",
-                        caption: "Haptic ticks · impossible values blocked"
+                        caption: "Haptic ticks · confirm to save",
+                        onCommit: { kg in
+                            pendingIdealKg = kg
+                            if abs(kg - session.profile.idealWeightKg) > 0.05 {
+                                confirmDreamWeightChange = true
+                            }
+                        }
                     )
                     .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("settings.targetWeight")
 
                     Text(
                         String(
-                            format: "Allowed %.0f–%.0f %@",
+                            format: "Allowed %.0f-%.0f %@",
                             UnitFormat.mass(fromKg: dreamBoundsKg.lowerBound, system: session.preferredUnits),
                             UnitFormat.mass(fromKg: dreamBoundsKg.upperBound, system: session.preferredUnits),
                             session.preferredUnits.massLabel
@@ -459,24 +514,47 @@ struct SettingsView: View {
                 }
 
                 labeledField(
-                    title: "Body fat % (optional)",
-                    help: "Your known body-fat percentage if you have one (DEXA, calipers, prior scale). Leave blank if unknown. Typical adult range about 3-60%."
+                    title: "Dream body fat % (optional)",
+                    help: "Most people leave this blank. The Scale suggests a target from sex and age. Override only within physics limits (about 3-60%)."
                 ) {
-                    HStack(spacing: 6) {
-                        TextField("e.g. 18.5", text: $bodyFatText)
-                            .focused($focusedField, equals: .bodyFat)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(minWidth: 72)
-                            .onChange(of: bodyFatText) { _, newValue in
-                                applyBodyFatText(newValue)
-                            }
-                            .onChange(of: focusedField) { _, field in
-                                if field != .bodyFat {
-                                    syncBodyFatTextFromProfile()
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(
+                            String(
+                                format: "Suggested %.0f%% for %@, age %.0f",
+                                BodyFatTargetEngine.suggestedIdealPercent(
+                                    sex: session.profile.sex,
+                                    ageYears: session.profile.ageYears
+                                ),
+                                session.profile.sex.title.lowercased(),
+                                session.profile.ageYears
+                            )
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(steel)
+                        HStack(spacing: 6) {
+                            TextField("Blank = suggested", text: $bodyFatText)
+                                .focused($focusedField, equals: .bodyFat)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(minWidth: 72)
+                                .onChange(of: bodyFatText) { _, newValue in
+                                    applyBodyFatText(newValue)
                                 }
+                                .onChange(of: focusedField) { _, field in
+                                    if field != .bodyFat {
+                                        syncBodyFatTextFromProfile()
+                                    }
+                                }
+                            Text("%").foregroundStyle(steel)
+                            if session.profile.idealBodyFatPercent != nil {
+                                Button("Clear") {
+                                    session.profile.idealBodyFatPercent = nil
+                                    bodyFatText = ""
+                                    bodyFatValidationNote = "Using suggested dream body fat again."
+                                }
+                                .font(.caption.weight(.semibold))
                             }
-                        Text("%").foregroundStyle(steel)
+                        }
                     }
                 }
                 if let bodyFatValidationNote {
@@ -511,7 +589,17 @@ struct SettingsView: View {
                 Text("Gender")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
-                Picker("Gender", selection: $session.profile.sex) {
+                Picker(
+                    "Gender",
+                    selection: Binding(
+                        get: { pendingSex ?? session.profile.sex },
+                        set: { next in
+                            guard next != session.profile.sex else { return }
+                            pendingSex = next
+                            confirmSexChange = true
+                        }
+                    )
+                ) {
                     ForEach(UserBodyProfile.Sex.allCases) { sex in
                         Text(sex.title).tag(sex)
                     }
@@ -542,17 +630,77 @@ struct SettingsView: View {
             }
         }
         .onAppear {
+            draftAgeYears = Int(session.profile.ageYears.rounded())
+            syncDraftHeightFromProfile()
             clampIdealWeightFromProfile(announce: false)
         }
-        .onChange(of: session.profile.heightCm) { _, _ in
-            clampIdealWeightFromProfile(announce: true)
+        .onChange(of: session.preferredUnits) { _, _ in
+            syncDraftHeightFromProfile()
         }
-        .onChange(of: session.profile.ageYears) { _, _ in
-            clampIdealWeightFromProfile(announce: true)
-        }
-        .onChange(of: session.profile.sex) { _, _ in
-            clampIdealWeightFromProfile(announce: true)
-        }
+    }
+
+    private func syncDraftHeightFromProfile() {
+        draftHeightDisplay = UnitFormat.height(
+            fromCm: session.profile.heightCm,
+            system: session.preferredUnits
+        )
+    }
+
+    private func proposeHeightFromDraft() {
+        let cm = UnitFormat.cm(fromHeight: draftHeightDisplay, system: session.preferredUnits)
+        let result = ProfileNumericBounds.clampHeightCm(cm)
+        heightValidationNote = result.message
+        draftHeightDisplay = UnitFormat.height(fromCm: result.value, system: session.preferredUnits)
+        guard abs(result.value - session.profile.heightCm) > 0.05 else { return }
+        pendingHeightCm = result.value
+        confirmHeightChange = true
+    }
+
+    private func applyPendingHeight() {
+        guard let cm = pendingHeightCm else { return }
+        session.profile.heightCm = cm
+        pendingHeightCm = nil
+        clampIdealWeightFromProfile(announce: true)
+        syncDraftHeightFromProfile()
+    }
+
+    private func proposeAgeFromDraft() {
+        let result = ProfileNumericBounds.clampAgeYears(Double(draftAgeYears))
+        ageValidationNote = result.message
+        draftAgeYears = Int(result.value.rounded())
+        guard abs(result.value - session.profile.ageYears) > 0.05 else { return }
+        pendingAgeYears = result.value
+        confirmAgeChange = true
+    }
+
+    private func applyPendingAge() {
+        guard let age = pendingAgeYears else { return }
+        session.profile.ageYears = age
+        pendingAgeYears = nil
+        clampIdealWeightFromProfile(announce: true)
+    }
+
+    private func applyPendingDreamWeight() {
+        guard let kg = pendingIdealKg else { return }
+        commitIdealWeightKg(kg)
+        pendingIdealKg = nil
+    }
+
+    private func applyPendingSex() {
+        guard let sex = pendingSex else { return }
+        session.profile.sex = sex
+        pendingSex = nil
+        let result = ProfileRecalibrator.recalibrate(
+            profile: session.profile,
+            currentKg: session.healthBaselineKg ?? session.profile.startingWeightKg,
+            keepBodyFatOverride: session.profile.idealBodyFatPercent != nil
+        )
+        session.profile.idealWeightKg = result.idealWeightKg
+        session.profile.idealBodyFatPercent = result.idealBodyFatPercent
+        session.profile.goalDifficultyTitle = result.goalDifficultyTitle
+        weightValidationNote = result.note
+        session.clearMealPlanCache()
+        syncBodyFatTextFromProfile()
     }
 
     private func commitIdealWeightKg(_ raw: Double) {

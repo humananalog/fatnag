@@ -40,7 +40,7 @@ struct HorizonArcBankView: View {
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if let kg = sundayTargetKg {
-                    Text(String(format: "%.2f", kg))
+                    Text(String(format: "%.1f", UnitFormat.mass(fromKg: kg, system: unitSystem)))
                         .font(.system(size: compact ? 64 : 76, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(ink)
@@ -48,7 +48,7 @@ struct HorizonArcBankView: View {
                         .minimumScaleFactor(0.7)
                         .lineLimit(1)
                         .accessibilityIdentifier("home.sundayTargetKg")
-                    Text("kg")
+                    Text(unitSystem.massLabel)
                         .font(.system(size: compact ? 24 : 28, weight: .bold, design: .rounded))
                         .foregroundStyle(steel)
                 } else {
@@ -92,7 +92,8 @@ struct HorizonArcBankView: View {
 
     private var sundayAccessibilityLabel: String {
         if let kg = sundayTargetKg {
-            return String(format: "Sunday target %.2f kilograms. %@ . %@", kg, bandLabel, deltaChip)
+            let mass = UnitFormat.massString(kg, system: unitSystem, fractionDigits: 1)
+            return "Sunday target \(mass). \(bandLabel). \(deltaChip)"
         }
         return "\(weekTitle). \(bandLabel). \(deltaChip)"
     }

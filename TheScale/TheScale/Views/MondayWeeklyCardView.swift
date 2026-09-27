@@ -149,7 +149,7 @@ struct MondayWeeklyCardView: View {
                 .padding(.top, 14)
                 .opacity(appeared ? 1 : 0)
 
-            Text(String(format: "%.2f", card.sundayGoal.targetKg))
+            Text(String(format: "%.1f", UnitFormat.mass(fromKg: card.sundayGoal.targetKg, system: session.preferredUnits)))
                 .font(.system(size: 72, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(ivory)
@@ -161,7 +161,7 @@ struct MondayWeeklyCardView: View {
                 .accessibilityIdentifier("mondayHero.sundayKg")
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("kg Sunday")
+                Text("\(session.preferredUnits.massLabel) Sunday")
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                     .foregroundStyle(mist)
                 Text(card.sundayGoal.sundayDate, format: .dateTime.month(.abbreviated).day())
@@ -170,7 +170,7 @@ struct MondayWeeklyCardView: View {
             }
             .padding(.top, 2)
 
-            Text(String(format: "%+.2f kg this week", card.sundayGoal.weeklyDeltaKg))
+            Text("\(UnitFormat.massDeltaString(card.sundayGoal.weeklyDeltaKg, system: session.preferredUnits)) this week")
                 .font(.system(size: 15, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(accent.opacity(0.95))

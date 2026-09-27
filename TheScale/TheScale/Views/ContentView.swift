@@ -455,11 +455,13 @@ struct ContentView: View {
 
     private var greetingLine: String {
         let name = session.profile.greetingName
+        let units = session.preferredUnits
         if let kg = session.healthBaselineKg {
+            let mass = UnitFormat.massString(kg, system: units, fractionDigits: 1)
             if name.isEmpty {
-                return String(format: "%.1f kg · this week", kg)
+                return "\(mass) · this week"
             }
-            return String(format: "%@ · %.1f kg", name, kg)
+            return "\(name) · \(mass)"
         }
         if name.isEmpty { return "Weekly goal" }
         return "\(name) · weekly goal"
@@ -467,11 +469,13 @@ struct ContentView: View {
 
     private var brandAccessibilityLabel: String {
         let name = session.profile.greetingName
+        let units = session.preferredUnits
         if let baseline = session.healthBaselineKg {
+            let mass = UnitFormat.massString(baseline, system: units, fractionDigits: 1)
             if name.isEmpty {
-                return String(format: "The Scale. Last Health weight %.1f kilograms.", baseline)
+                return "The Scale. Last Health weight \(mass)."
             }
-            return String(format: "The Scale. Hello %@. Last Health weight %.1f kilograms.", name, baseline)
+            return "The Scale. Hello \(name). Last Health weight \(mass)."
         }
         if name.isEmpty { return "The Scale" }
         return "The Scale. Hello \(name)."
@@ -480,7 +484,7 @@ struct ContentView: View {
     private func weighInAnalysisBlock(_ card: WeighInAnalysisCard) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(card.tone.badge)
+                Text(card.tone.badge(sex: card.sex))
                     .font(.system(size: 10, weight: .heavy, design: .rounded))
                     .tracking(0.8)
                     .foregroundStyle(atmosphere.ink.opacity(0.65))

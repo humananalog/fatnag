@@ -2,27 +2,19 @@ import Foundation
 
 /// Post-weigh hero moment voice. Humour first. Never a diagnosis.
 enum WeighInCoachTone: String, Equatable, Sendable {
-    /// Drill-sergeant kick. For wrong-way weigh-ins.
+    /// Firm accountability kick (male: drill; female: soft nudge).
     case sergeant
-    /// Warm push with swagger. For real progress.
+    /// Warm push. For real progress.
     case encourage
-    /// Dry side-eye. For flat / baseline / "sure, Jan" moments.
+    /// Curious / dry side-eye. For flat / baseline moments.
     case skeptical
 
-    var badge: String {
-        switch self {
-        case .sergeant: return "DRILL"
-        case .encourage: return "HERO"
-        case .skeptical: return "SIDE-EYE"
-        }
+    func badge(sex: UserBodyProfile.Sex) -> String {
+        CoachVoice.badge(for: self, sex: sex)
     }
 
-    var cta: String {
-        switch self {
-        case .sergeant: return "I'll fix dinner"
-        case .encourage: return "Keep the streak"
-        case .skeptical: return "Noted. Next."
-        }
+    func cta(sex: UserBodyProfile.Sex) -> String {
+        CoachVoice.cta(for: self, sex: sex)
     }
 }
 
@@ -35,6 +27,8 @@ struct WeighInAnalysisCard: Equatable, Sendable {
     var createdAt: Date
     /// Short pop-culture tagline under the body (may be empty).
     var popLine: String
+    /// Voice chrome for hero badges / CTAs.
+    var sex: UserBodyProfile.Sex
 
     /// Negative day/week delta → winner energy (minus sign pays off the morning drill).
     var isWinnerLoss: Bool {
@@ -62,7 +56,8 @@ enum WeighInAnalysisEngine {
         unitSystem: PreferredUnitSystem = .metric,
         now: Date = Date()
     ) -> WeighInAnalysisCard {
-        let who = name.isEmpty ? "Operator" : name
+        let sex = profile?.sex ?? .male
+        let who = CoachVoice.who(name, sex: sex)
         let delta: Double? = previousKg.map { weighedKg - $0 }
         let towardIdeal = weighedKg - idealKg
         let cutting = weeklyGoal.targetDeltaKg < -0.05
@@ -88,7 +83,8 @@ enum WeighInAnalysisEngine {
                         towardIdeal: towardIdeal,
                         vibe: vibe,
                         seed: seed,
-                        unitSystem: unitSystem
+                        unitSystem: unitSystem,
+                        sex: sex
                     )
                     headline = pack.headline
                     body = pack.body
@@ -100,7 +96,8 @@ enum WeighInAnalysisEngine {
                         delta: delta,
                         vibe: vibe,
                         seed: seed,
-                        unitSystem: unitSystem
+                        unitSystem: unitSystem,
+                        sex: sex
                     )
                     headline = pack.headline
                     body = pack.body
@@ -112,7 +109,8 @@ enum WeighInAnalysisEngine {
                         delta: delta,
                         vibe: vibe,
                         seed: seed,
-                        unitSystem: unitSystem
+                        unitSystem: unitSystem,
+                        sex: sex
                     )
                     headline = pack.headline
                     body = pack.body
@@ -125,7 +123,8 @@ enum WeighInAnalysisEngine {
                     delta: delta,
                     vibe: vibe,
                     seed: seed,
-                    unitSystem: unitSystem
+                    unitSystem: unitSystem,
+                    sex: sex
                 )
                 headline = pack.headline
                 body = pack.body
@@ -139,7 +138,8 @@ enum WeighInAnalysisEngine {
                     vibe: vibe,
                     seed: seed,
                     gaining: true,
-                    unitSystem: unitSystem
+                    unitSystem: unitSystem,
+                    sex: sex
                 )
                 headline = pack.headline
                 body = pack.body
@@ -151,7 +151,8 @@ enum WeighInAnalysisEngine {
                     delta: delta,
                     vibe: vibe,
                     seed: seed,
-                    unitSystem: unitSystem
+                    unitSystem: unitSystem,
+                    sex: sex
                 )
                 headline = pack.headline
                 body = pack.body
@@ -159,11 +160,15 @@ enum WeighInAnalysisEngine {
             }
         } else {
             tone = .skeptical
-            headline = "Baseline locked, \(who)."
-            body = String(
-                format: "%.1f kg on the board. Next weigh-in gets the parade, the roast, or the drill.",
-                weighedKg
-            )
+            let mass = UnitFormat.massString(weighedKg, system: unitSystem, fractionDigits: 1)
+            switch sex {
+            case .female:
+                headline = "Baseline locked in, \(who)."
+                body = "\(mass) on the board. Next weigh-in gets the parade, the tease, or the soft nudge. Proud you started."
+            case .male:
+                headline = "Baseline locked, \(who)."
+                body = "\(mass) on the board. Next weigh-in gets the parade, the roast, or the drill."
+            }
             pop = vibe.baselinePop(seed: seed)
         }
 
@@ -175,7 +180,8 @@ enum WeighInAnalysisEngine {
             deltaKg: delta,
             weighedKg: weighedKg,
             createdAt: now,
-            popLine: CoachCopySanitize.clean(pop)
+            popLine: CoachCopySanitize.clean(pop),
+            sex: sex
         )
     }
 
@@ -186,25 +192,46 @@ enum WeighInAnalysisEngine {
         delta: Double,
         vibe: PopCultureLens,
         seed: Int,
-        unitSystem: PreferredUnitSystem
+        unitSystem: PreferredUnitSystem,
+        sex: UserBodyProfile.Sex
     ) -> (headline: String, body: String, pop: String) {
         let signed = UnitFormat.massDeltaString(delta, system: unitSystem)
-        let headlines = [
-            "Drop and give me zero snacks, \(who).",
-            "ATTENTION. The scale filed a complaint.",
-            "Wrong way, recruit.",
-            "That was not the mission brief."
-        ]
-        let bodies = [
-            "\(signed) since last. Not doom. Fix dinner tonight, not your personality.",
-            "\(signed). Kitchen lights out. Protein first. No negotiation.",
-            "\(signed) walked on. March it back with boring food and an early close."
-        ]
-        return (
-            pick(headlines, seed: seed),
-            pick(bodies, seed: seed &+ 3),
-            vibe.sergeantPop(seed: seed)
-        )
+        switch sex {
+        case .female:
+            let headlines = [
+                "Gentle course-correct, \(who).",
+                "Tiny detour. Still your plot.",
+                "Kitchen reset with kindness.",
+                "Not doom. Just dinner."
+            ]
+            let bodies = [
+                "\(signed) since last. You're still showing up. Keep dinner to a palm of protein and a big handful of greens.",
+                "\(signed). Close the kitchen with a smile. Protein first, then rest. Proud of you for looking.",
+                "\(signed) wandered on. March it back with boring food and an early close. You've got this."
+            ]
+            return (
+                pick(headlines, seed: seed),
+                pick(bodies, seed: seed &+ 3),
+                vibe.sergeantPop(seed: seed)
+            )
+        case .male:
+            let headlines = [
+                "Drop and give me zero snacks, \(who).",
+                "ATTENTION. The scale filed a complaint.",
+                "Wrong way, recruit.",
+                "That was not the mission brief."
+            ]
+            let bodies = [
+                "\(signed) since last. Not doom. Fix dinner tonight, not your personality.",
+                "\(signed). Kitchen lights out. Protein first. No negotiation.",
+                "\(signed) walked on. March it back with boring food and an early close."
+            ]
+            return (
+                pick(headlines, seed: seed),
+                pick(bodies, seed: seed &+ 3),
+                vibe.sergeantPop(seed: seed)
+            )
+        }
     }
 
     private static func encouragePack(
@@ -214,37 +241,71 @@ enum WeighInAnalysisEngine {
         vibe: PopCultureLens,
         seed: Int,
         gaining: Bool = false,
-        unitSystem: PreferredUnitSystem = .metric
+        unitSystem: PreferredUnitSystem = .metric,
+        sex: UserBodyProfile.Sex = .male
     ) -> (headline: String, body: String, pop: String) {
         let signed = UnitFormat.massDeltaString(delta, system: unitSystem)
-        if gaining {
+        let remain = UnitFormat.massString(max(0, towardIdeal), system: unitSystem, fractionDigits: 1)
+        switch sex {
+        case .female:
+            if gaining {
+                let headlines = [
+                    "Fuel landed beautifully, \(who).",
+                    "Builder energy. Love that.",
+                    "Up is the job today."
+                ]
+                let bodies = [
+                    "\(signed). Keep eating like you mean the program. Palm of protein, steady plates.",
+                    "\(signed) on the board. Repeat the boring wins. You're glowing."
+                ]
+                return (pick(headlines, seed: seed), pick(bodies, seed: seed &+ 2), vibe.encouragePop(seed: seed))
+            }
             let headlines = [
-                "Up is the job, \(who).",
-                "Fuel landed.",
-                "That's a builder's number."
+                "\(signed). You're glowing, \(who).",
+                "Winner energy: \(signed).",
+                "Look at you, \(who).",
+                "That's the number, and you're a star."
             ]
             let bodies = [
-                "\(signed). Keep eating like you mean the program.",
-                "\(signed) on the board. Repeat the boring wins."
+                "\(signed) since last. Keep the boring streak. Dream weight is still \(remain) away, and you're walking it.",
+                "\(signed). You're a winner. Celebrate with protein and early lights, not chaos.",
+                "\(signed) lighter. The plot is working. Stay delightfully dull on purpose."
             ]
-            return (pick(headlines, seed: seed), pick(bodies, seed: seed &+ 2), vibe.encouragePop(seed: seed))
+            return (
+                pick(headlines, seed: seed),
+                pick(bodies, seed: seed &+ 5),
+                vibe.encouragePop(seed: seed)
+            )
+        case .male:
+            if gaining {
+                let headlines = [
+                    "Up is the job, \(who).",
+                    "Fuel landed.",
+                    "That's a builder's number."
+                ]
+                let bodies = [
+                    "\(signed). Keep eating like you mean the program.",
+                    "\(signed) on the board. Repeat the boring wins."
+                ]
+                return (pick(headlines, seed: seed), pick(bodies, seed: seed &+ 2), vibe.encouragePop(seed: seed))
+            }
+            let headlines = [
+                "\(signed). You're a winner, \(who).",
+                "Winner board: \(signed).",
+                "Minus sign locked. Parade for \(who).",
+                "That's the number, \(who)."
+            ]
+            let bodies = [
+                "\(signed) since last. Keep the boring streak. Ideal still \(remain) away.",
+                "\(signed). You're a winner. Don't celebrate with chaos. Protein, then bed.",
+                "\(signed) lighter. The plot is working. Stay dull on purpose."
+            ]
+            return (
+                pick(headlines, seed: seed),
+                pick(bodies, seed: seed &+ 5),
+                vibe.encouragePop(seed: seed)
+            )
         }
-        let headlines = [
-            "\(signed). You're a winner, \(who).",
-            "Winner board: \(signed).",
-            "Minus sign locked. Parade for \(who).",
-            "That's the number, \(who)."
-        ]
-        let bodies = [
-            "\(signed) since last. Keep the boring streak. Ideal still \(String(format: "%.1f", max(0, towardIdeal))) kg away.",
-            "\(signed). You're a winner. Don't celebrate with chaos. Protein, then bed.",
-            "\(signed) lighter. The plot is working. Stay dull on purpose."
-        ]
-        return (
-            pick(headlines, seed: seed),
-            pick(bodies, seed: seed &+ 5),
-            vibe.encouragePop(seed: seed)
-        )
     }
 
     private static func skepticalPack(
@@ -252,25 +313,46 @@ enum WeighInAnalysisEngine {
         delta: Double,
         vibe: PopCultureLens,
         seed: Int,
-        unitSystem: PreferredUnitSystem
+        unitSystem: PreferredUnitSystem,
+        sex: UserBodyProfile.Sex
     ) -> (headline: String, body: String, pop: String) {
         let signed = UnitFormat.massDeltaString(delta, system: unitSystem)
-        let headlines = [
-            "Sure, \(who). The kg are listening.",
-            "Plot twist pending.",
-            "Interesting. Define interesting.",
-            "Flat-ish. The jury is still out."
-        ]
-        let bodies = [
-            "\(signed). Noise happens. Hit protein and close the kitchen on time.",
-            "\(signed). Not a parade, not a funeral. Do the boring reps.",
-            "\(signed). Water, salt, or vibes. Tomorrow still counts."
-        ]
-        return (
-            pick(headlines, seed: seed),
-            pick(bodies, seed: seed &+ 7),
-            vibe.skepticalPop(seed: seed)
-        )
+        switch sex {
+        case .female:
+            let headlines = [
+                "Hmm, \(who). Curious chapter.",
+                "Plot twist pending, gently.",
+                "Interesting. In a good way.",
+                "Flat-ish. Tomorrow still votes."
+            ]
+            let bodies = [
+                "\(signed). Noise happens. Palm of protein and close the kitchen on time. Proud you checked.",
+                "\(signed). Not a parade, not a funeral. Do the boring reps with a smile.",
+                "\(signed). Water, salt, or vibes. Tomorrow still counts, and so do you."
+            ]
+            return (
+                pick(headlines, seed: seed),
+                pick(bodies, seed: seed &+ 7),
+                vibe.skepticalPop(seed: seed)
+            )
+        case .male:
+            let headlines = [
+                "Sure, \(who). The kg are listening.",
+                "Plot twist pending.",
+                "Interesting. Define interesting.",
+                "Flat-ish. The jury is still out."
+            ]
+            let bodies = [
+                "\(signed). Noise happens. Hit protein and close the kitchen on time.",
+                "\(signed). Not a parade, not a funeral. Do the boring reps.",
+                "\(signed). Water, salt, or vibes. Tomorrow still counts."
+            ]
+            return (
+                pick(headlines, seed: seed),
+                pick(bodies, seed: seed &+ 7),
+                vibe.skepticalPop(seed: seed)
+            )
+        }
     }
 
     // MARK: - Helpers
@@ -496,7 +578,7 @@ private struct PopCultureLens: Equatable {
     }
 }
 
-/// ETA to macro (ideal) weight at current weekly speed vs planned goal date.
+/// Pace projection to dream / ideal weight. Female copy avoids "ETA" jargon.
 struct MacroGoalETA: Equatable, Sendable {
     var paceKgPerWeek: Double?
     var etaDate: Date?
@@ -504,13 +586,17 @@ struct MacroGoalETA: Equatable, Sendable {
     var remainingKg: Double
     var line: String
 
-    static let empty = MacroGoalETA(
-        paceKgPerWeek: nil,
-        etaDate: nil,
-        plannedDate: nil,
-        remainingKg: 0,
-        line: "Weigh in a few times to project ETA to your goal weight."
-    )
+    static func empty(sex: UserBodyProfile.Sex = .male) -> MacroGoalETA {
+        MacroGoalETA(
+            paceKgPerWeek: nil,
+            etaDate: nil,
+            plannedDate: nil,
+            remainingKg: 0,
+            line: CoachVoice.emptyPaceLine(sex: sex)
+        )
+    }
+
+    static let empty = MacroGoalETA.empty(sex: .male)
 
     static func compute(
         currentKg: Double?,
@@ -518,10 +604,12 @@ struct MacroGoalETA: Equatable, Sendable {
         plannedDate: Date?,
         recentWeights: [HealthWeightSample],
         weeklyDeltaKg: Double,
+        sex: UserBodyProfile.Sex = .male,
+        unitSystem: PreferredUnitSystem = .metric,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> MacroGoalETA {
-        guard let current = currentKg else { return .empty }
+        guard let current = currentKg else { return .empty(sex: sex) }
         let remaining = current - idealKg
         if abs(remaining) < 0.15 {
             return MacroGoalETA(
@@ -529,7 +617,7 @@ struct MacroGoalETA: Equatable, Sendable {
                 etaDate: now,
                 plannedDate: plannedDate,
                 remainingKg: remaining,
-                line: "You're at goal weight. Hold the line."
+                line: CoachVoice.atGoalLine(sex: sex)
             )
         }
 
@@ -557,7 +645,12 @@ struct MacroGoalETA: Equatable, Sendable {
                 etaDate: nil,
                 plannedDate: plannedDate,
                 remainingKg: remaining,
-                line: String(format: "%.1f kg to goal. Pace too flat to date.", abs(remaining)) + plannedBit
+                line: CoachVoice.flatPaceLine(
+                    remainingAbsKg: abs(remaining),
+                    plannedBit: plannedBit,
+                    sex: sex,
+                    unitSystem: unitSystem
+                )
             )
         }
 
@@ -570,10 +663,11 @@ struct MacroGoalETA: Equatable, Sendable {
                 etaDate: nil,
                 plannedDate: plannedDate,
                 remainingKg: remaining,
-                line: String(
-                    format: "%.1f kg to goal, but current pace (%+.2f kg/wk) goes the wrong way.",
-                    abs(remaining),
-                    paceKgPerWeek
+                line: CoachVoice.wrongWayPaceLine(
+                    remainingAbsKg: abs(remaining),
+                    paceKgPerWeek: paceKgPerWeek,
+                    sex: sex,
+                    unitSystem: unitSystem
                 )
             )
         }
@@ -585,9 +679,13 @@ struct MacroGoalETA: Equatable, Sendable {
             guard let planned = plannedDate else { return "" }
             let planText = planned.formatted(.dateTime.month(.abbreviated).day())
             if let eta, eta <= planned {
-                return " Ahead of plan (\(planText))."
+                return sex == .female
+                    ? " Ahead of your plan (\(planText))."
+                    : " Ahead of plan (\(planText))."
             }
-            return " Plan was \(planText)."
+            return sex == .female
+                ? " Your plan said \(planText)."
+                : " Plan was \(planText)."
         }()
 
         return MacroGoalETA(
@@ -595,12 +693,13 @@ struct MacroGoalETA: Equatable, Sendable {
             etaDate: eta,
             plannedDate: plannedDate,
             remainingKg: remaining,
-            line: String(
-                format: "ETA %@ at %+.2f kg/wk · %.1f kg to go.%@",
-                etaText,
-                paceKgPerWeek,
-                abs(remaining),
-                plannedBit
+            line: CoachVoice.paceLine(
+                remainingAbsKg: abs(remaining),
+                paceKgPerWeek: paceKgPerWeek,
+                etaText: etaText,
+                plannedBit: plannedBit,
+                sex: sex,
+                unitSystem: unitSystem
             )
         )
     }

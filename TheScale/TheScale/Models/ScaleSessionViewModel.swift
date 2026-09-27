@@ -190,7 +190,7 @@ final class ScaleSessionViewModel: ObservableObject {
         fitnessMonitorPreferences: FitnessMonitorPreferences = FitnessMonitorPreferencesStore.load(),
         weeklyGoal: WeeklyMiniGoal = WeeklyMiniGoalStore.load(),
         preferredUnits: PreferredUnitSystem = PreferredUnitSystemStore.load(),
-        hasCompletedOnboarding: Bool = OnboardingStore.hasCompleted
+        hasCompletedOnboarding: Bool? = nil
     ) {
         self.scanner = scanner
         self.healthStore = healthStore
@@ -200,7 +200,13 @@ final class ScaleSessionViewModel: ObservableObject {
         self.fitnessMonitorPreferences = fitnessMonitorPreferences
         self.weeklyGoal = weeklyGoal
         self.preferredUnits = preferredUnits
-        self.hasCompletedOnboarding = hasCompletedOnboarding
+        // New users and incomplete profiles always run the onboarding sequence.
+        if OnboardingStore.shouldPresent(profile: profile) {
+            OnboardingStore.hasCompleted = false
+            self.hasCompletedOnboarding = false
+        } else {
+            self.hasCompletedOnboarding = hasCompletedOnboarding ?? OnboardingStore.hasCompleted
+        }
         self.scanner.delegate = self
         self.lastFitnessCoachReply = GrokFitnessMonitor.loadLastReply()
         self.mealPlan = MealPlanStore.load()
@@ -1054,7 +1060,8 @@ final class ScaleSessionViewModel: ObservableObject {
                 || !fallback.isEmpty else { return }
         if let polished = await FoundationModelCoach.summarizeFitnessDigest(
             profileName: profile.greetingName,
-            digestBlock: prompt + "\n\n" + digestBlock
+            digestBlock: prompt + "\n\n" + digestBlock,
+            sex: profile.sex
         ) {
             let cleaned = CoachCopySanitize.clean(polished)
             guard !cleaned.isEmpty, cleaned.count < 280 else { return }
@@ -1525,7 +1532,8 @@ final class ScaleSessionViewModel: ObservableObject {
                                     profileName: profile.greetingName,
                                     digestBlock: digest.promptBlock(
                                         preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes
-                                    ) + "\nTriggers: \(triggerSummary)\nNote: \(reply.text)"
+                                    ) + "\nTriggers: \(triggerSummary)\nNote: \(reply.text)",
+                                    sex: profile.sex
                                 ) {
                                     lastFitnessCoachReply = fmSummary
                                     GrokFitnessMonitor.storeLastReply(fmSummary)
@@ -1541,7 +1549,8 @@ final class ScaleSessionViewModel: ObservableObject {
                             profileName: profile.greetingName,
                             digestBlock: digest.promptBlock(
                                 preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes
-                            ) + "\nTriggers: \(triggerSummary)"
+                            ) + "\nTriggers: \(triggerSummary)",
+                            sex: profile.sex
                         ) {
                             lastFitnessCoachReply = fmSummary
                             GrokFitnessMonitor.storeLastReply(fmSummary)
@@ -1601,7 +1610,8 @@ final class ScaleSessionViewModel: ObservableObject {
             recentWeights: historyTrendWindowWeights.isEmpty
                 ? historyWeights
                 : historyTrendWindowWeights,
-            weeklyGoal: weeklyGoal
+            weeklyGoal: weeklyGoal,
+            sex: profile.sex
         )
         await considerMorningWeighDrill()
     }

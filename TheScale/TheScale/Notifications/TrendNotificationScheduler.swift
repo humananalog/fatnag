@@ -78,7 +78,8 @@ enum TrendNotificationScheduler {
         currentKg: Double?,
         idealKg: Double,
         recentWeights: [HealthMetricSample],
-        weeklyGoal: WeeklyMiniGoal
+        weeklyGoal: WeeklyMiniGoal,
+        sex: UserBodyProfile.Sex = .male
     ) async {
         let center = UNUserNotificationCenter.current()
         guard prefs.notifyOnBadTrend || prefs.weeklyGoalReminders else {
@@ -100,10 +101,12 @@ enum TrendNotificationScheduler {
                         format: "currentKg=%@ idealKg=%.1f",
                         currentKg.map { String(format: "%.1f", $0) } ?? "nil",
                         idealKg
-                    )
+                    ),
+                    sex: sex
                 )
                 if judgment.shouldNotify {
-                    let kgBit = currentKg.map { String(format: "%.1f kg", $0) } ?? "weight"
+                    let units = PreferredUnitSystemStore.load()
+                    let kgBit = currentKg.map { UnitFormat.massString($0, system: units, fractionDigits: 1) } ?? "weight"
                     let fallbackTitle = "\(name): scale check"
                     let fallbackSubtitle = kgBit + " · above pace"
                     let content = ScaleNotificationContentFactory.make(
@@ -113,7 +116,7 @@ enum TrendNotificationScheduler {
                             subtitle: fallbackSubtitle,
                             body: reason,
                             visualHeadline: kgBit,
-                            visualDetail: String(format: "Ideal %.1f kg", idealKg)
+                            visualDetail: "Ideal \(UnitFormat.massString(idealKg, system: units, fractionDigits: 1))"
                         )
                     )
                     let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 18 * 3600, repeats: false)
@@ -126,7 +129,8 @@ enum TrendNotificationScheduler {
                             kind: "bad-trend",
                             fallbackTitle: fallbackTitle,
                             fallbackBody: reason,
-                            context: reason
+                            context: reason,
+                            sex: sex
                         )
                         guard polished.usedFoundationModel else { return }
                         guard polished.title != fallbackTitle || polished.body != reason else { return }
@@ -137,7 +141,7 @@ enum TrendNotificationScheduler {
                                 subtitle: fallbackSubtitle,
                                 body: polished.body,
                                 visualHeadline: kgBit,
-                                visualDetail: String(format: "Ideal %.1f kg", idealKg)
+                                visualDetail: "Ideal \(UnitFormat.massString(idealKg, system: units, fractionDigits: 1))"
                             )
                         )
                         let replacement = UNNotificationRequest(
@@ -162,6 +166,7 @@ enum TrendNotificationScheduler {
             date.weekday = 2 // Monday
             date.hour = 8
             date.minute = 15
+            let units = PreferredUnitSystemStore.load()
             let fallbackTitle = "\(name): weekly mini-goal"
             let fallbackSubtitle = weeklyGoal.title
             let fallbackBody = "\(weeklyGoal.title) Open Progress when you're ready."
@@ -171,7 +176,7 @@ enum TrendNotificationScheduler {
                     title: fallbackTitle,
                     subtitle: fallbackSubtitle,
                     body: fallbackBody,
-                    visualHeadline: String(format: "%+.1f kg", weeklyGoal.targetDeltaKg),
+                    visualHeadline: UnitFormat.massDeltaString(weeklyGoal.targetDeltaKg, system: units),
                     visualDetail: "Monday mini-goal"
                 )
             )
@@ -185,7 +190,8 @@ enum TrendNotificationScheduler {
                     kind: "weekly-goal",
                     fallbackTitle: fallbackTitle,
                     fallbackBody: fallbackBody,
-                    context: "Weekly mini-goal: \(weeklyGoal.title)"
+                    context: "Weekly mini-goal: \(weeklyGoal.title)",
+                    sex: sex
                 )
                 guard polished.usedFoundationModel else { return }
                 guard polished.title != fallbackTitle || polished.body != fallbackBody else { return }
@@ -195,7 +201,7 @@ enum TrendNotificationScheduler {
                         title: polished.title,
                         subtitle: fallbackSubtitle,
                         body: polished.body,
-                        visualHeadline: String(format: "%+.1f kg", weeklyGoal.targetDeltaKg),
+                        visualHeadline: UnitFormat.massDeltaString(weeklyGoal.targetDeltaKg, system: units),
                         visualDetail: "Monday mini-goal"
                     )
                 )
@@ -215,7 +221,8 @@ enum TrendNotificationScheduler {
     nonisolated static func badTrendReason(
         currentKg: Double?,
         idealKg: Double,
-        recent: [HealthMetricSample]
+        recent: [HealthMetricSample],
+        unitSystem: PreferredUnitSystem = PreferredUnitSystemStore.load()
     ) -> String? {
         guard let currentKg else { return nil }
         let ordered = recent.sorted { $0.date < $1.date }
@@ -231,17 +238,10 @@ enum TrendNotificationScheduler {
         let aboveIdeal = currentKg > idealKg + 0.3
 
         if aboveIdeal, weekDelta >= 0.4 {
-            return String(
-                format: "Up %.1f kg this week and still above ideal (%.1f). Not a crisis. Worth a look.",
-                weekDelta,
-                idealKg
-            )
+            return "Up \(UnitFormat.massDeltaString(weekDelta, system: unitSystem)) this week and still above ideal (\(UnitFormat.massString(idealKg, system: unitSystem, fractionDigits: 1))). Not a crisis. Worth a look."
         }
         if weekDelta >= 0.8 {
-            return String(
-                format: "Sharp +%.1f kg week. Could be water, could be the fridge. Check History.",
-                weekDelta
-            )
+            return "Sharp \(UnitFormat.massDeltaString(weekDelta, system: unitSystem)) week. Could be water, could be the fridge. Check History."
         }
         return nil
     }

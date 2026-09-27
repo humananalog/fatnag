@@ -85,6 +85,7 @@
 		A1B2C3D4E5F60718293A0040 /* DebugToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1040 /* DebugToolsView.swift */; };
 		A1B2C3D4E5F60718293A0041 /* WeeklyGoalSurfaceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1041 /* WeeklyGoalSurfaceEngine.swift */; };
 		A1B2C3D4E5F60718293A0042 /* WeeklyGoalSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1042 /* WeeklyGoalSurfaceTests.swift */; };
+		A1B2C3D4E5F60718293A00VT1 /* CoachVoiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10VT1 /* CoachVoiceTests.swift */; };
 		A1B2C3D4E5F60718293A0043 /* WeeklyEnergyBalanceEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1043 /* WeeklyEnergyBalanceEvaluator.swift */; };
 		A1B2C3D4E5F60718293A0044 /* MealPlanEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1044 /* MealPlanEngine.swift */; };
 		A1B2C3D4E5F60718293A0045 /* MealPlanCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1045 /* MealPlanCarouselView.swift */; };
@@ -94,6 +95,9 @@
 		A1B2C3D4E5F60718293A0049 /* ChartCommentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1049 /* ChartCommentStore.swift */; };
 		A1B2C3D4E5F60718293A004A /* WeighInAnalysisEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A104A /* WeighInAnalysisEngine.swift */; };
 		A1B2C3D4E5F60718293A0050 /* CoachPersona.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1050 /* CoachPersona.swift */; };
+		A1B2C3D4E5F60718293A00PR1 /* ProfileRecalibrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PR1 /* ProfileRecalibrator.swift */; };
+		A1B2C3D4E5F60718293A00BF1 /* BodyFatTargetEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10BF1 /* BodyFatTargetEngine.swift */; };
+		A1B2C3D4E5F60718293A00CV1 /* CoachVoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10CV1 /* CoachVoice.swift */; };
 		A1B2C3D4E5F60718293A0051 /* AggressiveWeeklyTargetEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1051 /* AggressiveWeeklyTargetEngine.swift */; };
 		A1B2C3D4E5F60718293A0052 /* AggressiveWeeklyTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A1052 /* AggressiveWeeklyTargetTests.swift */; };
 		A1B2C3D4E5F60718293A00DW1 /* GoalPaceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10DW1 /* GoalPaceGuard.swift */; };
@@ -221,6 +225,7 @@
 		A1B2C3D4E5F60718293A1040 /* DebugToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugToolsView.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1041 /* WeeklyGoalSurfaceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyGoalSurfaceEngine.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1042 /* WeeklyGoalSurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyGoalSurfaceTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10VT1 /* CoachVoiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachVoiceTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1043 /* WeeklyEnergyBalanceEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyEnergyBalanceEvaluator.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1044 /* MealPlanEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanEngine.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1045 /* MealPlanCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanCarouselView.swift; sourceTree = "<group>"; };
@@ -230,6 +235,9 @@
 		A1B2C3D4E5F60718293A1049 /* ChartCommentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartCommentStore.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A104A /* WeighInAnalysisEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeighInAnalysisEngine.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1050 /* CoachPersona.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachPersona.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10CV1 /* CoachVoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachVoice.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10BF1 /* BodyFatTargetEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyFatTargetEngine.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10PR1 /* ProfileRecalibrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileRecalibrator.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1051 /* AggressiveWeeklyTargetEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AggressiveWeeklyTargetEngine.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A1052 /* AggressiveWeeklyTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AggressiveWeeklyTargetTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10DW1 /* GoalPaceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalPaceGuard.swift; sourceTree = "<group>"; };
@@ -441,6 +449,9 @@
 				A1B2C3D4E5F60718293A1044 /* MealPlanEngine.swift */,
 				A1B2C3D4E5F60718293A1051 /* AggressiveWeeklyTargetEngine.swift */,
 				A1B2C3D4E5F60718293A1050 /* CoachPersona.swift */,
+				A1B2C3D4E5F60718293A10PR1 /* ProfileRecalibrator.swift */,
+				A1B2C3D4E5F60718293A10BF1 /* BodyFatTargetEngine.swift */,
+				A1B2C3D4E5F60718293A10CV1 /* CoachVoice.swift */,
 				A1B2C3D4E5F60718293A104A /* WeighInAnalysisEngine.swift */,
 				A1B2C3D4E5F60718293A1049 /* ChartCommentStore.swift */,
 				A1B2C3D4E5F60718293A1047 /* FastingWindow.swift */,
@@ -492,6 +503,7 @@
 				A1B2C3D4E5F60718293A1027 /* HealthScienceMathTests.swift */,
 				A1B2C3D4E5F60718293A102A /* MondayCardTests.swift */,
 				A1B2C3D4E5F60718293A1042 /* WeeklyGoalSurfaceTests.swift */,
+				A1B2C3D4E5F60718293A10VT1 /* CoachVoiceTests.swift */,
 				A1B2C3D4E5F60718293A10PU2 /* ScalePaletteUniverseTests.swift */,
 				A1B2C3D4E5F60718293A1046 /* MealPlanEngineTests.swift */,
 				A1B2C3D4E5F60718293A1052 /* AggressiveWeeklyTargetTests.swift */,
@@ -720,6 +732,7 @@
 				A1B2C3D4E5F60718293A0027 /* HealthScienceMathTests.swift in Sources */,
 				A1B2C3D4E5F60718293A002A /* MondayCardTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0042 /* WeeklyGoalSurfaceTests.swift in Sources */,
+				A1B2C3D4E5F60718293A00VT1 /* CoachVoiceTests.swift in Sources */,
 				A1B2C3D4E5F60718293A00PU2 /* ScalePaletteUniverseTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0046 /* MealPlanEngineTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0052 /* AggressiveWeeklyTargetTests.swift in Sources */,
@@ -784,6 +797,9 @@
 				A1B2C3D4E5F60718293A0044 /* MealPlanEngine.swift in Sources */,
 				A1B2C3D4E5F60718293A0051 /* AggressiveWeeklyTargetEngine.swift in Sources */,
 				A1B2C3D4E5F60718293A0050 /* CoachPersona.swift in Sources */,
+				A1B2C3D4E5F60718293A00PR1 /* ProfileRecalibrator.swift in Sources */,
+				A1B2C3D4E5F60718293A00BF1 /* BodyFatTargetEngine.swift in Sources */,
+				A1B2C3D4E5F60718293A00CV1 /* CoachVoice.swift in Sources */,
 				A1B2C3D4E5F60718293A004A /* WeighInAnalysisEngine.swift in Sources */,
 				A1B2C3D4E5F60718293A0049 /* ChartCommentStore.swift in Sources */,
 				A1B2C3D4E5F60718293A0048 /* RetroSnakeSpinnerView.swift in Sources */,
@@ -847,10 +863,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 94;
+				CURRENT_PROJECT_VERSION = 95;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.51.0;
+				MARKETING_VERSION = 2.52.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -918,7 +934,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 94;
+				CURRENT_PROJECT_VERSION = 95;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TheScale/Resources/Info.plist;
@@ -930,7 +946,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.51.0;
+				MARKETING_VERSION = 2.52.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -949,10 +965,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 94;
+				CURRENT_PROJECT_VERSION = 95;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.51.0;
+				MARKETING_VERSION = 2.52.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -970,7 +986,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 94;
+				CURRENT_PROJECT_VERSION = 95;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TheScale/Resources/Info.plist;
@@ -982,7 +998,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.51.0;
+				MARKETING_VERSION = 2.52.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1048,7 +1064,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TheScaleWidgets/TheScaleWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 94;
+				CURRENT_PROJECT_VERSION = 95;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TheScaleWidgets/Info.plist;
@@ -1060,7 +1076,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.51.0;
+				MARKETING_VERSION = 2.52.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1075,7 +1091,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TheScaleWidgets/TheScaleWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 94;
+				CURRENT_PROJECT_VERSION = 95;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TheScaleWidgets/Info.plist;
@@ -1087,7 +1103,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.51.0;
+				MARKETING_VERSION = 2.52.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

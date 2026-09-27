@@ -28,7 +28,7 @@ struct WeighInHeroMomentView: View {
 
                 if let card {
                     VStack(alignment: .leading, spacing: 18) {
-                        Text(card.tone.badge)
+                        Text(card.tone.badge(sex: card.sex))
                             .font(.system(size: 12, weight: .heavy, design: .rounded))
                             .tracking(2.0)
                             .foregroundStyle(accent)
@@ -66,14 +66,14 @@ struct WeighInHeroMomentView: View {
                                         .foregroundStyle(ivory)
                                         .accessibilityIdentifier("weighInHero.winner")
                                 }
-                                Text(String(format: "%.1f kg now", card.weighedKg))
+                                Text("\(UnitFormat.massString(card.weighedKg, system: session.preferredUnits, fractionDigits: 1)) now")
                                     .font(.system(size: 14, weight: .bold, design: .rounded))
                                     .monospacedDigit()
                                     .foregroundStyle(ivory.opacity(0.7))
                             }
                             .padding(.top, 8)
                         } else {
-                            Text(String(format: "%.1f kg locked", card.weighedKg))
+                            Text("\(UnitFormat.massString(card.weighedKg, system: session.preferredUnits, fractionDigits: 1)) locked")
                                 .font(.system(size: 14, weight: .bold, design: .rounded))
                                 .monospacedDigit()
                                 .foregroundStyle(ivory.opacity(0.7))
@@ -90,7 +90,7 @@ struct WeighInHeroMomentView: View {
                 Button {
                     session.dismissWeighInHero()
                 } label: {
-                    Text(card?.tone.cta ?? "Continue")
+                    Text(card.map { $0.tone.cta(sex: $0.sex) } ?? "Continue")
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
                         .frame(maxWidth: .infinity)
@@ -143,7 +143,8 @@ struct WeighInHeroMomentView: View {
                     deltaKg: 0.4,
                     weighedKg: 93.7,
                     createdAt: Date(),
-                    popLine: "Rocky didn't hit the fridge after round twelve."
+                    popLine: "Rocky didn't hit the fridge after round twelve.",
+                    sex: .male
                 )
             )
             return s

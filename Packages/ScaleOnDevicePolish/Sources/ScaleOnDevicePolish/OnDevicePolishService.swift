@@ -7,7 +7,7 @@ public final class OnDevicePolishService: ObservableObject {
 
     private let engine = LlamaMetalEngine()
     private var loadedPath: String?
-    private let voice = """
+    private let defaultVoice = """
         You write for The Scale, a private fitness coach on the user's iPhone.
         Call the user by name when given. Friendly, badass, dark humour; sometimes vulgar; never corporate.
         Never use em dashes or en dashes. Use ASCII hyphen or a period.
@@ -40,10 +40,12 @@ public final class OnDevicePolishService: ObservableObject {
         kind: String,
         fallbackTitle: String,
         fallbackBody: String,
-        context: String
+        context: String,
+        voiceRules: String? = nil
     ) async -> (title: String, body: String, usedSidecar: Bool) {
         guard isReady else { return (fallbackTitle, fallbackBody, false) }
         let name = profileName.isEmpty ? "Hey" : profileName
+        let voice = voiceRules ?? defaultVoice
         let prompt = """
             \(voice)
 
@@ -75,12 +77,14 @@ public final class OnDevicePolishService: ObservableObject {
         profileName: String,
         kind: String,
         algorithmicReason: String,
-        extraContext: String = ""
+        extraContext: String = "",
+        voiceRules: String? = nil
     ) async -> (shouldNotify: Bool, reason: String, usedSidecar: Bool) {
         guard isReady else {
             return (true, "On-device polish unavailable; algorithmic trigger stands.", false)
         }
         let name = profileName.isEmpty ? "Hey" : profileName
+        let voice = voiceRules ?? defaultVoice
         let prompt = """
             \(voice)
 
@@ -105,11 +109,16 @@ public final class OnDevicePolishService: ObservableObject {
         }
     }
 
-    public func summarizeFitnessDigest(profileName: String, digestBlock: String) async -> String? {
+    public func summarizeFitnessDigest(
+        profileName: String,
+        digestBlock: String,
+        voiceRules: String? = nil
+    ) async -> String? {
         guard isReady else { return nil }
         let digest = digestBlock.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !digest.isEmpty else { return nil }
         let name = profileName.isEmpty ? "Hey" : profileName
+        let voice = voiceRules ?? defaultVoice
         let prompt = """
             \(voice)
 
@@ -128,10 +137,14 @@ public final class OnDevicePolishService: ObservableObject {
         }
     }
 
-    public func extractMemoryFacts(from userText: String) async -> [String] {
+    public func extractMemoryFacts(
+        from userText: String,
+        voiceRules: String? = nil
+    ) async -> [String] {
         guard isReady else { return [] }
         let trimmed = userText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 12 else { return [] }
+        let voice = voiceRules ?? defaultVoice
         let prompt = """
             \(voice)
 

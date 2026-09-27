@@ -18,40 +18,29 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
-    /// Shared voice + punctuation rules for every role.
-    private static let voiceRules = """
-        Voice: badass, dark humour, sometimes vulgar, always friendly. Call the user by name.
-        Never use em dashes or en dashes. Use commas, periods, or ASCII hyphens (-).
-        Never use AI tells ("As an AI…", "I'd be happy to…", "Certainly!", robotic hedging, markdown spoiler fluff).
-        Do NOT append medical disclaimers or "not medical advice" boilerplate. That lives in onboarding and Settings → Legal only.
-        You are not a clinician: no diagnosis, no drug doses, no telling them to ignore symptoms. Just don't recite disclaimer text.
-        CRITICAL: Never ask for height, age, sex, name, diet, target weight, or body-fat goal if those fields are already in the profile block.
-        CRITICAL: Be time-aware. Use Local now (weekday, clock, daypart). Evening / night / late = recovery, sleep, food timing, light mobility. Do NOT prescribe gym lifts, bench press, heavy training, or "hit the gym now" when the user is home at night or the clock says evening/night.
-        CRITICAL: Do not rubber-stamp every idea. Push back when the ask is unsafe, unrealistic, or mismatched to the clock / context. Suggest what fits *this moment*.
-        """
-
-    var systemPrompt: String {
+    func systemPrompt(sex: UserBodyProfile.Sex) -> String {
+        let voice = CoachVoice.llmRules(sex: sex)
         switch self {
         case .medical:
             return """
             You are the health-context specialist for The Scale, a privacy-first Mi Scale → Apple Health app.
-            \(Self.voiceRules)
+            \(voice)
             Prefer trends over single weigh-ins. Be honest when data is thin.
             You are not a clinician and must not diagnose. Fitness guidance only.
             """
         case .fitness:
             return """
             You are the fitness specialist for The Scale.
-            \(Self.voiceRules)
+            \(voice)
             Give practical training / recovery / habit nudges tied to weight, fat %, sleep stages, HRV, RHR, and activity.
             Match advice to Local now: morning can be training; night is wind-down, not a PR attempt.
             Use only the Fitness digest for last workout / activity / steps / energy / distance / HR / HRV / sleep / recovery band. If a metric says missing, say so. Never invent sleep stages, HRV, SpO2, VO2, or workouts. Never claim you can read AllTrails directly.
-            No crash diets. Respect their diet preference and remembered facts. Keep it short and punchy.
+            No crash diets. Respect their diet preference and remembered facts.
             """
         case .anatomy:
             return """
             You are the anatomy / body-composition specialist for The Scale.
-            \(Self.voiceRules)
+            \(voice)
             Explain fat %, lean %, impedance limits, and why day-to-day noise is normal.
             Never invent lab precision the scale cannot deliver.
             """
@@ -59,7 +48,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             return """
             You are the only user-facing coach for The Scale. Medical, fitness, and anatomy specialists
             may consult behind the scenes; you alone speak to the user. Never mention agent roles or routing.
-            \(Self.voiceRules)
+            \(voice)
             Match their persona (location, ethnicity, language, cultural vibe) without stereotyping.
             Honour remembered user facts (e.g. intermittent fasting) when adjusting diet advice.
             If the user states a weight or body-fat target, the app may have already gated it on-device.
@@ -201,40 +190,93 @@ enum CoachOfflineFallback {
     }
 
     private static func fitnessLine(name: String, brief: CoachBrief) -> String {
+        let who = CoachVoice.who(name, sex: brief.sex)
         let dietHint: String = {
-            switch brief.diet {
-            case .vegan: return "Protein isn't optional because you skipped the cow."
-            case .vegetarian: return "Eggs, dairy, legumes: hit protein like you mean it."
-            case .pescatarian: return "Fish + lifts: classic combo, don't ghost the weights."
-            case .omnivore, .other: return "Lift something heavier than your phone this week."
+            switch (brief.sex, brief.diet) {
+            case (.female, .vegan):
+                return "Keep those plant palms honest: tofu or chickpeas on every plate."
+            case (.female, .vegetarian):
+                return "Eggs, yogurt, legumes: palm-size protein each meal."
+            case (.female, .pescatarian):
+                return "Fish palm at dinner plus a big handful of greens."
+            case (.female, _):
+                return "Palm of protein, fist of carbs, big handful of greens. Easy picture."
+            case (.male, .vegan):
+                return "Protein isn't optional because you skipped the cow."
+            case (.male, .vegetarian):
+                return "Eggs, dairy, legumes: hit protein like you mean it."
+            case (.male, .pescatarian):
+                return "Fish + lifts: classic combo, don't ghost the weights."
+            case (.male, _):
+                return "Lift something heavier than your phone this week."
             }
         }()
         if let week = brief.weekDeltaKg, week > 0.4 {
-            return "\(name), week's up \(String(format: "%.1f", week)) kg. Walk more, cook once, sleep like an adult. \(dietHint)"
+            let mass = UnitFormat.massDeltaString(week, system: brief.unitSystem)
+            switch brief.sex {
+            case .female:
+                return "\(who), week drifted \(mass). Walk more, cook once, sleep like the main character. \(dietHint)"
+            case .male:
+                return "\(who), week's up \(mass). Walk more, cook once, sleep like an adult. \(dietHint)"
+            }
         }
-        return "\(name), mini-goal is \(String(format: "%+.1f", brief.weeklyGoal.targetDeltaKg)) kg this week. \(dietHint) Consistency beats heroics."
+        let goal = UnitFormat.massDeltaString(brief.weeklyGoal.targetDeltaKg, system: brief.unitSystem)
+        switch brief.sex {
+        case .female:
+            return "\(who), this week's nudge is \(goal). \(dietHint) Consistency looks gorgeous on you."
+        case .male:
+            return "\(who), mini-goal is \(goal) this week. \(dietHint) Consistency beats heroics."
+        }
     }
 
     private static func anatomyLine(name: String, brief: CoachBrief) -> String {
+        let who = CoachVoice.who(name, sex: brief.sex)
         if let fat = brief.bodyFatPercent {
-            return "\(name), fat ~\(String(format: "%.1f", fat))%. Impedance is a guestimate with wet feet and dry jokes: socks kill the reading, hydration moves the needle, bone doesn't vanish overnight. Trust the trend line."
+            switch brief.sex {
+            case .female:
+                return "\(who), fat around \(String(format: "%.1f", fat))%. The scale is a chatty guestimate: wet feet help, socks kill the reading, hydration moves the needle. Trust the trend, not one awkward morning."
+            case .male:
+                return "\(who), fat ~\(String(format: "%.1f", fat))%. Impedance is a guestimate with wet feet and dry jokes: socks kill the reading, hydration moves the needle, bone doesn't vanish overnight. Trust the trend line."
+            }
         }
-        return "\(name), no fat % this pass. Barefoot on the electrodes next time or the scale just shrugs and gives you mass."
+        switch brief.sex {
+        case .female:
+            return "\(who), no fat % this pass. Barefoot on the electrodes next time, or the scale just shrugs and gives you mass."
+        case .male:
+            return "\(who), no fat % this pass. Barefoot on the electrodes next time or the scale just shrugs and gives you mass."
+        }
     }
 
     private static func orchestratorLine(name: String, brief: CoachBrief) -> String {
+        let who = CoachVoice.who(name, sex: brief.sex)
         let gap: String = {
-            guard let kg = brief.currentKg else { return "Step on the damn scale first." }
+            guard let kg = brief.currentKg else {
+                return brief.sex == .female
+                    ? "Step on the scale when you're ready. I'll cheer either way."
+                    : "Step on the damn scale first."
+            }
             let delta = kg - brief.idealKg
+            let ideal = UnitFormat.massString(brief.idealKg, system: brief.unitSystem, fractionDigits: 1)
+            let absDelta = UnitFormat.massString(abs(delta), system: brief.unitSystem, fractionDigits: 1)
+            let week = UnitFormat.massDeltaString(
+                brief.weeklyGoal.targetDeltaKg,
+                system: brief.unitSystem
+            )
             if abs(delta) < 0.3 {
-                return String(format: "You're basically kissing ideal (%.1f kg). Don't fuck it up with panic.", brief.idealKg)
+                return brief.sex == .female
+                    ? "You're basically kissing dream weight (\(ideal)). Soft hold. Don't panic-edit dinner."
+                    : "You're basically kissing ideal (\(ideal)). Don't fuck it up with panic."
             }
             if delta > 0 {
-                return String(format: "%.1f kg above ideal. Weekly mini-goal: %.1f kg. One boring win.", delta, brief.weeklyGoal.targetDeltaKg)
+                return brief.sex == .female
+                    ? "\(absDelta) above dream weight. This week's nudge: \(week). One boring beautiful win."
+                    : "\(absDelta) above ideal. Weekly mini-goal: \(week). One boring win."
             }
-            return String(format: "%.1f kg under ideal. Cool. Maintain, don't chase zero.", abs(delta))
+            return brief.sex == .female
+                ? "\(absDelta) under dream weight. Cool. Maintain, don't chase zero."
+                : "\(absDelta) under ideal. Cool. Maintain, don't chase zero."
         }()
-        return "\(name): \(gap)"
+        return "\(who): \(gap)"
     }
 }
 
@@ -395,7 +437,7 @@ actor GrokClient {
         var messages: [[String: String]] = [
             [
                 "role": "system",
-                "content": CoachAgentRole.orchestrator.systemPrompt
+                "content": CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex)
                     + "\n\n" + userMessage(brief: brief)
                     + consultNotes
                     + "\nLean on \(specialty.title) judgment for this ask without naming specialists."
@@ -530,7 +572,7 @@ actor GrokClient {
 
         let system = """
         You are the Monday weigh-in instructor for The Scale.
-        \(CoachAgentRole.orchestrator.systemPrompt)
+        \(CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex))
         This card is a direct coaching brief. Fitness guidance only. You are not a clinician and must not diagnose.
         Do NOT append medical disclaimers.
         Do NOT soft-pedal with generic safety caps. Talk energy balance and weekly rates from the data.
@@ -785,6 +827,7 @@ actor GrokClient {
             weeklyDeltaKg: weeklyDeltaKg,
             fasting: fasting,
             memoryBlock: brief.memoryBlock,
+            sex: brief.sex,
             now: now
         ) {
             let scheduled = MealPlanEngine.localizePortions(
@@ -889,7 +932,7 @@ actor GrokClient {
             "temperature": 0.55,
             "max_tokens": 280,
             "messages": [
-                ["role": "system", "content": role.systemPrompt],
+                ["role": "system", "content": role.systemPrompt(sex: brief.sex)],
                 ["role": "user", "content": userMessage(brief: brief)]
             ]
         ]
@@ -918,7 +961,7 @@ actor GrokClient {
             "temperature": 0.6,
             "max_tokens": 180,
             "messages": [
-                ["role": "system", "content": specialty.systemPrompt],
+                ["role": "system", "content": specialty.systemPrompt(sex: brief.sex)],
                 [
                     "role": "user",
                     "content": userMessage(brief: brief)

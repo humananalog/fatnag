@@ -84,15 +84,6 @@ struct OnboardingProfileFMDraft: Equatable, Sendable {
 /// On-device Foundation Models helpers. Privacy-first; never sends Health off-device.
 /// Graceful no-op / algorithmic fallback when Apple Intelligence is off or ineligible.
 enum FoundationModelCoach {
-    private static let voiceInstructions = """
-        You write for The Scale, a private fitness coach on the user's iPhone.
-        Call the user by name when given. Friendly, badass, dark humour; sometimes vulgar; never corporate.
-        Never use em dashes or en dashes. Use ASCII hyphen or a period.
-        Never say you are an AI, language model, or Apple Intelligence.
-        Never add medical disclaimers, diagnoses, or "consult a doctor" lines.
-        Keep copy short enough for iOS banners.
-        """
-
     // MARK: Notifications
 
     /// Refine algorithmic notification title/body. Returns fallbacks unchanged if FM + sidecar unavailable.
@@ -101,21 +92,24 @@ enum FoundationModelCoach {
         kind: String,
         fallbackTitle: String,
         fallbackBody: String,
-        context: String
+        context: String,
+        sex: UserBodyProfile.Sex = .male
     ) async -> (title: String, body: String, usedFoundationModel: Bool) {
+        let voice = CoachVoice.bannerRules(sex: sex)
         guard FoundationModelAvailability.isAvailable else {
             let sidecar = await OnDevicePolishService.shared.refineNotificationCopy(
                 profileName: profileName,
                 kind: kind,
                 fallbackTitle: fallbackTitle,
                 fallbackBody: fallbackBody,
-                context: context
+                context: context,
+                voiceRules: voice
             )
             return (sidecar.title, sidecar.body, sidecar.usedSidecar)
         }
         let name = profileName.isEmpty ? "Hey" : profileName
         do {
-            let session = LanguageModelSession(instructions: voiceInstructions)
+            let session = LanguageModelSession(instructions: voice)
             let prompt = """
                 Draft a local notification for \(name).
                 Kind: \(kind)
@@ -148,20 +142,23 @@ enum FoundationModelCoach {
         profileName: String,
         kind: String,
         algorithmicReason: String,
-        extraContext: String = ""
+        extraContext: String = "",
+        sex: UserBodyProfile.Sex = .male
     ) async -> (shouldNotify: Bool, reason: String, usedFoundationModel: Bool) {
+        let voice = CoachVoice.bannerRules(sex: sex)
         guard FoundationModelAvailability.isAvailable else {
             let sidecar = await OnDevicePolishService.shared.shouldSendPing(
                 profileName: profileName,
                 kind: kind,
                 algorithmicReason: algorithmicReason,
-                extraContext: extraContext
+                extraContext: extraContext,
+                voiceRules: voice
             )
             return (sidecar.shouldNotify, sidecar.reason, sidecar.usedSidecar)
         }
         let name = profileName.isEmpty ? "Hey" : profileName
         do {
-            let session = LanguageModelSession(instructions: voiceInstructions)
+            let session = LanguageModelSession(instructions: voice)
             let prompt = """
                 Decide if \(name) should get a local notification now.
                 Kind: \(kind)
@@ -195,18 +192,21 @@ enum FoundationModelCoach {
     /// Short on-device summary of a Health digest before (or without) Grok.
     static func summarizeFitnessDigest(
         profileName: String,
-        digestBlock: String
+        digestBlock: String,
+        sex: UserBodyProfile.Sex = .male
     ) async -> String? {
+        let voice = CoachVoice.bannerRules(sex: sex)
         guard FoundationModelAvailability.isAvailable else {
             return await OnDevicePolishService.shared.summarizeFitnessDigest(
                 profileName: profileName,
-                digestBlock: digestBlock
+                digestBlock: digestBlock,
+                voiceRules: voice
             )
         }
         guard !digestBlock.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         let name = profileName.isEmpty ? "Hey" : profileName
         do {
-            let session = LanguageModelSession(instructions: voiceInstructions)
+            let session = LanguageModelSession(instructions: voice)
             let prompt = """
                 \(name) asked for a quick private read of this Apple Health digest.
                 Stay on-device. Under 90 words. One next action that fits the time of day if obvious.
@@ -225,9 +225,16 @@ enum FoundationModelCoach {
     }
 
     /// Optional FM / sidecar pass to pull sticky facts; merges with heuristic extractor upstream.
-    static func extractMemoryFacts(from userText: String) async -> [CoachMemoryFact] {
+    static func extractMemoryFacts(
+        from userText: String,
+        sex: UserBodyProfile.Sex = .male
+    ) async -> [CoachMemoryFact] {
+        let voice = CoachVoice.bannerRules(sex: sex)
         guard FoundationModelAvailability.isAvailable else {
-            return await OnDevicePolishService.shared.extractMemoryFacts(from: userText).compactMap { raw in
+            return await OnDevicePolishService.shared.extractMemoryFacts(
+                from: userText,
+                voiceRules: voice
+            ).compactMap { raw in
                 let clean = CoachCopySanitize.clean(raw)
                 guard clean.count >= 6 else { return nil }
                 return CoachMemoryFact(text: clean, tags: ["sidecar", "lifestyle"])
@@ -236,7 +243,7 @@ enum FoundationModelCoach {
         let trimmed = userText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 12 else { return [] }
         do {
-            let session = LanguageModelSession(instructions: voiceInstructions)
+            let session = LanguageModelSession(instructions: voice)
             let prompt = """
                 Extract durable personal facts worth remembering for a fitness coach.
                 Only keep diet, training, lifestyle constraints the user stated about themselves.
@@ -274,10 +281,11 @@ enum FoundationModelCoach {
         weeklyDeltaKg: Double,
         fasting: FastingWindow,
         memoryBlock: String,
+        sex: UserBodyProfile.Sex = .male,
         now: Date = Date()
     ) async -> [MealPlanMeal]? {
         guard FoundationModelAvailability.isAvailable else { return nil }
-        let who = name.isEmpty ? "the user" : name
+        let who = CoachVoice.who(name, sex: sex)
         let localTime = now.formatted(date: .omitted, time: .shortened)
         let fastingLine: String = {
             if fasting.isActive {
@@ -290,9 +298,15 @@ enum FoundationModelCoach {
         let mem = memoryBlock.trimmingCharacters(in: .whitespacesAndNewlines)
         let plateCount = MealPlanEngine.preferredMealCount(for: fasting)
         let slotHint = MealPlanEngine.slotTitles(count: plateCount, fasting: fasting).joined(separator: ", ")
+        let picture = CoachVoice.energyBudgetPicture(kcal: maxKcal, diet: diet)
+        let proteinPic = CoachVoice.proteinPicture(grams: proteinGrams, diet: diet)
+        let femaleHint = sex == .female
+            ? "Also describe portions with palms/fists/handfuls in titles or micro lines when natural. Daily picture: \(picture). Protein picture: \(proteinPic)."
+            : ""
         do {
             let session = LanguageModelSession(instructions: """
                 You write practical meal menus for The Scale on-device.
+                \(CoachVoice.bannerRules(sex: sex))
                 Fitness coaching only. Never diagnose. No em dashes.
                 Every ingredient needs a metric portion (g or ml). Real dishes, not fluff.
                 Honour diet preference and fasting windows.
@@ -301,6 +315,7 @@ enum FoundationModelCoach {
                 Build exactly \(plateCount) upcoming meal\(plateCount == 1 ? "" : "s") for \(who) from local now \(localTime).
                 Diet: \(diet.title). Daily max \(maxKcal) kcal. Protein \(proteinGrams) g. Micro focus: \(microHint).
                 Weekly weight nudge \(String(format: "%+.1f", weeklyDeltaKg)) kg (keep a mild deficit if negative).
+                \(femaleHint)
                 \(fastingLine)
                 Slot titles in order: \(slotHint).
                 \(mem.isEmpty ? "" : "Memory:\n\(mem)")

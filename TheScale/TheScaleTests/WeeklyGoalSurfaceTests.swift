@@ -301,7 +301,8 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
             idealKg: 78
         )
         XCTAssertEqual(card.tone, .skeptical)
-        XCTAssertEqual(card.tone.badge, "SIDE-EYE")
+        XCTAssertEqual(card.tone.badge(sex: .male), "SIDE-EYE")
+        XCTAssertEqual(card.tone.badge(sex: .female), "CURIOUS")
     }
     func testAtmosphereGreenOnTrackLimeAhead() {
         let on = WeeklyGoalAtmosphere.forBand(.onTrack, colorScheme: .light)

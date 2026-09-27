@@ -236,6 +236,14 @@ enum OnboardingStore {
         get { UserDefaults.standard.bool(forKey: key) }
         set { UserDefaults.standard.set(newValue, forKey: key) }
     }
+
+    /// New installs and incomplete profiles always enter the onboarding sequence.
+    static func shouldPresent(profile: UserBodyProfile) -> Bool {
+        if !hasCompleted { return true }
+        // Interrupted first-run leaves age below adult floor.
+        if profile.ageYears + 0.01 < UserBodyProfile.minimumAgeYears { return true }
+        return false
+    }
 }
 
 /// How often Grok should review the latest Health digest (when consent + live config exist).

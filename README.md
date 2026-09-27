@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 2.51.0 (build 94) |
+| **Version** | 2.52.0 (build 95) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -80,7 +80,8 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **Paywall + Settings polish (2.14.1):** Unlock Coach one-pager (high contrast Free/Plus/Pro); meal cards match sheet background; Settings Done dismisses keyboard; Settings regrouped (You / Weekly AI / Coach / Alerts / Scale / Legal).
 - **AI usage / meals / units (2.14.0):** Settings shows weekly online AI % + used/limit with Upgrade; meal carousel peeks + page dots + color; quota-exhausted menus via Foundation Models or solid metric-portion templates; preferred metric/imperial units across Settings, live weigh-in, meal plan, and Coach prompts.
 - **Home day coach (2.13.0):** Today-ahead advice (local clock), macro-goal ETA vs planned date, passive BLE auto-open live card (no Find Scale primary), 10s auto-confirm, weigh-in analysis card (congratulate / reward / punish). Meal plan respects IF 16-8 + time of day; retro snake spinner while generating. Chart point comments (256 chars, on-device, last 30 days). Flat home (cards only for meal carousel).
-- **On-device polish sidecar (2.51.0):** Metal 0.5B polish pack for iPhones without Apple Intelligence; AI-capable phones skip install. Package: `Packages/ScaleOnDevicePolish`.
+- **Female coach voice + visual plates (2.52.0):** Female insights nurture and praise; energy/protein shown as palm/fist/handful pictures (not bare kcal). Grok, on-device FM, and Metal polish share sex-tuned voice rules. Imperial display continues via UnitFormat.
+- **On-device polish sidecar (2.52.0):** Metal 0.5B polish pack for iPhones without Apple Intelligence; AI-capable phones skip install. Package: `Packages/ScaleOnDevicePolish`.
 - **Progress Monday weight (2.50.4):** Progress WEEK START / % / Sunday target use **last Monday** body mass from Health (prefer Monday morning 04:00-12:00; else any Monday sample; else last weigh before Tuesday). Persisted `weekStartKg` / `weekStartDate` realign when they do not match. Anchor date is always local Monday 00:00, never today, dream weight, or first mid-week weigh.
 - **Monday week-start lock (2.50.2):** Settings/Debug Monday card preview is ephemeral — no rewrite of week-start kg / Sunday target / progress %. Removed mid-week >2.5 kg baseline wipe.
 - **Analog dream scale pivot (2.50.1):** fixed reading marker at 12 o’clock; dial disc rotates about its true center so the chosen kg sits under the needle (Settings + onboarding).
@@ -165,7 +166,7 @@ Optional gitignored override: copy `Secrets.example.xcconfig` → `Secrets.xccon
 
 Health check: `curl -s https://the-scale-grok.the-scale-grok.workers.dev` → `{"ok":true,...,"stream":true}`
 
-### Apple Intelligence + on-device polish sidecar (2.51.0)
+### Apple Intelligence + on-device polish sidecar (2.52.0)
 
 1. **Apple Intelligence phones** (15 Pro / 16+): Settings → Apple Intelligence & Siri → on; wait for model. App Settings shows FM ready. Sidecar is **never** downloaded.
 2. **Other compatible iPhones** (including base iPhone 15): after onboarding, auto-install **Qwen2.5 0.5B** (~470 MB, Wi-Fi preferred) via `Packages/ScaleOnDevicePolish`. Settings shows download / Polish ready.

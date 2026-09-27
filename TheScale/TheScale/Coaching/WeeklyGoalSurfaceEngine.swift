@@ -211,6 +211,8 @@ enum WeeklyGoalSurfaceEngine {
             energy: energy,
             mealLine: meals,
             targetMode: targetMode,
+            sex: profile.sex,
+            unitSystem: PreferredUnitSystemStore.load(),
             now: now,
             calendar: calendar
         )
@@ -224,18 +226,26 @@ enum WeeklyGoalSurfaceEngine {
             }
         }()
 
+        let units = PreferredUnitSystemStore.load()
         let eta = MacroGoalETA.compute(
             currentKg: currentKg,
             idealKg: profile.idealWeightKg,
             plannedDate: profile.goalDate,
             recentWeights: recentWeights,
             weeklyDeltaKg: weeklyGoal.targetDeltaKg,
+            sex: profile.sex,
+            unitSystem: units,
             now: now,
             calendar: calendar
         )
 
         let progress = todayMetricProgress(targets: targets, digest: digest)
-        let chips = Self.dailyTargetChips(targets: targets, showNutritionTargets: !targets.intakeTracked)
+        let chips = Self.dailyTargetChips(
+            targets: targets,
+            showNutritionTargets: !targets.intakeTracked,
+            sex: profile.sex,
+            diet: profile.dietPreference
+        )
         let sundayKg = sundayTargetKg(from: weeklyGoal, currentKg: currentKg)
 
         return WeeklyGoalSurface(
@@ -422,12 +432,28 @@ enum WeeklyGoalSurfaceEngine {
 
     static func dailyTargetChips(
         targets: DailyGoalTargets,
-        showNutritionTargets: Bool
+        showNutritionTargets: Bool,
+        sex: UserBodyProfile.Sex = .male,
+        diet: DietPreference = .omnivore
     ) -> [HomeDailyTargetChip] {
         guard showNutritionTargets else { return [] }
         return [
-            HomeDailyTargetChip(title: "Energy", valueLine: "\(targets.maxCalories) kcal max"),
-            HomeDailyTargetChip(title: targets.proteinLabel, valueLine: "\(targets.proteinGrams) g"),
+            HomeDailyTargetChip(
+                title: "Energy",
+                valueLine: CoachVoice.energyChipLine(
+                    kcal: targets.maxCalories,
+                    diet: diet,
+                    sex: sex
+                )
+            ),
+            HomeDailyTargetChip(
+                title: targets.proteinLabel,
+                valueLine: CoachVoice.proteinChipLine(
+                    grams: targets.proteinGrams,
+                    diet: diet,
+                    sex: sex
+                )
+            ),
             HomeDailyTargetChip(title: targets.microName, valueLine: targets.microTargetLine)
         ]
     }
@@ -621,10 +647,12 @@ enum WeeklyGoalSurfaceEngine {
         energy: WeeklyEnergyBalanceSnapshot,
         mealLine: String,
         targetMode: WeeklyTargetMode = .aggressive,
+        sex: UserBodyProfile.Sex = .male,
+        unitSystem: PreferredUnitSystem = .metric,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> String {
-        let who = name.isEmpty ? "Operator" : name
+        let who = CoachVoice.who(name, sex: sex)
         let recovery = digest?.recovery?.band
         let sleep = digest?.sleepHoursLastNight
         let hour = calendar.component(.hour, from: now)
@@ -633,39 +661,94 @@ enum WeeklyGoalSurfaceEngine {
             if hour < 17 { return "this afternoon" }
             return "tonight"
         }()
+        let energyCap = CoachVoice.energyBudgetPhrase(
+            kcal: targets.maxCalories,
+            diet: diet,
+            sex: sex
+        )
+        let proteinBit = CoachVoice.proteinPhrase(
+            grams: targets.proteinGrams,
+            diet: diet,
+            sex: sex
+        )
 
         // Energy diagnosis wins over generic step pep talks.
         switch energy.diagnosis {
-        case .overeatingWhileActive(let intake, let spend, let maxK, _, let obs, let days):
-            return "\(who), you're moving (~\(spend) kcal out) but the scale barely budged (\(String(format: "%+.2f", obs)) kg / \(String(format: "%.0f", days))d). That's intake (~\(intake) implied), not steps. Get your act together: under \(maxK) kcal \(dayPart). Open Meal plan."
+        case .overeatingWhileActive(_, _, let maxK, _, let obs, let days):
+            let massBit = UnitFormat.massDeltaString(obs, system: unitSystem)
+            let daysBit = String(format: "%.0f", days)
+            let cap = CoachVoice.energyBudgetPhrase(kcal: maxK, diet: diet, sex: sex)
+            switch sex {
+            case .female:
+                return "\(who), you moved plenty, but the scale barely budged (\(massBit) over \(daysBit) days). That usually means the plates ran generous. \(dayPart.capitalized): keep it to \(cap). You've got this. Open Meal plan."
+            case .male:
+                return "\(who), you're moving but the scale barely budged (\(massBit) / \(daysBit)d). That's intake, not steps. Get your act together: \(cap) \(dayPart). Open Meal plan."
+            }
         case .underMoving(_, let exp, let obs, _):
-            return "\(who), movement was soft and weight went \(String(format: "%+.2f", obs)) kg (wanted \(String(format: "%+.2f", exp))). \(dayPart.capitalized): under \(targets.maxCalories) kcal, then walk. Open Meal plan."
+            let obsBit = UnitFormat.massDeltaString(obs, system: unitSystem)
+            let expBit = UnitFormat.massDeltaString(exp, system: unitSystem)
+            switch sex {
+            case .female:
+                return "\(who), movement was soft and weight went \(obsBit) (wanted \(expBit)). \(dayPart.capitalized): \(energyCap), then a cheerful walk. Proud you're checking in. Open Meal plan."
+            case .male:
+                return "\(who), movement was soft and weight went \(obsBit) (wanted \(expBit)). \(dayPart.capitalized): \(energyCap), then walk. Open Meal plan."
+            }
         case .aheadOfEnergy, .onPace, .insufficientData:
             break
         }
 
         if recovery == .red, (sleep ?? 0) < 6.5 {
-            return "\(who), recovery is flagged soft after a short night. \(dayPart.capitalized): easy day, protein \(targets.proteinGrams) g, early lights-out, stay under \(targets.maxCalories) kcal."
+            switch sex {
+            case .female:
+                return "\(who), your body is asking for gentleness after a short night. \(dayPart.capitalized): easy day, \(proteinBit), early lights-out, \(energyCap). Rest is part of the glow."
+            case .male:
+                return "\(who), recovery is flagged soft after a short night. \(dayPart.capitalized): easy day, \(proteinBit), early lights-out, stay \(energyCap)."
+            }
         }
         if recovery == .green, let sleep, sleep >= 6.5 {
             // Do not bury a strong sleep night under unrelated pep talk.
             // Fall through to pace / mode lines below.
         } else if let sleep, sleep < 6.0 {
-            return "\(who), \(String(format: "%.1f", sleep)) h sleep is thin. Protect bedtime \(dayPart), stay under \(targets.maxCalories) kcal with \(targets.proteinGrams) g protein."
+            switch sex {
+            case .female:
+                return "\(who), \(String(format: "%.1f", sleep)) hours of sleep is thin. Protect bedtime \(dayPart), keep \(energyCap) with \(proteinBit). You're still showing up."
+            case .male:
+                return "\(who), \(String(format: "%.1f", sleep)) h sleep is thin. Protect bedtime \(dayPart), stay \(energyCap) with \(proteinBit)."
+            }
         }
 
         if targetMode == .hardcoreCatchUp {
-            return "\(who), hardcore catch-up week. \(dayPart.capitalized): max \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein, \(targets.steps) steps. No mercy snacks."
+            switch sex {
+            case .female:
+                return "\(who), catch-up week with kindness: \(dayPart) stick to \(energyCap), \(proteinBit), and \(targets.steps) steps. No shame snacks, just the plan."
+            case .male:
+                return "\(who), hardcore catch-up week. \(dayPart.capitalized): \(energyCap), \(proteinBit), \(targets.steps) steps. No mercy snacks."
+            }
         }
         if targetMode == .accelerate {
-            return "\(who), you're ahead: accelerate, don't coast. \(dayPart.capitalized) under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein, keep \(targets.steps) steps."
+            switch sex {
+            case .female:
+                return "\(who), you're ahead and glowing. Keep the momentum \(dayPart): \(energyCap), \(proteinBit), keep \(targets.steps) steps. Don't coast into chaos."
+            case .male:
+                return "\(who), you're ahead: accelerate, don't coast. \(dayPart.capitalized) \(energyCap), \(proteinBit), keep \(targets.steps) steps."
+            }
         }
 
         switch band {
         case .crushed:
-            return "\(who), week already won on kg. Still finish the line: under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein \(dayPart). Don't celebrate with chaos."
+            switch sex {
+            case .female:
+                return "\(who), you already won the week. Still finish beautifully: \(energyCap), \(proteinBit) \(dayPart). Celebrate without wrecking the plot."
+            case .male:
+                return "\(who), week already won. Still finish the line: \(energyCap), \(proteinBit) \(dayPart). Don't celebrate with chaos."
+            }
         case .ahead:
-            return "\(who), ahead of pace. Tighten: \(targets.proteinGrams) g protein, max \(targets.maxCalories) kcal, \(targets.steps) steps \(dayPart)."
+            switch sex {
+            case .female:
+                return "\(who), ahead of pace. Keep it pretty: \(proteinBit), \(energyCap), \(targets.steps) steps \(dayPart)."
+            case .male:
+                return "\(who), ahead of pace. Tighten: \(proteinBit), \(energyCap), \(targets.steps) steps \(dayPart)."
+            }
         case .onTrack:
             let dietBit: String = {
                 switch diet {
@@ -675,11 +758,26 @@ enum WeeklyGoalSurfaceEngine {
                 case .omnivore, .other: return "Palm-size protein each meal."
                 }
             }()
-            return "\(who), on track for \(weeklyGoal.title). \(dayPart.capitalized) under \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. \(dietBit)"
+            switch sex {
+            case .female:
+                return "\(who), on track for \(weeklyGoal.title). \(dayPart.capitalized) keep \(energyCap) with \(proteinBit). \(dietBit) You're doing this."
+            case .male:
+                return "\(who), on track for \(weeklyGoal.title). \(dayPart.capitalized) \(energyCap), \(proteinBit). \(dietBit)"
+            }
         case .atRisk:
-            return "\(who), pace is slipping. Fix is the kitchen \(dayPart): max \(targets.maxCalories) kcal, \(targets.proteinGrams) g protein. Open Meal plan."
+            switch sex {
+            case .female:
+                return "\(who), pace is slipping a little. Kitchen fix \(dayPart): \(energyCap) and \(proteinBit). Open Meal plan. Still proud you're here."
+            case .male:
+                return "\(who), pace is slipping. Fix is the kitchen \(dayPart): \(energyCap), \(proteinBit). Open Meal plan."
+            }
         case .unknown:
-            return "\(who), step on the scale once, then stay under \(targets.maxCalories) kcal \(dayPart). Baseline first, vibes second."
+            switch sex {
+            case .female:
+                return "\(who), step on the scale once, then keep \(energyCap) \(dayPart). Baseline first, then we paint the week."
+            case .male:
+                return "\(who), step on the scale once, then stay \(energyCap) \(dayPart). Baseline first, vibes second."
+            }
         }
     }
 }
