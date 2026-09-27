@@ -3,6 +3,7 @@ import XCTest
 
 final class FoundationModelCoachTests: XCTestCase {
     func testAvailabilityStatusSummaryIsNonEmpty() {
+        FoundationModelAvailability.resetRuntimeFailureForTests()
         let summary = FoundationModelAvailability.statusSummary
         XCTAssertFalse(summary.isEmpty)
         XCTAssertTrue(
@@ -12,8 +13,45 @@ final class FoundationModelCoachTests: XCTestCase {
     }
 
     func testShortLabelIsStable() {
+        FoundationModelAvailability.resetRuntimeFailureForTests()
         let label = FoundationModelAvailability.shortLabel
         XCTAssertTrue(label == "FM ready" || label == "FM off")
+    }
+
+    func testSimulatorSkipsFoundationModels() {
+        FoundationModelAvailability.resetRuntimeFailureForTests()
+        #if targetEnvironment(simulator)
+        XCTAssertFalse(FoundationModelAvailability.isAvailable)
+        XCTAssertEqual(FoundationModelAvailability.shortLabel, "FM off")
+        XCTAssertTrue(FoundationModelAvailability.statusSummary.lowercased().contains("simulator"))
+        #endif
+    }
+
+    func testRuntimeFailureTripsAvailability() {
+        FoundationModelAvailability.resetRuntimeFailureForTests()
+        #if !targetEnvironment(simulator)
+        // On device we may start available; trip the breaker and ensure we stay off.
+        let before = FoundationModelAvailability.isAvailable
+        #endif
+        FoundationModelAvailability.noteRuntimeFailure(
+            NSError(
+                domain: "ModelManagerServices.ModelManagerError",
+                code: 1001,
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "InferenceError::hostFailed::promptTemplateNotFound"
+                ]
+            )
+        )
+        XCTAssertFalse(FoundationModelAvailability.isAvailable)
+        XCTAssertTrue(
+            FoundationModelAvailability.statusSummary.lowercased().contains("prompt template")
+                || FoundationModelAvailability.statusSummary.lowercased().contains("host failed")
+        )
+        FoundationModelAvailability.resetRuntimeFailureForTests()
+        #if !targetEnvironment(simulator)
+        _ = before
+        #endif
     }
 
     func testRefineNotificationFallsBackWhenUnavailableOrFails() async {

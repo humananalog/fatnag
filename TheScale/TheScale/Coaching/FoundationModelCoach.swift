@@ -133,7 +133,16 @@ enum FoundationModelCoach {
             let safeBody = body.isEmpty ? fallbackBody : clamp(body, max: 140)
             return (safeTitle, safeBody, true)
         } catch {
-            return (fallbackTitle, fallbackBody, false)
+            FoundationModelAvailability.noteRuntimeFailure(error)
+            let sidecar = await OnDevicePolishService.shared.refineNotificationCopy(
+                profileName: profileName,
+                kind: kind,
+                fallbackTitle: fallbackTitle,
+                fallbackBody: fallbackBody,
+                context: context,
+                voiceRules: voice
+            )
+            return (sidecar.title, sidecar.body, sidecar.usedSidecar)
         }
     }
 
@@ -183,6 +192,17 @@ enum FoundationModelCoach {
                 true
             )
         } catch {
+            FoundationModelAvailability.noteRuntimeFailure(error)
+            let sidecar = await OnDevicePolishService.shared.shouldSendPing(
+                profileName: profileName,
+                kind: kind,
+                algorithmicReason: algorithmicReason,
+                extraContext: extraContext,
+                voiceRules: voice
+            )
+            if sidecar.usedSidecar {
+                return (sidecar.shouldNotify, sidecar.reason, true)
+            }
             return (true, "FM judgment failed; algorithmic trigger stands.", false)
         }
     }
@@ -220,7 +240,12 @@ enum FoundationModelCoach {
             let text = CoachCopySanitize.clean(response.content)
             return text.isEmpty ? nil : text
         } catch {
-            return nil
+            FoundationModelAvailability.noteRuntimeFailure(error)
+            return await OnDevicePolishService.shared.summarizeFitnessDigest(
+                profileName: profileName,
+                digestBlock: digestBlock,
+                voiceRules: voice
+            )
         }
     }
 
@@ -264,7 +289,15 @@ enum FoundationModelCoach {
                 return CoachMemoryFact(text: clean, tags: ["fm", "lifestyle"])
             }
         } catch {
-            return []
+            FoundationModelAvailability.noteRuntimeFailure(error)
+            return await OnDevicePolishService.shared.extractMemoryFacts(
+                from: userText,
+                voiceRules: voice
+            ).compactMap { raw in
+                let clean = CoachCopySanitize.clean(raw)
+                guard clean.count >= 6 else { return nil }
+                return CoachMemoryFact(text: clean, tags: ["sidecar", "lifestyle"])
+            }
         }
     }
 
@@ -357,6 +390,7 @@ enum FoundationModelCoach {
             }
             return meals.count >= plateCount ? meals : nil
         } catch {
+            FoundationModelAvailability.noteRuntimeFailure(error)
             return nil
         }
     }
@@ -405,6 +439,7 @@ enum FoundationModelCoach {
             let remote = draft(from: response.content)
             return OnboardingLocalInference.merge(local: local, remote: remote)
         } catch {
+            FoundationModelAvailability.noteRuntimeFailure(error)
             return local
         }
     }

@@ -90,3 +90,7 @@ See [health-and-notifications.md](health-and-notifications.md) for alert surface
 ## Female coach voice (2.52.0)
 
 When profile sex is female, Keel uses a nurturing, praise-heavy, funny coach tone for Grok, Apple Intelligence, and the Metal polish sidecar. Daily energy and protein targets are phrased as visual plates (palm of protein, fist of carbs, handful of greens) instead of leading with bare calorie figures. Pace lines avoid jargon like ETA.
+
+## Simulator / host FM failures (2.52.2)
+
+On iOS Simulator, Apple Intelligence is treated as unavailable so ModelManager does not spam `promptTemplateNotFound` / SensitiveContentAnalysis errors. On device, the first host/prompt-template failure disables FM for the process lifetime and callers fall back to algorithmic copy or the Metal polish sidecar.

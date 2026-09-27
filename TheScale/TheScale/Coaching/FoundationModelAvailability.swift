@@ -2,15 +2,27 @@ import Foundation
 import FoundationModels
 
 /// On-device Apple Intelligence availability for The Scale.
-/// Never throws into UI; callers treat unavailable as algorithmic / Keel fallback.
+/// Never throws into UI; callers treat unavailable as algorithmic / Keel / polish fallback.
 enum FoundationModelAvailability {
     enum Status: Equatable, Sendable {
         case available
         case unavailable(reason: String)
     }
 
-    /// Snapshot of `SystemLanguageModel.default` availability.
+    /// Process-lifetime trip after a host / prompt-template failure so we stop spamming ModelManager.
+    private static let runtimeLock = NSLock()
+    private static var _runtimeDisabledReason: String?
+
+    /// Snapshot of `SystemLanguageModel.default` availability, plus simulator / runtime gates.
     static var status: Status {
+        if let disabled = runtimeDisabledReason {
+            return .unavailable(reason: disabled)
+        }
+        #if targetEnvironment(simulator)
+        // Simulator often reports `.available` then fails every request with
+        // `promptTemplateNotFound` (safety / instruct templates missing). Skip FM on sim.
+        return .unavailable(reason: "Simulator skips Apple Intelligence. Algorithmic copy and Keel still work.")
+        #else
         let model = SystemLanguageModel.default
         switch model.availability {
         case .available:
@@ -27,6 +39,7 @@ enum FoundationModelAvailability {
                 return .unavailable(reason: "Apple Intelligence unavailable on this device.")
             }
         }
+        #endif
     }
 
     static var isAvailable: Bool {
@@ -52,5 +65,37 @@ enum FoundationModelAvailability {
         case .unavailable:
             return "FM off"
         }
+    }
+
+    private static var runtimeDisabledReason: String? {
+        runtimeLock.lock()
+        defer { runtimeLock.unlock() }
+        return _runtimeDisabledReason
+    }
+
+    /// Call after a LanguageModelSession / ModelManager host failure so later calls skip FM.
+    static func noteRuntimeFailure(_ error: Error) {
+        let text = String(describing: error)
+        let lower = text.lowercased()
+        let looksLikeHostGap =
+            lower.contains("prompttemplatenotfound")
+            || lower.contains("hostfailed")
+            || lower.contains("modelmanagererror")
+            || lower.contains("inferencefailed")
+            || lower.contains("sensitivecontentanalysis")
+        guard looksLikeHostGap else { return }
+        runtimeLock.lock()
+        defer { runtimeLock.unlock() }
+        if _runtimeDisabledReason == nil {
+            _runtimeDisabledReason =
+                "On-device model host failed (prompt template missing). Using algorithmic copy until relaunch."
+        }
+    }
+
+    /// Test hook.
+    static func resetRuntimeFailureForTests() {
+        runtimeLock.lock()
+        defer { runtimeLock.unlock() }
+        _runtimeDisabledReason = nil
     }
 }

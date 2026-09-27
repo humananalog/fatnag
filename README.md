@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 2.52.1 (build 96) |
+| **Version** | 2.52.2 (build 97) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -80,6 +80,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **Paywall + Settings polish (2.14.1):** Unlock Coach one-pager (high contrast Free/Plus/Pro); meal cards match sheet background; Settings Done dismisses keyboard; Settings regrouped (You / Weekly AI / Coach / Alerts / Scale / Legal).
 - **AI usage / meals / units (2.14.0):** Settings shows weekly online AI % + used/limit with Upgrade; meal carousel peeks + page dots + color; quota-exhausted menus via Foundation Models or solid metric-portion templates; preferred metric/imperial units across Settings, live weigh-in, meal plan, and Coach prompts.
 - **Home day coach (2.13.0):** Today-ahead advice (local clock), macro-goal ETA vs planned date, passive BLE auto-open live card (no Find Scale primary), 10s auto-confirm, weigh-in analysis card (congratulate / reward / punish). Meal plan respects IF 16-8 + time of day; retro snake spinner while generating. Chart point comments (256 chars, on-device, last 30 days). Flat home (cards only for meal carousel).
+- **Simulator FM quiet fallback (2.52.2):** Simulator skips Apple Intelligence (avoids `promptTemplateNotFound` spam). Device host failures trip a process-lifetime breaker and fall back to algorithmic / Metal polish copy.
 - **Imperial mass normalization (2.52.1):** History charts, manual weigh-in, onboarding memory, Settings clamp toast, trend subtitles, weekly status lines, Monday card copy, and notification samples honor preferred metric/imperial units via `UnitFormat`.
 - **Female coach voice + visual plates (2.52.0):** Female insights nurture and praise; energy/protein shown as palm/fist/handful pictures (not bare kcal). Grok, on-device FM, and Metal polish share sex-tuned voice rules. Imperial display continues via UnitFormat.
 - **On-device polish sidecar (2.51.0):** Metal 0.5B polish pack for iPhones without Apple Intelligence; AI-capable phones skip install. Package: `Packages/ScaleOnDevicePolish`.
