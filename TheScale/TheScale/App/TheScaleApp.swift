@@ -92,6 +92,9 @@ struct TheScaleApp: App {
         GrokFitnessMonitor.scheduleBackgroundProcessing(prefs: session.fitnessMonitorPreferences)
         Task {
             await ScaleSubscriptionStore.shared.refresh()
+            // Compatible phones (no Apple Intelligence) auto-install 0.5B Metal polish.
+            // AI-capable iPhones skip the download entirely.
+            await OnDevicePolishBootstrap.configureAndInstallIfNeeded()
             await GrokFitnessMonitor.scheduleIntervalNotification(
                 prefs: session.fitnessMonitorPreferences,
                 profileName: session.profile.greetingName

@@ -108,7 +108,7 @@ struct CoachChatView: View {
         }
         let snap = subscription.quotaSnapshot
         let quota = "\(snap.remaining)/\(snap.limit) wk"
-        let fm = FoundationModelAvailability.shortLabel
+        let fm = OnDevicePolishBootstrap.combinedOnDeviceLabel
         if GrokSharedConfig.isLiveConfigured {
             let mem = chat.rememberedCount
             let base = CoachPersona.liveBadge(memoryCount: mem)

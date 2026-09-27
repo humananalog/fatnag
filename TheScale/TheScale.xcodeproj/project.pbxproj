@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1B2C3D4E5F60718293A00OD1 /* OnDevicePolishBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10OD1 /* OnDevicePolishBootstrap.swift */; };
+		A1B2C3D4E5F60718293A00PKG /* ScaleOnDevicePolish in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F60718293A10PRD /* ScaleOnDevicePolish */; };
 		1856DEB36DD046A7ACBD0584 /* BodyCompositionCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EA1C2AF6999490F8E49CA50 /* BodyCompositionCalculator.swift */; };
 		3B9F0978281C4C8EBE8DADFC /* ScaleSessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98B7D1B4269643799F3CE3B0 /* ScaleSessionViewModel.swift */; };
 		3CAF1391CFF64BF3AC07916E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87EB1E9E2263405C8B1B48F0 /* ContentView.swift */; };
@@ -140,6 +142,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		A1B2C3D4E5F60718293A10OD1 /* OnDevicePolishBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDevicePolishBootstrap.swift; sourceTree = "<group>"; };
 		056560E6968546ABA637231B /* TheScale.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TheScale.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0EA1C2AF6999490F8E49CA50 /* BodyCompositionCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyCompositionCalculator.swift; sourceTree = "<group>"; };
 		1D6492050DAD4FD2AB370346 /* TheScaleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TheScaleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -275,6 +278,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C3D4E5F60718293A00PKG /* ScaleOnDevicePolish in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -359,6 +363,7 @@
 				363A498F516E4D29A5042E2C /* Models */,
 				19097D29942F47248A42C320 /* BLE */,
 				C1B0AEBF4FE7489F878071C4 /* Health */,
+				A1B2C3D4E5F60718293A10ODG /* OnDevicePolish */,
 				B7E2F1A0C3D4491E9F6A2B12 /* Coaching */,
 				B7E2F1A0C3D4491E9F6A2B13 /* Notifications */,
 				C5819192AB924C7DB8F782F9 /* BodyComposition */,
@@ -407,6 +412,14 @@
 				A1B2C3D4E5F60718293A103A /* Products.storekit */,
 			);
 			path = Config;
+			sourceTree = "<group>";
+		};
+		A1B2C3D4E5F60718293A10ODG /* OnDevicePolish */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F60718293A10OD1 /* OnDevicePolishBootstrap.swift */,
+			);
+			path = OnDevicePolish;
 			sourceTree = "<group>";
 		};
 		B7E2F1A0C3D4491E9F6A2B12 /* Coaching */ = {
@@ -595,6 +608,9 @@
 				A1B2C3D4E5F60718293A00TD1 /* PBXTargetDependency */,
 			);
 			name = TheScale;
+			packageProductDependencies = (
+				A1B2C3D4E5F60718293A10PRD /* ScaleOnDevicePolish */,
+			);
 			productName = TheScale;
 			productReference = 056560E6968546ABA637231B /* TheScale.app */;
 			productType = "com.apple.product-type.application";
@@ -630,6 +646,9 @@
 				Base,
 			);
 			mainGroup = 2B0FBBD8D0F5403DB489D183;
+			packageReferences = (
+				A1B2C3D4E5F60718293A10PKG /* XCLocalSwiftPackageReference "Packages/ScaleOnDevicePolish" */,
+			);
 			productRefGroup = 786C64B488AF41CE9FFBB2D7 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -758,6 +777,7 @@
 				A1B2C3D4E5F60718293A0025 /* ScaleNotificationDelegate.swift in Sources */,
 				A1B2C3D4E5F60718293A0021 /* FoundationModelAvailability.swift in Sources */,
 				A1B2C3D4E5F60718293A0022 /* FoundationModelCoach.swift in Sources */,
+				A1B2C3D4E5F60718293A00OD1 /* OnDevicePolishBootstrap.swift in Sources */,
 				A1B2C3D4E5F60718293A0028 /* MondayCardEngine.swift in Sources */,
 				A1B2C3D4E5F60718293A0041 /* WeeklyGoalSurfaceEngine.swift in Sources */,
 				A1B2C3D4E5F60718293A0043 /* WeeklyEnergyBalanceEvaluator.swift in Sources */,
@@ -827,10 +847,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 93;
+				CURRENT_PROJECT_VERSION = 94;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.50.4;
+				MARKETING_VERSION = 2.51.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -898,7 +918,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 93;
+				CURRENT_PROJECT_VERSION = 94;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TheScale/Resources/Info.plist;
@@ -910,7 +930,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.50.4;
+				MARKETING_VERSION = 2.51.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -929,10 +949,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 93;
+				CURRENT_PROJECT_VERSION = 94;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 2.50.4;
+				MARKETING_VERSION = 2.51.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -950,7 +970,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 93;
+				CURRENT_PROJECT_VERSION = 94;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TheScale/Resources/Info.plist;
@@ -962,7 +982,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.50.4;
+				MARKETING_VERSION = 2.51.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1028,7 +1048,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TheScaleWidgets/TheScaleWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 93;
+				CURRENT_PROJECT_VERSION = 94;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TheScaleWidgets/Info.plist;
@@ -1040,7 +1060,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.50.4;
+				MARKETING_VERSION = 2.51.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1055,7 +1075,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TheScaleWidgets/TheScaleWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 93;
+				CURRENT_PROJECT_VERSION = 94;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TheScaleWidgets/Info.plist;
@@ -1067,7 +1087,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 2.50.4;
+				MARKETING_VERSION = 2.51.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1117,6 +1137,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A1B2C3D4E5F60718293A10PKG /* XCLocalSwiftPackageReference "Packages/ScaleOnDevicePolish" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../Packages/ScaleOnDevicePolish;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1B2C3D4E5F60718293A10PRD /* ScaleOnDevicePolish */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D4E5F60718293A10PKG /* XCLocalSwiftPackageReference "Packages/ScaleOnDevicePolish" */;
+			productName = ScaleOnDevicePolish;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D98058AA25D5439B8FFAB37C /* Project object */;
 }

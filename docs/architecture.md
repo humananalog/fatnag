@@ -10,6 +10,7 @@ The Scale is a native iOS app. BLE and HealthKit stay on-device. Optional coachi
 | **HealthKit** | Persist weight / BMI / fat % / lean mass; supply history + fitness digest |
 | **UserDefaults** | Profile, persona, calibration, Coach memory, notification prefs |
 | **Foundation Models** | On-device `SystemLanguageModel` / `LanguageModelSession` (Apple Intelligence) |
+| **ScaleOnDevicePolish** | Metal 0.5B sidecar for non-AI iPhones (`Packages/ScaleOnDevicePolish`) |
 | **Grok proxy Worker** | Holds `XAI_API_KEY`; streams or returns Grok completions |
 | **xAI Grok** | Full Coach chat + specialist consults behind one user-facing voice |
 
@@ -17,8 +18,9 @@ The Scale is a native iOS app. BLE and HealthKit stay on-device. Optional coachi
 Mi Scale 2 ──BLE ads──► The Scale ──write/read──► Apple Health
                            │
                            ├── UserDefaults (local state)
-                           ├── Foundation Models (on-device)
-                           └── HTTPS (consent) ──► Worker ──► Grok
+                           ├── Foundation Models (on-device, AI phones)
+                           ├── ScaleOnDevicePolish (0.5B Metal, other iPhones)
+                           └── HTTPS (consent) -> Worker -> Grok
 ```
 
 ## App modules (Swift)
@@ -30,6 +32,7 @@ Mi Scale 2 ──BLE ads──► The Scale ──write/read──► Apple Heal
 | `Health/` | HealthKit authorize, read, write |
 | `Models/` | Session VM, measurement, calibration |
 | `Coaching/` | Grok client, shared config, memory, fitness monitor, FM helpers, targets |
+| `OnDevicePolish/` | Host bridge for `ScaleOnDevicePolish` install gate |
 | `Notifications/` | Bad-trend + Coach wake schedulers |
 | `Views/` | Home, live weigh-in, History, Manual, Coach, Progress, Monday card, Settings, 3-step onboarding, soft App Review sheet |
 | `Config/` | `TheScale.xcconfig` → Info.plist `GrokProxyURL` / `GrokAPIKey` |

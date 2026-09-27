@@ -1,10 +1,12 @@
 import SwiftUI
 import UIKit
+import ScaleOnDevicePolish
 
 /// Profile, AI usage, Coach, Health, calibration, legal.
 struct SettingsView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @ObservedObject private var subscription = ScaleSubscriptionStore.shared
+    @ObservedObject private var onDevicePolish = OnDevicePolishInstaller.shared
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var focusedField: Field?
     @State private var confirmReset = false
@@ -763,12 +765,32 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(steel)
 
-                Text(FoundationModelAvailability.statusSummary)
+                Text(OnDevicePolishBootstrap.combinedStatusSummary)
                     .font(.caption)
                     .foregroundStyle(steel)
-                Text("Apple Intelligence polishes private copy on-device. Keel handles live multi-agent Coach when consented.")
+                Text("Apple Intelligence phones use the system model. Other compatible iPhones auto-install a private 0.5B Metal polish pack (~470 MB, Wi-Fi). Keel handles live Coach when consented.")
                     .font(.caption2)
                     .foregroundStyle(steel)
+                if case .ready = onDevicePolish.snapshot.phase {
+                    Text("Installed: \(OnDevicePolishCatalog.displayName)")
+                        .font(.caption2)
+                        .foregroundStyle(steel)
+                } else if case .failed = onDevicePolish.snapshot.phase {
+                    Button("Retry on-device polish download") {
+                        Task { await OnDevicePolishInstaller.shared.startDownload() }
+                    }
+                    .font(.caption)
+                } else if case .needsInstall = onDevicePolish.snapshot.phase {
+                    Button("Download on-device polish") {
+                        Task { await OnDevicePolishInstaller.shared.startDownload() }
+                    }
+                    .font(.caption)
+                } else if case .downloading(let progress) = onDevicePolish.snapshot.phase {
+                    ProgressView(value: progress)
+                    Text("Downloading on-device polish…")
+                        .font(.caption2)
+                        .foregroundStyle(steel)
+                }
             }
         }
     }

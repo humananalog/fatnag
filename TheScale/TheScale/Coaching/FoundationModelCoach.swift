@@ -1,5 +1,6 @@
 import Foundation
 import FoundationModels
+import ScaleOnDevicePolish
 
 // MARK: - Structured outputs
 
@@ -94,7 +95,7 @@ enum FoundationModelCoach {
 
     // MARK: Notifications
 
-    /// Refine algorithmic notification title/body. Returns fallbacks unchanged if FM unavailable.
+    /// Refine algorithmic notification title/body. Returns fallbacks unchanged if FM + sidecar unavailable.
     static func refineNotificationCopy(
         profileName: String,
         kind: String,
@@ -103,7 +104,14 @@ enum FoundationModelCoach {
         context: String
     ) async -> (title: String, body: String, usedFoundationModel: Bool) {
         guard FoundationModelAvailability.isAvailable else {
-            return (fallbackTitle, fallbackBody, false)
+            let sidecar = await OnDevicePolishService.shared.refineNotificationCopy(
+                profileName: profileName,
+                kind: kind,
+                fallbackTitle: fallbackTitle,
+                fallbackBody: fallbackBody,
+                context: context
+            )
+            return (sidecar.title, sidecar.body, sidecar.usedSidecar)
         }
         let name = profileName.isEmpty ? "Hey" : profileName
         do {
@@ -135,7 +143,7 @@ enum FoundationModelCoach {
         }
     }
 
-    /// FM judgment layer on top of algorithmic triggers. Defaults to `true` (allow) when FM is off.
+    /// FM / sidecar judgment on top of algorithmic triggers. Defaults to allow when both are off.
     static func shouldSendPing(
         profileName: String,
         kind: String,
@@ -143,7 +151,13 @@ enum FoundationModelCoach {
         extraContext: String = ""
     ) async -> (shouldNotify: Bool, reason: String, usedFoundationModel: Bool) {
         guard FoundationModelAvailability.isAvailable else {
-            return (true, "FM unavailable; algorithmic trigger stands.", false)
+            let sidecar = await OnDevicePolishService.shared.shouldSendPing(
+                profileName: profileName,
+                kind: kind,
+                algorithmicReason: algorithmicReason,
+                extraContext: extraContext
+            )
+            return (sidecar.shouldNotify, sidecar.reason, sidecar.usedSidecar)
         }
         let name = profileName.isEmpty ? "Hey" : profileName
         do {
@@ -183,7 +197,12 @@ enum FoundationModelCoach {
         profileName: String,
         digestBlock: String
     ) async -> String? {
-        guard FoundationModelAvailability.isAvailable else { return nil }
+        guard FoundationModelAvailability.isAvailable else {
+            return await OnDevicePolishService.shared.summarizeFitnessDigest(
+                profileName: profileName,
+                digestBlock: digestBlock
+            )
+        }
         guard !digestBlock.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         let name = profileName.isEmpty ? "Hey" : profileName
         do {
@@ -205,9 +224,15 @@ enum FoundationModelCoach {
         }
     }
 
-    /// Optional FM pass to pull sticky facts; merges with heuristic extractor upstream.
+    /// Optional FM / sidecar pass to pull sticky facts; merges with heuristic extractor upstream.
     static func extractMemoryFacts(from userText: String) async -> [CoachMemoryFact] {
-        guard FoundationModelAvailability.isAvailable else { return [] }
+        guard FoundationModelAvailability.isAvailable else {
+            return await OnDevicePolishService.shared.extractMemoryFacts(from: userText).compactMap { raw in
+                let clean = CoachCopySanitize.clean(raw)
+                guard clean.count >= 6 else { return nil }
+                return CoachMemoryFact(text: clean, tags: ["sidecar", "lifestyle"])
+            }
+        }
         let trimmed = userText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 12 else { return [] }
         do {
@@ -334,7 +359,9 @@ enum FoundationModelCoach {
         allowOnDeviceModel: Bool = true
     ) async -> OnboardingInferenceDraft {
         let local = OnboardingLocalInference.infer(from: freeform, name: name)
-        guard allowOnDeviceModel, FoundationModelAvailability.isAvailable else {
+        guard allowOnDeviceModel else { return local }
+        guard FoundationModelAvailability.isAvailable else {
+            // Sidecar can refine vibe later when ready; keep deterministic local merge for first paint.
             return local
         }
         let trimmed = freeform.trimmingCharacters(in: .whitespacesAndNewlines)
