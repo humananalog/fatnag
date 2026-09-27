@@ -2,7 +2,7 @@ import Foundation
 
 /// GDPR / CCPA data subject tools: export and erase on-device personal data.
 enum ScaleDataRights {
-    /// Keys owned by The Scale in the app suite (UserDefaults.standard).
+    /// Keys owned by FATNAG in the app suite (UserDefaults.standard).
     static let appUserDefaultsKeys: [String] = [
         "thescale.userBodyProfile",
         "thescale.notificationPreferences",
@@ -69,7 +69,7 @@ enum ScaleDataRights {
         return try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
     }
 
-    /// Wipe The Scale local stores. Does not delete Apple Health samples (user must use Health app).
+    /// Wipe FATNAG local stores. Does not delete Apple Health samples (user must use Health app).
     @MainActor
     static func eraseAllLocalData(session: ScaleSessionViewModel) {
         for key in appUserDefaultsKeys {

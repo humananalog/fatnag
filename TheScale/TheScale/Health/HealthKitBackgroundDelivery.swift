@@ -3,7 +3,7 @@ import HealthKit
 import os
 
 /// Registers `HKObserverQuery` + `enableBackgroundDelivery` so Health updates can wake
-/// The Scale without the user opening the app. iOS still throttles delivery; this wiring is real.
+/// FATNAG without the user opening the app. iOS still throttles delivery; this wiring is real.
 final class HealthKitBackgroundDelivery: @unchecked Sendable {
     static let shared = HealthKitBackgroundDelivery()
 

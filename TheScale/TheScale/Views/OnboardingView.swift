@@ -27,7 +27,7 @@ struct OnboardingView: View {
 
                 VStack(alignment: .leading, spacing: compact ? 10 : 14) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text("The Scale")
+                        Text("FATNAG")
                             .font(.system(size: compact ? 28 : 32, weight: .semibold, design: .serif))
                             .foregroundStyle(ink)
                             .accessibilityIdentifier("onboarding.brand")

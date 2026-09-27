@@ -155,7 +155,7 @@ struct PaywallView: View {
                 .allowsHitTesting(false)
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("THE SCALE")
+                Text("FATNAG")
                     .font(.system(size: 11, weight: .heavy, design: .rounded))
                     .tracking(2.4)
                     .foregroundStyle(gold.opacity(0.95))

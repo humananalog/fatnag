@@ -1,4 +1,4 @@
-// Shared build settings for The Scale.
+// Shared build settings for FATNAG.
 // Xcode includes THIS file (Debug + Release baseConfigurationReference in project.pbxproj).
 // Non-secret defaults live here so every checkout gets the shared Grok proxy URL.
 // Optional local overrides: copy Secrets.example.xcconfig → Secrets.xcconfig (gitignored).

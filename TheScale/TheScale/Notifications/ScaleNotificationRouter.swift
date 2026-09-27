@@ -1,7 +1,7 @@
 import Foundation
 import UserNotifications
 
-/// Routes notification taps / actions into The Scale screens, and handles snooze.
+/// Routes notification taps / actions into FATNAG screens, and handles snooze.
 @MainActor
 enum ScaleNotificationRouter {
     /// Installed by ContentView / app shell so notification actions can open UI.

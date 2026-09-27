@@ -27,7 +27,7 @@ final class ScaleNotificationContentTests: XCTestCase {
                 kind: .coachWake,
                 title: "Alex: wake up",
                 subtitle: "Before 7:30",
-                body: "Up before 7:30. Open The Scale when you're ready."
+                body: "Up before 7:30. Open FATNAG when you're ready."
             )
         )
         XCTAssertEqual(content.interruptionLevel, .timeSensitive)

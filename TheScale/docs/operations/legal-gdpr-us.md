@@ -1,4 +1,4 @@
-# Legal & GDPR / US privacy (The Scale)
+# Legal & GDPR / US privacy (FATNAG)
 
 ## In-app
 
@@ -16,7 +16,7 @@ Settings → **Privacy & Legal**:
 Rights tools:
 
 - **Export my data** → JSON of on-device profile, prefs, Coach memory/chat
-- **Erase my data** → wipe The Scale UserDefaults stores + return to onboarding (Health samples stay in Health app)
+- **Erase my data** → wipe FATNAG UserDefaults stores + return to onboarding (Health samples stay in Health app)
 - Email **privacy@humananalog.ai**
 
 Onboarding requires acceptance of Terms + Privacy + fitness disclaimer (`LegalAcceptanceStore` records timestamp). Age gate 18+.

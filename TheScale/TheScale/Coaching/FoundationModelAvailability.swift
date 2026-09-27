@@ -1,7 +1,7 @@
 import Foundation
 import FoundationModels
 
-/// On-device Apple Intelligence availability for The Scale.
+/// On-device Apple Intelligence availability for FATNAG.
 /// Never throws into UI; callers treat unavailable as algorithmic / Keel / polish fallback.
 enum FoundationModelAvailability {
     enum Status: Equatable, Sendable {

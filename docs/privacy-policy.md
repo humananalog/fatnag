@@ -1,7 +1,7 @@
-# Privacy Policy: The Scale
+# Privacy Policy: FATNAG
 
 **Publisher:** Human Analog Limited  
-**App:** The Scale (iOS)  
+**App:** FATNAG (iOS)  
 **Effective:** for App Store builds 2.51.0+
 
 Host this page at the URL set in `ScaleLegal.privacyPolicyURL` (default `https://humananalog.github.io/the-scale/privacy`) and paste that URL into App Store Connect → App Privacy / App Information.
@@ -15,7 +15,7 @@ Host this page at the URL set in `ScaleLegal.privacyPolicyURL` (default `https:/
 ## Optional Coach (Grok)
 
 - Off by default. After you allow Coach requests, chat text and a fitness digest may be sent to our Cloudflare Worker, which calls xAI. We do not sell this data.
-- You can revoke consent anytime in Settings. On-device Apple Intelligence (when available) can polish notifications and private digests without leaving the phone. On iPhones without Apple Intelligence, The Scale may download a private ~470 MB on-device polish model (Qwen2.5 0.5B) that runs only on your iPhone; Apple Intelligence phones never receive that download.
+- You can revoke consent anytime in Settings. On-device Apple Intelligence (when available) can polish notifications and private digests without leaving the phone. On iPhones without Apple Intelligence, FATNAG may download a private ~470 MB on-device polish model (Qwen2.5 0.5B) that runs only on your iPhone; Apple Intelligence phones never receive that download.
 
 ## Notifications
 

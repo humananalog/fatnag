@@ -6,10 +6,12 @@
       "scale" : "1x"
     },
     {
+      "filename" : "BrandMark@2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
+      "filename" : "BrandMark@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

@@ -157,7 +157,7 @@ struct LiveWeighInSheet: View {
             }
             .accessibilityLabel("Close weigh-in")
 
-            Text(isCalibration ? "Calibrate" : "The Scale")
+            Text(isCalibration ? "Calibrate" : "FATNAG")
                 .font(.system(size: 20, weight: .semibold, design: .serif))
                 .foregroundStyle(atmosphere.accent)
                 .lineLimit(1)

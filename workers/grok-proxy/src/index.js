@@ -1,5 +1,5 @@
 /**
- * The Scale shared Grok proxy.
+ * FATNAG shared Grok proxy.
  * Holds XAI_API_KEY server-side; iOS posts chat-completions JSON without a Bearer header.
  * When body.stream === true, forwards xAI SSE bytes (no full-buffer wait).
  */

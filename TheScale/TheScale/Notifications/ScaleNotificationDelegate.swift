@@ -1,6 +1,6 @@
 import UserNotifications
 
-/// Presents Coach / trend banners while The Scale is in the foreground,
+/// Presents Coach / trend banners while FATNAG is in the foreground,
 /// and routes taps / actions into the right screen.
 final class ScaleNotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
     static let shared = ScaleNotificationDelegate()

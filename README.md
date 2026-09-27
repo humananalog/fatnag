@@ -1,10 +1,10 @@
-# The Scale
+# FATNAG
 
 Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM; label variant XMTZCOSHM treated the same). Replaces Zapp Lite: BLE weigh-ins on-device only, results into **Apple Health**, optional **Coach** via a shared Grok Worker, on-device **Apple Intelligence** when eligible, and a **0.5B Metal polish sidecar** on other compatible iPhones.
 
 | | |
 |------|--|
-| **Version** | 2.53.0 (build 101) |
+| **Version** | 2.54.0 (build 102) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -92,7 +92,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **Progress Monday weight (2.50.4):** Progress WEEK START / % / Sunday target use **last Monday** body mass from Health (prefer Monday morning 04:00-12:00; else any Monday sample; else last weigh before Tuesday). Persisted `weekStartKg` / `weekStartDate` realign when they do not match. Anchor date is always local Monday 00:00, never today, dream weight, or first mid-week weigh.
 - **Monday week-start lock (2.50.2):** Settings/Debug Monday card preview is ephemeral — no rewrite of week-start kg / Sunday target / progress %. Removed mid-week >2.5 kg baseline wipe.
 - **Analog dream scale pivot (2.50.1):** fixed reading marker at 12 o’clock; dial disc rotates about its true center so the chosen kg sits under the needle (Settings + onboarding).
-- **Morning weigh 💩 drill (2.50.0):** fallback **06:30** local (migrates legacy 07:30); window closes **08:00**; skip if already weighed today; Keel title `Keel · 💩 drill` / body `Go drop a 💩 and use The Scale after!`; Time Sensitive unchanged. Loss delta shows clear minus (`-650g`) + "You're a winner" on hero, home, Progress, History.
+- **Morning weigh 💩 drill (2.50.0):** fallback **06:30** local (migrates legacy 07:30); window closes **08:00**; skip if already weighed today; Keel title `Keel · 💩 drill` / body `Go drop a 💩 and use FATNAG after!`; Time Sensitive unchanged. Loss delta shows clear minus (`-650g`) + "You're a winner" on hero, home, Progress, History.
 - **ProgressView / console quiet (2.49.1):** re-audit — still zero determinate `ProgressView(value:total:)`; Settings/Paywall stay on `ScaleBoundedProgress`; Progress ACTION gauge remains custom. Home-gauge success logs stay silent; DEBUG FitnessDigest / Coach digest / soft-fail prints throttled via `ScaleDebugLog` (45s) so observer wakes cannot flood Console. Regression script `scripts/assert_no_determinate_progressview.py`.
 - **Progress sheet ACTION polish (2.49.0):** amplified entrance punches (hero % / week-start / Sunday / chunky gauge); week-start + Sunday target as first-class hero numbers; roast body ~23pt with night ink contrast; sub-1 kg deltas/values render as `650g` (metric) or oz (imperial) via `UnitFormat`. Opacity floor + always-arm entrance preserved. Reduce Motion stays calm.
 - **Black-screen launch fix (2.48.1):** atmosphere moved to `.background` with solid base fill (LaunchBackground never shows through as dead void); night ink contrast hardened; Progress entrance always arms (no opacity-0 chrome on void); splash 3.5s failsafe; `WeeklyGoalAtmosphere.safeFallback`.
@@ -111,7 +111,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 Mi Scale 2 (BLE ads)
         │
         ▼
-   The Scale (iPhone)
+   FATNAG (iPhone)
         │
         ├── HealthKit  ←→  Apple Health
         ├── UserDefaults (profile, cal, memory, prefs)

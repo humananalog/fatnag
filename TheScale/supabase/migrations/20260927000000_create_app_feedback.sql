@@ -1,4 +1,4 @@
--- The Scale consumer feedback (Human Analog).
+-- FATNAG consumer feedback (Human Analog).
 -- Applied to project qtopujfrhfdzcngomoel (the-hive).
 -- Inserts only via Edge Function service role.
 
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS public.app_feedback (
 );
 
 COMMENT ON TABLE public.app_feedback IS
-  'The Scale consumer feedback. Written only by submit-feedback Edge Function (service role).';
+  'FATNAG consumer feedback. Written only by submit-feedback Edge Function (service role).';
 
 CREATE INDEX IF NOT EXISTS app_feedback_created_at_idx
   ON public.app_feedback (created_at DESC);

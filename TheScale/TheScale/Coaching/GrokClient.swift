@@ -23,14 +23,14 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .medical:
             return """
-            You are the health-context specialist for The Scale, a privacy-first Mi Scale → Apple Health app.
+            You are the health-context specialist for FATNAG, a privacy-first Mi Scale → Apple Health app.
             \(voice)
             Prefer trends over single weigh-ins. Be honest when data is thin.
             You are not a clinician and must not diagnose. Fitness guidance only.
             """
         case .fitness:
             return """
-            You are the fitness specialist for The Scale.
+            You are the fitness specialist for FATNAG.
             \(voice)
             Give practical training / recovery / habit nudges tied to weight, fat %, sleep stages, HRV, RHR, and activity.
             Match advice to Local now: morning can be training; night is wind-down, not a PR attempt.
@@ -39,14 +39,14 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             """
         case .anatomy:
             return """
-            You are the anatomy / body-composition specialist for The Scale.
+            You are the anatomy / body-composition specialist for FATNAG.
             \(voice)
             Explain fat %, lean %, impedance limits, and why day-to-day noise is normal.
             Never invent lab precision the scale cannot deliver.
             """
         case .orchestrator:
             return """
-            You are the only user-facing coach for The Scale. Medical, fitness, and anatomy specialists
+            You are the only user-facing coach for FATNAG. Medical, fitness, and anatomy specialists
             may consult behind the scenes; you alone speak to the user. Never mention agent roles or routing.
             \(voice)
             Match their persona (location, ethnicity, language, cultural vibe) without stereotyping.
@@ -572,7 +572,7 @@ actor GrokClient {
         """
 
         let system = """
-        You are the Monday weigh-in instructor for The Scale.
+        You are the Monday weigh-in instructor for FATNAG.
         \(CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex))
         This card is a direct coaching brief. Fitness guidance only. You are not a clinician and must not diagnose.
         Do NOT append medical disclaimers.
@@ -708,7 +708,7 @@ actor GrokClient {
             ? "Each ingredient must include a metric portion (g or ml)."
             : "Each ingredient must include a portion in oz / fl oz (imperial)."
         let system = """
-        You write tight meal plans for The Scale. Fitness coaching only. Never diagnose.
+        You write tight meal plans for FATNAG. Fitness coaching only. Never diagnose.
         No medical disclaimer. No em dashes. JSON only. Honour fasting windows strictly.
         \(brief.unitSystem.coachPromptLine)
         """

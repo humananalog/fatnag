@@ -526,7 +526,7 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Dream body fat % (optional)",
-                    help: "Most people leave this blank. The Scale suggests a target from sex and age. Override only within physics limits (about 3-60%)."
+                    help: "Most people leave this blank. FATNAG suggests a target from sex and age. Override only within physics limits (about 3-60%)."
                 ) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(
@@ -973,7 +973,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 if notificationAuthDenied {
-                    Text("Coach cannot fire drills while denied. Tap System, then allow alerts for The Scale.")
+                    Text("Coach cannot fire drills while denied. Tap System, then allow alerts for FATNAG.")
                         .font(.caption2)
                         .foregroundStyle(Color.orange)
                         .padding(.top, 4)
@@ -1560,7 +1560,7 @@ struct SettingsView: View {
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("settings.eraseData")
 
-                Text("Erase clears The Scale’s on-device profile, Coach history, and preferences, then returns you to onboarding. Apple Health samples are not deleted; manage those in the Health app.")
+                Text("Erase clears FATNAG’s on-device profile, Coach history, and preferences, then returns you to onboarding. Apple Health samples are not deleted; manage those in the Health app.")
                     .font(.caption2)
                     .foregroundStyle(steel)
 
@@ -1572,7 +1572,7 @@ struct SettingsView: View {
             }
         }
         .confirmationDialog(
-            "Erase all The Scale data on this iPhone?",
+            "Erase all FATNAG data on this iPhone?",
             isPresented: $showEraseConfirm,
             titleVisibility: .visible
         ) {

@@ -1,7 +1,7 @@
-# Terms of Use — The Scale
+# Terms of Use — FATNAG
 
 **Provider:** Human Analog Limited  
-**App:** The Scale (iOS)  
+**App:** FATNAG (iOS)  
 **Contact:** privacy@humananalog.ai
 
 Host the full Terms at `ScaleLegal.termsOfUseURL` (default `https://humananalog.github.io/the-scale/terms`).

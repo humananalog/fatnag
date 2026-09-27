@@ -421,7 +421,7 @@ struct HealthDistanceSpike: Equatable, Sendable {
         ]
         if workoutsEmpty, isNotableSpike {
             lines.append(
-                "Distance spike without a Workout sample: Health shows meaningful walking/running distance but no Workout titled hike/walk. Coach can say that plainly. Third-party apps (e.g. AllTrails, Strava) only appear here if they write to Apple Health. The Scale reads HealthKit only, never AllTrails directly. Ask the user to enable Health sync in that app, then Allow Health access / Workouts + Distance for The Scale."
+                "Distance spike without a Workout sample: Health shows meaningful walking/running distance but no Workout titled hike/walk. Coach can say that plainly. Third-party apps (e.g. AllTrails, Strava) only appear here if they write to Apple Health. FATNAG reads HealthKit only, never AllTrails directly. Ask the user to enable Health sync in that app, then Allow Health access / Workouts + Distance for FATNAG."
             )
         }
         return lines
@@ -632,14 +632,14 @@ struct FitnessDigest: Equatable, Sendable {
             }
             if let dist = walkingRunningDistance, dist.isNotableSpike {
                 return String(
-                    format: "No Workout in Health, but %.1f km walking/running in last 24h. Third-party apps (AllTrails etc.) must write to Apple Health; The Scale reads Health only.",
+                    format: "No Workout in Health, but %.1f km walking/running in last 24h. Third-party apps (AllTrails etc.) must write to Apple Health; FATNAG reads Health only.",
                     dist.distanceKmLast24h
                 )
             }
             if hasAnyFitnessSignal {
-                return "Health readable (steps/HR/HRV/sleep/distance present), but no Workouts in last 90 days. Enable Workouts + Distance + Sleep for The Scale in Health, and turn on Health sync in third-party apps (AllTrails etc.)."
+                return "Health readable (steps/HR/HRV/sleep/distance present), but no Workouts in last 90 days. Enable Workouts + Distance + Sleep for FATNAG in Health, and turn on Health sync in third-party apps (AllTrails etc.)."
             }
-            return "Health readable, but no steps / HR / sleep / workouts / distance found. Allow Health types for The Scale, wear Apple Watch, or sync third-party apps into Health."
+            return "Health readable, but no steps / HR / sleep / workouts / distance found. Allow Health types for FATNAG, wear Apple Watch, or sync third-party apps into Health."
         }
     }
 
@@ -653,7 +653,7 @@ struct FitnessDigest: Equatable, Sendable {
             "Access detail: \(accessDetail)"
         ]
         lines.append(
-            "Honesty rule for Coach: this digest is the only activity / recovery source. Never invent missing metrics (sleep stages, HRV, SpO2, VO2, wrist temp, workouts). The Scale cannot read AllTrails, Strava, or other apps directly; only what those apps write into Apple Health. When Recent workouts lists real sessions (type, distance km, duration, kcal, source), discuss those. If workouts are empty but walking/running distance shows a spike, say Health has distance without a Workout sample. Only claim total emptiness when listed signals are all missing."
+            "Honesty rule for Coach: this digest is the only activity / recovery source. Never invent missing metrics (sleep stages, HRV, SpO2, VO2, wrist temp, workouts). FATNAG cannot read AllTrails, Strava, or other apps directly; only what those apps write into Apple Health. When Recent workouts lists real sessions (type, distance km, duration, kcal, source), discuss those. If workouts are empty but walking/running distance shows a spike, say Health has distance without a Workout sample. Only claim total emptiness when listed signals are all missing."
         )
 
         switch access {
@@ -803,7 +803,7 @@ struct FitnessDigest: Equatable, Sendable {
         lines.append("Workouts last 24h: \(workoutCountLast24h)")
         if recentWorkouts.isEmpty {
             lines.append(
-                "Recent workouts: none in last 90 days (denied Workouts permission, no Workout samples, or third-party hike never wrote to Health). Do not invent one. Tell the user: (1) Allow Health access / enable Workouts + Distance for The Scale, (2) if they tracked in AllTrails or similar, turn on write-to-Apple-Health in that app. The Scale cannot open AllTrails."
+                "Recent workouts: none in last 90 days (denied Workouts permission, no Workout samples, or third-party hike never wrote to Health). Do not invent one. Tell the user: (1) Allow Health access / enable Workouts + Distance for FATNAG, (2) if they tracked in AllTrails or similar, turn on write-to-Apple-Health in that app. FATNAG cannot open AllTrails."
             )
         } else {
             lines.append("Recent workouts (newest first, all activity types including Hiking / Walking / Outdoor Walk / Running; source may be Watch, iPhone, or third-party):")
@@ -819,7 +819,7 @@ struct FitnessDigest: Equatable, Sendable {
         }
         if !hasAnyFitnessSignal {
             lines.append(
-                "Samples: empty across steps/HR/HRV/sleep/workouts/distance. Tell the user to allow The Scale under Health → Data Access & Devices, wear Apple Watch, sync third-party apps into Health, then ask again."
+                "Samples: empty across steps/HR/HRV/sleep/workouts/distance. Tell the user to allow FATNAG under Health → Data Access & Devices, wear Apple Watch, sync third-party apps into Health, then ask again."
             )
         }
         return lines.joined(separator: "\n")

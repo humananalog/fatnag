@@ -125,7 +125,7 @@ extension CoreBluetoothScaleScanner: CBCentralManagerDelegate {
         case .poweredOff:
             delegate?.scaleScanner(self, didUpdateBluetoothState: "Bluetooth is off. Turn it on in Settings.")
         case .unauthorized:
-            delegate?.scaleScanner(self, didUpdateBluetoothState: "Bluetooth permission denied. Enable it for The Scale in Settings.")
+            delegate?.scaleScanner(self, didUpdateBluetoothState: "Bluetooth permission denied. Enable it for FATNAG in Settings.")
         case .unsupported:
             delegate?.scaleScanner(self, didUpdateBluetoothState: "This device does not support Bluetooth LE.")
         case .resetting:

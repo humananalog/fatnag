@@ -1,4 +1,4 @@
-# StoreKit + Human Analog (The Scale)
+# StoreKit + Human Analog (FATNAG)
 
 Wire the real paywall against **Human Analog Limited** (team `XHVW66YM39`, bundle `app.thescale.ios`). Do not rely on the DEBUG plan override when validating purchases.
 
@@ -33,7 +33,7 @@ Use this before TestFlight / App Review.
 ### One-time ASC setup (Human Analog)
 
 1. Sign in to [App Store Connect](https://appstoreconnect.apple.com) as Human Analog (`XHVW66YM39`).
-2. Apps → **The Scale** (bundle `app.thescale.ios`). Create the app record if missing.
+2. Apps → **FATNAG** (bundle `app.thescale.ios`). Create the app record if missing.
 3. Monetization → Subscriptions → create group **Coach** if needed.
 4. Add auto-renewable subscriptions:
    - Reference: Plus Monthly → Product ID `app.thescale.ios.plus.monthly` → 1 month → $2.00 (or local equivalent).

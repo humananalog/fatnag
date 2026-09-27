@@ -75,7 +75,7 @@ enum ScaleNotificationContentFactory {
                 visualHeadline: currentKg.map {
                     UnitFormat.massString($0, system: system, fractionDigits: 1)
                 } ?? "Coach",
-                visualDetail: "Sample · The Scale"
+                visualDetail: "Sample · FATNAG"
             )
         )
     }
@@ -103,7 +103,7 @@ enum ScaleNotificationContentFactory {
             content: body,
             speakableGroupName: nil,
             conversationIdentifier: threadId,
-            serviceName: "The Scale",
+            serviceName: "FATNAG",
             sender: coach,
             attachments: nil
         )

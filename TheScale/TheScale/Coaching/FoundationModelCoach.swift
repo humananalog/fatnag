@@ -4,7 +4,7 @@ import ScaleOnDevicePolish
 
 // MARK: - Structured outputs
 
-@Generable(description: "Local notification title and body for The Scale coach")
+@Generable(description: "Local notification title and body for FATNAG coach")
 struct NotificationCopyDraft: Equatable, Sendable {
     @Guide(description: "Notification title. Include the user's name. Max ~40 characters. No em dashes. No AI markers.")
     var title: String
@@ -338,7 +338,7 @@ enum FoundationModelCoach {
             : ""
         do {
             let session = LanguageModelSession(instructions: """
-                You write practical meal menus for The Scale on-device.
+                You write practical meal menus for FATNAG on-device.
                 \(CoachVoice.bannerRules(sex: sex))
                 Fitness coaching only. Never diagnose. No em dashes.
                 Every ingredient needs a metric portion (g or ml). Real dishes, not fluff.
@@ -418,7 +418,7 @@ enum FoundationModelCoach {
 
         do {
             let session = LanguageModelSession(instructions: """
-                You structure onboarding profiles for The Scale, a private fitness app.
+                You structure onboarding profiles for FATNAG, a private fitness app.
                 Stay on-device. Infer only what the user's note supports. Prefer empty / 0 over guessing.
                 Never invent height, age, or sex. Never add medical advice.
                 """)

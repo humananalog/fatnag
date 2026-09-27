@@ -1,4 +1,4 @@
-# Feedback + Resend (The Scale)
+# Feedback + Resend (FATNAG)
 
 Consumer feedback POSTs to Supabase Edge Function `submit-feedback` on project `qtopujfrhfdzcngomoel`.
 
@@ -18,7 +18,7 @@ iOS FeedbackSheetView
 | Secret | Where |
 |--------|--------|
 | `RESEND_API_KEY` | Supabase Edge Function secrets |
-| `RESEND_FROM` | Optional; default `The Scale Feedback <feedback@inbound.humananalog.ai>` |
+| `RESEND_FROM` | Optional; default `FATNAG Feedback <feedback@inbound.humananalog.ai>` |
 | `FEEDBACK_TO` | Optional; default `dev@humananalog.ai` |
 | Service role | Auto in Edge runtime only |
 

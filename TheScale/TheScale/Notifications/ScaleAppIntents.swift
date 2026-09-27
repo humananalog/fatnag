@@ -4,7 +4,7 @@ import Foundation
 /// Deep-link App Intents so notification chrome / Shortcuts can open the right screen.
 struct OpenCoachIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Coach"
-    static let description = IntentDescription("Opens The Scale Coach chat.")
+    static let description = IntentDescription("Opens FATNAG Coach chat.")
     static let openAppWhenRun: Bool = true
 
     @MainActor
@@ -16,7 +16,7 @@ struct OpenCoachIntent: AppIntent {
 
 struct OpenProgressIntent: AppIntent {
     static let title: LocalizedStringResource = "Open Progress"
-    static let description = IntentDescription("Opens The Scale weekly Progress sheet.")
+    static let description = IntentDescription("Opens FATNAG weekly Progress sheet.")
     static let openAppWhenRun: Bool = true
 
     @MainActor
@@ -28,7 +28,7 @@ struct OpenProgressIntent: AppIntent {
 
 struct OpenHistoryIntent: AppIntent {
     static let title: LocalizedStringResource = "Open History"
-    static let description = IntentDescription("Opens The Scale weight History.")
+    static let description = IntentDescription("Opens FATNAG weight History.")
     static let openAppWhenRun: Bool = true
 
     @MainActor

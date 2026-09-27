@@ -1,6 +1,6 @@
 # ScaleOnDevicePolish
 
-Consumer on-device polish sidecar for The Scale.
+Consumer on-device polish sidecar for FATNAG.
 
 ## Why
 

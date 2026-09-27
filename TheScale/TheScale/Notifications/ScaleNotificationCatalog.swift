@@ -1,7 +1,7 @@
 import Foundation
 import UserNotifications
 
-/// Canonical notification families for The Scale (iOS 27 local UN APIs).
+/// Canonical notification families for FATNAG (iOS 27 local UN APIs).
 enum ScaleNotificationKind: String, Sendable {
     case coachWake
     case coachReminder

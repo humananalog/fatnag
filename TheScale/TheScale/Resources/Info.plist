@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>The Scale</string>
+	<string>FATNAG</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -30,15 +30,15 @@
 		<string>bluetooth-le</string>
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>The Scale uses Bluetooth to read weight and body-composition advertisements from your nearby Mi Body Composition Scale 2. Data stays on this iPhone.</string>
+	<string>FATNAG uses Bluetooth to read weight and body-composition advertisements from your nearby Mi Body Composition Scale 2. Data stays on this iPhone.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>The Scale uses Bluetooth to read weight and body-composition advertisements from your nearby Mi Body Composition Scale 2. Data stays on this iPhone.</string>
+	<string>FATNAG uses Bluetooth to read weight and body-composition advertisements from your nearby Mi Body Composition Scale 2. Data stays on this iPhone.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>The Scale reads weight, body fat, heart rate, resting heart rate, HRV (SDNN), respiratory rate, sleeping wrist temperature, blood oxygen, VO2 max, sleep (including stages when available), steps, active energy, Exercise Time, walking and running distance, workouts, and nutrition (dietary energy, protein, fiber, iron, potassium) from Apple Health. Used only for charts, daily targets, fitness digests, and optional Keel coaching after you consent. Nothing is uploaded without that opt-in.</string>
+	<string>FATNAG reads weight, body fat, heart rate, resting heart rate, HRV (SDNN), respiratory rate, sleeping wrist temperature, blood oxygen, VO2 max, sleep (including stages when available), steps, active energy, Exercise Time, walking and running distance, workouts, and nutrition (dietary energy, protein, fiber, iron, potassium) from Apple Health. Used only for charts, daily targets, fitness digests, and optional Keel coaching after you consent. Nothing is uploaded without that opt-in.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>The Scale saves confirmed weight, BMI, body fat percentage, and lean body mass to Apple Health when you tap Confirm. Data stays under your Health permissions.</string>
+	<string>FATNAG saves confirmed weight, BMI, body fat percentage, and lean body mass to Apple Health when you tap Confirm. Data stays under your Health permissions.</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>The Scale sends local alerts for weight-trend nudges, morning weigh drills, sleep and heart-rate fitness signals you enable, optional weekly mini-goals, Coach-scheduled reminders, and fitness-check nudges. No marketing messages.</string>
+	<string>FATNAG sends local alerts for weight-trend nudges, morning weigh drills, sleep and heart-rate fitness signals you enable, optional weekly mini-goals, Coach-scheduled reminders, and fitness-check nudges. No marketing messages.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>

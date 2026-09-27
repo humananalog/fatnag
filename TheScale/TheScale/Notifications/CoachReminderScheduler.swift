@@ -69,7 +69,7 @@ enum CoachReminderScheduler {
             return CoachReminderResult(
                 status: .denied,
                 request: request,
-                coachNote: "Notifications are off for The Scale. Flip them on in iOS Settings → Notifications → The Scale, then ask me again.",
+                coachNote: "Notifications are off for FATNAG. Flip them on in iOS Settings → Notifications → FATNAG, then ask me again.",
                 notificationId: nil
             )
         }
@@ -88,7 +88,7 @@ enum CoachReminderScheduler {
         let name = profileName.isEmpty ? "Hey" : profileName
         let fallbackTitle = liveRequest.title.isEmpty ? "\(name): reminder" : liveRequest.title
         let fallbackBody = liveRequest.body.isEmpty
-            ? "You asked Coach to ping you. Open The Scale when you're ready."
+            ? "You asked Coach to ping you. Open FATNAG when you're ready."
             : liveRequest.body
 
         let id = liveRequest.kind == .wakeUp
@@ -434,11 +434,11 @@ enum CoachReminderExtractor {
                     dateStyle: .none,
                     timeStyle: .short
                 )
-                return "Up before \(t). Open The Scale when you're ready."
+                return "Up before \(t). Open FATNAG when you're ready."
             }
-            return "Time to get up. Open The Scale when you're ready."
+            return "Time to get up. Open FATNAG when you're ready."
         }
-        return "You asked Coach to ping you. Open The Scale when you're ready."
+        return "You asked Coach to ping you. Open FATNAG when you're ready."
     }
 
     private static func resolveDayOffset(lower: String) -> Int {

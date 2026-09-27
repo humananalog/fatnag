@@ -8,7 +8,7 @@ public final class OnDevicePolishService: ObservableObject {
     private let engine = LlamaMetalEngine()
     private var loadedPath: String?
     private let defaultVoice = """
-        You write for The Scale, a private fitness coach on the user's iPhone.
+        You write for FATNAG, a private fitness coach on the user's iPhone.
         Call the user by name when given. Friendly, badass, dark humour; sometimes vulgar; never corporate.
         Never use em dashes or en dashes. Use ASCII hyphen or a period.
         Never say you are an AI, language model, or Apple Intelligence.

@@ -354,7 +354,7 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         XCTAssertEqual(copy.title, "Keel · 💩 drill")
         XCTAssertTrue(copy.body.contains("💩"))
         XCTAssertTrue(copy.body.contains("Alex"))
-        XCTAssertTrue(copy.body.contains("The Scale"))
+        XCTAssertTrue(copy.body.contains("FATNAG"))
         let test = MorningWeighDrillScheduler.drillCopy(profileName: "", variant: .test)
         XCTAssertTrue(test.title.contains("💩"))
         XCTAssertTrue(test.body.contains("Soldier"))

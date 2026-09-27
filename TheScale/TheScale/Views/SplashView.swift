@@ -13,9 +13,10 @@ struct SplashView: View {
     @State private var hazePhase: CGFloat = 0
     @State private var exitOpacity: Double = 1
 
-    private let ink = Color(red: 0.04, green: 0.05, blue: 0.07)
-    private let deep = Color(red: 0.07, green: 0.10, blue: 0.14)
-    private let gold = Color(red: 0.82, green: 0.66, blue: 0.40)
+    // Match AppIcon void + copper mark (Glacier Forge night / Bloom Copper metal).
+    private let ink = Color(red: 0.004, green: 0.016, blue: 0.035)
+    private let deep = Color(red: 0.05, green: 0.08, blue: 0.12)
+    private let gold = Color(red: 0.83, green: 0.64, blue: 0.36)
     private let ivory = Color(red: 0.96, green: 0.95, blue: 0.92)
     private let mist = Color(red: 0.62, green: 0.64, blue: 0.68)
 
@@ -87,21 +88,22 @@ struct SplashView: View {
                     Image("BrandMark")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 64, height: 64)
+                        .frame(width: 78, height: 78)
                         .opacity(markOpacity)
                         .offset(y: markOffset)
                         .accessibilityHidden(true)
                 }
 
                 VStack(spacing: 8) {
-                    Text("The Scale")
+                    Text("FATNAG")
                         .font(.system(size: 36, weight: .semibold, design: .serif))
                         .foregroundStyle(ivory)
                         .tracking(0.6)
-                    Text("Weigh. Steady. Advance.")
+                    Text("Nag until the fat folds.")
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(mist)
-                        .tracking(1.1)
+                        .tracking(0.4)
+                        .multilineTextAlignment(.center)
                 }
                 .opacity(wordOpacity)
                 .accessibilityElement(children: .combine)

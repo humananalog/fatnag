@@ -433,7 +433,7 @@ struct ContentView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("The Scale")
+                Text("FATNAG")
                     .font(.system(size: 24, weight: .bold, design: .serif))
                     .foregroundStyle(atmosphere.ink)
                     .shadow(
@@ -484,12 +484,12 @@ struct ContentView: View {
         if let baseline = session.healthBaselineKg {
             let mass = UnitFormat.massString(baseline, system: units, fractionDigits: 1)
             if name.isEmpty {
-                return "The Scale. Last Health weight \(mass)."
+                return "FATNAG. Last Health weight \(mass)."
             }
-            return "The Scale. Hello \(name). Last Health weight \(mass)."
+            return "FATNAG. Hello \(name). Last Health weight \(mass)."
         }
-        if name.isEmpty { return "The Scale" }
-        return "The Scale. Hello \(name)."
+        if name.isEmpty { return "FATNAG" }
+        return "FATNAG. Hello \(name)."
     }
 
     private func weighInAnalysisBlock(_ card: WeighInAnalysisCard) -> some View {

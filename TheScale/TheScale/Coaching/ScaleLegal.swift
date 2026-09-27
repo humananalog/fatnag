@@ -59,15 +59,15 @@ enum ScaleLegal {
     // MARK: - Privacy Policy (GDPR Art. 12-14 + US)
 
     static let privacyPolicyBody = """
-    The Scale Privacy Policy
+    FATNAG Privacy Policy
 
     Controller: \(controllerName)
-    App: The Scale (iOS), bundle app.thescale.ios
+    App: FATNAG (iOS), bundle app.thescale.ios
     Effective: 22 September 2026
     Contact: \(privacyEmail)
 
     1. Who we are
-    \(controllerName) (“we”, “us”) provides The Scale. We are the data controller for personal data processed through the app when that data leaves your device to our systems (optional Keel Coach). Most weighing, Health, and profile data stays on your iPhone under your control.
+    \(controllerName) (“we”, “us”) provides FATNAG. We are the data controller for personal data processed through the app when that data leaves your device to our systems (optional Keel Coach). Most weighing, Health, and profile data stays on your iPhone under your control.
 
     2. What we process
     A. On-device only (not sent to us unless you opt into Keel Coach):
@@ -86,13 +86,13 @@ enum ScaleLegal {
 
     3. Purposes and legal bases (GDPR)
     • Provide core weighing, Health sync, charts, and local coaching: performance of a contract (GDPR Art. 6(1)(b)) and/or legitimate interests in running a fitness tool (Art. 6(1)(f)), balanced against your rights.
-    • Special-category health-related data on device: processed under your explicit HealthKit permission and, where required, Art. 9(2)(a) consent and/or Art. 9(2)(h)/(i) as applicable for wellness self-management tools. The Scale is not a medical device.
+    • Special-category health-related data on device: processed under your explicit HealthKit permission and, where required, Art. 9(2)(a) consent and/or Art. 9(2)(h)/(i) as applicable for wellness self-management tools. FATNAG is not a medical device.
     • Optional Keel Coach network calls: consent (Art. 6(1)(a); Art. 9(2)(a) where health-context leaves the device). Withdraw anytime in Settings.
     • Subscriptions and fraud prevention: contract and legitimate interests; billing is via Apple.
     • Legal compliance and security: Art. 6(1)(c) and (f).
 
     4. Children
-    The Scale is for adults \(minimumAgeYears)+. We do not knowingly collect data from children. If you believe a minor used the app, contact \(privacyEmail); we will help delete on-device data instructions and revoke Coach consent.
+    FATNAG is for adults \(minimumAgeYears)+. We do not knowingly collect data from children. If you believe a minor used the app, contact \(privacyEmail); we will help delete on-device data instructions and revoke Coach consent.
 
     5. Sharing and processors
     • Apple (HealthKit, App Store, notifications framework) under Apple’s terms.
@@ -125,19 +125,19 @@ enum ScaleLegal {
     // MARK: - Terms of Use
 
     static let termsOfUseBody = """
-    The Scale Terms of Use
+    FATNAG Terms of Use
 
     Provider: \(controllerName)
     Effective: 22 September 2026
 
     1. Agreement
-    By downloading or using The Scale you agree to these Terms, the Privacy Policy, the Medical & Fitness Disclaimer, and (if you subscribe) the Subscription Terms. If you do not agree, do not use the app.
+    By downloading or using FATNAG you agree to these Terms, the Privacy Policy, the Medical & Fitness Disclaimer, and (if you subscribe) the Subscription Terms. If you do not agree, do not use the app.
 
     2. Eligibility
     You must be at least \(minimumAgeYears) years old and able to form a binding contract. The app is a consumer fitness tool, not a clinical service.
 
     3. License
-    We grant you a personal, non-exclusive, non-transferable, revocable license to use The Scale on Apple devices you own or control, subject to the App Store Terms and these Terms. You may not reverse engineer, scrape, abuse APIs, or use the app to harm others.
+    We grant you a personal, non-exclusive, non-transferable, revocable license to use FATNAG on Apple devices you own or control, subject to the App Store Terms and these Terms. You may not reverse engineer, scrape, abuse APIs, or use the app to harm others.
 
     4. Accounts and device storage
     Profile and history primarily live on your device. You are responsible for device access control and backups. Losing the device or deleting the app may erase local data.
@@ -152,7 +152,7 @@ enum ScaleLegal {
     No unlawful, harassing, or infringing use. No attempt to extract model weights, bypass quotas, or overload our Worker.
 
     8. Intellectual property
-    The Scale name, UI, and software are owned by \(controllerName) or licensors. Feedback you send may be used to improve the product without obligation to you.
+    FATNAG name, UI, and software are owned by \(controllerName) or licensors. Feedback you send may be used to improve the product without obligation to you.
 
     9. Disclaimer of warranties
     THE APP IS PROVIDED “AS IS” AND “AS AVAILABLE” WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. We do not warrant uninterrupted or error-free operation, or accuracy of weight, body composition, or AI output.
@@ -181,7 +181,7 @@ enum ScaleLegal {
     Provider: \(controllerName)
     Effective: 22 September 2026
 
-    The Scale and Keel Coach provide fitness, nutrition, and lifestyle information for educational and motivational purposes only.
+    FATNAG and Keel Coach provide fitness, nutrition, and lifestyle information for educational and motivational purposes only.
 
     NOT MEDICAL CARE
     • Not a medical device, not FDA/CE clinical software, not a diagnosis or treatment service.
@@ -193,7 +193,7 @@ enum ScaleLegal {
     • If you have chest pain, fainting, severe distress, disordered eating concerns, pregnancy, or other red-flag symptoms, seek emergency or clinical care. Do not rely on this app.
 
     NO CLINICIAN-PATIENT RELATIONSHIP
-    Use of The Scale does not create a doctor-patient, therapist-patient, or dietitian-client relationship with \(controllerName) or any model provider.
+    Use of FATNAG does not create a doctor-patient, therapist-patient, or dietitian-client relationship with \(controllerName) or any model provider.
 
     ASSUMPTION OF RISK
     You assume the risks of using consumer weighing, Health data, fasting protocols, and training suggestions. Follow device and HealthKit permissions carefully.
@@ -269,7 +269,7 @@ enum ScaleLegal {
 
     TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW:
 
-    1. \(controllerName) AND ITS SUPPLIERS ARE NOT LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR ANY LOSS OF DATA, PROFITS, GOODWILL, OR OTHER INTANGIBLE LOSSES, ARISING FROM YOUR USE OF THE SCALE, HEALTHKIT, THIRD-PARTY SCALES, OR KEEL COACH.
+    1. \(controllerName) AND ITS SUPPLIERS ARE NOT LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR ANY LOSS OF DATA, PROFITS, GOODWILL, OR OTHER INTANGIBLE LOSSES, ARISING FROM YOUR USE OF FATNAG, HEALTHKIT, THIRD-PARTY SCALES, OR KEEL COACH.
 
     2. OUR TOTAL LIABILITY FOR ALL CLAIMS IN THE AGGREGATE SHALL NOT EXCEED THE GREATER OF (A) THE AMOUNTS YOU PAID US FOR THE APP SUBSCRIPTION IN THE TWELVE (12) MONTHS BEFORE THE CLAIM (EXCLUDING APPLE’S COMMISSION WHERE NOT RECEIVED BY US) OR (B) USD $50.
 
@@ -286,7 +286,8 @@ enum ScaleLegal {
     }
 
     static let appStoreReviewNotes = """
-    The Scale: App Review notes
+    FATNAG: App Review notes
+    ASC app id: 6816630442 · bundle app.thescale.ios
 
     Hardware: Xiaomi Mi Body Composition Scale 2 via Bluetooth LE advertisements (no pairing cloud).
     HealthKit: write mass/BMI/fat%/lean on Confirm; read only types used for charts + fitness coaching digests.

@@ -1,7 +1,7 @@
 import SwiftUI
 import UserNotifications
 
-/// Pending + delivered local notifications for The Scale.
+/// Pending + delivered local notifications for FATNAG.
 /// Clear section hierarchy: status → coming up → recent (DEBUG: developer tools).
 struct NotificationCenterSheet: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
@@ -250,7 +250,7 @@ struct NotificationCenterSheet: View {
                     .multilineTextAlignment(.trailing)
             }
 
-            Text(title.isEmpty ? "The Scale" : title)
+            Text(title.isEmpty ? "FATNAG" : title)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(ink)
 

@@ -1,7 +1,7 @@
 import Foundation
 import StoreKit
 
-/// Human Analog App Store identity + how The Scale resolves commerce in debug vs device.
+/// Human Analog App Store identity + how FATNAG resolves commerce in debug vs device.
 enum ScaleStorefront {
     /// App Store Connect seller / legal entity.
     static let sellerName = "Human Analog Limited"

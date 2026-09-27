@@ -67,11 +67,11 @@ async function sendResendEmail(params: {
 
   const from =
     Deno.env.get("RESEND_FROM") ??
-    "The Scale Feedback <feedback@inbound.humananalog.ai>";
+    "FATNAG Feedback <feedback@inbound.humananalog.ai>";
   const to = Deno.env.get("FEEDBACK_TO") ?? "dev@humananalog.ai";
 
   const subject =
-    `[The Scale] ${params.category} · ${params.appVersion ?? "?"} (${params.build ?? "?"})`;
+    `[FATNAG] ${params.category} · ${params.appVersion ?? "?"} (${params.build ?? "?"})`;
   const lines = [
     `Category: ${params.category}`,
     `Source: ${params.source}`,

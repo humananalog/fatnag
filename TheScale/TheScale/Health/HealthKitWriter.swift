@@ -944,7 +944,7 @@ final class HealthKitWriter: HealthWriting {
             "SourceDevice": draft.isManualEntry
                 ? "Manual entry"
                 : "Xiaomi Mi Body Composition Scale 2 (XMTZC05HM)",
-            "App": "The Scale"
+            "App": "FATNAG"
         ]
         if let ohms = draft.impedanceOhms {
             meta["ImpedanceOhms"] = ohms

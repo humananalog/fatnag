@@ -31,7 +31,7 @@ Digest is a **dated snapshot** (`Generated at`) and includes:
 - Transparent **recovery heuristic** band (green/yellow/red/unknown) with factor lines
 - Access / honesty lines so Coach never invents missing metrics or AllTrails access
 
-**Important:** The Scale reads **HealthKit only**. Apps like AllTrails or Strava appear only after they write workouts/distance into Apple Health.
+**Important:** FATNAG reads **HealthKit only**. Apps like AllTrails or Strava appear only after they write workouts/distance into Apple Health.
 
 Settings → **Health ↔ Grok monitoring** shows **Health status**, **Allow Health access**, and **Open Health**. After upgrading, tap Allow again so iOS can grant new read types (schema bump). Ask Coach about sleep / recovery / HRV / last workout.
 
@@ -100,7 +100,7 @@ Also: Communication-style Coach avatar when appropriate (`INSendMessageIntent` /
 - Default fallback clock **06:30** local (replaces legacy **07:30** when still on that default).
 - Morning window closes at **08:00** local — no same-day fire at/after 8.
 - Skip if any body-mass / weigh-in already logged for the **local calendar day** (before 8am gate aligns with that day).
-- Copy: title `Keel · 💩 drill`, body `Go drop a 💩 and use The Scale after!` (Keel/sergeant, Time Sensitive unchanged).
+- Copy: title `Keel · 💩 drill`, body `Go drop a 💩 and use FATNAG after!` (Keel/sergeant, Time Sensitive unchanged).
 - Settings **Send test drill** uses the same 💩 copy; docs note ~06:30 / before 8:00.
 - Loss delta surfaces a clear **minus** (`-650g`) + "You're a winner" on post-weigh hero, home, Progress, and History.
 
@@ -177,8 +177,8 @@ Fix:
 1. Pull `main` **2.9.0**, Clean Build, Run on iPhone 15.
 2. Settings → Allow Health access; enable **Health ↔ Grok monitoring** + notify on triggers.
 3. Confirm Settings shows **Health background: N observers** (not “not armed”).
-4. Start a workout on Apple Watch (or log one that writes to Health), then **lock the phone** and leave The Scale in background / killed.
-5. When Health syncs the workout (or sleep / steps burst), expect The Scale to wake briefly and, if algorithms fire, a local notification (Watch-wear / interval / etc.) **without opening the app**.
+4. Start a workout on Apple Watch (or log one that writes to Health), then **lock the phone** and leave FATNAG in background / killed.
+5. When Health syncs the workout (or sleep / steps burst), expect FATNAG to wake briefly and, if algorithms fire, a local notification (Watch-wear / interval / etc.) **without opening the app**.
 6. Optional Xcode: Debug → Simulate Background Fetch; or console filter `HealthKitBackground`.
 
 ## Legal

@@ -71,7 +71,7 @@ enum ScaleNotificationVisuals {
                 sub.draw(at: CGPoint(x: 90, y: 78), withAttributes: subAttrs)
             }
 
-            let brand = "The Scale" as NSString
+            let brand = "FATNAG" as NSString
             let brandAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
                 .foregroundColor: UIColor.white.withAlphaComponent(0.7)

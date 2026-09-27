@@ -65,7 +65,7 @@ struct WeighInLiveActivityWidget: Widget {
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(.primary)
             VStack(alignment: .leading, spacing: 2) {
-                Text("The Scale · \(context.attributes.scaleName)")
+                Text("FATNAG · \(context.attributes.scaleName)")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 if let kg = context.state.weightKg {

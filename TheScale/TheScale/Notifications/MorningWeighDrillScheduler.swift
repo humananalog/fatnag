@@ -21,7 +21,7 @@ enum MorningWeighDrillScheduler {
     /// Canonical vulgar Keel drill lines (title / subtitle / body). Time Sensitive via kind.
     nonisolated static let drillTitle = "Keel · 💩 drill"
     nonisolated static let drillSubtitle = "Bladder empty. Scale now."
-    nonisolated static let drillBodyCore = "Go drop a 💩 and use The Scale after!"
+    nonisolated static let drillBodyCore = "Go drop a 💩 and use FATNAG after!"
 
     /// Call after digest refresh / scene active / trend refresh.
     /// Safe to call often: fallback `add` only runs when the intended fire date changed.

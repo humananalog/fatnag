@@ -1,6 +1,6 @@
 # Architecture
 
-The Scale is a native iOS app. BLE and HealthKit stay on-device. Optional coaching leaves the device only through an operator-managed Cloudflare Worker. On-device Apple Intelligence handles private notification polish and light assist when available.
+FATNAG is a native iOS app. BLE and HealthKit stay on-device. Optional coaching leaves the device only through an operator-managed Cloudflare Worker. On-device Apple Intelligence handles private notification polish and light assist when available.
 
 ## Planes
 
@@ -15,7 +15,7 @@ The Scale is a native iOS app. BLE and HealthKit stay on-device. Optional coachi
 | **xAI Grok** | Full Coach chat + specialist consults behind one user-facing voice |
 
 ```
-Mi Scale 2 ──BLE ads──► The Scale ──write/read──► Apple Health
+Mi Scale 2 ──BLE ads──► FATNAG ──write/read──► Apple Health
                            │
                            ├── UserDefaults (local state)
                            ├── Foundation Models (on-device, AI phones)

@@ -1,7 +1,7 @@
-# The Scale Privacy Policy
+# FATNAG Privacy Policy
 
 Controller: Human Analog Limited  
-App: The Scale (iOS), bundle `app.thescale.ios`  
+App: FATNAG (iOS), bundle `app.thescale.ios`  
 Contact: privacy@humananalog.ai  
 Canonical in-app + App Store URL: https://humananalog.github.io/the-scale/privacy
 

@@ -22,7 +22,7 @@ struct AppReviewPromptView: View {
                 .textCase(.uppercase)
                 .tracking(0.6)
 
-            Text("The Scale")
+            Text("FATNAG")
                 .font(.system(size: 28, weight: .semibold, design: .serif))
                 .foregroundStyle(ink)
 
