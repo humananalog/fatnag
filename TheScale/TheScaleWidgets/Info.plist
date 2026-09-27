@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>FATNAG</string>
+	<string>fatnag</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSExtension</key>

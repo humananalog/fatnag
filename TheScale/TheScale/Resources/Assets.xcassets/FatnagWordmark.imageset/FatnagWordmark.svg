@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 72" fill="none">
+  <!-- fatnag wordmark: thin "fat" + heavy "nag" -->
+  <text
+    x="0"
+    y="52"
+    font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="56"
+    fill="currentColor"
+    letter-spacing="-1.2"
+  ><tspan font-weight="300">fat</tspan><tspan font-weight="800">nag</tspan></text>
+</svg>

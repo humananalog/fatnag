@@ -2,7 +2,7 @@ import SwiftUI
 import UserNotifications
 
 /// Pending + delivered local notifications for FATNAG.
-/// Clear section hierarchy: status → coming up → recent (DEBUG: developer tools).
+/// Clear section hierarchy: status → coming up → recent.
 struct NotificationCenterSheet: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.dismiss) private var dismiss
@@ -12,10 +12,6 @@ struct NotificationCenterSheet: View {
     @State private var isLoading = true
     @State private var authLine = ""
     @State private var authDenied = false
-    #if DEBUG
-    @State private var testNote: String?
-    @State private var showDeveloperTools = false
-    #endif
 
     private struct PendingNotifRow: Identifiable {
         let id: String
@@ -100,42 +96,6 @@ struct NotificationCenterSheet: View {
                         } header: {
                             sectionHeader("Recently delivered", systemImage: "tray.full")
                         }
-
-                        #if DEBUG
-                        Section {
-                            DisclosureGroup(isExpanded: $showDeveloperTools) {
-                                Button {
-                                    Task {
-                                        let ok = await MorningWeighDrillScheduler.forceFireTest(
-                                            profileName: session.profile.greetingName
-                                        )
-                                        testNote = ok
-                                            ? "Test drill in about 2 seconds. Leave the app or lock the phone."
-                                            : "Blocked. Allow notifications first."
-                                        await reload()
-                                    }
-                                } label: {
-                                    Label("Send test drill now", systemImage: "bell.and.waves.left.and.right")
-                                }
-                                .accessibilityIdentifier("alerts.sendTestDrill")
-
-                                if let testNote {
-                                    Text(testNote)
-                                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                                        .foregroundStyle(mist)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                            } label: {
-                                Label("Developer tools", systemImage: "wrench.and.screwdriver")
-                                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(ink.opacity(0.85))
-                            }
-                        } footer: {
-                            Text("QA only. Not needed for daily use.")
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
-                                .foregroundStyle(mist)
-                        }
-                        #endif
                     }
                     .listStyle(.insetGrouped)
                     .listSectionSpacing(.compact)

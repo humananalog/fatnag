@@ -155,10 +155,7 @@ struct PaywallView: View {
                 .allowsHitTesting(false)
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("FATNAG")
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .tracking(2.4)
-                    .foregroundStyle(gold.opacity(0.95))
+                FatnagWordmark(size: 14, color: gold.opacity(0.95))
 
                 Text("Stay sharp.")
                     .font(.system(size: 36, weight: .semibold, design: .serif))
@@ -198,16 +195,6 @@ struct PaywallView: View {
                     .padding(.top, 16)
             }
 
-            #if DEBUG
-            Text("DEV: tap any tier to apply instantly. StoreKit bypassed until Settings → Use StoreKit.")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(gold.opacity(0.9))
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 24)
-                .padding(.top, 14)
-                .accessibilityIdentifier("paywall.devTierHint")
-            #endif
-
             usageStrip
                 .padding(.horizontal, 24)
                 .padding(.top, 18)
@@ -216,7 +203,7 @@ struct PaywallView: View {
                 catalogLoading
                     .padding(.horizontal, 24)
                     .padding(.top, 18)
-            } else if store.hasEmptyCatalog && !store.allowsInstantDevTier {
+            } else if store.hasEmptyCatalog {
                 catalogEmpty
                     .padding(.horizontal, 24)
                     .padding(.top, 18)
@@ -383,42 +370,12 @@ struct PaywallView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if isCurrent {
-                Text(store.allowsInstantDevTier ? "Current · tap another tier to switch" : "Current plan")
+                Text("Current plan")
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(Color(red: 0.55, green: 0.78, blue: 0.62))
             }
 
-            if store.allowsInstantDevTier {
-                Button {
-                    #if DEBUG
-                    _ = store.applyDevPlan(plan)
-                    dismiss()
-                    #endif
-                } label: {
-                    Text(isCurrent ? "Keep \(plan.displayName)" : "Use \(plan.displayName)")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, isPro ? 14 : 12)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(isPro && !isCurrent ? ink : ivory)
-                .background {
-                    if isPro && !isCurrent {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [gold, gold.opacity(0.82)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    } else {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(ivory.opacity(isCurrent ? 0.08 : 0.12))
-                    }
-                }
-                .accessibilityIdentifier("paywall.devSelect.\(plan.rawValue)")
-            } else if !isCurrent, plan != .free {
+            if !isCurrent, plan != .free {
                 Button {
                     Task {
                         let ok = await store.purchase(plan)
@@ -521,14 +478,6 @@ struct PaywallView: View {
             }
             .font(.system(size: 12, weight: .semibold, design: .rounded))
             .foregroundStyle(gold.opacity(0.9))
-            #if DEBUG
-            if store.isDevPlanOverrideActive {
-                Text("Active via DEV override · \(store.plan.displayName)")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(gold.opacity(0.75))
-                    .accessibilityIdentifier("paywall.devOverrideActive")
-            }
-            #endif
             Text(store.commerceLane.title)
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .foregroundStyle(mist.opacity(0.55))

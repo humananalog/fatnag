@@ -71,12 +71,19 @@ enum ScaleNotificationVisuals {
                 sub.draw(at: CGPoint(x: 90, y: 78), withAttributes: subAttrs)
             }
 
-            let brand = "FATNAG" as NSString
-            let brandAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
+            let brandFat = "fat" as NSString
+            let brandNag = "nag" as NSString
+            let fatAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12, weight: .light),
                 .foregroundColor: UIColor.white.withAlphaComponent(0.7)
             ]
-            brand.draw(at: CGPoint(x: 90, y: 118), withAttributes: brandAttrs)
+            let nagAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12, weight: .heavy),
+                .foregroundColor: UIColor.white.withAlphaComponent(0.7)
+            ]
+            let fatSize = brandFat.size(withAttributes: fatAttrs)
+            brandFat.draw(at: CGPoint(x: 90, y: 118), withAttributes: fatAttrs)
+            brandNag.draw(at: CGPoint(x: 90 + fatSize.width, y: 118), withAttributes: nagAttrs)
         }
         return image.pngData()
     }

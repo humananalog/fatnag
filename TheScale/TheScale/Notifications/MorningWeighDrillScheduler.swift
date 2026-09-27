@@ -158,42 +158,14 @@ enum MorningWeighDrillScheduler {
                 subtitle: drillSubtitle,
                 body: "\(greet). \(drillBodyCore)"
             )
-        case .test:
-            return (
-                title: "Keel · test 💩",
-                subtitle: "Force-fire QA.",
-                body: "\(greet). Test ping. \(drillBodyCore)"
-            )
         }
     }
 
     enum DrillCopyVariant: Sendable {
         case sleepWake
         case fallback
-        case test
     }
 
-    /// DEBUG / Settings QA: schedule a sergeant test ping in ~2s. Does not burn the day stamp.
-    @discardableResult
-    static func forceFireTest(profileName: String) async -> Bool {
-        let allowed = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
-        guard allowed else { return false }
-        let content = makeContent(profileName: profileName, variant: .test)
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [testRequestId])
-        center.removeDeliveredNotifications(withIdentifiers: [testRequestId])
-        let request = UNNotificationRequest(
-            identifier: testRequestId,
-            content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
-        )
-        do {
-            try await center.add(request)
-            return true
-        } catch {
-            return false
-        }
-    }
 
     /// Mark morning drill satisfied after a successful weigh-in today.
     static func markSatisfied(now: Date = Date(), calendar: Calendar = .current) {
@@ -333,7 +305,7 @@ enum MorningWeighDrillScheduler {
                 subtitle: pick.subtitle,
                 body: pick.body,
                 visualHeadline: "Weigh now",
-                visualDetail: variant == .test ? "Test drill" : "Morning drill"
+                visualDetail: "Morning drill"
             )
         )
     }

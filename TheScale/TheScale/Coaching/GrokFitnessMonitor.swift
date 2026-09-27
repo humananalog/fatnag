@@ -15,7 +15,6 @@ enum GrokFitnessMonitor {
     static let intervalNotifyId = "thescale.fitness-interval"
     static let triggerNotifyPrefix = "thescale.fitness-trigger."
     static let lastCoachReplyKey = "thescale.lastFitnessCoachReply"
-    static let sampleNotifyId = "thescale.sample-sota"
 
     static func registerBackgroundTask() {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: bgRefreshTaskId, using: nil) { task in
@@ -231,24 +230,4 @@ enum GrokFitnessMonitor {
         }
     }
 
-    /// Discreet Dev QA: fire a full SOTA sample notification in ~1.5s.
-    static func fireSampleSOTANotification(profileName: String, currentKg: Double?) async -> Bool {
-        let allowed = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
-        guard allowed else { return false }
-        let content = ScaleNotificationContentFactory.makeSample(
-            profileName: profileName,
-            currentKg: currentKg
-        )
-        let request = UNNotificationRequest(
-            identifier: sampleNotifyId,
-            content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1.5, repeats: false)
-        )
-        do {
-            try await UNUserNotificationCenter.current().add(request)
-            return true
-        } catch {
-            return false
-        }
-    }
 }

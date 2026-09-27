@@ -355,9 +355,9 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         XCTAssertTrue(copy.body.contains("💩"))
         XCTAssertTrue(copy.body.contains("Alex"))
         XCTAssertTrue(copy.body.contains("FATNAG"))
-        let test = MorningWeighDrillScheduler.drillCopy(profileName: "", variant: .test)
-        XCTAssertTrue(test.title.contains("💩"))
-        XCTAssertTrue(test.body.contains("Soldier"))
+        let anonymous = MorningWeighDrillScheduler.drillCopy(profileName: "", variant: .fallback)
+        XCTAssertTrue(anonymous.title.contains("💩"))
+        XCTAssertTrue(anonymous.body.contains("Soldier"))
     }
 
     func testMorningWeighContentStaysTimeSensitive() {

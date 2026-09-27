@@ -79,9 +79,7 @@ struct FeedbackSheetView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("FATNAG")
-                .font(.system(size: 26, weight: .semibold, design: .serif))
-                .foregroundStyle(ink)
+            FatnagWordmark(size: 26, color: ink)
             Text("One tap for type, a short note, optional email. That’s it.")
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(steel)

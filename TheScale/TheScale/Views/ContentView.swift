@@ -80,9 +80,6 @@ struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
-    #if DEBUG
-    @State private var showDebugTools = false
-    #endif
     @State private var showNotificationCenter = false
     @State private var pendingNotifCount = 0
 
@@ -112,36 +109,35 @@ struct ContentView: View {
         )) {
             Tab(HomeGlassDestination.weigh.title, systemImage: HomeGlassDestination.weigh.systemImage, value: HomeGlassDestination.weigh) {
                 weighTabRoot
+                    .homeMenuPageSwipe(selection: .weigh) { session.selectHomeTab($0) }
             }
             Tab(HomeGlassDestination.progress.title, systemImage: HomeGlassDestination.progress.systemImage, value: HomeGlassDestination.progress) {
                 ProgressSheet()
                     .environmentObject(session)
+                    .homeMenuPageSwipe(selection: .progress) { session.selectHomeTab($0) }
             }
             Tab(HomeGlassDestination.keel.title, systemImage: HomeGlassDestination.keel.systemImage, value: HomeGlassDestination.keel) {
                 CoachChatView()
                     .environmentObject(session)
+                    .homeMenuPageSwipe(selection: .keel) { session.selectHomeTab($0) }
             }
             Tab(HomeGlassDestination.meals.title, systemImage: HomeGlassDestination.meals.systemImage, value: HomeGlassDestination.meals) {
                 MealPlanCarouselView()
                     .environmentObject(session)
+                    .homeMenuPageSwipe(selection: .meals) { session.selectHomeTab($0) }
             }
             Tab(HomeGlassDestination.settings.title, systemImage: HomeGlassDestination.settings.systemImage, value: HomeGlassDestination.settings) {
                 NavigationStack {
                     SettingsView()
                         .environmentObject(session)
                 }
+                .homeMenuPageSwipe(selection: .settings) { session.selectHomeTab($0) }
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         // Weigh-now lives inside the Weigh tab only. A conditional
         // `tabViewBottomAccessory` left a blank white chrome bar on Settings / Coach / etc.
         // Follow system appearance so Progress / home / meals stay readable in dark mode.
-        #if DEBUG
-        .sheet(isPresented: $showDebugTools) {
-            DebugToolsView()
-                .environmentObject(session)
-        }
-        #endif
         .sheet(isPresented: $showNotificationCenter) {
             NotificationCenterSheet()
                 .environmentObject(session)
@@ -224,12 +220,7 @@ struct ContentView: View {
     /// Home / Weigh tab: weekly-goal composition under the system liquid-glass tab bar.
     private var weighTabRoot: some View {
         NavigationStack {
-            ZStack {
-                homeScroll
-                #if DEBUG
-                debugOverlay
-                #endif
-            }
+            homeScroll
             // Atmosphere as `.background` only (same contract as LiveWeighInSheet) so haze
             // cannot cover content or leave LaunchBackground showing through.
             .background {
@@ -268,11 +259,6 @@ struct ContentView: View {
             .task(id: session.homeTab) {
                 guard session.homeTab == .weigh else { return }
                 await session.reconcileAlreadyWeighedTodayFromHealth()
-            }
-            .onChange(of: session.alreadyWeighedToday) { _, weighed in
-                #if DEBUG
-                print("[TheScale] home alreadyWeighedToday=\(weighed) gateResolved=\(session.weighNowGateResolved)")
-                #endif
             }
         }
     }
@@ -371,32 +357,6 @@ struct ContentView: View {
         .accessibilityElement(children: .combine)
     }
 
-    #if DEBUG
-    private var debugOverlay: some View {
-        VStack {
-            HStack {
-                Button {
-                    showDebugTools = true
-                } label: {
-                    Text("DEBUG")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.orange.opacity(0.92), in: Capsule())
-                }
-                .accessibilityIdentifier("home.debug")
-                .accessibilityLabel("Debug tools")
-                Spacer(minLength: 0)
-            }
-            .padding(.leading, 12)
-            .padding(.top, 6)
-            Spacer(minLength: 0)
-        }
-        .allowsHitTesting(true)
-    }
-    #endif
-
     private func bootstrapHome() async {
         session.ensureWeeklyGoalBaseline()
         session.rebuildWeeklyGoalSurface()
@@ -431,11 +391,10 @@ struct ContentView: View {
                 .scaledToFit()
                 .frame(width: 40, height: 40)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("FATNAG")
-                    .font(.system(size: 24, weight: .bold, design: .serif))
-                    .foregroundStyle(atmosphere.ink)
+                FatnagWordmark(size: 24, color: atmosphere.ink)
                     .shadow(
                         color: colorScheme == .dark ? .black.opacity(0.45) : .white.opacity(0.55),
                         radius: 0,
@@ -484,12 +443,12 @@ struct ContentView: View {
         if let baseline = session.healthBaselineKg {
             let mass = UnitFormat.massString(baseline, system: units, fractionDigits: 1)
             if name.isEmpty {
-                return "FATNAG. Last Health weight \(mass)."
+                return "fatnag. Last Health weight \(mass)."
             }
-            return "FATNAG. Hello \(name). Last Health weight \(mass)."
+            return "fatnag. Hello \(name). Last Health weight \(mass)."
         }
-        if name.isEmpty { return "FATNAG" }
-        return "FATNAG. Hello \(name)."
+        if name.isEmpty { return "fatnag" }
+        return "fatnag. Hello \(name)."
     }
 
     private func weighInAnalysisBlock(_ card: WeighInAnalysisCard) -> some View {

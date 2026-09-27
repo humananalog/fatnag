@@ -279,4 +279,14 @@ docs/                     # Architecture, Coach/AI, Health/notifications
 
 ## Version
 
-Bump **MARKETING_VERSION** and **CURRENT_PROJECT_VERSION** together in the Xcode target when shipping code. Docs-only commits may leave the number unchanged.
+Current: **1.0.6** (build **109**).
+
+Bump marketing + build together when shipping code:
+
+```bash
+scripts/bump_version.sh           # patch +1, build +1
+scripts/bump_version.sh 1.1.0     # set marketing, build +1
+scripts/bump_version.sh 1.1.0 120 # set both explicitly
+```
+
+Docs-only commits may leave the number unchanged.

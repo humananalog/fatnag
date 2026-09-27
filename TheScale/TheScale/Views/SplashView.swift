@@ -1,122 +1,96 @@
 import SwiftUI
 
-/// Cold open: full-bleed dark brand moment before home / onboarding.
-/// Motion is intentional (scale rise, gold ring, haze drift), then soft exit.
+/// Cold open: Netflix-style wordmark slam on pure black, then soft handoff to the app.
+/// Uses the fatnag SVG asset plus animatable thin/heavy letter groups.
 struct SplashView: View {
     var onFinished: () -> Void
 
-    @State private var ringScale: CGFloat = 0.72
-    @State private var ringOpacity: Double = 0
-    @State private var markOpacity: Double = 0
-    @State private var markOffset: CGFloat = 18
-    @State private var wordOpacity: Double = 0
-    @State private var hazePhase: CGFloat = 0
-    @State private var exitOpacity: Double = 1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    // Match AppIcon void + copper mark (Glacier Forge night / Bloom Copper metal).
-    private let ink = Color(red: 0.004, green: 0.016, blue: 0.035)
-    private let deep = Color(red: 0.05, green: 0.08, blue: 0.12)
-    private let gold = Color(red: 0.83, green: 0.64, blue: 0.36)
-    private let ivory = Color(red: 0.96, green: 0.95, blue: 0.92)
-    private let mist = Color(red: 0.62, green: 0.64, blue: 0.68)
+    @State private var markScale: CGFloat = 6.2
+    @State private var markOpacity: Double = 0
+    @State private var fatOpacity: Double = 0
+    @State private var nagOpacity: Double = 0
+    @State private var nagScale: CGFloat = 1.35
+    @State private var bloomOpacity: Double = 0
+    @State private var tagOpacity: Double = 0
+    @State private var exitOpacity: Double = 1
+    @State private var impactTick = false
+
+    private let ink = Color.black
+    private let ivory = Color.white
 
     var body: some View {
         ZStack {
             ink.ignoresSafeArea()
 
-            // Atmospheric haze (same family as home weekly-goal haze).
-            TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { context in
-                let t = context.date.timeIntervalSinceReferenceDate + hazePhase
-                let slow = t / 14.0
-                ZStack {
-                    LinearGradient(
-                        colors: [deep, ink, Color(red: 0.05, green: 0.08, blue: 0.10)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    Ellipse()
-                        .fill(gold.opacity(0.10))
-                        .frame(width: 340, height: 280)
-                        .blur(radius: 56)
-                        .offset(x: -70 + CGFloat(sin(slow)) * 40, y: -160 + CGFloat(cos(slow * 0.7)) * 30)
-                    Ellipse()
-                        .fill(Color(red: 0.18, green: 0.42, blue: 0.48).opacity(0.14))
-                        .frame(width: 380, height: 300)
-                        .blur(radius: 64)
-                        .offset(x: 90 + CGFloat(cos(slow * 0.55)) * 36, y: 120 + CGFloat(sin(slow * 0.9)) * 28)
-                }
+            // Impact bloom (Netflix slam flash), skipped when Reduce Transparency is on.
+            if !reduceTransparency {
+                RadialGradient(
+                    colors: [
+                        ivory.opacity(bloomOpacity * 0.22),
+                        ivory.opacity(bloomOpacity * 0.06),
+                        .clear
+                    ],
+                    center: .center,
+                    startRadius: 8,
+                    endRadius: 280
+                )
                 .ignoresSafeArea()
+                .allowsHitTesting(false)
             }
 
-            VStack(spacing: 28) {
+            VStack(spacing: 20) {
+                // SVG vector (template) sits under the animatable type for accessibility /
+                // asset parity; animatable HStack drives the Netflix weight reveal.
                 ZStack {
-                    // Outer gold ring
-                    Circle()
-                        .strokeBorder(
-                            AngularGradient(
-                                colors: [gold.opacity(0.15), gold, gold.opacity(0.35), gold.opacity(0.15)],
-                                center: .center
-                            ),
-                            lineWidth: 2.5
-                        )
-                        .frame(width: 168, height: 168)
-                        .scaleEffect(ringScale)
-                        .opacity(ringOpacity)
-
-                    // Inner disc (scale plate)
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    Color(red: 0.14, green: 0.16, blue: 0.20),
-                                    Color(red: 0.06, green: 0.07, blue: 0.09)
-                                ],
-                                center: .center,
-                                startRadius: 4,
-                                endRadius: 80
-                            )
-                        )
-                        .frame(width: 128, height: 128)
-                        .overlay(
-                            Circle()
-                                .strokeBorder(ivory.opacity(0.12), lineWidth: 1)
-                        )
-                        .scaleEffect(ringScale)
-                        .opacity(ringOpacity)
-
-                    // Needle / brand mark
-                    Image("BrandMark")
+                    FatnagBrand.wordmarkImage
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 78, height: 78)
-                        .opacity(markOpacity)
-                        .offset(y: markOffset)
+                        .frame(width: 260, height: 58)
+                        .opacity(0.001)
                         .accessibilityHidden(true)
-                }
 
-                VStack(spacing: 8) {
-                    Text("FATNAG")
-                        .font(.system(size: 36, weight: .semibold, design: .serif))
-                        .foregroundStyle(ivory)
-                        .tracking(0.6)
-                    Text("Nag until the fat folds.")
+                    HStack(spacing: 0) {
+                        Text("fat")
+                            .font(.system(size: 52, weight: .light, design: .default))
+                            .opacity(fatOpacity)
+                        Text("nag")
+                            .font(.system(size: 52, weight: .heavy, design: .default))
+                            .opacity(nagOpacity)
+                            .scaleEffect(nagScale)
+                    }
+                    .foregroundStyle(ivory)
+                    .tracking(-1.4)
+                }
+                .scaleEffect(markScale)
+                .opacity(markOpacity)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("fatnag")
+                .accessibilityIdentifier("splash.brand")
+
+                VStack(spacing: 6) {
+                    Text(FatnagBrand.tagline)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(mist)
-                        .tracking(0.4)
+                        .foregroundStyle(ivory.opacity(0.55))
+                        .tracking(0.3)
                         .multilineTextAlignment(.center)
                     Text(splashVersionLine)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(mist.opacity(0.75))
+                        .foregroundStyle(ivory.opacity(0.38))
                         .monospacedDigit()
                         .accessibilityIdentifier("splash.version")
                 }
-                .opacity(wordOpacity)
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("splash.brand")
+                .opacity(tagOpacity)
             }
+            .padding(.horizontal, 28)
         }
         .opacity(exitOpacity)
         .preferredColorScheme(.dark)
+        .statusBarHidden(true)
+        .persistentSystemOverlays(.hidden)
+        .sensoryFeedback(.impact(flexibility: .solid, intensity: 0.85), trigger: impactTick)
         .accessibilityAddTraits(.isHeader)
         .onAppear { runSequence() }
     }
@@ -127,28 +101,67 @@ struct SplashView: View {
     }
 
     private func runSequence() {
-        withAnimation(.easeOut(duration: 0.55)) {
-            ringOpacity = 1
-            ringScale = 1
-        }
-        withAnimation(.spring(response: 0.55, dampingFraction: 0.82).delay(0.12)) {
+        if reduceMotion {
+            markScale = 1
             markOpacity = 1
-            markOffset = 0
-        }
-        withAnimation(.easeOut(duration: 0.45).delay(0.28)) {
-            wordOpacity = 1
-        }
-        withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
-            hazePhase = 1
+            fatOpacity = 1
+            nagOpacity = 1
+            nagScale = 1
+            tagOpacity = 1
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                withAnimation(.easeInOut(duration: 0.28)) { exitOpacity = 0 }
+                try? await Task.sleep(nanoseconds: 280_000_000)
+                onFinished()
+            }
+            return
         }
 
+        // 1) Void beat — black frame (Netflix cold open).
+        markScale = 6.2
+        markOpacity = 0
+        fatOpacity = 0
+        nagOpacity = 0
+        nagScale = 1.35
+
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_650_000_000)
-            withAnimation(.easeInOut(duration: 0.42)) {
-                exitOpacity = 0
-                ringScale = 1.08
+            try? await Task.sleep(nanoseconds: 180_000_000)
+
+            // 2) Slam: whole mark rushes in from oversized scale.
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.78)) {
+                markScale = 1
+                markOpacity = 1
+                fatOpacity = 1
             }
-            try? await Task.sleep(nanoseconds: 420_000_000)
+            try? await Task.sleep(nanoseconds: 120_000_000)
+
+            // Bold "nag" lands a beat later with a punch.
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.72)) {
+                nagOpacity = 1
+                nagScale = 1
+            }
+            withAnimation(.easeOut(duration: 0.18)) {
+                bloomOpacity = 1
+            }
+            impactTick.toggle()
+
+            try? await Task.sleep(nanoseconds: 160_000_000)
+            withAnimation(.easeOut(duration: 0.55)) {
+                bloomOpacity = 0
+            }
+            withAnimation(.easeOut(duration: 0.4)) {
+                tagOpacity = 1
+            }
+
+            try? await Task.sleep(nanoseconds: 980_000_000)
+
+            // 3) Exit: slight push-in + fade (hand off to home / onboarding).
+            withAnimation(.easeIn(duration: 0.48)) {
+                markScale = 1.12
+                exitOpacity = 0
+                tagOpacity = 0
+            }
+            try? await Task.sleep(nanoseconds: 480_000_000)
             onFinished()
         }
     }

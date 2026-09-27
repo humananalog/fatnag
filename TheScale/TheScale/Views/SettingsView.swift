@@ -250,12 +250,9 @@ struct SettingsView: View {
 
     private var brandHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("FATNAG")
-                .font(.system(size: 28, weight: .semibold, design: .serif))
-                .foregroundStyle(ink)
-                .tracking(0.4)
+            FatnagWordmark(size: 28, color: ink)
                 .accessibilityIdentifier("settings.brand")
-            Text("Nag until the fat folds.")
+            Text(FatnagBrand.tagline)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(copper)
             Text("Profile, Coach, Health, and privacy — all on this iPhone.")
@@ -416,9 +413,7 @@ struct SettingsView: View {
                     .font(.headline)
                     .foregroundStyle(ink)
                 HStack(alignment: .firstTextBaseline) {
-                    Text("FATNAG")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(ink)
+                    FatnagWordmark(size: 20, color: ink)
                     Spacer()
                     Text("v\(appMarketingVersion)")
                         .font(.title3.weight(.bold).monospacedDigit())

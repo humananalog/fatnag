@@ -778,7 +778,8 @@ final class ScaleSessionViewModel: ObservableObject {
         isMondayCardLoading = false
     }
 
-    /// Dev / preview: force-show the Monday card (optionally regenerate past cache).
+    #if DEBUG
+    /// Test-only: force-show the Monday card (optionally regenerate past cache).
     /// Preview is ephemeral — never rewrites live weekly progress or MondayCardStore.
     func forcePresentMondayCard(regenerate: Bool = true) {
         Task {
@@ -789,6 +790,7 @@ final class ScaleSessionViewModel: ObservableObject {
             )
         }
     }
+    #endif
 
     /// After Confirm-to-Health (or Manual) on Monday morning, or Dev force.
     /// Caches one card per ISO week unless weigh-in signature changes or regenerate.

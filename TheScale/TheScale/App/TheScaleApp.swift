@@ -27,7 +27,7 @@ struct TheScaleApp: App {
             ZStack {
                 // Guaranteed base under splash/content so a failed first paint is never a
                 // pure LaunchBackground void with no chrome.
-                Color(red: 0.06, green: 0.08, blue: 0.11)
+                Color.black
                     .ignoresSafeArea()
 
                 Group {

@@ -64,14 +64,8 @@ final class ScaleSubscriptionStore: ObservableObject {
     var isDevPlanOverrideActive: Bool { debugOverride != nil }
     #endif
 
-    /// DEBUG builds always allow on-the-fly tier taps from the paywall.
-    var allowsInstantDevTier: Bool {
-        #if DEBUG
-        true
-        #else
-        false
-        #endif
-    }
+    /// Instant tier bypass removed from consumer UI. Always false.
+    var allowsInstantDevTier: Bool { false }
 
     private var updatesTask: Task<Void, Never>?
 
