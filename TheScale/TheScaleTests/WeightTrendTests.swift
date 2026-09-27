@@ -27,6 +27,13 @@ final class WeightTrendTests: XCTestCase {
         XCTAssertEqual(WeightTrend.from(currentKg: 80.0, baselineKg: nil), .unknown)
     }
 
+    func testSubtitleUsesPreferredUnits() {
+        let trend = WeightTrend.from(currentKg: 79.5, baselineKg: 80.0)
+        let imperial = trend.subtitle(system: .imperial)
+        XCTAssertTrue(imperial.contains("lb") || imperial.contains("oz"), imperial)
+        XCTAssertFalse(imperial.contains(" kg"))
+    }
+
     func testLiveDecodeUnstabilizedWeight() throws {
         var bytes = [UInt8](repeating: 0, count: 13)
         bytes[0] = 0x02

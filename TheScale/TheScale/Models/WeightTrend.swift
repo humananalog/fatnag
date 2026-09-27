@@ -48,14 +48,16 @@ enum WeightTrend: Equatable, Sendable {
         }
     }
 
-    var subtitle: String {
+    func subtitle(system: PreferredUnitSystem) -> String {
         switch self {
         case .loss(let d):
-            return String(format: "%.2f kg below last Health weight", abs(d))
+            return "\(UnitFormat.massString(abs(d), system: system, fractionDigits: 2)) below last Health weight"
         case .stable(let d):
-            return String(format: "Within ±%.1f kg of last Health weight (Δ %.2f)", Self.stableThresholdKg, d)
+            let band = UnitFormat.massString(Self.stableThresholdKg, system: system, fractionDigits: 1)
+            let delta = UnitFormat.massDeltaString(d, system: system, fractionDigits: 2)
+            return "Within ±\(band) of last Health weight (Δ \(delta))"
         case .gain(let d):
-            return String(format: "%.2f kg above last Health weight", abs(d))
+            return "\(UnitFormat.massString(abs(d), system: system, fractionDigits: 2)) above last Health weight"
         case .unknown:
             return "Connect Apple Health to compare against prior weights"
         }

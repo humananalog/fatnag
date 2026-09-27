@@ -180,11 +180,12 @@ enum WeeklyGoalSurfaceEngine {
             band = .atRisk
         }
 
+        let units = PreferredUnitSystemStore.load()
         let detail: String = {
             if currentKg == nil || weeklyGoal.weekStartKg == nil {
                 return "Weigh in once to lock this week's baseline."
             }
-            let base = weeklyGoal.statusLine(currentKg: currentKg)
+            let base = weeklyGoal.statusLine(currentKg: currentKg, system: units)
             switch targetMode {
             case .hardcoreCatchUp:
                 return base + " Hardcore catch-up week."
@@ -226,7 +227,6 @@ enum WeeklyGoalSurfaceEngine {
             }
         }()
 
-        let units = PreferredUnitSystemStore.load()
         let eta = MacroGoalETA.compute(
             currentKg: currentKg,
             idealKg: profile.idealWeightKg,
@@ -284,17 +284,22 @@ enum WeeklyGoalSurfaceEngine {
         return nil
     }
 
-    /// Parse only `"Sunday 82.40 kg"` (number immediately after Sunday). Ignores other kg tokens.
+    /// Parse only `"Sunday 82.40 kg"` or `"Sunday 180.3 lb"` (number immediately after Sunday).
     static func parseSundayKg(from title: String) -> Double? {
         let cleaned = title.replacingOccurrences(of: ",", with: ".")
         guard let regex = try? NSRegularExpression(
-            pattern: #"sunday\s+(\d+(?:\.\d+)?)\s*kg"#,
+            pattern: #"sunday\s+(\d+(?:\.\d+)?)\s*(kg|lb)"#,
             options: [.caseInsensitive]
         ),
               let match = regex.firstMatch(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)),
-              let range = Range(match.range(at: 1), in: cleaned),
-              let value = Double(cleaned[range])
+              let valueRange = Range(match.range(at: 1), in: cleaned),
+              let unitRange = Range(match.range(at: 2), in: cleaned),
+              let value = Double(cleaned[valueRange])
         else { return nil }
+        let unit = cleaned[unitRange].lowercased()
+        if unit == "lb" {
+            return UnitFormat.kg(fromMass: value, system: .imperial)
+        }
         return value
     }
 

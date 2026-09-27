@@ -50,4 +50,24 @@ final class UnitFormatTests: XCTestCase {
         XCTAssertTrue(bigLb.contains("lb"), bigLb)
         XCTAssertFalse(bigLb.contains("oz"), bigLb)
     }
+
+    func testSundayTitleAndParseRoundTrip() {
+        let kg = 82.4
+        let metricTitle = UnitFormat.sundayTitle(kg: kg, system: .metric)
+        XCTAssertEqual(metricTitle, "Sunday 82.40 kg")
+        XCTAssertEqual(WeeklyGoalSurfaceEngine.parseSundayKg(from: metricTitle) ?? -1, kg, accuracy: 0.01)
+
+        let imperialTitle = UnitFormat.sundayTitle(kg: kg, system: .imperial)
+        XCTAssertTrue(imperialTitle.contains("lb"), imperialTitle)
+        XCTAssertEqual(WeeklyGoalSurfaceEngine.parseSundayKg(from: imperialTitle) ?? -1, kg, accuracy: 0.05)
+    }
+
+    func testWeeklyMiniGoalStatusLineUsesPreferredUnits() {
+        var goal = WeeklyMiniGoal.default
+        goal.targetDeltaKg = -0.4
+        goal.weekStartKg = 84.0
+        let line = goal.statusLine(currentKg: 83.7, system: .imperial)
+        XCTAssertTrue(line.contains("lb") || line.contains("oz"), line)
+        XCTAssertFalse(line.contains(" kg"))
+    }
 }

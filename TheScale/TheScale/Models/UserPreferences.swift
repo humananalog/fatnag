@@ -191,7 +191,7 @@ struct WeeklyMiniGoal: Equatable, Codable, Sendable {
         return min(max(fraction, 0), 1.2)
     }
 
-    func statusLine(currentKg: Double?) -> String {
+    func statusLine(currentKg: Double?, system: PreferredUnitSystem = .metric) -> String {
         guard let currentKg, let weekStartKg else {
             return "Weigh in once to lock this week's baseline."
         }
@@ -199,14 +199,30 @@ struct WeeklyMiniGoal: Equatable, Codable, Sendable {
         let remaining = targetDeltaKg - moved
         if targetDeltaKg < 0 {
             if moved <= targetDeltaKg {
-                return String(format: "Crushed it: %.2f kg vs goal %.2f kg.", moved, targetDeltaKg)
+                return String(
+                    format: "Crushed it: %@ vs goal %@.",
+                    UnitFormat.massDeltaString(moved, system: system),
+                    UnitFormat.massDeltaString(targetDeltaKg, system: system)
+                )
             }
-            return String(format: "Moved %.2f kg · %.2f kg still to go.", moved, remaining)
+            return String(
+                format: "Moved %@ · %@ still to go.",
+                UnitFormat.massDeltaString(moved, system: system),
+                UnitFormat.massDeltaString(remaining, system: system)
+            )
         }
         if moved >= targetDeltaKg {
-            return String(format: "Hit %+.2f kg target (%.2f kg).", targetDeltaKg, moved)
+            return String(
+                format: "Hit %@ target (%@).",
+                UnitFormat.massDeltaString(targetDeltaKg, system: system),
+                UnitFormat.massDeltaString(moved, system: system)
+            )
         }
-        return String(format: "Moved %.2f kg · %.2f kg still to go.", moved, remaining)
+        return String(
+            format: "Moved %@ · %@ still to go.",
+            UnitFormat.massDeltaString(moved, system: system),
+            UnitFormat.massDeltaString(remaining, system: system)
+        )
     }
 }
 
@@ -1089,5 +1105,12 @@ enum UnitFormat {
             let flOz = Double(ml) / 29.5735295625
             return String(format: "%.1f fl oz", flOz)
         }
+    }
+
+    /// Weekly mini-goal title: `Sunday 82.40 kg` or `Sunday 180.3 lb`.
+    static func sundayTitle(kg: Double, system: PreferredUnitSystem) -> String {
+        let mass = mass(fromKg: kg, system: system)
+        let digits = system == .metric ? 2 : 1
+        return String(format: "Sunday %.\(digits)f %@", mass, system.massLabel)
     }
 }

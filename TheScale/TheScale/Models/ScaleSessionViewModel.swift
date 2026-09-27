@@ -786,6 +786,7 @@ final class ScaleSessionViewModel: ObservableObject {
             currentKg: weighInKg,
             priorSundayTargetKg: MondayCardStore.priorSundayTargetKg,
             digest: digest,
+            system: preferredUnits,
             now: now
         )
         let sunday = MondayCardEngine.sundayGoal(
@@ -794,6 +795,7 @@ final class ScaleSessionViewModel: ObservableObject {
             goalDate: profile.goalDate,
             fallbackWeeklyDeltaKg: weeklyGoal.targetDeltaKg,
             priorSundayTargetKg: MondayCardStore.priorSundayTargetKg,
+            system: preferredUnits,
             now: now
         )
 
@@ -801,7 +803,7 @@ final class ScaleSessionViewModel: ObservableObject {
         if persistLiveWeeklyGoal {
             var nextGoal = weeklyGoal
             nextGoal.targetDeltaKg = sunday.weeklyDeltaKg
-            nextGoal.title = String(format: "Sunday %.2f kg", sunday.targetKg)
+            nextGoal.title = UnitFormat.sundayTitle(kg: sunday.targetKg, system: preferredUnits)
             nextGoal.weekStartKg = weighInKg
             nextGoal.weekStartDate = MondayCardEngine.startOfWeekMonday(now: now)
             weeklyTargetMode = sunday.mode
@@ -811,12 +813,12 @@ final class ScaleSessionViewModel: ObservableObject {
         let goalDateLine: String = {
             if let date = profile.goalDate {
                 return String(
-                    format: "Target %.1f kg by %@",
-                    profile.idealWeightKg,
+                    format: "Target %@ by %@",
+                    UnitFormat.massString(profile.idealWeightKg, system: preferredUnits, fractionDigits: 1),
                     date.formatted(.dateTime.month(.abbreviated).day().year())
                 )
             }
-            return String(format: "Target weight %.1f kg (no goal date set; using weekly nudge).", profile.idealWeightKg)
+            return "Target weight \(UnitFormat.massString(profile.idealWeightKg, system: preferredUnits, fractionDigits: 1)) (no goal date set; using weekly nudge)."
         }()
 
         var draft = MondayCardPayload(
@@ -879,7 +881,7 @@ final class ScaleSessionViewModel: ObservableObject {
     func updateWeeklyGoalDelta(_ deltaKg: Double) {
         var next = weeklyGoal
         next.targetDeltaKg = deltaKg
-        next.title = String(format: "Nudge %+.1f kg this week", deltaKg)
+        next.title = "Nudge \(UnitFormat.massDeltaString(deltaKg, system: preferredUnits, fractionDigits: 1)) this week"
         weeklyGoal = next
     }
 
@@ -925,7 +927,8 @@ final class ScaleSessionViewModel: ObservableObject {
             idealKg: profile.idealWeightKg,
             goalDate: profile.goalDate,
             priorSundayTargetKg: MondayCardStore.priorSundayTargetKg,
-            fallbackWeeklyDeltaKg: next.targetDeltaKg
+            fallbackWeeklyDeltaKg: next.targetDeltaKg,
+            system: preferredUnits
         )
         weeklyTargetMode = hit.mode
 
@@ -943,7 +946,7 @@ final class ScaleSessionViewModel: ObservableObject {
             || hit.mode == .accelerate
         {
             next.targetDeltaKg = hit.weeklyDeltaKg
-            next.title = String(format: "Sunday %.2f kg", hit.sundayTargetKg)
+            next.title = UnitFormat.sundayTitle(kg: hit.sundayTargetKg, system: preferredUnits)
         }
         weeklyGoal = next
     }

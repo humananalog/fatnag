@@ -16,20 +16,24 @@ struct ManualWeighInView: View {
     private let steel = Color(red: 0.42, green: 0.45, blue: 0.50)
     private let horizontalInset: CGFloat = 28
 
+    private var units: PreferredUnitSystem { session.preferredUnits }
+
     private var parsedKg: Double? {
         let normalized = weightText.replacingOccurrences(of: ",", with: ".")
         guard let value = Double(normalized) else { return nil }
-        guard ProfileNumericBounds.isPlausibleWeighKg(value) else { return nil }
-        return value
+        let kg = UnitFormat.kg(fromMass: value, system: units)
+        guard ProfileNumericBounds.isPlausibleWeighKg(kg) else { return nil }
+        return kg
     }
 
     private var weightValidationHint: String? {
         let normalized = weightText.replacingOccurrences(of: ",", with: ".")
         guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         guard let value = Double(normalized) else {
-            return "Enter a number in kilograms."
+            return "Enter a number in \(units.massLabel)."
         }
-        return ProfileNumericBounds.rejectWeighKgMessage(value)
+        let kg = UnitFormat.kg(fromMass: value, system: units)
+        return ProfileNumericBounds.rejectWeighKgMessage(kg)
     }
 
     var body: some View {
@@ -60,7 +64,10 @@ struct ManualWeighInView: View {
         .preferredColorScheme(.light)
         .onAppear {
             if weightText.isEmpty, let baseline = session.healthBaselineKg {
-                weightText = String(format: "%.1f", baseline)
+                weightText = String(
+                    format: "%.1f",
+                    UnitFormat.mass(fromKg: baseline, system: units)
+                )
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 weightFocused = true
@@ -134,9 +141,9 @@ struct ManualWeighInView: View {
                     .focused($weightFocused)
                     .minimumScaleFactor(0.45)
                     .frame(maxWidth: .infinity, alignment: .trailing)
-                    .accessibilityLabel("Weight in kilograms")
+                    .accessibilityLabel("Weight in \(units.massLabel)")
 
-                Text("kg")
+                Text(units.massLabel)
                     .font(.system(size: 28, weight: .medium, design: .rounded))
                     .foregroundStyle(steel)
             }

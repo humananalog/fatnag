@@ -732,10 +732,7 @@ struct SettingsView: View {
         }
         if result.didClamp {
             weightValidationNote = result.message
-                ?? String(
-                    format: "Target adjusted to %.1f kg so it stays realistic for your updated profile.",
-                    result.value
-                )
+                ?? "Target adjusted to \(UnitFormat.massString(result.value, system: session.preferredUnits, fractionDigits: 1)) so it stays realistic for your updated profile."
         } else {
             weightValidationNote = nil
         }

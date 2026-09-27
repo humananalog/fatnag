@@ -153,7 +153,7 @@ struct WeighInResultsView: View {
         return VStack(spacing: 8) {
             if let weight {
                 let existing = ChartCommentStore.comment(on: weight.date, metric: .weight)?.text
-                Text(String(format: "%.1f kg · %@", weight.value, weight.date.formatted(date: .abbreviated, time: .omitted)))
+                Text("\(UnitFormat.massString(weight.value, system: session.preferredUnits, fractionDigits: 1)) · \(weight.date.formatted(date: .abbreviated, time: .omitted))")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(atmosphere.accent)
@@ -382,10 +382,12 @@ struct WeighInResultsView: View {
 
         return metricScaffold(
             title: "Weight",
-            unit: "kg",
+            unit: session.preferredUnits.massLabel,
             samples: samples,
             extrema: extrema,
-            formatValue: { String(format: "%.1f", $0) },
+            formatValue: {
+                String(format: "%.1f", UnitFormat.mass(fromKg: $0, system: session.preferredUnits))
+            },
             emptyCopy: "No weight samples in this range."
         ) {
             Chart {
@@ -393,7 +395,9 @@ struct WeighInResultsView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1.4, dash: [5, 4]))
                     .foregroundStyle(atmosphere.accent.opacity(0.55))
                     .annotation(position: .top, alignment: .trailing) {
-                        Text(String(format: "Target %.1f", targetKg))
+                        Text(
+                            "Target \(String(format: "%.1f", UnitFormat.mass(fromKg: targetKg, system: session.preferredUnits)))"
+                        )
                             .font(.system(size: 9, weight: .semibold, design: .rounded))
                             .foregroundStyle(atmosphere.accent.opacity(0.65))
                             .padding(.trailing, 2)
@@ -464,7 +468,7 @@ struct WeighInResultsView: View {
                             VStack(spacing: 2) {
                                 Text("Projected")
                                 Text(crossing.date, format: .dateTime.month(.abbreviated).day().year())
-                                Text(String(format: "%.1f kg", crossing.value))
+                                Text(UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1))
                             }
                             .font(.system(size: 10, weight: .bold, design: .rounded))
                             .monospacedDigit()
@@ -507,7 +511,7 @@ struct WeighInResultsView: View {
                         .annotation(position: .top, spacing: 6) {
                             VStack(spacing: 2) {
                                 Text(crossing.date, format: .dateTime.month(.abbreviated).day().year())
-                                Text(String(format: "%.1f kg", crossing.value))
+                                Text(UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1))
                             }
                             .font(.system(size: 10, weight: .bold, design: .rounded))
                             .monospacedDigit()
@@ -530,7 +534,7 @@ struct WeighInResultsView: View {
                     .symbolSize(90)
                     .foregroundStyle(atmosphere.accent)
                     .annotation(position: .top, spacing: 6) {
-                        Text(String(format: "%.1f kg", selected.value))
+                        Text(UnitFormat.massString(selected.value, system: session.preferredUnits, fractionDigits: 1))
                             .font(.system(size: 11, weight: .bold, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(atmosphere.accent)
@@ -695,7 +699,7 @@ struct WeighInResultsView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                         if let rate = HealthChartMath.ratePerWeek(samples: samples) {
-                            Text(String(format: "%+.2f / wk", rate))
+                            Text("\(UnitFormat.massDeltaString(rate, system: session.preferredUnits, fractionDigits: 2)) / wk")
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .monospacedDigit()
                                 .foregroundStyle(atmosphere.accent.opacity(0.55))
@@ -780,7 +784,8 @@ struct WeighInResultsView: View {
     private func trendCaptionScientific(_ projection: ScientificWeightProjection) -> String {
         if let crossing = projection.crossing {
             let day = crossing.date.formatted(.dateTime.month(.abbreviated).day())
-            return String(format: "Projected → %.1f · %@", crossing.value, day)
+            let mass = UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1)
+            return "Projected → \(mass) · \(day)"
         }
         return "Projected (safe pace)"
     }
@@ -788,7 +793,8 @@ struct WeighInResultsView: View {
     private func trendCaption(_ projection: WeightTrendProjection) -> String {
         if let crossing = projection.crossing {
             let day = crossing.date.formatted(.dateTime.month(.abbreviated).day())
-            return String(format: "→ %.1f kg · %@", crossing.value, day)
+            let mass = UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1)
+            return "→ \(mass) · \(day)"
         }
         if abs(projection.slopeKgPerDay) <= 0.001 {
             return "Flat vs ideal"

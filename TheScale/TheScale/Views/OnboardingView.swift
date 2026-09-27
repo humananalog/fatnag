@@ -734,10 +734,14 @@ struct OnboardingView: View {
         CoachMemoryStore.remember(
             CoachMemoryFact(
                 text: String(
-                    format: "Dream weight %.1f kg by %@. Starting %.1f kg.",
-                    profile.idealWeightKg,
+                    format: "Dream weight %@ by %@. Starting %@.",
+                    UnitFormat.massString(profile.idealWeightKg, system: flow.unitSystem, fractionDigits: 1),
                     (profile.goalDate ?? flow.goalDate).formatted(date: .abbreviated, time: .omitted),
-                    profile.startingWeightKg ?? flow.currentWeightKg
+                    UnitFormat.massString(
+                        profile.startingWeightKg ?? flow.currentWeightKg,
+                        system: flow.unitSystem,
+                        fractionDigits: 1
+                    )
                 ),
                 tags: ["goal", "weight", "onboarding"]
             )

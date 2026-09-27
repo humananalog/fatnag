@@ -53,6 +53,7 @@ enum AggressiveWeeklyTargetEngine {
         goalDate: Date?,
         priorSundayTargetKg: Double?,
         fallbackWeeklyDeltaKg: Double = -0.3,
+        system: PreferredUnitSystem = .metric,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> AggressiveWeeklyTarget {
@@ -70,9 +71,9 @@ enum AggressiveWeeklyTargetEngine {
                 mode: .hold,
                 safeCapKgPerWeek: 0,
                 pacingLine: String(
-                    format: "Near ideal (%.1f kg). Hold Sunday near %.2f kg.",
-                    idealKg,
-                    currentKg
+                    format: "Near ideal (%@). Hold Sunday near %@.",
+                    UnitFormat.massString(idealKg, system: system, fractionDigits: 1),
+                    UnitFormat.massString(currentKg, system: system, fractionDigits: 2)
                 )
             )
         }
@@ -175,9 +176,9 @@ enum AggressiveWeeklyTargetEngine {
         let towardBit: String = {
             if let goalDate {
                 let label = goalDate.formatted(.dateTime.month(.abbreviated).day().year())
-                return String(format: " toward %.1f kg by %@", idealKg, label)
+                return " toward \(UnitFormat.massString(idealKg, system: system, fractionDigits: 1)) by \(label)"
             }
-            return String(format: " toward %.1f kg", idealKg)
+            return " toward \(UnitFormat.massString(idealKg, system: system, fractionDigits: 1))"
         }()
 
         let modeBit: String = {
@@ -193,13 +194,7 @@ enum AggressiveWeeklyTargetEngine {
             }
         }()
 
-        let pacingLine = String(
-            format: "%+.2f kg/wk%@ → Sunday %.2f kg.%@",
-            weekly,
-            towardBit,
-            target,
-            modeBit
-        )
+        let pacingLine = "\(UnitFormat.massDeltaString(weekly, system: system, fractionDigits: 2))/wk\(towardBit) → \(UnitFormat.sundayTitle(kg: target, system: system)).\(modeBit)"
 
         return AggressiveWeeklyTarget(
             weeklyDeltaKg: weekly,

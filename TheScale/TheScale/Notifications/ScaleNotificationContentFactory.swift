@@ -57,16 +57,24 @@ enum ScaleNotificationContentFactory {
     }
 
     /// Dev / QA: immediate sample with full SOTA chrome.
-    static func makeSample(profileName: String, currentKg: Double?) -> UNNotificationContent {
+    static func makeSample(
+        profileName: String,
+        currentKg: Double?,
+        system: PreferredUnitSystem = PreferredUnitSystemStore.load()
+    ) -> UNNotificationContent {
         let name = profileName.isEmpty ? "Hey" : profileName
-        let kgLine = currentKg.map { String(format: "%.1f kg on file" , $0) } ?? "No Health weight yet"
+        let kgLine = currentKg.map {
+            UnitFormat.massString($0, system: system, fractionDigits: 1) + " on file"
+        } ?? "No Health weight yet"
         return make(
             Draft(
                 kind: .sample,
                 title: "\(name): sample ping",
                 subtitle: kgLine,
                 body: "SOTA local banner with Coach chrome, actions, and a visual. Tap Open Coach.",
-                visualHeadline: currentKg.map { String(format: "%.1f kg", $0) } ?? "Coach",
+                visualHeadline: currentKg.map {
+                    UnitFormat.massString($0, system: system, fractionDigits: 1)
+                } ?? "Coach",
                 visualDetail: "Sample · The Scale"
             )
         )

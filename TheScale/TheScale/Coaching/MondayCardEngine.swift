@@ -307,6 +307,7 @@ enum MondayCardEngine {
         goalDate: Date?,
         fallbackWeeklyDeltaKg: Double,
         priorSundayTargetKg: Double? = MondayCardStore.priorSundayTargetKg,
+        system: PreferredUnitSystem = .metric,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> MondaySundayGoal {
@@ -316,6 +317,7 @@ enum MondayCardEngine {
             goalDate: goalDate,
             priorSundayTargetKg: priorSundayTargetKg,
             fallbackWeeklyDeltaKg: fallbackWeeklyDeltaKg,
+            system: system,
             now: now,
             calendar: calendar
         )
@@ -334,6 +336,7 @@ enum MondayCardEngine {
         currentKg: Double,
         priorSundayTargetKg: Double?,
         digest: FitnessDigest?,
+        system: PreferredUnitSystem = .metric,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> MondayWeekProgress {
@@ -359,13 +362,14 @@ enum MondayCardEngine {
                 return "No prior Sunday target on file."
             }
             let miss = currentKg - prior
+            let slack = UnitFormat.massString(0.15, system: system, fractionDigits: 2)
             if abs(miss) <= 0.15 {
-                return String(format: "Hit prior Sunday %.2f kg (within 0.15).", prior)
+                return "Hit prior \(UnitFormat.sundayTitle(kg: prior, system: system)) (within \(slack))."
             }
             if miss > 0 {
-                return String(format: "%.2f kg over prior Sunday %.2f.", miss, prior)
+                return "\(UnitFormat.massDeltaString(miss, system: system)) over prior \(UnitFormat.sundayTitle(kg: prior, system: system))."
             }
-            return String(format: "%.2f kg under prior Sunday %.2f.", abs(miss), prior)
+            return "\(UnitFormat.massDeltaString(-abs(miss), system: system)) under prior \(UnitFormat.sundayTitle(kg: prior, system: system))."
         }()
 
         var signals: [String] = []
@@ -401,7 +405,7 @@ enum MondayCardEngine {
                     guard let fatDelta else { return "" }
                     return String(format: " · fat %+.1f%%", fatDelta)
                 }()
-                return String(format: "Last 7d weight %+.2f kg%@.", delta, fatBit)
+                return "Last 7d weight \(UnitFormat.massDeltaString(delta, system: system))\(fatBit)."
             }
             return "First solid Monday baseline this week."
         }()
@@ -421,25 +425,27 @@ enum MondayCardEngine {
         progress: MondayWeekProgress,
         goal: MondaySundayGoal,
         diet: DietPreference,
-        memoryBlock: String
+        memoryBlock: String,
+        system: PreferredUnitSystem = .metric
     ) -> (encouragement: String, meals: String, diagnostic: String) {
         let who = name.isEmpty ? "Operator" : name
         let deltaBit: String = {
             if let d = progress.weightDeltaKg {
-                return String(format: "Last week %+.2f kg.", d)
+                return "Last week \(UnitFormat.massDeltaString(d, system: system))."
             }
             return "Fresh baseline."
         }()
+        let sundayMass = UnitFormat.sundayTitle(kg: goal.targetKg, system: system)
         let encouragement: String = {
             switch goal.mode {
             case .hardcoreCatchUp:
-                return "\(who), \(deltaBit) Hardcore catch-up. Sunday is \(String(format: "%.2f", goal.targetKg)) kg. Close the gap."
+                return "\(who), \(deltaBit) Hardcore catch-up. \(sundayMass). Close the gap."
             case .accelerate:
-                return "\(who), \(deltaBit) You're ahead. Sunday is \(String(format: "%.2f", goal.targetKg)) kg. Celebrate, then push."
+                return "\(who), \(deltaBit) You're ahead. \(sundayMass). Celebrate, then push."
             case .hold:
-                return "\(who), \(deltaBit) Hold near \(String(format: "%.2f", goal.targetKg)) kg Sunday. Steady wins."
+                return "\(who), \(deltaBit) Hold near \(sundayMass). Steady wins."
             case .aggressive:
-                return "\(who), \(deltaBit) Sunday is \(String(format: "%.2f", goal.targetKg)) kg. Physics does not care about your feelings. Hit the number."
+                return "\(who), \(deltaBit) \(sundayMass). Physics does not care about your feelings. Hit the number."
             }
         }()
 
@@ -459,7 +465,7 @@ enum MondayCardEngine {
         }()
 
         let diagnostic = """
-        Sunday target \(String(format: "%.2f", goal.targetKg)) kg (\(String(format: "%+.2f", goal.weeklyDeltaKg)) kg).
+        \(sundayMass) target (\(UnitFormat.massDeltaString(goal.weeklyDeltaKg, system: system))).
         \(goal.pacingLine)
         \(progress.adherenceLine)
         Energy balance: if weight stalls while eating at maintenance, cut ~300-500 kcal/day or add a real walk deficit. ~7700 kcal ≈ 1 kg fat-ish; weekly rate is what the scale will show, not daily noise.

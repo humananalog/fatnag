@@ -347,7 +347,7 @@ struct LiveWeighInSheet: View {
             }
 
             if !isCalibration, !isEditing {
-                Text(session.trendForDisplay.subtitle)
+                Text(session.trendForDisplay.subtitle(system: session.preferredUnits))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.82))
                     .multilineTextAlignment(.center)

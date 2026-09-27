@@ -522,7 +522,8 @@ actor GrokClient {
             progress: progress,
             goal: sundayGoal,
             diet: brief.diet,
-            memoryBlock: brief.memoryBlock
+            memoryBlock: brief.memoryBlock,
+            system: PreferredUnitSystemStore.load()
         )
 
         guard GrokPrivacyConsent.isAccepted else {
