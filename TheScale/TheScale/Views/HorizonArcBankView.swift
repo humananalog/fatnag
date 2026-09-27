@@ -203,6 +203,9 @@ struct HorizonArcBankView: View {
 private struct HorizonArcTrack: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
+        // TabView / first layout pass can propose a zero or non-finite rect.
+        guard rect.width.isFinite, rect.height.isFinite,
+              rect.width > 1, rect.height > 1 else { return path }
         let inset: CGFloat = 4
         let start = CGPoint(x: rect.minX + inset, y: rect.maxY - inset)
         let end = CGPoint(x: rect.maxX - inset, y: rect.minY + inset * 0.4)

@@ -269,13 +269,14 @@ struct ContentView: View {
 
     private var homeScroll: some View {
         GeometryReader { geo in
-            let compact = geo.size.height < 720
+            let height = ProgressBounds.safeLength(geo.size.height)
+            let compact = height > 0 && height < 720
             ScrollView(.vertical, showsIndicators: false) {
                 homeColumn(compact: compact)
                     .padding(.horizontal, 22)
                     .padding(.top, 8)
                     .padding(.bottom, 20)
-                    .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .top)
+                    .frame(maxWidth: .infinity, minHeight: height, alignment: .top)
             }
             .refreshable {
                 await session.refreshHomeGauges(force: true)

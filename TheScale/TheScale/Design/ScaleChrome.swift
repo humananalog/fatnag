@@ -113,6 +113,12 @@ enum ProgressBounds {
     static func clampedValue(_ value: Double, total: Double) -> Double {
         clamp(value, total: total).value
     }
+
+    /// GeometryReader / spring layout can hand NaN or negative sizes; never feed those to `.frame`.
+    static func safeLength(_ value: CGFloat) -> CGFloat {
+        guard value.isFinite else { return 0 }
+        return max(0, value)
+    }
 }
 
 /// Linear quota / progress track that never touches `ProgressView(value:total:)`.
@@ -127,13 +133,15 @@ struct ScaleBoundedProgress: View {
     var body: some View {
         let bounds = ProgressBounds.clamp(value, total: total)
         GeometryReader { geo in
-            let width = geo.size.width * CGFloat(bounds.value / bounds.total)
+            let trackWidth = ProgressBounds.safeLength(geo.size.width)
+            let filled = ProgressBounds.safeLength(trackWidth * CGFloat(bounds.value / bounds.total))
+            let minKnob = bounds.value > 0.001 ? height : 0
             ZStack(alignment: .leading) {
                 Capsule(style: .continuous)
                     .fill(track)
                 Capsule(style: .continuous)
                     .fill(tint)
-                    .frame(width: max(width, bounds.value > 0.001 ? height : 0))
+                    .frame(width: max(filled, minKnob))
             }
         }
         .frame(height: height)

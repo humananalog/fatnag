@@ -312,7 +312,8 @@ struct ProgressSheet: View {
     private var chunkyGauge: some View {
         GeometryReader { geo in
             let fill = safeGaugeFill
-            let width = geo.size.width * CGFloat(fill / 1.2)
+            let trackWidth = ProgressBounds.safeLength(geo.size.width)
+            let width = ProgressBounds.safeLength(trackWidth * CGFloat(fill / 1.2))
             ZStack(alignment: .leading) {
                 Capsule(style: .continuous)
                     .fill(atmosphere.ink.opacity(colorScheme == .dark ? 0.22 : 0.12))

@@ -31,10 +31,16 @@ final class LlamaMetalEngine: @unchecked Sendable {
         unloadLocked()
     }
 
+    /// C callback: drop ggml/llama console chatter (Metal kernel dump, tensor assign, KV sizes).
+    /// Load failures still throw `LlamaMetalEngineError` to Swift callers.
+    private static let quietLlamaLog: ggml_log_callback = { _, _, _ in }
+
     func load(modelPath: String) throws {
         lock.lock()
         defer { lock.unlock() }
         if context != nil { return }
+        // Idempotent; install before backend_init so load chatter never hits stderr.
+        llama_log_set(Self.quietLlamaLog, nil)
         if !backendReady {
             llama_backend_init()
             backendReady = true

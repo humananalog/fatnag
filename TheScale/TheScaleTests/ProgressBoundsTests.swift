@@ -48,6 +48,14 @@ final class ProgressBoundsTests: XCTestCase {
         XCTAssertEqual(ProgressBounds.clampedValue(Double(140), total: 100), 100)
     }
 
+    func testSafeLengthRejectsNonFiniteAndNegative() {
+        XCTAssertEqual(ProgressBounds.safeLength(.nan), 0)
+        XCTAssertEqual(ProgressBounds.safeLength(.infinity), 0)
+        XCTAssertEqual(ProgressBounds.safeLength(-12), 0)
+        XCTAssertEqual(ProgressBounds.safeLength(0), 0)
+        XCTAssertEqual(ProgressBounds.safeLength(42.5), 42.5)
+    }
+
     func testDebugLogThrottleSuppressesBursts() {
         #if DEBUG
         ScaleDebugLog.resetThrottleStateForTests()

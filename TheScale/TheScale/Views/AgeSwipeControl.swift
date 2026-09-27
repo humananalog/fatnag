@@ -71,27 +71,32 @@ struct AgeSwipeControl: View {
 
             // Swipe track
             GeometryReader { geo in
+                let trackWidth = ProgressBounds.safeLength(geo.size.width)
                 let fraction: CGFloat = {
                     guard ageYears >= minAge else { return 0 }
-                    return CGFloat((ageYears - minAge) / (maxAge - minAge))
+                    let span = maxAge - minAge
+                    guard span > 0 else { return 0 }
+                    return CGFloat((ageYears - minAge) / span)
                 }()
+                let fillWidth = ProgressBounds.safeLength(trackWidth * fraction)
                 ZStack(alignment: .leading) {
                     Capsule()
                         .fill(ink.opacity(0.12))
                     Capsule()
                         .fill(accent.opacity(0.85))
-                        .frame(width: max(8, geo.size.width * fraction))
+                        .frame(width: max(8, fillWidth))
                     Circle()
                         .fill(ink)
                         .frame(width: 18, height: 18)
-                        .offset(x: max(0, geo.size.width * fraction - 9))
+                        .offset(x: max(0, fillWidth - 9))
                 }
                 .frame(height: 18)
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
-                            let t = min(max(value.location.x / geo.size.width, 0), 1)
+                            guard trackWidth > 0 else { return }
+                            let t = min(max(value.location.x / trackWidth, 0), 1)
                             setAge(minAge + Double(t) * (maxAge - minAge))
                         }
                 )

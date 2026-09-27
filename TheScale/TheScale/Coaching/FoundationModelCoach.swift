@@ -1,6 +1,9 @@
 import Foundation
 import FoundationModels
 import ScaleOnDevicePolish
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // MARK: - Structured outputs
 
@@ -86,6 +89,16 @@ struct OnboardingProfileFMDraft: Equatable, Sendable {
 enum FoundationModelCoach {
     // MARK: Notifications
 
+    /// True when the UI is foreground-active. HealthKit observer wakes often resume the
+    /// process before `.active`; skip Metal sidecar polish there (template copy is enough).
+    private static var prefersSidecarMetal: Bool {
+        #if canImport(UIKit)
+        UIApplication.shared.applicationState == .active
+        #else
+        true
+        #endif
+    }
+
     /// Refine algorithmic notification title/body. Returns fallbacks unchanged if FM + sidecar unavailable.
     static func refineNotificationCopy(
         profileName: String,
@@ -97,6 +110,9 @@ enum FoundationModelCoach {
     ) async -> (title: String, body: String, usedFoundationModel: Bool) {
         let voice = CoachVoice.bannerRules(sex: sex)
         guard FoundationModelAvailability.isAvailable else {
+            guard prefersSidecarMetal else {
+                return (fallbackTitle, fallbackBody, false)
+            }
             let sidecar = await OnDevicePolishService.shared.refineNotificationCopy(
                 profileName: profileName,
                 kind: kind,
@@ -136,6 +152,9 @@ enum FoundationModelCoach {
             return (safeTitle, safeBody, true)
         } catch {
             FoundationModelAvailability.noteRuntimeFailure(error)
+            guard prefersSidecarMetal else {
+                return (fallbackTitle, fallbackBody, false)
+            }
             let sidecar = await OnDevicePolishService.shared.refineNotificationCopy(
                 profileName: profileName,
                 kind: kind,
@@ -158,6 +177,9 @@ enum FoundationModelCoach {
     ) async -> (shouldNotify: Bool, reason: String, usedFoundationModel: Bool) {
         let voice = CoachVoice.bannerRules(sex: sex)
         guard FoundationModelAvailability.isAvailable else {
+            guard prefersSidecarMetal else {
+                return (true, "Background wake; algorithmic trigger stands.", false)
+            }
             let sidecar = await OnDevicePolishService.shared.shouldSendPing(
                 profileName: profileName,
                 kind: kind,
@@ -195,6 +217,9 @@ enum FoundationModelCoach {
             )
         } catch {
             FoundationModelAvailability.noteRuntimeFailure(error)
+            guard prefersSidecarMetal else {
+                return (true, "FM judgment failed; algorithmic trigger stands.", false)
+            }
             let sidecar = await OnDevicePolishService.shared.shouldSendPing(
                 profileName: profileName,
                 kind: kind,
