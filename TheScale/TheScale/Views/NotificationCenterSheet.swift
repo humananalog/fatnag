@@ -409,17 +409,29 @@ struct NotificationCenterSheet: View {
 struct HomeNotificationBell: View {
     @Binding var isPresented: Bool
     var badgeCount: Int = 0
+    /// Day ink. Night draws solid white on top of the glass so the glyph stays bright.
+    var ink: Color = .primary
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var glyph: Color {
+        colorScheme == .dark ? .white : ink
+    }
 
     var body: some View {
         Button {
             isPresented = true
         } label: {
             ZStack(alignment: .topTrailing) {
-                Image(systemName: badgeCount > 0 ? "bell.badge.fill" : "bell.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(ScaleChrome.ink.opacity(0.85))
+                Circle()
+                    .fill(Color.white.opacity(colorScheme == .dark ? 0.2 : 0.001))
                     .frame(width: 36, height: 36)
                     .scaleGlassCircle()
+
+                Image(systemName: badgeCount > 0 ? "bell.badge.fill" : "bell.fill")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(glyph)
+                    .shadow(color: colorScheme == .dark ? .white.opacity(0.35) : .clear, radius: 1.5, y: 0)
 
                 if badgeCount > 0 {
                     Text(badgeCount > 9 ? "9+" : "\(badgeCount)")
@@ -431,6 +443,7 @@ struct HomeNotificationBell: View {
                         .offset(x: 4, y: -2)
                 }
             }
+            .frame(width: 36, height: 36)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(badgeCount > 0 ? "Alerts, \(badgeCount) pending" : "Alerts")

@@ -443,7 +443,11 @@ struct ContentView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("home.charts")
             .accessibilityLabel(String(localized: "home.charts", defaultValue: "Charts"))
-            HomeNotificationBell(isPresented: $showNotificationCenter, badgeCount: pendingNotifCount)
+            HomeNotificationBell(
+                isPresented: $showNotificationCenter,
+                badgeCount: pendingNotifCount,
+                ink: atmosphere.ink
+            )
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(brandAccessibilityLabel)
