@@ -7,7 +7,7 @@
 | **Vercel project** `fatnag-com` (team Human Analog) | Created. Domains `www.fatnag.com` + `fatnag.com` → 308 to www. Preview: `https://fatnag-com.vercel.app` |
 | **Cloudflare Pages** `fatnag-com` | Live mirror at `https://fatnag-com.pages.dev` (full Support / Privacy / Terms) |
 | **Site source** | `sites/fatnag-com/` in the fatnag repo |
-| **Cloudflare zone `fatnag.com`** | **Not created yet** — Wrangler OAuth lacks `zone.create`. Add the site once in the dashboard (below). |
+| **Cloudflare zone `fatnag.com`** | **Live** (`1985f5580a39fe62952dae7fa173f6c0`). NS: `alaric.ns.cloudflare.com` / `zoe.ns.cloudflare.com`. |
 
 Architecture (same pattern as `orio.bike` / `humananalog.ai`):
 
