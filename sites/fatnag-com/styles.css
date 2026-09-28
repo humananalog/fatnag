@@ -397,6 +397,11 @@ html[dir="rtl"] .lang-picker select {
   padding: 2.1rem 0.9rem 0.9rem;
 }
 
+.phone-screen.has-shot {
+  padding: 0;
+  background: #050507;
+}
+
 .shot-label {
   position: absolute;
   inset: 0;
@@ -683,18 +688,19 @@ section {
 }
 
 .phone-screen:has(.shot-img:not([style*="display: none"])) .phone-chrome,
-.phone-screen:has(.shot-img:not([style*="display: none"])) .shot-label-fallback {
-  opacity: 0;
-  pointer-events: none;
+.phone-screen:has(.shot-img:not([style*="display: none"])) .shot-label-fallback,
+.phone-screen.has-shot .phone-chrome,
+.phone-screen.has-shot .shot-label-fallback {
+  display: none;
 }
 
 .shot-card .shot-img {
   z-index: 1;
 }
 
-.shot-card:has(.shot-img:not([style*="display: none"])) .shot-label-fallback {
-  opacity: 0;
-  pointer-events: none;
+.shot-card:has(.shot-img:not([style*="display: none"])) .shot-label-fallback,
+.shot-card.has-shot .shot-label-fallback {
+  display: none;
 }
 
 .shot-badge {

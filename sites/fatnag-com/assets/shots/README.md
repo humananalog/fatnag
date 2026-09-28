@@ -1,12 +1,12 @@
 # Promo screenshots
 
-Drop PNGs here (Simulator captures via `scripts/capture-promo-shots.sh`):
+| File | Surface |
+|------|---------|
+| `01-home.jpg` / `.png` | Weigh tab / Horizon gauges |
+| `02-weigh.jpg` / `.png` | Settled live weigh sheet |
+| `03-progress.jpg` / `.png` | Weight / fat charts |
+| `04-keel.jpg` / `.png` | Alerts with roast copy |
 
-| File | Surface | Launch |
-|------|---------|--------|
-| `01-home.png` | Weigh tab / Horizon gauges (real Progress %) | `-promoShot=home` |
-| `02-weigh.png` | Settled live weigh sheet (`FatnagWordmark`) | `-promoShot=weigh` |
-| `03-progress.png` | Weight / fat charts with losses | `-promoShot=charts` |
-| `04-keel.png` | Alerts with roast / Coach copy | `-promoShot=alerts` |
+Site uses the `.jpg` web exports. PNG masters stay for QA (`bob/`, `alice/`, `qa-review.html`).
 
-Persona folders: `bob/` and `alice/` hold per-persona takes; root copies default to Bob.
+Regenerate: `./sites/fatnag-com/scripts/capture-promo-shots.sh`

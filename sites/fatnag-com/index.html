@@ -10,6 +10,9 @@
   <meta property="og:description" content="Weigh daily. Stay honest. Win the week. Bluetooth scales + Apple Health + Keel." />
   <meta property="og:url" content="https://www.fatnag.com/" />
   <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://www.fatnag.com/assets/shots/01-home.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://www.fatnag.com/assets/shots/01-home.jpg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
@@ -66,25 +69,16 @@
           <div class="device-glow"></div>
           <div class="phone">
             <div class="phone-notch"></div>
-            <div class="phone-screen">
-              <div class="phone-chrome">
-                <div class="fake-row"></div>
-                <div class="fake-ring"></div>
-                <div class="fake-block"></div>
-                <div class="fake-block"></div>
-              </div>
+            <div class="phone-screen has-shot">
               <img
                 class="shot-img"
-                src="/assets/shots/01-home.webp"
+                src="/assets/shots/01-home.jpg"
+                width="390"
+                height="844"
                 alt="fatnag home - weekly goal and gauges"
-                onerror="this.onerror=null;this.src='/assets/shots/01-home.png';this.onerror=function(){this.style.display='none'};"
+                decoding="async"
+                fetchpriority="high"
               />
-              <div class="shot-label shot-label-fallback">
-                <div>
-                  <strong>Home screenshot</strong>
-                  <span>Run scripts/capture-promo-shots.sh</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -122,20 +116,17 @@
             </ul>
           </div>
           <div class="feature-visual">
-            <div class="shot-card">
+            <div class="shot-card has-shot">
               <span class="shot-badge">Live</span>
               <img
                 class="shot-img"
-                src="/assets/shots/02-weigh.webp"
+                src="/assets/shots/02-weigh.jpg"
+                width="390"
+                height="844"
                 alt="Live weigh-in settled reading"
-                onerror="this.onerror=null;this.src='/assets/shots/02-weigh.png';this.onerror=function(){this.style.display='none'};"
+                loading="lazy"
+                decoding="async"
               />
-              <div class="shot-label shot-label-fallback">
-                <div>
-                  <strong>Live weigh-in</strong>
-                  <span>Replace with settled weight sheet screenshot</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -151,20 +142,17 @@
             </ul>
           </div>
           <div class="feature-visual">
-            <div class="shot-card">
+            <div class="shot-card has-shot">
               <span class="shot-badge">Charts</span>
               <img
                 class="shot-img"
-                src="/assets/shots/03-progress.webp"
-                alt="Progress charts and ideal line"
-                onerror="this.onerror=null;this.src='/assets/shots/03-progress.png';this.onerror=function(){this.style.display='none'};"
+                src="/assets/shots/03-progress.jpg"
+                width="390"
+                height="844"
+                alt="Weight history charts with losses"
+                loading="lazy"
+                decoding="async"
               />
-              <div class="shot-label shot-label-fallback">
-                <div>
-                  <strong>Weight charts</strong>
-                  <span>History with clear losses + ideal line</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -173,16 +161,30 @@
 
     <section id="keel">
       <div class="wrap">
-        <div class="strip reveal">
-          <div>
+        <div class="feature reveal">
+          <div class="feature-copy">
             <p class="section-kicker" data-i18n="keel.kicker">Keel coach</p>
             <h2 class="section-title" data-i18n="keel.title">Live pressure. Weekly credits.</h2>
             <p data-i18n="keel.body">Keel is the only voice you talk to - blunt, local-language humour, no multi-agent dump. Free / Plus / Pro caps keep chat from becoming a coping hobby.</p>
             <p style="margin-top: 1rem;" data-i18n="keel.aside">On-device polish when Apple Intelligence is around. Optional Grok when you consent. Never a medical device.</p>
+            <div class="quote-block" style="margin-top: 1.5rem;">
+              <span data-i18n="keel.quote1">Lie to yourself and you get offended.</span><br />
+              <span data-i18n="keel.quote2">Good. That is the point.</span>
+            </div>
           </div>
-          <div class="quote-block">
-            <span data-i18n="keel.quote1">Lie to yourself and you get offended.</span><br />
-            <span data-i18n="keel.quote2">Good. That is the point.</span>
+          <div class="feature-visual">
+            <div class="shot-card has-shot">
+              <span class="shot-badge">Alerts</span>
+              <img
+                class="shot-img"
+                src="/assets/shots/04-keel.jpg"
+                width="390"
+                height="844"
+                alt="Coach roast alerts"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -193,28 +195,24 @@
         <header class="section-head reveal">
           <p class="section-kicker" data-i18n="shots.kicker">Product</p>
           <h2 class="section-title" data-i18n="shots.title">The app, not the pitch deck.</h2>
-          <p class="section-lead" data-i18n="shots.lead">Screenshot slots for App Store art. Drop PNG/WebP into /assets/shots/ when ready.</p>
+          <p class="section-lead" data-i18n="shots.lead">Home, live weigh, charts, and roast alerts - real Simulator captures.</p>
         </header>
         <div class="shots reveal">
-          <article class="shot-card">
+          <article class="shot-card has-shot">
             <span class="shot-badge">01 Home</span>
-            <img class="shot-img" src="/assets/shots/01-home.webp" alt="Weekly goal home" onerror="this.onerror=null;this.src='/assets/shots/01-home.png';this.onerror=function(){this.style.display='none'};" />
-            <div class="shot-label shot-label-fallback"><div><strong>Weekly goal</strong><span>assets/shots/01-home.png</span></div></div>
+            <img class="shot-img" src="/assets/shots/01-home.jpg" width="390" height="844" alt="Weekly goal home" loading="lazy" decoding="async" />
           </article>
-          <article class="shot-card">
+          <article class="shot-card has-shot">
             <span class="shot-badge">02 Weigh</span>
-            <img class="shot-img" src="/assets/shots/02-weigh.webp" alt="Live weigh-in" onerror="this.onerror=null;this.src='/assets/shots/02-weigh.png';this.onerror=function(){this.style.display='none'};" />
-            <div class="shot-label shot-label-fallback"><div><strong>Live weigh-in</strong><span>assets/shots/02-weigh.png</span></div></div>
+            <img class="shot-img" src="/assets/shots/02-weigh.jpg" width="390" height="844" alt="Live weigh-in" loading="lazy" decoding="async" />
           </article>
-          <article class="shot-card">
+          <article class="shot-card has-shot">
             <span class="shot-badge">03 Charts</span>
-            <img class="shot-img" src="/assets/shots/03-progress.webp" alt="Progress charts" onerror="this.onerror=null;this.src='/assets/shots/03-progress.png';this.onerror=function(){this.style.display='none'};" />
-            <div class="shot-label shot-label-fallback"><div><strong>Progress</strong><span>assets/shots/03-progress.png</span></div></div>
+            <img class="shot-img" src="/assets/shots/03-progress.jpg" width="390" height="844" alt="Progress charts" loading="lazy" decoding="async" />
           </article>
-          <article class="shot-card">
+          <article class="shot-card has-shot">
             <span class="shot-badge">04 Alerts</span>
-            <img class="shot-img" src="/assets/shots/04-keel.webp" alt="Coach roast alerts" onerror="this.onerror=null;this.src='/assets/shots/04-keel.png';this.onerror=function(){this.style.display='none'};" />
-            <div class="shot-label shot-label-fallback"><div><strong>Alerts</strong><span>assets/shots/04-keel.png</span></div></div>
+            <img class="shot-img" src="/assets/shots/04-keel.jpg" width="390" height="844" alt="Coach roast alerts" loading="lazy" decoding="async" />
           </article>
         </div>
       </div>

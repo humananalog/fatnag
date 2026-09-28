@@ -163,6 +163,10 @@ capture_shot() {
     >/dev/null
   sleep "$SETTLE_SECONDS"
   xcrun simctl io "$UDID" screenshot --type=png "$out"
+  # Web-optimized JPEG for fatnag.com (keeps PNG masters for QA).
+  if command -v sips >/dev/null 2>&1; then
+    sips -Z 1200 -s format jpeg -s formatOptions 78 "$out" --out "${out%.png}.jpg" >/dev/null 2>&1 || true
+  fi
   if command -v cwebp >/dev/null 2>&1; then
     cwebp -quiet -q 82 "$out" -o "${out%.png}.webp" || true
   fi
@@ -215,6 +219,9 @@ echo "==> Publishing Bob shots as site defaults"
 for entry in "${SHOTS_LIST[@]}"; do
   IFS=: read -r _ file <<<"$entry"
   cp -f "$SHOTS/bob/$file" "$SHOTS/$file"
+  if [[ -f "$SHOTS/bob/${file%.png}.jpg" ]]; then
+    cp -f "$SHOTS/bob/${file%.png}.jpg" "$SHOTS/${file%.png}.jpg"
+  fi
   if [[ -f "$SHOTS/bob/${file%.png}.webp" ]]; then
     cp -f "$SHOTS/bob/${file%.png}.webp" "$SHOTS/${file%.png}.webp"
   fi
