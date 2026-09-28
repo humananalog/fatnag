@@ -116,6 +116,7 @@
 		A1B2C3D4E5F60718293A00DW4 /* DreamOnboardingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10DW4 /* DreamOnboardingTests.swift */; };
 		A1B2C3D4E5F60718293A00LG1 /* ScaleDataRights.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */; };
 		A1B2C3D4E5F60718293A00DP1 /* DemoPersonaSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10DP1 /* DemoPersonaSeeder.swift */; };
+		A1B2C3D4E5F60718293A00PC1 /* PromoCaptureMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PC1 /* PromoCaptureMode.swift */; };
 		A1B2C3D4E5F60718293A00LG2 /* ScaleLegalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10LG2 /* ScaleLegalTests.swift */; };
 		A1B2C3D4E5F60718293A00PG1 /* ProfileGapPromptEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */; };
 		A1B2C3D4E5F60718293A00PG2 /* ProfileGapPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PG2 /* ProfileGapPromptView.swift */; };
@@ -268,6 +269,7 @@
 		A1B2C3D4E5F60718293A10DW4 /* DreamOnboardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamOnboardingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleDataRights.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10DP1 /* DemoPersonaSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoPersonaSeeder.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10PC1 /* PromoCaptureMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromoCaptureMode.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10LG2 /* ScaleLegalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleLegalTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGapPromptEngine.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10PG2 /* ProfileGapPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGapPromptView.swift; sourceTree = "<group>"; };
@@ -489,6 +491,7 @@
 				A1B2C3D4E5F60718293A1036 /* CoachWeeklyQuota.swift */,
 				A1B2C3D4E5F60718293A1037 /* ScaleSubscriptionStore.swift */,
 				A1B2C3D4E5F60718293A10SF1 /* ScaleStorefront.swift */,
+				A1B2C3D4E5F60718293A10PC1 /* PromoCaptureMode.swift */,
 				A1B2C3D4E5F60718293A10DP1 /* DemoPersonaSeeder.swift */,
 				A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */,
 				A1B2C3D4E5F60718293A103B /* OnboardingProfileInference.swift */,
@@ -872,6 +875,7 @@
 				A1B2C3D4E5F60718293A0036 /* CoachWeeklyQuota.swift in Sources */,
 				A1B2C3D4E5F60718293A0037 /* ScaleSubscriptionStore.swift in Sources */,
 				A1B2C3D4E5F60718293A00SF1 /* ScaleStorefront.swift in Sources */,
+				A1B2C3D4E5F60718293A00PC1 /* PromoCaptureMode.swift in Sources */,
 				A1B2C3D4E5F60718293A00DP1 /* DemoPersonaSeeder.swift in Sources */,
 				A1B2C3D4E5F60718293A00LG1 /* ScaleDataRights.swift in Sources */,
 				A1B2C3D4E5F60718293A0038 /* PaywallView.swift in Sources */,

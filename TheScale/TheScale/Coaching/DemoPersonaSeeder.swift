@@ -5,9 +5,12 @@ import Foundation
 ///
 /// Launch with:
 ///   `-demoMale` or `-demoFemale`
+/// Optional: `-promoShot=home|weigh|progress|keel` to jump to a capture surface
 /// Optional: `-uitesting-skip-splash` (also auto-skipped when a demo flag is present).
 ///
 /// Or Settings → Debug → Load demo (male / female).
+///
+/// Batch capture: `sites/fatnag-com/scripts/capture-promo-shots.sh`
 enum DemoPersonaSeeder {
     enum Persona: String {
         case male

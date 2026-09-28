@@ -9,6 +9,9 @@ enum TrendNotificationScheduler {
     static let weeklyGoalId = "thescale.weekly-goal"
 
     static func requestAuthorizationIfNeeded() async -> Bool {
+        #if DEBUG
+        if PromoCaptureMode.isActive { return true }
+        #endif
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         switch settings.authorizationStatus {

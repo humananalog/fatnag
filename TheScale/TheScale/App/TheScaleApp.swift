@@ -31,12 +31,29 @@ struct TheScaleApp: App {
             OnboardingStore.hasCompleted = false
         }
         #if DEBUG
+        PromoCaptureMode.activateIfNeeded(arguments: args)
         // Seed UserDefaults before ScaleSessionViewModel loads profile / onboarding flag.
         if let persona = DemoPersonaSeeder.Persona.fromLaunchArguments(args) {
             DemoPersonaSeeder.persist(persona)
         }
         #endif
     }
+
+    #if DEBUG
+    /// `-promoShot=home|weigh|progress|keel` (also accepts bare `-promoShot` + next argv).
+    private static func promoShotArgument(
+        _ args: [String] = ProcessInfo.processInfo.arguments
+    ) -> String? {
+        if let eq = args.first(where: { $0.hasPrefix("-promoShot=") }) {
+            return String(eq.dropFirst("-promoShot=".count))
+        }
+        if let idx = args.firstIndex(of: "-promoShot"), args.indices.contains(idx + 1) {
+            let next = args[idx + 1]
+            if !next.hasPrefix("-") { return next }
+        }
+        return nil
+    }
+    #endif
 
     var body: some Scene {
         WindowGroup {
@@ -89,6 +106,13 @@ struct TheScaleApp: App {
                     DemoPersonaSeeder.hydrate(persona, into: session)
                     showSplash = false
                     showFirstLaunchLanding = false
+                    if let shot = Self.promoShotArgument() {
+                        // Let ContentView mount before presenting sheets/tabs.
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 700_000_000)
+                            session.applyPromoShot(shot)
+                        }
+                    }
                 }
                 #endif
                 // Drop per-user paste keys from 2.0 / 2.1; coaching uses shared build config only.
@@ -108,10 +132,16 @@ struct TheScaleApp: App {
                 }
                 // Do not prompt Health / BG tasks until onboarding finishes.
                 guard session.hasCompletedOnboarding else { return }
+                #if DEBUG
+                if PromoCaptureMode.isActive { return }
+                #endif
                 schedulePostOnboardingWork()
             }
             .onChange(of: session.hasCompletedOnboarding) { _, completed in
                 guard completed else { return }
+                #if DEBUG
+                if PromoCaptureMode.isActive { return }
+                #endif
                 schedulePostOnboardingWork()
             }
             .onChange(of: scenePhase) { _, phase in

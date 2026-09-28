@@ -73,10 +73,16 @@
                 <div class="fake-block"></div>
                 <div class="fake-block"></div>
               </div>
-              <div class="shot-label">
+              <img
+                class="shot-img"
+                src="/assets/shots/01-home.webp"
+                alt="fatnag home - weekly goal and gauges"
+                onerror="this.onerror=null;this.src='/assets/shots/01-home.png';this.onerror=function(){this.style.display='none'};"
+              />
+              <div class="shot-label shot-label-fallback">
                 <div>
                   <strong>Home screenshot</strong>
-                  <span>Drop weekly-goal / gauges capture here</span>
+                  <span>Run scripts/capture-promo-shots.sh</span>
                 </div>
               </div>
             </div>
@@ -117,8 +123,14 @@
           </div>
           <div class="feature-visual">
             <div class="shot-card">
-              <span class="shot-badge">Placeholder</span>
-              <div class="shot-label">
+              <span class="shot-badge">Live</span>
+              <img
+                class="shot-img"
+                src="/assets/shots/02-weigh.webp"
+                alt="Live weigh-in settled reading"
+                onerror="this.onerror=null;this.src='/assets/shots/02-weigh.png';this.onerror=function(){this.style.display='none'};"
+              />
+              <div class="shot-label shot-label-fallback">
                 <div>
                   <strong>Live weigh-in</strong>
                   <span>Replace with settled weight sheet screenshot</span>
@@ -140,8 +152,14 @@
           </div>
           <div class="feature-visual">
             <div class="shot-card">
-              <span class="shot-badge">Placeholder</span>
-              <div class="shot-label">
+              <span class="shot-badge">Charts</span>
+              <img
+                class="shot-img"
+                src="/assets/shots/03-progress.webp"
+                alt="Progress charts and ideal line"
+                onerror="this.onerror=null;this.src='/assets/shots/03-progress.png';this.onerror=function(){this.style.display='none'};"
+              />
+              <div class="shot-label shot-label-fallback">
                 <div>
                   <strong>Progress / charts</strong>
                   <span>Replace with weight history + ideal line</span>
@@ -180,39 +198,23 @@
         <div class="shots reveal">
           <article class="shot-card">
             <span class="shot-badge">01 Home</span>
-            <div class="shot-label">
-              <div>
-                <strong>Weekly goal</strong>
-                <span>assets/shots/01-home.png</span>
-              </div>
-            </div>
+            <img class="shot-img" src="/assets/shots/01-home.webp" alt="Weekly goal home" onerror="this.onerror=null;this.src='/assets/shots/01-home.png';this.onerror=function(){this.style.display='none'};" />
+            <div class="shot-label shot-label-fallback"><div><strong>Weekly goal</strong><span>assets/shots/01-home.png</span></div></div>
           </article>
           <article class="shot-card">
             <span class="shot-badge">02 Weigh</span>
-            <div class="shot-label">
-              <div>
-                <strong>Live weigh-in</strong>
-                <span>assets/shots/02-weigh.png</span>
-              </div>
-            </div>
+            <img class="shot-img" src="/assets/shots/02-weigh.webp" alt="Live weigh-in" onerror="this.onerror=null;this.src='/assets/shots/02-weigh.png';this.onerror=function(){this.style.display='none'};" />
+            <div class="shot-label shot-label-fallback"><div><strong>Live weigh-in</strong><span>assets/shots/02-weigh.png</span></div></div>
           </article>
           <article class="shot-card">
             <span class="shot-badge">03 Charts</span>
-            <div class="shot-label">
-              <div>
-                <strong>Progress</strong>
-                <span>assets/shots/03-progress.png</span>
-              </div>
-            </div>
+            <img class="shot-img" src="/assets/shots/03-progress.webp" alt="Progress charts" onerror="this.onerror=null;this.src='/assets/shots/03-progress.png';this.onerror=function(){this.style.display='none'};" />
+            <div class="shot-label shot-label-fallback"><div><strong>Progress</strong><span>assets/shots/03-progress.png</span></div></div>
           </article>
           <article class="shot-card">
             <span class="shot-badge">04 Keel</span>
-            <div class="shot-label">
-              <div>
-                <strong>Coach chat</strong>
-                <span>assets/shots/04-keel.png</span>
-              </div>
-            </div>
+            <img class="shot-img" src="/assets/shots/04-keel.webp" alt="Keel coach chat" onerror="this.onerror=null;this.src='/assets/shots/04-keel.png';this.onerror=function(){this.style.display='none'};" />
+            <div class="shot-label shot-label-fallback"><div><strong>Coach chat</strong><span>assets/shots/04-keel.png</span></div></div>
           </article>
         </div>
       </div>

@@ -76,7 +76,7 @@
       "keel.quote2": "Good. That is the point.",
       "shots.kicker": "Product",
       "shots.title": "The app, not the pitch deck.",
-      "shots.lead": "Screenshot slots for App Store art. Drop PNG/WebP into /assets/shots/ when ready.",
+      "shots.lead": "App Store art from Bob / Alice Simulator demos. Regenerate with scripts/capture-promo-shots.sh.",
       "privacy.kicker": "Privacy",
       "privacy.title": "Most of it never leaves the phone.",
       "privacy.body": "Weigh-ins, profile, charts, and local coaching stay on-device. Keel only gets what you consent to send. We do not sell your data. No ad networks.",

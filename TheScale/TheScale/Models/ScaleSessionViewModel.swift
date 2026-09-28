@@ -727,6 +727,71 @@ final class ScaleSessionViewModel: ObservableObject {
     func clearDemoPersonaLock() {
         isDemoPersonaActive = false
     }
+
+    /// Present a camera-ready surface for marketing captures (`-promoShot=`).
+    func applyPromoShot(_ shot: String) {
+        let key = shot.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // Clear competing sheets first.
+        isWeighInPresented = false
+        isWeighInHeroPresented = false
+        isResultsPresented = false
+        isMondayCardPresented = false
+        isSpikeRedCardPresented = false
+        isAppReviewPromptPresented = false
+        isFeedbackPresented = false
+        isManualEntryPresented = false
+        pendingProfileGap = nil
+
+        switch key {
+        case "home", "weigh-home", "01", "01-home":
+            selectHomeTab(.weigh)
+        case "weigh", "live", "02", "02-weigh":
+            presentPromoSettledWeighSheet()
+        case "progress", "charts", "03", "03-progress":
+            selectHomeTab(.progress)
+        case "keel", "coach", "04", "04-keel":
+            selectHomeTab(.keel)
+        case "meals", "05":
+            selectHomeTab(.meals)
+        default:
+            selectHomeTab(.weigh)
+        }
+    }
+
+    /// Settled live weigh sheet with composition for `02-weigh` promo art.
+    private func presentPromoSettledWeighSheet() {
+        let kg = healthBaselineKg ?? profile.startingWeightKg ?? profile.idealWeightKg
+        let ohms = 520
+        let measurement = ScaleMeasurement(
+            weightKg: kg,
+            impedanceOhms: ohms,
+            scaleDate: Date(),
+            hasImpedance: true,
+            biaPending: false,
+            displayUnit: .kilogram,
+            receivedAt: Date(),
+            isStabilized: true
+        )
+        let comp = BodyCompositionCalculator.calculate(
+            weightKg: kg,
+            impedanceOhms: ohms,
+            profile: profile
+        )
+        latestMeasurement = measurement
+        composition = comp
+        draft = EditableMeasurementDraft.from(
+            measurement: measurement,
+            composition: comp,
+            profile: profile
+        )
+        liveWeightKg = kg
+        phase = .reviewing
+        liveHint = "Settled. Confirm to write Apple Health."
+        weighInPurpose = .normal
+        isEditingDraft = false
+        selectHomeTab(.weigh)
+        isWeighInPresented = true
+    }
     #endif
 
     func dismissResults() {

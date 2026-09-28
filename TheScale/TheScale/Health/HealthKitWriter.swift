@@ -131,6 +131,12 @@ final class HealthKitWriter: HealthWriting {
 
     func requestAuthorizationIfNeeded() async throws {
         guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
+        #if DEBUG
+        if PromoCaptureMode.isActive {
+            markAuthorizationRequested()
+            return
+        }
+        #endif
         if didAuthorize, !needsReadAuthRefresh {
             // Still ask iOS if new types appeared (no-op when already decided for those types).
             let status = try await store.statusForAuthorizationRequest(toShare: shareTypes, read: readTypes)
