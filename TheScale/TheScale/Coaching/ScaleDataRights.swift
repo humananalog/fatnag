@@ -33,7 +33,8 @@ enum ScaleDataRights {
         "thescale.review.hasRequestedAppStoreReview",
         "thescale.anonymousUserId",
         "thescale.feedback.lastSoftAskAt",
-        "thescale.feedback.lastSubmitAt"
+        "thescale.feedback.lastSubmitAt",
+        NotificationArchiveStore.storageKey
     ]
 
     /// JSON export of local preferences / profile / coach memory (no HealthKit bulk dump).

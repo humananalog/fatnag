@@ -9,6 +9,7 @@ struct NotificationCenterSheet: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var pending: [PendingNotifRow] = []
     @State private var delivered: [DeliveredNotifRow] = []
+    @State private var archived: [ArchivedAlert] = []
     @State private var isLoading = true
     @State private var authLine = ""
     @State private var authDenied = false
@@ -23,10 +24,12 @@ struct NotificationCenterSheet: View {
 
     private struct DeliveredNotifRow: Identifiable {
         let id: String
+        let requestId: String
         let title: String
         let body: String
         let kindLabel: String
         let whenLabel: String
+        let deliveredAt: Date
     }
 
     private var ink: Color {
@@ -97,24 +100,69 @@ struct NotificationCenterSheet: View {
                         Section {
                             if delivered.isEmpty {
                                 emptyRow(
-                                    title: String(localized: "notif.empty_delivered", defaultValue: "No recent deliveries"),
-                                    detail: String(localized: "notif.empty_delivered_detail", defaultValue: "After Coach pings land, they show up here.")
+                                    title: String(localized: "notif.empty_active", defaultValue: "Nothing active"),
+                                    detail: String(localized: "notif.empty_active_detail", defaultValue: "Acknowledged alerts move to Archive.")
                                 )
                             } else {
                                 ForEach(delivered) { row in
-                                    notificationRow(
-                                        title: row.title,
-                                        body: row.body,
-                                        kindLabel: row.kindLabel,
-                                        whenLabel: row.whenLabel
-                                    )
+                                    Button {
+                                        Task { await acknowledge(row) }
+                                    } label: {
+                                        notificationRow(
+                                            title: row.title,
+                                            body: row.body,
+                                            kindLabel: row.kindLabel,
+                                            whenLabel: row.whenLabel
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button {
+                                            Task { await acknowledge(row) }
+                                        } label: {
+                                            Label(
+                                                String(localized: "notif.acknowledge", defaultValue: "Acknowledge"),
+                                                systemImage: "archivebox"
+                                            )
+                                        }
+                                        .tint(Color(red: 0.18, green: 0.52, blue: 0.62))
+                                    }
                                 }
                             }
                         } header: {
                             sectionHeader(
-                                String(localized: "notif.recently_delivered", defaultValue: "Recently delivered"),
+                                String(localized: "notif.active", defaultValue: "Active"),
                                 systemImage: "tray.full"
                             )
+                        } footer: {
+                            Text(String(localized: "notif.active_footer", defaultValue: "Tap or swipe an alert to acknowledge it. It leaves this list."))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(mist)
+                        }
+
+                        if !archived.isEmpty {
+                            Section {
+                                ForEach(archived) { item in
+                                    notificationRow(
+                                        title: item.title,
+                                        body: item.body,
+                                        kindLabel: kindLabel(for: item.requestId),
+                                        whenLabel: item.acknowledgedAt.formatted(date: .abbreviated, time: .shortened)
+                                    )
+                                }
+                            } header: {
+                                sectionHeader(
+                                    String(localized: "notif.archive", defaultValue: "Archive"),
+                                    systemImage: "archivebox"
+                                )
+                            } footer: {
+                                Text(String(
+                                    format: String(localized: "notif.archive_count", defaultValue: "%d acknowledged"),
+                                    archived.count
+                                ))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(mist)
+                            }
                         }
                     }
                     .listStyle(.insetGrouped)
@@ -262,6 +310,8 @@ struct NotificationCenterSheet: View {
         authDenied = detail.isDenied
         let pendingReqs = await UNUserNotificationCenter.current().pendingNotificationRequests()
         let deliveredNotes = await UNUserNotificationCenter.current().deliveredNotifications()
+        let archive = NotificationArchiveStore.load()
+        archived = archive
         pending = pendingReqs.map { req in
             let parts = triggerParts(req)
             return PendingNotifRow(
@@ -275,16 +325,41 @@ struct NotificationCenterSheet: View {
         .sorted { $0.whenLabel < $1.whenLabel }
         delivered = deliveredNotes
             .sorted { $0.date > $1.date }
+            .filter {
+                !NotificationArchiveStore.isAcknowledged(
+                    requestId: $0.request.identifier,
+                    deliveredAt: $0.date,
+                    in: archive
+                )
+            }
             .map { note in
                 DeliveredNotifRow(
-                    id: note.request.identifier,
+                    id: "\(note.request.identifier)-\(note.date.timeIntervalSince1970)",
+                    requestId: note.request.identifier,
                     title: note.request.content.title,
                     body: note.request.content.body,
                     kindLabel: kindLabel(for: note.request.identifier),
-                    whenLabel: note.date.formatted(date: .abbreviated, time: .shortened)
+                    whenLabel: note.date.formatted(date: .abbreviated, time: .shortened),
+                    deliveredAt: note.date
                 )
             }
         isLoading = false
+    }
+
+    private func acknowledge(_ row: DeliveredNotifRow) async {
+        #if DEBUG
+        if session.isDemoPersonaActive || PromoCaptureMode.isActive {
+            delivered.removeAll { $0.id == row.id }
+            return
+        }
+        #endif
+        NotificationArchiveStore.acknowledge(
+            requestId: row.requestId,
+            title: row.title,
+            body: row.body,
+            deliveredAt: row.deliveredAt
+        )
+        await reload()
     }
 
     #if DEBUG
@@ -311,24 +386,30 @@ struct NotificationCenterSheet: View {
             delivered = [
                 DeliveredNotifRow(
                     id: "demo.delivered.spike",
+                    requestId: "demo.delivered.spike",
                     title: "Salt bomb",
                     body: "\(name). That \(kg) bump is weekend bullshit, not new fat. Drink water, hit protein, weigh tomorrow.",
                     kindLabel: "Red card",
-                    whenLabel: "Today 8:12"
+                    whenLabel: "Today 8:12",
+                    deliveredAt: Date()
                 ),
                 DeliveredNotifRow(
                     id: "demo.delivered.trend",
+                    requestId: "demo.delivered.trend",
                     title: "−380g kept",
                     body: "\(name). Week is working. Don't blow it with a victory pastry like an idiot.",
                     kindLabel: "Trend check",
-                    whenLabel: "Yesterday 18:40"
+                    whenLabel: "Yesterday 18:40",
+                    deliveredAt: Date()
                 ),
                 DeliveredNotifRow(
                     id: "demo.delivered.watch",
+                    requestId: "demo.delivered.watch",
                     title: "Watch off",
                     body: "\(name). No HR all day. Strap the damn watch or stop pretending you're training.",
                     kindLabel: "Watch signal",
-                    whenLabel: "Yesterday 21:05"
+                    whenLabel: "Yesterday 21:05",
+                    deliveredAt: Date()
                 ),
             ]
         case .female:
@@ -344,24 +425,30 @@ struct NotificationCenterSheet: View {
             delivered = [
                 DeliveredNotifRow(
                     id: "demo.delivered.spike",
+                    requestId: "demo.delivered.spike",
                     title: "Noise, not doom",
                     body: "\(name), that \(kg) blip is salt and cycle - not a relapse. Hold the line. Proud of you showing up.",
                     kindLabel: "Red card",
-                    whenLabel: "Today 8:12"
+                    whenLabel: "Today 8:12",
+                    deliveredAt: Date()
                 ),
                 DeliveredNotifRow(
                     id: "demo.delivered.trend",
+                    requestId: "demo.delivered.trend",
                     title: "−380g kept",
                     body: "\(name), the week slope is down. Keep the protein plates and the walk after lunch.",
                     kindLabel: "Trend check",
-                    whenLabel: "Yesterday 18:40"
+                    whenLabel: "Yesterday 18:40",
+                    deliveredAt: Date()
                 ),
                 DeliveredNotifRow(
                     id: "demo.delivered.coach",
+                    requestId: "demo.delivered.coach",
                     title: "Coach check",
                     body: "\(name), you showed up. That's the hard part. Eat the plan, ignore the panic edit.",
                     kindLabel: "Coach reminder",
-                    whenLabel: "Yesterday 12:20"
+                    whenLabel: "Yesterday 12:20",
+                    deliveredAt: Date()
                 ),
             ]
         }
@@ -451,6 +538,6 @@ struct HomeNotificationBell: View {
         }
         .buttonStyle(.plain)
         .fixedSize()
-        .accessibilityLabel(badgeCount > 0 ? "Alerts, \(badgeCount) pending" : "Alerts")
+        .accessibilityLabel(badgeCount > 0 ? "Alerts, \(badgeCount) unread" : "Alerts")
     }
 }

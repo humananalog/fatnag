@@ -13,6 +13,9 @@ enum ScaleNotificationRouter {
         let userInfo = content.userInfo
         let action = response.actionIdentifier
 
+        // Tap, dismiss, snooze, and action buttons all mean the user dealt with it.
+        NotificationArchiveStore.acknowledge(response.notification)
+
         if action == ScaleNotificationActionID.snooze10 {
             await snooze(request: response.notification.request, minutes: 10)
             return
@@ -79,5 +82,96 @@ enum ScaleNotificationRouter {
         let id = "thescale.snooze." + UUID().uuidString
         let snoozed = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         try? await UNUserNotificationCenter.current().add(snoozed)
+    }
+}
+
+extension Notification.Name {
+    static let fatnagAlertsDidChange = Notification.Name("fatnag.alerts.didChange")
+}
+
+/// Acknowledged alerts leave the active inbox and stay here.
+struct ArchivedAlert: Codable, Equatable, Identifiable, Sendable {
+    var id: String
+    var requestId: String
+    var title: String
+    var body: String
+    var deliveredAt: Date
+    var acknowledgedAt: Date
+}
+
+enum NotificationArchiveStore {
+    static let storageKey = "thescale.notificationArchive.v1"
+    private static let maxKept = 40
+    /// Same delivery can be reported with a slightly different timestamp.
+    private static let matchWindow: TimeInterval = 2
+
+    static func load() -> [ArchivedAlert] {
+        guard let data = UserDefaults.standard.data(forKey: storageKey),
+              let items = try? JSONDecoder().decode([ArchivedAlert].self, from: data)
+        else { return [] }
+        return items.sorted { $0.acknowledgedAt > $1.acknowledgedAt }
+    }
+
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: storageKey)
+        NotificationCenter.default.post(name: .fatnagAlertsDidChange, object: nil)
+    }
+
+    static func isAcknowledged(
+        requestId: String,
+        deliveredAt: Date,
+        in archive: [ArchivedAlert]
+    ) -> Bool {
+        archive.contains { item in
+            item.requestId == requestId
+                && abs(item.deliveredAt.timeIntervalSince(deliveredAt)) < matchWindow
+        }
+    }
+
+    static func acknowledge(
+        requestId: String,
+        title: String,
+        body: String,
+        deliveredAt: Date,
+        now: Date = Date()
+    ) {
+        var items = load()
+        if isAcknowledged(requestId: requestId, deliveredAt: deliveredAt, in: items) { return }
+        items.insert(
+            ArchivedAlert(
+                id: UUID().uuidString,
+                requestId: requestId,
+                title: title,
+                body: body,
+                deliveredAt: deliveredAt,
+                acknowledgedAt: now
+            ),
+            at: 0
+        )
+        if items.count > maxKept {
+            items = Array(items.prefix(maxKept))
+        }
+        if let data = try? JSONEncoder().encode(items) {
+            UserDefaults.standard.set(data, forKey: storageKey)
+        }
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [requestId])
+        NotificationCenter.default.post(name: .fatnagAlertsDidChange, object: nil)
+    }
+
+    static func acknowledge(_ notification: UNNotification) {
+        let content = notification.request.content
+        acknowledge(
+            requestId: notification.request.identifier,
+            title: content.title,
+            body: content.body,
+            deliveredAt: notification.date
+        )
+    }
+
+    static func activeCount(in delivered: [UNNotification]) -> Int {
+        let archive = load()
+        return delivered.filter {
+            !isAcknowledged(requestId: $0.request.identifier, deliveredAt: $0.date, in: archive)
+        }.count
     }
 }

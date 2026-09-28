@@ -160,6 +160,35 @@ final class ScaleNotificationContentTests: XCTestCase {
         XCTAssertNotNil(content.sound)
     }
 
+    func testAcknowledgedAlertLeavesTheActiveInbox() {
+        let fired = Date(timeIntervalSince1970: 1_758_000_000)
+        let archive = [
+            ArchivedAlert(
+                id: "a",
+                requestId: "thescale.activity-pulse",
+                title: "Nag",
+                body: "Sleep banked",
+                deliveredAt: fired,
+                acknowledgedAt: fired.addingTimeInterval(30)
+            )
+        ]
+        XCTAssertTrue(NotificationArchiveStore.isAcknowledged(
+            requestId: "thescale.activity-pulse",
+            deliveredAt: fired.addingTimeInterval(0.4),
+            in: archive
+        ))
+        XCTAssertFalse(NotificationArchiveStore.isAcknowledged(
+            requestId: "thescale.activity-pulse",
+            deliveredAt: fired.addingTimeInterval(4 * 3600),
+            in: archive
+        ))
+        XCTAssertFalse(NotificationArchiveStore.isAcknowledged(
+            requestId: "thescale.morning-weigh",
+            deliveredAt: fired,
+            in: archive
+        ))
+    }
+
     func testIntervalIsPassiveNoSound() {
         let content = ScaleNotificationContentFactory.make(
             ScaleNotificationCopy.fitnessInterval(

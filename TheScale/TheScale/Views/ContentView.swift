@@ -236,6 +236,9 @@ struct ContentView: View {
         .task {
             await bootstrapHome()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .fatnagAlertsDidChange)) { _ in
+            Task { await refreshPendingNotifBadge() }
+        }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task {
@@ -424,8 +427,8 @@ struct ContentView: View {
     }
 
     private func refreshPendingNotifBadge() async {
-        let pending = await UNUserNotificationCenter.current().pendingNotificationRequests()
-        pendingNotifCount = pending.count
+        let delivered = await UNUserNotificationCenter.current().deliveredNotifications()
+        pendingNotifCount = NotificationArchiveStore.activeCount(in: delivered)
     }
 
     private var brandRow: some View {
