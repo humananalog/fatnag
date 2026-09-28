@@ -8,12 +8,20 @@ struct NotificationCenterSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var pending: [PendingNotifRow] = []
-    @State private var delivered: [UNNotification] = []
+    @State private var delivered: [DeliveredNotifRow] = []
     @State private var isLoading = true
     @State private var authLine = ""
     @State private var authDenied = false
 
     private struct PendingNotifRow: Identifiable {
+        let id: String
+        let title: String
+        let body: String
+        let kindLabel: String
+        let whenLabel: String
+    }
+
+    private struct DeliveredNotifRow: Identifiable {
         let id: String
         let title: String
         let body: String
@@ -93,12 +101,12 @@ struct NotificationCenterSheet: View {
                                     detail: String(localized: "notif.empty_delivered_detail", defaultValue: "After Coach pings land, they show up here.")
                                 )
                             } else {
-                                ForEach(delivered, id: \.request.identifier) { note in
+                                ForEach(delivered) { row in
                                     notificationRow(
-                                        title: note.request.content.title,
-                                        body: note.request.content.body,
-                                        kindLabel: kindLabel(for: note.request.identifier),
-                                        whenLabel: note.date.formatted(date: .abbreviated, time: .shortened)
+                                        title: row.title,
+                                        body: row.body,
+                                        kindLabel: row.kindLabel,
+                                        whenLabel: row.whenLabel
                                     )
                                 }
                             }
@@ -242,6 +250,13 @@ struct NotificationCenterSheet: View {
 
     private func reload() async {
         isLoading = true
+        #if DEBUG
+        if session.isDemoPersonaActive || PromoCaptureMode.isActive {
+            applyDemoRoastRows()
+            isLoading = false
+            return
+        }
+        #endif
         let detail = await TrendNotificationScheduler.authorizationStatusDetail()
         authLine = detail.line
         authDenied = detail.isDenied
@@ -258,9 +273,100 @@ struct NotificationCenterSheet: View {
             )
         }
         .sorted { $0.whenLabel < $1.whenLabel }
-        delivered = deliveredNotes.sorted { $0.date > $1.date }
+        delivered = deliveredNotes
+            .sorted { $0.date > $1.date }
+            .map { note in
+                DeliveredNotifRow(
+                    id: note.request.identifier,
+                    title: note.request.content.title,
+                    body: note.request.content.body,
+                    kindLabel: kindLabel(for: note.request.identifier),
+                    whenLabel: note.date.formatted(date: .abbreviated, time: .shortened)
+                )
+            }
         isLoading = false
     }
+
+    #if DEBUG
+    /// Marketing-ready roast / vulgar Coach alerts (sex-tuned).
+    private func applyDemoRoastRows() {
+        authLine = "Demo alerts (DEBUG). Real banners need permission on device."
+        authDenied = false
+        let name = session.profile.greetingName
+        let sex = session.profile.sex
+        let kg = session.healthBaselineKg.map {
+            UnitFormat.massString($0, system: session.preferredUnits, fractionDigits: 1)
+        } ?? "scale"
+        switch sex {
+        case .male:
+            pending = [
+                PendingNotifRow(
+                    id: "demo.pending.morning",
+                    title: "Step on it",
+                    body: "\(name). Morning weigh. No excuses, no second coffee first.",
+                    kindLabel: "Morning drill",
+                    whenLabel: "Tomorrow 7:05"
+                )
+            ]
+            delivered = [
+                DeliveredNotifRow(
+                    id: "demo.delivered.spike",
+                    title: "Salt bomb",
+                    body: "\(name). That \(kg) bump is weekend bullshit, not new fat. Drink water, hit protein, weigh tomorrow.",
+                    kindLabel: "Red card",
+                    whenLabel: "Today 8:12"
+                ),
+                DeliveredNotifRow(
+                    id: "demo.delivered.trend",
+                    title: "−380g kept",
+                    body: "\(name). Week is working. Don't blow it with a victory pastry like an idiot.",
+                    kindLabel: "Trend check",
+                    whenLabel: "Yesterday 18:40"
+                ),
+                DeliveredNotifRow(
+                    id: "demo.delivered.watch",
+                    title: "Watch off",
+                    body: "\(name). No HR all day. Strap the damn watch or stop pretending you're training.",
+                    kindLabel: "Watch signal",
+                    whenLabel: "Yesterday 21:05"
+                ),
+            ]
+        case .female:
+            pending = [
+                PendingNotifRow(
+                    id: "demo.pending.morning",
+                    title: "Morning weigh",
+                    body: "\(name), gentle reminder: same-time weigh tomorrow. You've got this.",
+                    kindLabel: "Morning drill",
+                    whenLabel: "Tomorrow 7:05"
+                )
+            ]
+            delivered = [
+                DeliveredNotifRow(
+                    id: "demo.delivered.spike",
+                    title: "Noise, not doom",
+                    body: "\(name), that \(kg) blip is salt and cycle - not a relapse. Hold the line. Proud of you showing up.",
+                    kindLabel: "Red card",
+                    whenLabel: "Today 8:12"
+                ),
+                DeliveredNotifRow(
+                    id: "demo.delivered.trend",
+                    title: "−380g kept",
+                    body: "\(name), the week slope is down. Keep the protein plates and the walk after lunch.",
+                    kindLabel: "Trend check",
+                    whenLabel: "Yesterday 18:40"
+                ),
+                DeliveredNotifRow(
+                    id: "demo.delivered.coach",
+                    title: "Coach check",
+                    body: "\(name), you showed up. That's the hard part. Eat the plan, ignore the panic edit.",
+                    kindLabel: "Coach reminder",
+                    whenLabel: "Yesterday 12:20"
+                ),
+            ]
+        }
+    }
+    #endif
 
     private func kindLabel(for identifier: String) -> String {
         switch identifier {

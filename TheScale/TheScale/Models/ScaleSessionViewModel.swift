@@ -135,6 +135,8 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var isCoachPresented = false
     @Published var isSettingsPresented = false
     @Published var isMealPlanPresented = false
+    /// Alerts / Notification Center sheet (also driven by `-promoShot=alerts`).
+    @Published var isNotificationCenterPresented = false
     @Published private(set) var mealPlan: MealPlanPayload?
     @Published private(set) var isMealPlanLoading = false
     /// Hero coach card after a successful weigh-in (sergeant / encourage / skeptical).
@@ -720,12 +722,46 @@ final class ScaleSessionViewModel: ObservableObject {
         lastProgressWarmAt = Date()
         isDemoPersonaActive = true
         refreshAlreadyWeighedToday()
-        ensureWeeklyGoalBaseline()
+        // Do not run ensureWeeklyGoalBaseline — Monday history reconcile + mondayFresh
+        // quiet mode wipe demo progress to 0% (especially when capturing on a Monday).
+        lockDemoWeeklyProgress(currentKg: currentKg)
         rebuildWeeklyGoalSurface()
+    }
+
+    /// Mid-week Progress chrome: ~70% toward −0.5 kg with a real Monday→today decline.
+    private func lockDemoWeeklyProgress(currentKg: Double) {
+        let cal = Calendar.current
+        let monday = MondayCardEngine.startOfWeekMonday(now: Date(), calendar: cal)
+        let weekStartKg = (currentKg * 100 + 38).rounded() / 100 // ~380g already lost
+        let sundayKg = (weekStartKg * 100 - 50).rounded() / 100
+        weeklyGoal = WeeklyMiniGoal(
+            targetDeltaKg: -0.5,
+            weekStartKg: weekStartKg,
+            weekStartDate: monday,
+            title: UnitFormat.sundayTitle(kg: sundayKg, system: preferredUnits)
+        )
+        WeeklyMiniGoalStore.save(weeklyGoal)
+        weeklyTargetMode = .aggressive
+
+        // Pin this week's Mon→today samples so charts show clear losses.
+        historyWeights = historyWeights.map { sample in
+            let day = cal.startOfDay(for: sample.date)
+            let mon = cal.startOfDay(for: monday)
+            guard day >= mon else { return sample }
+            let daysSince = cal.dateComponents([.day], from: mon, to: day).day ?? 0
+            let t = min(max(Double(daysSince) / 6.0, 0), 1)
+            let kg = (weekStartKg + (currentKg - weekStartKg) * t) * 100
+            return HealthMetricSample(value: kg.rounded() / 100, date: sample.date)
+        }
+        historyTrendWindowWeights = Array(historyWeights.suffix(14))
+        recentHealthWeights = historyWeights.suffix(8).reversed().map {
+            HealthWeightSample(weightKg: $0.value, date: $0.date)
+        }
     }
 
     func clearDemoPersonaLock() {
         isDemoPersonaActive = false
+        isNotificationCenterPresented = false
     }
 
     /// Present a camera-ready surface for marketing captures (`-promoShot=`).
@@ -740,6 +776,7 @@ final class ScaleSessionViewModel: ObservableObject {
         isAppReviewPromptPresented = false
         isFeedbackPresented = false
         isManualEntryPresented = false
+        isNotificationCenterPresented = false
         pendingProfileGap = nil
 
         switch key {
@@ -747,9 +784,17 @@ final class ScaleSessionViewModel: ObservableObject {
             selectHomeTab(.weigh)
         case "weigh", "live", "02", "02-weigh":
             presentPromoSettledWeighSheet()
-        case "progress", "charts", "03", "03-progress":
+        case "progress", "03", "03-progress":
+            // Progress tab with mid-week % (demo lock already applied).
             selectHomeTab(.progress)
-        case "keel", "coach", "04", "04-keel":
+        case "charts", "results", "03-charts":
+            selectHomeTab(.weigh)
+            reopenResults()
+        case "alerts", "notifications", "notif", "04", "04-keel", "04-alerts":
+            // Roast / vulgar Coach alerts (promo seed rows).
+            selectHomeTab(.weigh)
+            isNotificationCenterPresented = true
+        case "keel", "coach":
             selectHomeTab(.keel)
         case "meals", "05":
             selectHomeTab(.meals)
@@ -1171,6 +1216,14 @@ final class ScaleSessionViewModel: ObservableObject {
     /// this week's plan immediately (no first-tab Health stall / last-week ghost %).
     @discardableResult
     func warmProgressSurface(force: Bool = false) async -> WeeklyGoalSurface {
+        #if DEBUG
+        if isDemoPersonaActive {
+            rebuildWeeklyGoalSurface()
+            progressSurfaceWarmed = true
+            lastProgressWarmAt = Date()
+            return weeklyGoalSurface
+        }
+        #endif
         if !force,
            progressSurfaceWarmed,
            let last = lastProgressWarmAt,
@@ -1199,6 +1252,13 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Preview/test must not wipe this; bad stamps (today / dream / mid-week first weigh)
     /// re-anchor to Monday. Weekly Δ / Sunday target pace from that Monday kg — never "today".
     func ensureWeeklyGoalBaseline() {
+        #if DEBUG
+        if isDemoPersonaActive {
+            // Demo weeks are locked in `lockDemoWeeklyProgress` — do not re-anchor.
+            rebuildWeeklyGoalSurface()
+            return
+        }
+        #endif
         var next = weeklyGoal
         let cal = Calendar.current
         let history = mondayAnchorHistorySamples()
@@ -1329,6 +1389,12 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Refresh Health digest + rebuild the home weekly-goal hero.
     @discardableResult
     func refreshWeeklyGoalSurface() async -> WeeklyGoalSurface {
+        #if DEBUG
+        if isDemoPersonaActive {
+            rebuildWeeklyGoalSurface()
+            return weeklyGoalSurface
+        }
+        #endif
         // Fast path first so Horizon Arc Bank fills without waiting on sleep/HRV/workouts.
         await refreshHomeGauges(force: true)
         _ = await refreshFitnessDigestForCoach()
@@ -1338,13 +1404,24 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func rebuildWeeklyGoalSurface() {
+        #if DEBUG
+        // Demo captures: treat "now" as Wednesday so mondayFresh quiet mode cannot force 0%.
+        let surfaceNow: Date = {
+            guard isDemoPersonaActive else { return Date() }
+            let monday = MondayCardEngine.startOfWeekMonday(now: Date())
+            return Calendar.current.date(byAdding: .day, value: 3, to: monday) ?? Date()
+        }()
+        #else
+        let surfaceNow = Date()
+        #endif
         weeklyGoalSurface = WeeklyGoalSurfaceEngine.build(
             weeklyGoal: weeklyGoal,
             currentKg: healthBaselineKg ?? displayWeightKg,
             profile: profile,
             digest: lastFitnessDigest,
             recentWeights: recentHealthWeights,
-            targetMode: weeklyTargetMode
+            targetMode: weeklyTargetMode,
+            now: surfaceNow
         )
     }
 
@@ -1434,6 +1511,11 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Fresh HealthKit snapshot for every Coach turn (not only background fitness jobs).
     @discardableResult
     func refreshFitnessDigestForCoach(reRequestAuth: Bool = false) async -> FitnessDigest {
+        #if DEBUG
+        if isDemoPersonaActive, let demo = lastFitnessDigest {
+            return demo
+        }
+        #endif
         guard healthKitAvailable else {
             let digest = FitnessDigest.unavailable()
             lastFitnessDigest = digest
@@ -2196,6 +2278,9 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func refreshHealthBaseline() async {
+        #if DEBUG
+        if isDemoPersonaActive { return }
+        #endif
         guard healthKitAvailable else {
             recentHealthWeights = []
             healthBaselineKg = nil

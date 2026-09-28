@@ -5,7 +5,7 @@ import Foundation
 ///
 /// Launch with:
 ///   `-demoMale` or `-demoFemale`
-/// Optional: `-promoShot=home|weigh|progress|keel` to jump to a capture surface
+/// Optional: `-promoShot=home|weigh|charts|alerts|progress|keel` to jump to a capture surface
 /// Optional: `-uitesting-skip-splash` (also auto-skipped when a demo flag is present).
 ///
 /// Or Settings → Debug → Load demo (male / female).

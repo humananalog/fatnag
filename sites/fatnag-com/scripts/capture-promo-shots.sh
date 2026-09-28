@@ -131,7 +131,7 @@ record_persona() {
   xcrun simctl io "$UDID" recordVideo --codec=h264 --force "$out" &
   local rec_pid=$!
   sleep 1
-  for shot in home weigh progress keel; do
+  for shot in home weigh charts alerts; do
     xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
     xcrun simctl launch "$UDID" "$BUNDLE_ID" "$demo_flag" "-promoShot=$shot" >/dev/null
     sleep 2.6
@@ -145,8 +145,8 @@ record_persona() {
 SHOTS_LIST=(
   "home:01-home.png"
   "weigh:02-weigh.png"
-  "progress:03-progress.png"
-  "keel:04-keel.png"
+  "charts:03-progress.png"
+  "alerts:04-keel.png"
 )
 
 echo "==> Capturing Bob (male)"

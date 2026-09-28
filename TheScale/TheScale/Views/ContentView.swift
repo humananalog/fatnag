@@ -144,7 +144,13 @@ struct ContentView: View {
         // Weigh-now lives inside the Weigh tab only. A conditional
         // `tabViewBottomAccessory` left a blank white chrome bar on Settings / Coach / etc.
         // Follow system appearance so Progress / home / meals stay readable in dark mode.
-        .sheet(isPresented: $showNotificationCenter) {
+        .sheet(isPresented: Binding(
+            get: { showNotificationCenter || session.isNotificationCenterPresented },
+            set: { open in
+                showNotificationCenter = open
+                session.isNotificationCenterPresented = open
+            }
+        )) {
             NotificationCenterSheet()
                 .environmentObject(session)
         }

@@ -213,14 +213,18 @@ struct LiveWeighInSheet: View {
             }
             .accessibilityLabel(String(localized: "live.close_a11y", defaultValue: "Close weigh-in"))
 
-            Text(isCalibration
-                  ? String(localized: "live.calibrate", defaultValue: "Calibrate")
-                  : "FATNAG")
-                .font(.system(size: 20, weight: .semibold, design: .serif))
-                .foregroundStyle(atmosphere.accent)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .layoutPriority(0)
+            Group {
+                if isCalibration {
+                    Text(String(localized: "live.calibrate", defaultValue: "Calibrate"))
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(atmosphere.accent)
+                } else {
+                    FatnagWordmark(size: 22, color: atmosphere.accent)
+                }
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .layoutPriority(0)
 
             Spacer(minLength: 8)
 
@@ -434,8 +438,9 @@ struct LiveWeighInSheet: View {
     }
 
     private var liveWeightHero: some View {
+        // Match home Sunday target: bold rounded (one weight face across the app).
         Text(weightText)
-            .font(.system(size: heroWeightSize, weight: .ultraLight, design: .rounded))
+            .font(.system(size: heroWeightSize, weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(atmosphere.accent)
             .minimumScaleFactor(0.35)
@@ -474,7 +479,7 @@ struct LiveWeighInSheet: View {
             )
             .keyboardType(.decimalPad)
             .focused($weightFieldFocused)
-            .font(.system(size: 64, weight: .ultraLight, design: .rounded))
+            .font(.system(size: 64, weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(atmosphere.accent)
             .multilineTextAlignment(.center)
@@ -571,7 +576,7 @@ struct LiveWeighInSheet: View {
                 .lineLimit(1)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(valueText)
-                    .font(.system(size: 40, weight: .medium, design: .rounded))
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(atmosphere.accent)
                     .minimumScaleFactor(0.5)
