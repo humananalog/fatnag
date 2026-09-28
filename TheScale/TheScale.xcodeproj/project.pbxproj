@@ -116,6 +116,7 @@
 		A1B2C3D4E5F60718293A00DW4 /* DreamOnboardingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10DW4 /* DreamOnboardingTests.swift */; };
 		A1B2C3D4E5F60718293A00LG1 /* ScaleDataRights.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */; };
 		A1B2C3D4E5F60718293A00DP1 /* DemoPersonaSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10DP1 /* DemoPersonaSeeder.swift */; };
+		A1B2C3D4E5F60718293A00DH1 /* DemoHealthKitSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10DH1 /* DemoHealthKitSeeder.swift */; };
 		A1B2C3D4E5F60718293A00PC1 /* PromoCaptureMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PC1 /* PromoCaptureMode.swift */; };
 		A1B2C3D4E5F60718293A00LG2 /* ScaleLegalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10LG2 /* ScaleLegalTests.swift */; };
 		A1B2C3D4E5F60718293A00PG1 /* ProfileGapPromptEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */; };
@@ -269,6 +270,7 @@
 		A1B2C3D4E5F60718293A10DW4 /* DreamOnboardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamOnboardingTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleDataRights.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10DP1 /* DemoPersonaSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoPersonaSeeder.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10DH1 /* DemoHealthKitSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoHealthKitSeeder.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10PC1 /* PromoCaptureMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromoCaptureMode.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10LG2 /* ScaleLegalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleLegalTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10PG1 /* ProfileGapPromptEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileGapPromptEngine.swift; sourceTree = "<group>"; };
@@ -493,6 +495,7 @@
 				A1B2C3D4E5F60718293A10SF1 /* ScaleStorefront.swift */,
 				A1B2C3D4E5F60718293A10PC1 /* PromoCaptureMode.swift */,
 				A1B2C3D4E5F60718293A10DP1 /* DemoPersonaSeeder.swift */,
+				A1B2C3D4E5F60718293A10DH1 /* DemoHealthKitSeeder.swift */,
 				A1B2C3D4E5F60718293A10LG1 /* ScaleDataRights.swift */,
 				A1B2C3D4E5F60718293A103B /* OnboardingProfileInference.swift */,
 				A1B2C3D4E5F60718293A103F /* OnboardingFlowModel.swift */,
@@ -877,6 +880,7 @@
 				A1B2C3D4E5F60718293A00SF1 /* ScaleStorefront.swift in Sources */,
 				A1B2C3D4E5F60718293A00PC1 /* PromoCaptureMode.swift in Sources */,
 				A1B2C3D4E5F60718293A00DP1 /* DemoPersonaSeeder.swift in Sources */,
+				A1B2C3D4E5F60718293A00DH1 /* DemoHealthKitSeeder.swift in Sources */,
 				A1B2C3D4E5F60718293A00LG1 /* ScaleDataRights.swift in Sources */,
 				A1B2C3D4E5F60718293A0038 /* PaywallView.swift in Sources */,
 				A1B2C3D4E5F60718293A003B /* OnboardingProfileInference.swift in Sources */,
@@ -927,10 +931,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 122;
+				CURRENT_PROJECT_VERSION = 123;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0.19;
+				MARKETING_VERSION = 1.0.20;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -998,7 +1002,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 122;
+				CURRENT_PROJECT_VERSION = 123;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TheScale/Resources/Info.plist;
@@ -1010,7 +1014,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.19;
+				MARKETING_VERSION = 1.0.20;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1029,10 +1033,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 122;
+				CURRENT_PROJECT_VERSION = 123;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0.19;
+				MARKETING_VERSION = 1.0.20;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1050,7 +1054,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 122;
+				CURRENT_PROJECT_VERSION = 123;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TheScale/Resources/Info.plist;
@@ -1062,7 +1066,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.19;
+				MARKETING_VERSION = 1.0.20;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1128,7 +1132,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TheScaleWidgets/TheScaleWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 122;
+				CURRENT_PROJECT_VERSION = 123;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TheScaleWidgets/Info.plist;
@@ -1140,7 +1144,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.19;
+				MARKETING_VERSION = 1.0.20;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1155,7 +1159,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TheScaleWidgets/TheScaleWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 122;
+				CURRENT_PROJECT_VERSION = 123;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TheScaleWidgets/Info.plist;
@@ -1167,7 +1171,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.19;
+				MARKETING_VERSION = 1.0.20;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

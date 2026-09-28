@@ -6,6 +6,7 @@ import Foundation
 /// Launch with:
 ///   `-demoMale` or `-demoFemale`
 /// Optional: `-promoShot=home|weigh|charts|alerts|progress|keel` to jump to a capture surface
+/// HealthKit: hydrate also writes steps/energy/diet/sleep/workouts into the Simulator store.
 /// Optional: `-uitesting-skip-splash` (also auto-skipped when a demo flag is present).
 ///
 /// Or Settings → Debug → Load demo (male / female).
@@ -99,6 +100,7 @@ enum DemoPersonaSeeder {
     }
 
     /// Fill live session surfaces (history, gauges, flags) after boot.
+    /// Also writes a realistic HealthKit corpus into the Simulator (steps, energy, diet, sleep, …).
     @MainActor
     static func hydrate(_ persona: Persona, into session: ScaleSessionViewModel, now: Date = Date()) {
         persist(persona, now: now)
@@ -107,6 +109,7 @@ enum DemoPersonaSeeder {
         let series = makeWeightSeries(persona, now: now)
         let fatSeries = makeBodyFatSeries(persona, now: now)
         let currentKg = series.last?.value ?? currentWeightKg(persona)
+        let digest = makeDigest(persona, now: now)
 
         session.applyDemoPersonaPayload(
             profile: profile,
@@ -116,10 +119,32 @@ enum DemoPersonaSeeder {
             weights: series,
             bodyFat: fatSeries,
             currentKg: currentKg,
-            digest: makeDigest(persona, now: now)
+            digest: digest
         )
 
         _ = ScaleSubscriptionStore.shared.applyDevPlan(.plus)
+
+        // Real HealthKit injection (Simulator / device). Runs after UI paints;
+        // first run shows the Health share sheet — capture script taps Allow.
+        Task { @MainActor in
+            do {
+                try await DemoHealthKitSeeder.seed(
+                    persona: persona,
+                    profile: profile,
+                    weights: series,
+                    bodyFat: fatSeries,
+                    digest: digest,
+                    now: now
+                )
+                await session.refreshAfterDemoHealthKitSeed()
+            } catch {
+                // Keep in-memory demo surfaces if Health share is denied / unavailable.
+                ScaleDebugLog.throttled(
+                    "demo.hk.seed",
+                    "Demo HealthKit seed skipped: \(error.localizedDescription)"
+                )
+            }
+        }
     }
 
     // MARK: - Personas

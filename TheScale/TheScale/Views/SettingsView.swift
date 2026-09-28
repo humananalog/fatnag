@@ -1614,16 +1614,16 @@ struct SettingsView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
 
-                Text("Loads a full camera-ready persona (profile, 4 weeks of weighs, gauges, meals, Keel chat). Simulator only.")
+                Text("Loads a full camera-ready persona (profile, 4 weeks of weighs, gauges, meals, Keel chat) and writes Steps / Energy / Diet / Sleep / Workouts into HealthKit. Tap Turn On All on the Health share sheet once.")
                     .font(.caption2)
                     .foregroundStyle(steel)
 
                 Button {
                     session.applyDemoPersona(.male)
-                    dataRightsNote = "Demo male (Bob) loaded. Charts + gauges are seeded."
+                    dataRightsNote = "Demo male (Bob) loaded. Allow Health write to inject Steps + activity into the Simulator Health app."
                     session.dismissSettings()
                 } label: {
-                    Label("Load demo · Male (Bob)", systemImage: "person.fill")
+                    Label("Load demo · Male (Bob) + HealthKit", systemImage: "person.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -1631,10 +1631,10 @@ struct SettingsView: View {
 
                 Button {
                     session.applyDemoPersona(.female)
-                    dataRightsNote = "Demo female (Alice) loaded. Charts + gauges are seeded."
+                    dataRightsNote = "Demo female (Alice) loaded. Allow Health write to inject Steps + activity into the Simulator Health app."
                     session.dismissSettings()
                 } label: {
-                    Label("Load demo · Female (Alice)", systemImage: "person.fill")
+                    Label("Load demo · Female (Alice) + HealthKit", systemImage: "person.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)

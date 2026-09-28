@@ -8,6 +8,8 @@
 #   DEVICE_NAME="iPhone 17" ./sites/fatnag-com/scripts/capture-promo-shots.sh
 #
 # Requires full Xcode + a Debug build of TheScale (demo + promoShot flags are DEBUG-only).
+# First launch per persona seeds real HealthKit samples (steps, energy, diet, sleep, …)
+# and taps through the Health share sheet when possible.
 
 set -euo pipefail
 
@@ -19,7 +21,8 @@ PROJECT="$ROOT/TheScale/TheScale.xcodeproj"
 BUNDLE_ID="${BUNDLE_ID:-app.thescale.ios}"
 DEVICE_NAME="${DEVICE_NAME:-iPhone 17}"
 DERIVED="${DERIVED:-$ROOT/TheScale/build/promo-derived}"
-SETTLE_SECONDS="${SETTLE_SECONDS:-4.0}"
+SETTLE_SECONDS="${SETTLE_SECONDS:-5.0}"
+SEED_SECONDS="${SEED_SECONDS:-6.0}"
 DO_RECORD=0
 
 for arg in "$@"; do
@@ -96,6 +99,54 @@ xcrun simctl status_bar "$UDID" override \
   --batteryLevel 100 \
   --operatorName "" >/dev/null 2>&1 || true
 
+# Best-effort: click Health "Turn On All" / Allow inside Simulator.
+tap_health_allow() {
+  osascript <<'APPLESCRIPT' >/dev/null 2>&1 || true
+tell application "Simulator" to activate
+delay 0.5
+tell application "System Events"
+  if not (exists process "Simulator") then return
+  tell process "Simulator"
+    set frontmost to true
+    delay 0.35
+    repeat with btnName in {"Turn On All", "Allow", "Share", "OK", "Done"}
+      try
+        click button (btnName as text) of window 1
+        delay 0.35
+      end try
+      try
+        click button (btnName as text) of sheet 1 of window 1
+        delay 0.35
+      end try
+      try
+        click button (btnName as text) of group 1 of window 1
+        delay 0.35
+      end try
+    end repeat
+  end tell
+end tell
+APPLESCRIPT
+}
+
+# Fresh install + HealthKit seed (no promo sheet). Auth persists for later shots.
+prepare_persona() {
+  local persona="$1"
+  local demo_flag="$2"
+  echo "==> Seeding HealthKit for $persona"
+  xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+  xcrun simctl uninstall "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+  xcrun simctl install "$UDID" "$APP" >/dev/null
+  # Broad privacy grant (does not replace HealthKit share sheet, but helps elsewhere).
+  xcrun simctl privacy "$UDID" grant all "$BUNDLE_ID" >/dev/null 2>&1 || true
+  xcrun simctl launch "$UDID" "$BUNDLE_ID" "$demo_flag" >/dev/null
+  sleep 1.2
+  tap_health_allow
+  sleep 1.0
+  tap_health_allow
+  sleep "$SEED_SECONDS"
+  xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+}
+
 capture_shot() {
   local persona="$1"
   local demo_flag="$2"
@@ -104,9 +155,8 @@ capture_shot() {
   local out="$SHOTS/$persona/$out_name"
 
   echo "  • $persona / $shot → $out_name"
+  # Keep install — HealthKit samples + share auth stay on the Simulator.
   xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-  xcrun simctl uninstall "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-  xcrun simctl install "$UDID" "$APP" >/dev/null
   xcrun simctl launch "$UDID" "$BUNDLE_ID" \
     "$demo_flag" \
     "-promoShot=$shot" \
@@ -124,9 +174,7 @@ record_persona() {
   local demo_flag="$2"
   local out="$SHOTS/recordings/$persona-tour.mp4"
   echo "  • recording $persona → $(basename "$out")"
-  xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-  xcrun simctl uninstall "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-  xcrun simctl install "$UDID" "$APP" >/dev/null
+  prepare_persona "$persona" "$demo_flag"
   rm -f "$out"
   xcrun simctl io "$UDID" recordVideo --codec=h264 --force "$out" &
   local rec_pid=$!
@@ -150,12 +198,14 @@ SHOTS_LIST=(
 )
 
 echo "==> Capturing Bob (male)"
+prepare_persona bob -demoMale
 for entry in "${SHOTS_LIST[@]}"; do
   IFS=: read -r shot file <<<"$entry"
   capture_shot bob -demoMale "$shot" "$file"
 done
 
 echo "==> Capturing Alice (female)"
+prepare_persona alice -demoFemale
 for entry in "${SHOTS_LIST[@]}"; do
   IFS=: read -r shot file <<<"$entry"
   capture_shot alice -demoFemale "$shot" "$file"
@@ -184,4 +234,5 @@ if [[ "$DO_RECORD" -eq 1 ]]; then
   ls -la "$SHOTS/recordings"/*.mp4 2>/dev/null | sed 's|^|  |' || true
 fi
 echo
-echo "Next: open $SITE/index.html — placeholders resolve to /assets/shots/0N-*.png"
+echo "Next: open Health app on Simulator to confirm Steps / Weight / Sleep samples."
+echo "      QA: open $SITE/assets/shots/qa-review.html via python -m http.server"

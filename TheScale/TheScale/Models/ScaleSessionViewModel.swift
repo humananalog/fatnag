@@ -676,6 +676,63 @@ final class ScaleSessionViewModel: ObservableObject {
         DemoPersonaSeeder.hydrate(persona, into: self)
     }
 
+    /// After DemoHealthKitSeeder writes into HealthKit, pull real steps/energy/diet back.
+    func refreshAfterDemoHealthKitSeed() async {
+        #if DEBUG
+        guard isDemoPersonaActive else { return }
+        do {
+            // Bypass PromoCaptureMode skip — seed already requested share auth.
+            let digest = try await healthStore.fetchFitnessDigest(
+                preSleepWindowMinutes: fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes,
+                now: Date()
+            )
+            if (digest.stepsToday ?? 0) > 100 || (digest.activeEnergyKcalToday ?? 0) > 50 {
+                lastFitnessDigest = digest
+            } else if let existing = lastFitnessDigest {
+                // Auth may still be pending; keep seeded in-memory digest.
+                var merged = digest
+                if (merged.stepsToday ?? 0) < 1 { merged.stepsToday = existing.stepsToday }
+                if (merged.activeEnergyKcalToday ?? 0) < 1 {
+                    merged.activeEnergyKcalToday = existing.activeEnergyKcalToday
+                }
+                if merged.dietaryEnergyKcalToday == nil {
+                    merged.dietaryEnergyKcalToday = existing.dietaryEnergyKcalToday
+                }
+                if merged.dietaryProteinGramsToday == nil {
+                    merged.dietaryProteinGramsToday = existing.dietaryProteinGramsToday
+                }
+                lastFitnessDigest = merged
+            }
+            let end = Date()
+            let start = Calendar.current.date(byAdding: .day, value: -32, to: end) ?? end
+            let weights = try await healthStore.fetchWeights(from: start, to: end)
+            if weights.count >= 5 {
+                historyWeights = weights
+                historyTrendWindowWeights = Array(weights.suffix(14))
+                recentHealthWeights = weights.suffix(8).reversed().map {
+                    HealthWeightSample(weightKg: $0.value, date: $0.date)
+                }
+                if let latest = weights.last?.value {
+                    healthBaselineKg = latest
+                }
+            }
+            let fats = try await healthStore.fetchBodyFatPercents(from: start, to: end)
+            if fats.count >= 3 {
+                historyBodyFatPercents = fats
+            }
+            if let kg = healthBaselineKg {
+                lockDemoWeeklyProgress(currentKg: kg)
+            }
+            rebuildWeeklyGoalSurface()
+        } catch {
+            ScaleDebugLog.throttled(
+                "demo.hk.refresh",
+                "Demo HealthKit refresh soft-fail: \(error.localizedDescription)"
+            )
+        }
+        #endif
+    }
+
     /// Apply full demo payload (stores already persisted by seeder).
     func applyDemoPersonaPayload(
         profile: UserBodyProfile,
