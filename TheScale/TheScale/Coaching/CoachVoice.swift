@@ -1,5 +1,67 @@
 import Foundation
 
+/// Reply language + safe local humour anchors for Grok, Foundation Models, and Metal polish.
+struct CoachLocaleContext: Equatable, Sendable {
+    var replyLanguageName: String
+    var location: String
+    var ethnicity: String
+    var culturalVibe: String
+    var useLocalContext: Bool
+
+    /// App UI language wins when explicitly set; otherwise profile preferred language / system locale.
+    static func resolve(
+        profile: UserBodyProfile? = nil,
+        appLanguage: AppLanguage = AppLanguageStore.current
+    ) -> CoachLocaleContext {
+        let p = profile ?? UserProfileStore.load()
+        let preferred = p.preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let reply: String
+        switch appLanguage {
+        case .system:
+            reply = preferred.isEmpty ? appLanguage.profileLanguageName : preferred
+        default:
+            reply = appLanguage.profileLanguageName
+        }
+        return CoachLocaleContext(
+            replyLanguageName: reply.isEmpty ? "English" : reply,
+            location: p.location.trimmingCharacters(in: .whitespacesAndNewlines),
+            ethnicity: p.ethnicity.trimmingCharacters(in: .whitespacesAndNewlines),
+            culturalVibe: p.culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines),
+            useLocalContext: p.useLocalContext
+        )
+    }
+
+    /// Mandatory language + local-humour block for system / voice instructions.
+    var promptRules: String {
+        var anchors: [String] = []
+        if !location.isEmpty {
+            anchors.append("location (\(location))")
+        }
+        if !ethnicity.isEmpty {
+            anchors.append(
+                "user-declared culture/ethnicity (\(ethnicity)) - for food, slang register, and belonging, never as a punchline target"
+            )
+        }
+        if !culturalVibe.isEmpty {
+            anchors.append("stated vibe (\(culturalVibe))")
+        }
+        let anchorLine: String
+        if anchors.isEmpty {
+            anchorLine = "Root jokes in the reply language's everyday street, gym, and food banter."
+        } else {
+            anchorLine = "Root jokes in: \(anchors.joined(separator: "; "))."
+        }
+        let localFood = useLocalContext && !location.isEmpty
+            ? " Prefer local food and gym culture from their location when suggesting meals or jokes."
+            : ""
+        return """
+        LANGUAGE (mandatory): Write the entire user-facing reply in \(replyLanguageName). Natural everyday register for that language. Do not switch to English unless \(replyLanguageName) is English.
+        LOCAL HUMOUR: Subtle vulgar jokes and street-level wit are welcome when they fit the coach voice. \(anchorLine)\(localFood) Light self-deprecating fitness jokes OK.
+        HARD BAN: No racist jokes, ethnic slurs, xenophobia, or punching down on race, ethnicity, nationality, religion, or minority status. Never exoticize, mock accents, or stereotype the user's ethnicity. Culture-aware banter only - never make their race or ethnicity the joke.
+        """
+    }
+}
+
 /// Sex-tuned coach voice for Grok, on-device FM, Metal polish, and deterministic copy.
 /// Male: blunt badass humour with numbers. Female: nurturing, praise-heavy, funny coach
 /// who leads with visual food / body pictures instead of bare calorie figures.
@@ -15,10 +77,14 @@ enum CoachVoice {
     }
 
     /// Shared rules injected into Grok / Foundation Models / Metal polish prompts.
-    static func llmRules(sex: UserBodyProfile.Sex) -> String {
+    static func llmRules(
+        sex: UserBodyProfile.Sex,
+        locale: CoachLocaleContext = .resolve()
+    ) -> String {
+        let base: String
         switch sex {
         case .male:
-            return """
+            base = """
             Voice: badass, dark humour, sometimes vulgar, always friendly. Call the user by name.
             Keep it punchy. ASCII hyphens only. No em dashes or en dashes.
             Never use AI tells ("As an AI…", "I'd be happy to…", "Certainly!", robotic hedging).
@@ -28,13 +94,13 @@ enum CoachVoice {
             CRITICAL: Push back when the ask is unsafe or mismatched to the clock.
             """
         case .female:
-            return """
+            base = """
             Voice: warm, nurturing, funny coach who constantly praises effort and presence. Call her by name.
             Celebrate showing up. Soft accountability with wit, never drill-sergeant or shame.
             Write in full, friendly sentences. No military jargon, no acronyms like ETA, no "Operator", no "DRILL".
             Prefer "dream weight", "around [date]", "per week" over shorthand. ASCII hyphens only. No em dashes.
             CRITICAL FOOD PICTURES: Do not lead with bare calorie or gram figures (avoid "1343 kcal", "92 g protein" as the headline).
-            Translate energy and protein into real-life visuals she can see: palm of chicken or tofu, fist of rice, cupped handful of berries, big handful of kale, two eggs in the pan, a yogurt cup.
+            Translate energy and protein into real-life visuals she can see: palm of chicken or tofu, fist of rice, cupped handful of berries, big handful of greens, two eggs in the pan, a yogurt cup.
             Example: "about three palm-size protein plates with a big handful of greens each" instead of "1343 kcal".
             If a number must appear, tuck it after the picture in parentheses.
             Never use AI tells ("As an AI…", "I'd be happy to…", "Certainly!", robotic hedging).
@@ -44,13 +110,18 @@ enum CoachVoice {
             CRITICAL: Redirect unsafe asks gently and protectively. Keep the vibe upbeat and kind.
             """
         }
+        return base + "\n" + locale.promptRules
     }
 
     /// Compact banner / notification voice (Watch glance + iPhone body).
-    static func bannerRules(sex: UserBodyProfile.Sex) -> String {
+    static func bannerRules(
+        sex: UserBodyProfile.Sex,
+        locale: CoachLocaleContext = .resolve()
+    ) -> String {
+        let base: String
         switch sex {
         case .male:
-            return """
+            base = """
             You write for fatnag. Notifications mirror to Apple Watch and iPhone.
             TITLE is Watch glance: max 20 chars, verb or number first, NO emoji, NO name prefix.
             BODY is iPhone expanded: call the user by name when natural. Friendly, badass, dark humour; sometimes vulgar; never corporate.
@@ -59,7 +130,7 @@ enum CoachVoice {
             Never add medical disclaimers, diagnoses, or consult-a-doctor lines.
             """
         case .female:
-            return """
+            base = """
             You write for fatnag. Notifications mirror to Apple Watch and iPhone.
             TITLE is Watch glance: max 20 chars, verb or number first, NO emoji, NO name prefix.
             BODY is iPhone expanded: call her by name when natural. Warm, nurturing, funny coach who praises effort.
@@ -70,6 +141,7 @@ enum CoachVoice {
             Never add medical disclaimers, diagnoses, or consult-a-doctor lines.
             """
         }
+        return base + "\n" + locale.promptRules
     }
 
     // MARK: - Visual portion pictures (female-first coaching)

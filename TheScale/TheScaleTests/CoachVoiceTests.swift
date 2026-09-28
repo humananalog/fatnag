@@ -122,4 +122,33 @@ final class CoachVoiceTests: XCTestCase {
         XCTAssertTrue(rules.lowercased().contains("nurtur") || rules.lowercased().contains("prais"))
         XCTAssertFalse(rules.contains("—"))
     }
+
+    func testLocaleRulesRequireTargetLanguageAndBanRacistJokes() {
+        var profile = UserBodyProfile.default
+        profile.preferredLanguage = "Tagalog"
+        profile.location = "Manila"
+        profile.ethnicity = "Filipina"
+        profile.culturalVibe = "straight talk"
+        profile.useLocalContext = true
+        let locale = CoachLocaleContext.resolve(profile: profile, appLanguage: .system)
+        XCTAssertEqual(locale.replyLanguageName, "Tagalog")
+        let rules = CoachVoice.llmRules(sex: .male, locale: locale)
+        XCTAssertTrue(rules.contains("Tagalog"))
+        XCTAssertTrue(rules.contains("Manila"))
+        XCTAssertTrue(rules.lowercased().contains("local humour") || rules.lowercased().contains("vulgar"))
+        XCTAssertTrue(rules.lowercased().contains("racist") || rules.lowercased().contains("hard ban"))
+        XCTAssertTrue(rules.lowercased().contains("never"))
+        let banner = CoachVoice.bannerRules(sex: .female, locale: locale)
+        XCTAssertTrue(banner.contains("Tagalog"))
+        XCTAssertTrue(banner.lowercased().contains("hard ban"))
+    }
+
+    func testAppLanguageOverridesPreferredLanguageForReply() {
+        var profile = UserBodyProfile.default
+        profile.preferredLanguage = "English"
+        profile.location = "Paris"
+        let locale = CoachLocaleContext.resolve(profile: profile, appLanguage: .french)
+        XCTAssertEqual(locale.replyLanguageName, AppLanguage.french.profileLanguageName)
+        XCTAssertTrue(CoachVoice.llmRules(sex: .male, locale: locale).contains(locale.replyLanguageName))
+    }
 }

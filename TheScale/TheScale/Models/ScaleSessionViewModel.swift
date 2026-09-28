@@ -1253,7 +1253,8 @@ final class ScaleSessionViewModel: ObservableObject {
         if let polished = await FoundationModelCoach.summarizeFitnessDigest(
             profileName: profile.greetingName,
             digestBlock: prompt + "\n\n" + digestBlock,
-            sex: profile.sex
+            sex: profile.sex,
+            locale: CoachLocaleContext.resolve(profile: profile)
         ) {
             let cleaned = CoachCopySanitize.clean(polished)
             guard !cleaned.isEmpty, cleaned.count < 280 else { return }
@@ -1270,20 +1271,29 @@ final class ScaleSessionViewModel: ObservableObject {
         }()
         let activeDigest = digest ?? lastFitnessDigest ?? FitnessDigest.empty
         let window = fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes
+        var coachProfile = profile
+        let appLang = AppLanguageStore.current
+        if appLang != .system {
+            coachProfile.preferredLanguage = appLang.profileLanguageName
+        } else if coachProfile.preferredLanguage
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty {
+            coachProfile.preferredLanguage = appLang.profileLanguageName
+        }
         return CoachBrief(
-            userName: profile.greetingName,
-            diet: profile.dietPreference,
-            heightCm: profile.heightCm,
-            ageYears: profile.ageYears,
-            sex: profile.sex,
+            userName: coachProfile.greetingName,
+            diet: coachProfile.dietPreference,
+            heightCm: coachProfile.heightCm,
+            ageYears: coachProfile.ageYears,
+            sex: coachProfile.sex,
             currentKg: healthBaselineKg ?? displayWeightKg,
-            idealKg: profile.idealWeightKg,
+            idealKg: coachProfile.idealWeightKg,
             bodyFatPercent: historyBodyFatPercents.last?.value ?? displayBodyFatPercent,
-            idealBodyFatPercent: profile.idealBodyFatPercent,
+            idealBodyFatPercent: coachProfile.idealBodyFatPercent,
             trend: trendForDisplay,
             weekDeltaKg: weekDelta,
             weeklyGoal: weeklyGoal,
-            personaBlock: profile.coachPersonaBlock,
+            personaBlock: coachProfile.coachPersonaBlock,
             memoryBlock: {
                 let mem = CoachMemoryStore.promptBlock()
                 let comments = ChartCommentStore.analysisPayload()

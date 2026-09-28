@@ -131,12 +131,17 @@ final class CoachOfflineTests: XCTestCase {
         let profile = try JSONDecoder().decode(UserBodyProfile.self, from: legacy)
         XCTAssertEqual(profile.preferredLanguage, "English")
         XCTAssertEqual(profile.location, "")
-        XCTAssertTrue(profile.coachPersonaBlock.isEmpty)
+        XCTAssertTrue(profile.coachPersonaBlock.contains("English"))
+        XCTAssertFalse(profile.coachPersonaBlock.contains("Manila"))
         var filled = profile
         filled.location = "Manila"
         filled.ethnicity = "Filipina"
         filled.culturalVibe = "local food, straight talk"
+        filled.preferredLanguage = "Tagalog"
         XCTAssertTrue(filled.coachPersonaBlock.contains("Manila"))
+        XCTAssertTrue(filled.coachPersonaBlock.contains("Tagalog"))
+        XCTAssertTrue(filled.coachPersonaBlock.lowercased().contains("never racist")
+            || filled.coachPersonaBlock.lowercased().contains("ethnicity-as-punchline"))
     }
 
     func testPreSleepHRElevatedTrigger() {

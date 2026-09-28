@@ -106,9 +106,10 @@ enum FoundationModelCoach {
         fallbackTitle: String,
         fallbackBody: String,
         context: String,
-        sex: UserBodyProfile.Sex = .male
+        sex: UserBodyProfile.Sex = .male,
+        locale: CoachLocaleContext = .resolve()
     ) async -> (title: String, body: String, usedFoundationModel: Bool) {
-        let voice = CoachVoice.bannerRules(sex: sex)
+        let voice = CoachVoice.bannerRules(sex: sex, locale: locale)
         guard FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else {
                 return (fallbackTitle, fallbackBody, false)
@@ -173,9 +174,10 @@ enum FoundationModelCoach {
         kind: String,
         algorithmicReason: String,
         extraContext: String = "",
-        sex: UserBodyProfile.Sex = .male
+        sex: UserBodyProfile.Sex = .male,
+        locale: CoachLocaleContext = .resolve()
     ) async -> (shouldNotify: Bool, reason: String, usedFoundationModel: Bool) {
-        let voice = CoachVoice.bannerRules(sex: sex)
+        let voice = CoachVoice.bannerRules(sex: sex, locale: locale)
         guard FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else {
                 return (true, "Background wake; algorithmic trigger stands.", false)
@@ -240,9 +242,10 @@ enum FoundationModelCoach {
     static func summarizeFitnessDigest(
         profileName: String,
         digestBlock: String,
-        sex: UserBodyProfile.Sex = .male
+        sex: UserBodyProfile.Sex = .male,
+        locale: CoachLocaleContext = .resolve()
     ) async -> String? {
-        let voice = CoachVoice.bannerRules(sex: sex)
+        let voice = CoachVoice.bannerRules(sex: sex, locale: locale)
         guard FoundationModelAvailability.isAvailable else {
             return await OnDevicePolishService.shared.summarizeFitnessDigest(
                 profileName: profileName,
@@ -279,9 +282,10 @@ enum FoundationModelCoach {
     /// Optional FM / sidecar pass to pull sticky facts; merges with heuristic extractor upstream.
     static func extractMemoryFacts(
         from userText: String,
-        sex: UserBodyProfile.Sex = .male
+        sex: UserBodyProfile.Sex = .male,
+        locale: CoachLocaleContext = .resolve()
     ) async -> [CoachMemoryFact] {
-        let voice = CoachVoice.bannerRules(sex: sex)
+        let voice = CoachVoice.bannerRules(sex: sex, locale: locale)
         guard FoundationModelAvailability.isAvailable else {
             return await OnDevicePolishService.shared.extractMemoryFacts(
                 from: userText,
@@ -366,10 +370,11 @@ enum FoundationModelCoach {
         do {
             let session = LanguageModelSession(instructions: """
                 You write practical meal menus for FATNAG on-device.
-                \(CoachVoice.bannerRules(sex: sex))
+                \(CoachVoice.bannerRules(sex: sex, locale: .resolve()))
                 Fitness coaching only. Never diagnose. No em dashes.
                 Every ingredient needs a metric portion (g or ml). Real dishes, not fluff.
                 Honour diet preference and fasting windows.
+                Meal titles and micro lines must be in the LANGUAGE reply language.
                 """)
             let prompt = """
                 Build exactly \(plateCount) upcoming meal\(plateCount == 1 ? "" : "s") for \(who) from local now \(localTime).

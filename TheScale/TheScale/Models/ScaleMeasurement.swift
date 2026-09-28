@@ -121,14 +121,20 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         let eth = ethnicity.trimmingCharacters(in: .whitespacesAndNewlines)
         let lang = preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let vibe = culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !lang.isEmpty {
+            lines.append("Preferred language (mandatory reply language): \(lang)")
+        }
         if !loc.isEmpty {
             let localBit = useLocalContext
-                ? " (use for local markets, meal staples, nearby fitness)"
+                ? " (use for local markets, meal staples, nearby fitness, and local humour anchors)"
                 : ""
             lines.append("Location: \(loc)\(localBit)")
         }
-        if !eth.isEmpty { lines.append("Ethnicity / culture: \(eth)") }
-        if !lang.isEmpty { lines.append("Preferred language: \(lang)") }
+        if !eth.isEmpty {
+            lines.append(
+                "Ethnicity / culture: \(eth) (belonging + food/slang register only; never a punchline)"
+            )
+        }
         if !vibe.isEmpty { lines.append("Vibe / cultural style: \(vibe)") }
         lines.append("Diet preference: \(dietPreference.title)\(dietPreferenceConfirmed ? "" : " (unconfirmed)")")
         let avoid = foodAvoidances.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -158,6 +164,7 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         return """
         Persona (match tone and examples to this; do not stereotype or exoticize):
         \(lines.joined(separator: "\n"))
+        Reply fully in Preferred language when set. Subtle vulgar local jokes OK when rooted in language/location/vibe; never racist or ethnicity-as-punchline.
         """
     }
 

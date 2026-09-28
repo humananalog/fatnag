@@ -50,6 +50,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             may consult behind the scenes; you alone speak to the user. Never mention agent roles or routing.
             \(voice)
             Match their persona (location, ethnicity, language, cultural vibe) without stereotyping.
+            Honour LANGUAGE / LOCAL HUMOUR rules in the voice block: reply in the target language; subtle vulgar local jokes OK; never racist.
             Honour remembered user facts (e.g. intermittent fasting) when adjusting diet advice.
             If the user states a weight or body-fat target, the app may have already gated it on-device.
             Honour "Target gate" notes in context: if a target was rejected as unsafe, push back and suggest the safer waypoint. Do not encourage essential-floor body-fat crashes.
@@ -1239,6 +1240,9 @@ actor GrokClient {
         }
         lines.append(
             "Keep it under 140 words. No markdown tables. No medical disclaimer footer. Next action must fit \(daypart)."
+        )
+        lines.append(
+            "Write the full reply in the Preferred language from Persona (or LANGUAGE rules). Subtle local vulgar humour OK; never racist."
         )
         return lines.joined(separator: "\n")
     }
