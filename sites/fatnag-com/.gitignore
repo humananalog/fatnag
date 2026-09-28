@@ -2,3 +2,4 @@
 .redeploy*.json
 .full-deploy.json
 .vercel/
+.vercel

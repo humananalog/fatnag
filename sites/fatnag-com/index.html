@@ -3,18 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>fatnag — Nag until the fat folds</title>
-  <meta name="description" content="Privacy-first Mi Scale companion. Daily weigh-ins, honest weekly goals, optional Keel coach. Nag until the fat folds." />
+  <title>fatnag - Nag until the fat folds</title>
+  <meta name="description" content="Privacy-first weigh-in companion. Daily weigh-ins, honest weekly goals, optional Keel coach. Nag until the fat folds." />
   <link rel="canonical" href="https://www.fatnag.com/" />
-  <meta property="og:title" content="fatnag — Nag until the fat folds" />
-  <meta property="og:description" content="Weigh daily. Stay honest. Win the week. Mi Scale + Apple Health + Keel." />
+  <meta property="og:title" content="fatnag - Nag until the fat folds" />
+  <meta property="og:description" content="Weigh daily. Stay honest. Win the week. Bluetooth scales + Apple Health + Keel." />
   <meta property="og:url" content="https://www.fatnag.com/" />
   <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Syne:wght@300;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/polish.css" />
+  <script src="/i18n.js" defer></script>
+  <script src="/main.js" defer></script>
 </head>
 <body>
   <div class="fired-bg" aria-hidden="true"></div>
@@ -25,35 +27,38 @@
         <span class="fat">fat</span><span class="nag">nag</span>
       </a>
       <nav class="nav-links" aria-label="Primary">
-        <a class="hide-sm" href="#how">How it works</a>
-        <a class="hide-sm" href="#keel">Keel</a>
-        <a class="hide-sm" href="#privacy">Privacy</a>
-        <a href="/support/">Support</a>
-        <a class="btn btn-primary" href="#download">Get the app</a>
+        <a class="hide-sm" href="#how" data-i18n="nav.how">How it works</a>
+        <a class="hide-sm" href="#keel" data-i18n="nav.keel">Keel</a>
+        <a class="hide-sm" href="#privacy" data-i18n="nav.privacy">Privacy</a>
+        <a href="/support/" data-i18n="nav.support">Support</a>
+        <label class="lang-picker">
+          <span class="visually-hidden" data-i18n="nav.lang">Language</span>
+          <select id="lang-select" aria-label="Language"></select>
+        </label>
+        <a class="btn btn-primary" href="#download" data-i18n="nav.get">Get the app</a>
       </nav>
     </div>
   </header>
 
   <main>
-    <!-- Hero: brand + one headline + one line + CTA + dominant device -->
     <section class="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
           <p class="hero-brand" aria-label="fatnag">
             <span class="fat">fat</span><span class="nag">nag</span>
           </p>
-          <h1>Nag until the fat folds.</h1>
-          <p class="hero-lead">
+          <h1 data-i18n="hero.h1">Nag until the fat folds.</h1>
+          <p class="hero-lead" data-i18n="hero.lead">
             Daily weigh-ins that keep the routine until the loss shows. Honest numbers. Optional Keel when you go soft.
           </p>
           <div class="hero-actions">
-            <a class="btn btn-ember" id="download" href="https://apps.apple.com/app/id6816630442">Download on the App Store</a>
-            <a class="btn btn-ghost" href="#shots">See the product</a>
+            <a class="btn btn-ember" id="download" href="https://apps.apple.com/app/id6816630442" data-i18n="hero.download">Download on the App Store</a>
+            <a class="btn btn-ghost" href="#shots" data-i18n="hero.see">See the product</a>
           </div>
           <div class="hero-meta">
-            <span>Mi Body Composition Scale 2</span>
-            <span>Apple Health</span>
-            <span>18+</span>
+            <span data-i18n="hero.meta.bt">Bluetooth scale auto-detect</span>
+            <span data-i18n="hero.meta.health">Apple Health</span>
+            <span data-i18n="hero.meta.age">18+</span>
           </div>
         </div>
 
@@ -82,12 +87,12 @@
 
     <div class="works">
       <div class="wrap works-row">
-        <h2>Works with</h2>
+        <h2 data-i18n="works.title">Works with</h2>
         <ul class="works-list">
-          <li>Xiaomi Mi Scale 2</li>
-          <li>Apple Health</li>
-          <li>Apple Watch</li>
-          <li>On-device Apple Intelligence</li>
+          <li data-i18n="works.bt">Bluetooth scales (auto-detect)</li>
+          <li data-i18n="works.health">Apple Health</li>
+          <li data-i18n="works.watch">Apple Watch</li>
+          <li data-i18n="works.ai">On-device Apple Intelligence</li>
         </ul>
       </div>
     </div>
@@ -95,19 +100,19 @@
     <section id="how">
       <div class="wrap">
         <header class="section-head reveal">
-          <p class="section-kicker">The loop</p>
-          <h2 class="section-title">One job. The goal you set.</h2>
-          <p class="section-lead">Done pretending it fixes itself. Weigh, stay honest, win the week — or get offended. That is the point.</p>
+          <p class="section-kicker" data-i18n="how.kicker">The loop</p>
+          <h2 class="section-title" data-i18n="how.title">One job. The goal you set.</h2>
+          <p class="section-lead" data-i18n="how.lead">Done pretending it fixes itself. Weigh, stay honest, win the week - or get offended. That is the point.</p>
         </header>
 
         <div class="feature reveal">
           <div class="feature-copy">
-            <h3>Step on. Confirm. Move on.</h3>
-            <p>Live weigh-in from the Mi Scale, settle the reading, write to Apple Health. Manual entry when the scale is elsewhere.</p>
+            <h3 data-i18n="how.f1.title">Step on. Confirm. Move on.</h3>
+            <p data-i18n="how.f1.body">Step on a Bluetooth-compatible scale. fatnag auto-detects it, settles the reading, writes to Apple Health. Manual entry when the scale is elsewhere.</p>
             <ul class="feature-points">
-              <li>Bluetooth live sheet, not a cloud scale account</li>
-              <li>Body fat when impedance lands</li>
-              <li>Same-time weigh habit beats heroics</li>
+              <li data-i18n="how.f1.p1">Auto-detects Bluetooth-compatible scales nearby</li>
+              <li data-i18n="how.f1.p2">Body fat when impedance lands</li>
+              <li data-i18n="how.f1.p3">Same-time weigh habit beats heroics</li>
             </ul>
           </div>
           <div class="feature-visual">
@@ -125,12 +130,12 @@
 
         <div class="feature reveal" style="margin-top: 4rem;">
           <div class="feature-copy">
-            <h3>Win the week, not the hour.</h3>
-            <p>Horizon arc, daily energy / protein / steps, and a today-ahead line that tells you what actually matters before Sunday.</p>
+            <h3 data-i18n="how.f2.title">Win the week, not the hour.</h3>
+            <p data-i18n="how.f2.body">Horizon arc, daily energy / protein / steps, and a today-ahead line that tells you what actually matters before Sunday.</p>
             <ul class="feature-points">
-              <li>Aggressive weekly catch-up when you fall behind</li>
-              <li>Red card when a spike looks like noise or sabotage</li>
-              <li>Progress charts with ideal line — no dashboard soup</li>
+              <li data-i18n="how.f2.p1">Aggressive weekly catch-up when you fall behind</li>
+              <li data-i18n="how.f2.p2">Red card when a spike looks like noise or sabotage</li>
+              <li data-i18n="how.f2.p3">Progress charts with ideal line - no dashboard soup</li>
             </ul>
           </div>
           <div class="feature-visual">
@@ -152,14 +157,14 @@
       <div class="wrap">
         <div class="strip reveal">
           <div>
-            <p class="section-kicker">Keel coach</p>
-            <h2 class="section-title">Live pressure. Weekly credits.</h2>
-            <p>Keel is the only voice you talk to — blunt, local-language humour, no multi-agent dump. Free / Plus / Pro caps keep chat from becoming a coping hobby.</p>
-            <p style="margin-top: 1rem;">On-device polish when Apple Intelligence is around. Optional Grok when you consent. Never a medical device.</p>
+            <p class="section-kicker" data-i18n="keel.kicker">Keel coach</p>
+            <h2 class="section-title" data-i18n="keel.title">Live pressure. Weekly credits.</h2>
+            <p data-i18n="keel.body">Keel is the only voice you talk to - blunt, local-language humour, no multi-agent dump. Free / Plus / Pro caps keep chat from becoming a coping hobby.</p>
+            <p style="margin-top: 1rem;" data-i18n="keel.aside">On-device polish when Apple Intelligence is around. Optional Grok when you consent. Never a medical device.</p>
           </div>
           <div class="quote-block">
-            Lie to yourself and you get offended.<br />
-            Good. That is the point.
+            <span data-i18n="keel.quote1">Lie to yourself and you get offended.</span><br />
+            <span data-i18n="keel.quote2">Good. That is the point.</span>
           </div>
         </div>
       </div>
@@ -168,9 +173,9 @@
     <section id="shots">
       <div class="wrap">
         <header class="section-head reveal">
-          <p class="section-kicker">Product</p>
-          <h2 class="section-title">The app, not the pitch deck.</h2>
-          <p class="section-lead">Screenshot slots for App Store art. Drop PNG/WebP into <code style="color: var(--glacier);">/assets/shots/</code> when ready.</p>
+          <p class="section-kicker" data-i18n="shots.kicker">Product</p>
+          <h2 class="section-title" data-i18n="shots.title">The app, not the pitch deck.</h2>
+          <p class="section-lead" data-i18n="shots.lead">Screenshot slots for App Store art. Drop PNG/WebP into /assets/shots/ when ready.</p>
         </header>
         <div class="shots reveal">
           <article class="shot-card">
@@ -217,13 +222,13 @@
       <div class="wrap">
         <div class="strip strip-privacy reveal">
           <div>
-            <p class="section-kicker">Privacy</p>
-            <h2 class="section-title">Most of it never leaves the phone.</h2>
-            <p>Weigh-ins, profile, charts, and local coaching stay on-device. Keel only gets what you consent to send. We do not sell your data. No ad networks.</p>
+            <p class="section-kicker" data-i18n="privacy.kicker">Privacy</p>
+            <h2 class="section-title" data-i18n="privacy.title">Most of it never leaves the phone.</h2>
+            <p data-i18n="privacy.body">Weigh-ins, profile, charts, and local coaching stay on-device. Keel only gets what you consent to send. We do not sell your data. No ad networks.</p>
           </div>
           <div>
-            <a class="btn btn-ghost" href="/privacy/">Privacy Policy</a>
-            <a class="btn btn-ghost" href="/terms/" style="margin-left: 0.5rem;">Terms</a>
+            <a class="btn btn-ghost" href="/privacy/" data-i18n="privacy.policy">Privacy Policy</a>
+            <a class="btn btn-ghost" href="/terms/" style="margin-left: 0.5rem;" data-i18n="privacy.terms">Terms</a>
           </div>
         </div>
       </div>
@@ -231,12 +236,12 @@
 
     <section class="cta" id="get">
       <div class="wrap reveal">
-        <p class="section-kicker">Ready</p>
-        <h2 class="section-title">Go weigh yourself. Now.</h2>
-        <p class="section-lead">Honest coach. Real numbers. Daily nag until the pants fit.</p>
+        <p class="section-kicker" data-i18n="cta.kicker">Ready</p>
+        <h2 class="section-title" data-i18n="cta.title">Go weigh yourself. Now.</h2>
+        <p class="section-lead" data-i18n="cta.lead">Honest coach. Real numbers. Daily nag until the pants fit.</p>
         <div class="cta-actions">
-          <a class="btn btn-ember" href="https://apps.apple.com/app/id6816630442">Download on the App Store</a>
-          <a class="btn btn-ghost" href="/support/">Need support?</a>
+          <a class="btn btn-ember" href="https://apps.apple.com/app/id6816630442" data-i18n="cta.download">Download on the App Store</a>
+          <a class="btn btn-ghost" href="/support/" data-i18n="cta.support">Need support?</a>
         </div>
       </div>
     </section>
@@ -247,38 +252,36 @@
       <div class="footer-grid">
         <div>
           <div class="wordmark"><span class="fat">fat</span><span class="nag">nag</span></div>
-          <p>Nag until the fat folds. Human Analog Limited. Not a medical device.</p>
+          <p data-i18n="footer.tag">Nag until the fat folds. Human Analog Limited. Not a medical device.</p>
         </div>
         <div>
-          <h4>Product</h4>
+          <h4 data-i18n="footer.product">Product</h4>
           <ul>
-            <li><a href="#how">How it works</a></li>
-            <li><a href="#keel">Keel</a></li>
-            <li><a href="#download">Download</a></li>
+            <li><a href="#how" data-i18n="footer.how">How it works</a></li>
+            <li><a href="#keel" data-i18n="footer.keel">Keel</a></li>
+            <li><a href="#download" data-i18n="footer.download">Download</a></li>
           </ul>
         </div>
         <div>
-          <h4>Support</h4>
+          <h4 data-i18n="footer.support">Support</h4>
           <ul>
-            <li><a href="/support/">Help</a></li>
-            <li><a href="mailto:privacy@humananalog.ai">Contact</a></li>
+            <li><a href="/support/" data-i18n="footer.help">Help</a></li>
+            <li><a href="mailto:privacy@humananalog.ai" data-i18n="footer.contact">Contact</a></li>
           </ul>
         </div>
         <div>
-          <h4>Legal</h4>
+          <h4 data-i18n="footer.legal">Legal</h4>
           <ul>
-            <li><a href="/privacy/">Privacy</a></li>
-            <li><a href="/terms/">Terms</a></li>
+            <li><a href="/privacy/" data-i18n="footer.privacy">Privacy</a></li>
+            <li><a href="/terms/" data-i18n="footer.terms">Terms</a></li>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
         <span>© <span id="y"></span> Human Analog Limited</span>
-        <span>Bundle app.thescale.ios · iOS 18+</span>
+        <span data-i18n="footer.bundle">Bundle app.thescale.ios · iOS 18+</span>
       </div>
     </div>
   </footer>
-
-  <script src="/main.js" defer></script>
 </body>
 </html>

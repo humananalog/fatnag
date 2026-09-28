@@ -21,3 +21,14 @@
 }
 .shot-label strong { color: var(--ivory); }
 .shot-label span { color: rgba(244, 241, 234, 0.7); }
+
+/* unified wordmark: match iOS FatnagWordmark.svg */
+.wordmark,
+.hero-brand {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  letter-spacing: -0.03em;
+}
+.wordmark .fat,
+.hero-brand .fat { font-weight: 300; }
+.wordmark .nag,
+.hero-brand .nag { font-weight: 800; }
