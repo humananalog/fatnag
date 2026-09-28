@@ -422,17 +422,21 @@ struct HomeNotificationBell: View {
         Button {
             isPresented = true
         } label: {
-            ZStack(alignment: .topTrailing) {
+            ZStack {
                 Circle()
-                    .fill(Color.white.opacity(colorScheme == .dark ? 0.2 : 0.001))
-                    .frame(width: 36, height: 36)
+                    .fill(Color.white.opacity(colorScheme == .dark ? 0.22 : 0.01))
+                    .frame(width: 40, height: 40)
                     .scaleGlassCircle()
+                    .clipShape(Circle())
+                    .frame(width: 40, height: 40)
 
-                Image(systemName: badgeCount > 0 ? "bell.badge.fill" : "bell.fill")
-                    .font(.system(size: 17, weight: .bold))
+                Image(systemName: "bell.fill")
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(glyph)
-                    .shadow(color: colorScheme == .dark ? .white.opacity(0.35) : .clear, radius: 1.5, y: 0)
-
+                    .frame(width: 40, height: 40)
+            }
+            .frame(width: 40, height: 40)
+            .overlay(alignment: .topTrailing) {
                 if badgeCount > 0 {
                     Text(badgeCount > 9 ? "9+" : "\(badgeCount)")
                         .font(.system(size: 9, weight: .heavy, design: .rounded))
@@ -440,12 +444,12 @@ struct HomeNotificationBell: View {
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .background(Color.orange.opacity(0.95), in: Capsule())
-                        .offset(x: 4, y: -2)
+                        .offset(x: 6, y: -4)
                 }
             }
-            .frame(width: 36, height: 36)
         }
         .buttonStyle(.plain)
+        .fixedSize()
         .accessibilityLabel(badgeCount > 0 ? "Alerts, \(badgeCount) pending" : "Alerts")
     }
 }

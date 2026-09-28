@@ -25,7 +25,8 @@ struct ProgressSheet: View {
     @State private var arrowIn = false
     @State private var deltaIn = false
     @State private var coachIn = false
-    @State private var actionsIn = false
+    @State private var chartsIn = false
+    @State private var roastButtonIn = false
     @State private var displayedPercent = 0
 
     private var surface: WeeklyGoalSurface {
@@ -140,9 +141,13 @@ struct ProgressSheet: View {
                         .padding(.top, 28)
                         .progressActionBlock(revealed: coachIn, reduceMotion: reduceMotion, slide: 44, fromScale: 0.62)
 
-                    actionsBlock
+                    chartsButton
                         .padding(.top, 18)
-                        .progressActionBlock(revealed: actionsIn, reduceMotion: reduceMotion, slide: 60, fromScale: 0.5)
+                        .progressButtonRise(revealed: chartsIn, reduceMotion: reduceMotion)
+
+                    roastButton
+                        .padding(.top, 12)
+                        .progressButtonRise(revealed: roastButtonIn, reduceMotion: reduceMotion)
                 }
                 .padding(.horizontal, 28)
                 .padding(.bottom, 36)
@@ -413,39 +418,39 @@ struct ProgressSheet: View {
                 .foregroundStyle(roastInk)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(3)
-                .lineLimit(8)
-                .minimumScaleFactor(0.9)
                 .padding(.bottom, 8)
                 .accessibilityIdentifier("progress.roast")
         }
     }
 
-    private var actionsBlock: some View {
-        VStack(spacing: 12) {
-            Button {
-                session.reopenResults()
-            } label: {
-                Label {
-                    Text(String(localized: "progress.charts", defaultValue: "Charts"))
-                } icon: {
-                    Image(systemName: "chart.xyaxis.line")
-                }
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(atmosphere.ink)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
-                    .background {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .strokeBorder(
-                                atmosphere.ink.opacity(colorScheme == .dark ? 0.65 : 0.40),
-                                lineWidth: 1.5
-                            )
-                    }
+    private var chartsButton: some View {
+        Button {
+            session.reopenResults()
+        } label: {
+            Label {
+                Text(String(localized: "progress.charts", defaultValue: "Charts"))
+            } icon: {
+                Image(systemName: "chart.xyaxis.line")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("progress.charts")
-            .accessibilityLabel(String(localized: "progress.charts.a11y", defaultValue: "Open weight and body fat charts"))
+            .font(.system(size: 16, weight: .bold, design: .rounded))
+            .foregroundStyle(atmosphere.ink)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 15)
+            .background {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(
+                        atmosphere.ink.opacity(colorScheme == .dark ? 0.65 : 0.40),
+                        lineWidth: 1.5
+                    )
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("progress.charts")
+        .accessibilityLabel(String(localized: "progress.charts.a11y", defaultValue: "Open weight and body fat charts"))
+    }
 
+    private var roastButton: some View {
+        VStack(spacing: 12) {
             Button {
                 if GrokPrivacyConsent.isAccepted || !GrokSharedConfig.isLiveConfigured {
                     Task { await runCoach() }
@@ -503,7 +508,8 @@ struct ProgressSheet: View {
             gaugeFill = reduceMotion ? targetGauge : 0
             deltaIn = false
             coachIn = false
-            actionsIn = false
+            chartsIn = false
+            roastButtonIn = false
             displayedPercent = reduceMotion ? percent : 0
         }
 
@@ -516,6 +522,11 @@ struct ProgressSheet: View {
             try? await Task.sleep(for: .milliseconds(30))
             guard token == entranceToken else { return }
             statusIn = true
+            chartsIn = true
+
+            try? await Task.sleep(for: .milliseconds(70))
+            guard token == entranceToken else { return }
+            roastButtonIn = true
 
             try? await Task.sleep(for: .milliseconds(120))
             guard token == entranceToken else { return }
@@ -565,10 +576,6 @@ struct ProgressSheet: View {
             try? await Task.sleep(for: .milliseconds(110))
             guard token == entranceToken else { return }
             coachIn = true
-
-            try? await Task.sleep(for: .milliseconds(120))
-            guard token == entranceToken else { return }
-            actionsIn = true
         }
 
         // If a later visit cancels this run, the new run owns the token.
@@ -576,8 +583,10 @@ struct ProgressSheet: View {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(2200))
             guard token == entranceToken else { return }
-            guard !actionsIn else { return }
-            revealEntranceFinal()
+            guard sundayIn, roastButtonIn else {
+                revealEntranceFinal()
+                return
+            }
         }
     }
 
@@ -611,7 +620,8 @@ struct ProgressSheet: View {
             gaugeFill = targetGauge
             deltaIn = true
             coachIn = true
-            actionsIn = true
+            chartsIn = true
+            roastButtonIn = true
             displayedPercent = percent
         }
     }
@@ -649,6 +659,19 @@ private extension View {
                 .offset(y: revealed ? 0 : slide)
                 .scaleEffect(revealed ? 1 : fromScale, anchor: anchor)
                 .animation(.spring(response: 0.48, dampingFraction: 0.55), value: revealed)
+        }
+    }
+
+    /// Buttons rise from below, one after another, without waiting on the hero.
+    @ViewBuilder
+    func progressButtonRise(revealed: Bool, reduceMotion: Bool) -> some View {
+        if reduceMotion {
+            self.opacity(revealed ? 1 : 0.04)
+        } else {
+            self
+                .opacity(revealed ? 1 : 0)
+                .offset(y: revealed ? 0 : 84)
+                .animation(.spring(response: 0.26, dampingFraction: 0.78), value: revealed)
         }
     }
 }

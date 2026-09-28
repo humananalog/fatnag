@@ -2,8 +2,10 @@ import Foundation
 
 /// How this week's mini-goal was shaped relative to last week / the finish line.
 enum WeeklyTargetMode: String, Equatable, Sendable {
-    /// Needed pace, pushed to the safe biology cap toward the macro goal.
+    /// Needed pace to the user's goal date, inside the safe biology cap.
     case aggressive
+    /// Goal date needs more than a safe weekly cut. Intake drops to the cap.
+    case commando
     /// Missed last Sunday target: catch-up shortfall within safe max.
     case hardcoreCatchUp
     /// Ahead of last week / calendar: do not coast; keep near safe-max toward finish.
@@ -17,6 +19,7 @@ enum WeeklyTargetMode: String, Equatable, Sendable {
         case .hardcoreCatchUp: return String(localized: "week.mode.hardcore", defaultValue: "HARDCORE")
         case .accelerate: return String(localized: "week.mode.ahead", defaultValue: "AHEAD")
         case .aggressive: return String(localized: "week.mode.aggressive", defaultValue: "AGGRESSIVE")
+        case .commando: return String(localized: "week.mode.commando", defaultValue: "COMMANDO")
         case .hold: return String(localized: "week.mode.hold", defaultValue: "HOLD")
         }
     }
@@ -27,6 +30,7 @@ enum WeeklyTargetMode: String, Equatable, Sendable {
         case .hardcoreCatchUp: return String(localized: "week.mode.hardcore.cta", defaultValue: "No coast. Close the gap.")
         case .accelerate: return String(localized: "week.mode.ahead.cta", defaultValue: "Celebrate, then push.")
         case .aggressive: return String(localized: "week.mode.aggressive.cta", defaultValue: "Hit Sunday. Full send.")
+        case .commando: return String(localized: "week.mode.commando.cta", defaultValue: "Cut intake. The date has to move.")
         case .hold: return String(localized: "week.mode.hold.cta", defaultValue: "Hold the line.")
         }
     }
@@ -102,35 +106,42 @@ enum AggressiveWeeklyTargetEngine {
             return signedFallback
         }()
 
-        // Aggressive default: push as hard as biology allows toward the finish line.
-        // If calendar needs more than safe, clamp. If calendar is softer, still use safe max.
+        // Follow the goal date when that pace is safe. A softer calendar must not
+        // be replaced by the biology cap — that pulled ETA months ahead of the date.
+        // Only an impossible date drops intake to the safe max (commando).
         var weekly: Double
-        var mode: WeeklyTargetMode = .aggressive
+        var mode: WeeklyTargetMode
         if towardLower {
-            weekly = -safeLoss
-            // Never go softer than calendar pace when calendar is already aggressive.
-            if calendarPace < weekly {
-                weekly = max(calendarPace, -safeLoss)
+            if calendarPace < -safeLoss - 0.001 {
+                weekly = -safeLoss
+                mode = .commando
+            } else {
+                weekly = calendarPace
+                mode = .aggressive
+            }
+        } else if towardHigher {
+            if calendarPace > safeGain + 0.001 {
+                weekly = safeGain
+                mode = .commando
+            } else {
+                weekly = calendarPace
+                mode = .aggressive
             }
         } else {
-            weekly = safeGain
-            if calendarPace > weekly {
-                weekly = min(calendarPace, safeGain)
-            }
+            weekly = 0
+            mode = .hold
         }
 
-        // Last-week adherence vs prior Sunday target.
-        if let prior = priorSundayTargetKg {
+        // Last-week adherence vs prior Sunday target. Commando already sits on the cap.
+        if mode != .commando, let prior = priorSundayTargetKg {
             let miss = currentKg - prior
             if towardLower {
                 if miss > adherenceSlackKg {
-                    // Over prior Sunday: hardcore catch-up (extra loss), still within safe max.
                     let catchUp = weekly - miss
                     weekly = max(catchUp, -safeLoss)
                     mode = .hardcoreCatchUp
                 } else if miss < -adherenceSlackKg {
-                    // Under prior Sunday (ahead): do not coast; keep near safe max.
-                    weekly = -safeLoss
+                    // Ahead of last Sunday: keep the goal-date pace. Do not race the macro ETA.
                     mode = .accelerate
                 }
             } else if towardHigher {
@@ -139,25 +150,8 @@ enum AggressiveWeeklyTargetEngine {
                     weekly = min(catchUp, safeGain)
                     mode = .hardcoreCatchUp
                 } else if miss > adherenceSlackKg {
-                    weekly = safeGain
                     mode = .accelerate
                 }
-            }
-        } else if towardLower, let goalDate {
-            // No prior Sunday: if calendar ETA already beats plan, still accelerate (no coast).
-            let neededWeeks = abs(remaining / max(abs(calendarPace), 0.01))
-            let daysLeft = max(
-                calendar.dateComponents(
-                    [.day],
-                    from: calendar.startOfDay(for: now),
-                    to: calendar.startOfDay(for: goalDate)
-                ).day ?? 0,
-                0
-            )
-            let weeksLeft = Double(daysLeft) / 7.0
-            if weeksLeft > neededWeeks + 0.5 {
-                weekly = -safeLoss
-                mode = .accelerate
             }
         }
 
@@ -188,7 +182,9 @@ enum AggressiveWeeklyTargetEngine {
             case .accelerate:
                 return " Ahead: accelerate, no coast."
             case .aggressive:
-                return " Aggressive to finish (safe cap)."
+                return " Paced to your goal date."
+            case .commando:
+                return " Commando: intake at the safe max. The date needs a rewrite."
             case .hold:
                 return ""
             }

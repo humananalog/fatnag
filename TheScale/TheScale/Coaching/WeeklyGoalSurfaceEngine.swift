@@ -188,7 +188,8 @@ enum WeeklyGoalSurfaceEngine {
         // Early Monday: near-zero move must not inherit last week's "crushed" chrome.
         let earlyWeekQuiet = moment == .mondayFresh
             && abs(movedDelta ?? 0) < 0.08
-        let fractionForBand: Double? = earlyWeekQuiet ? (rawFraction.map { min($0, 0.12) } ?? 0) : rawFraction
+        // Missing baseline stays nil so Monday does not paint "on track" at 0%.
+        let fractionForBand: Double? = earlyWeekQuiet ? rawFraction.map { min($0, 0.12) } : rawFraction
         let fraction = fractionForBand ?? 0
         let percent = Int((min(max(earlyWeekQuiet ? 0 : (rawFraction ?? 0), 0), 1.2) * 100).rounded())
 
@@ -240,6 +241,8 @@ enum WeeklyGoalSurfaceEngine {
             switch targetMode {
             case .hardcoreCatchUp:
                 return base + " Hardcore catch-up week."
+            case .commando:
+                return base + " Commando: food intake drops to the safe max."
             case .accelerate:
                 return base + " Accelerate: no coast."
             case .aggressive, .hold:
@@ -500,7 +503,7 @@ enum WeeklyGoalSurfaceEngine {
         maxCal = min(tdee + 500, maxCal)
 
         var steps = 8_500
-        if band == .atRisk || targetMode == .hardcoreCatchUp { steps = 10_500 }
+        if band == .atRisk || targetMode == .hardcoreCatchUp || targetMode == .commando { steps = 10_500 }
         if targetMode == .accelerate { steps = max(steps, 9_500) }
         // Ahead of week pace: do not coast with a soft step floor.
         if band == .ahead || band == .crushed {
@@ -514,7 +517,7 @@ enum WeeklyGoalSurfaceEngine {
             steps = Int(today.rounded())
         }
 
-        let proteinPerKg = weeklyDeltaKg < -0.15 || targetMode == .hardcoreCatchUp ? 1.8 : 1.6
+        let proteinPerKg = weeklyDeltaKg < -0.15 || targetMode == .hardcoreCatchUp || targetMode == .commando ? 1.8 : 1.6
         let protein = Int((weight * proteinPerKg).rounded())
         let micro = microPriority(profile: profile, weeklyDeltaKg: weeklyDeltaKg, diet: profile.dietPreference)
         let intakeTracked = hasRobustNutritionLog(digest: digest)
@@ -830,6 +833,14 @@ enum WeeklyGoalSurfaceEngine {
             }
         }
 
+        if targetMode == .commando {
+            switch sex {
+            case .female:
+                return "\(who), commando week. \(dayPart.capitalized): \(energyCap), \(proteinBit), \(targets.steps) steps. The old date was too fast, so intake drops hard."
+            case .male:
+                return "\(who), commando week. \(dayPart.capitalized): \(energyCap), \(proteinBit), \(targets.steps) steps. Cut intake. The date has to be honest."
+            }
+        }
         if targetMode == .hardcoreCatchUp {
             switch sex {
             case .female:

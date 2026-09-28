@@ -54,12 +54,7 @@ struct MealPlanCarouselView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     headerCopy
 
-                    if session.isMealPlanLoading {
-                        Spacer()
-                        RetroSnakeSpinnerView()
-                            .frame(maxWidth: .infinity)
-                        Spacer()
-                    } else if let plan = session.mealPlan, !plan.meals.isEmpty {
+                    if let plan = session.mealPlan, !plan.meals.isEmpty {
                         GeometryReader { geo in
                             // GeometryReader can report 0 during the first layout pass; never
                             // feed negative / non-finite sizes into `.frame`.
@@ -93,11 +88,21 @@ struct MealPlanCarouselView: View {
                             .foregroundStyle(steel)
                             .padding(.horizontal, 4)
                     } else {
-                        Spacer()
-                        Text(String(localized: "meal.empty", defaultValue: "No meal plan yet."))
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundStyle(ink)
-                        Spacer()
+                        Spacer(minLength: 12)
+                        VStack(alignment: .leading, spacing: 12) {
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .strokeBorder(ink.opacity(0.2), lineWidth: 1.5)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 180)
+                            Text(session.isMealPlanLoading
+                                 ? String(localized: "meal.writing", defaultValue: "Keel is writing meals. You can keep moving.")
+                                 : String(localized: "meal.empty", defaultValue: "No meal plan yet."))
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .foregroundStyle(ink)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.horizontal, 8)
+                        Spacer(minLength: 12)
                     }
                 }
                 .padding(.vertical, 20)
@@ -110,7 +115,6 @@ struct MealPlanCarouselView: View {
                     Button(String(localized: "common.refresh", defaultValue: "Refresh")) {
                         Task { await session.refreshMealPlan(force: true) }
                     }
-                    .disabled(session.isMealPlanLoading)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if session.alreadyWeighedToday {

@@ -80,24 +80,44 @@ private struct HomeMenuPageSwipeModifier: ViewModifier {
     @State private var didCommit = false
 
     func body(content: Content) -> some View {
-        content
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 56, coordinateSpace: .local)
-                    .onChanged { value in
-                        guard !didCommit else { return }
-                        guard shouldCommit(value) else { return }
-                        if let page = targetPage(for: value) {
-                            didCommit = true
-                            withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
-                                onSelect(page)
-                            }
-                        }
+        // Meal cards own horizontal drags. Page changes there start at the screen edge only.
+        if selection == .meals {
+            content
+                .overlay(alignment: .leading) {
+                    Color.clear
+                        .frame(width: 22)
+                        .contentShape(Rectangle())
+                        .highPriorityGesture(pageDrag)
+                }
+                .overlay(alignment: .trailing) {
+                    Color.clear
+                        .frame(width: 22)
+                        .contentShape(Rectangle())
+                        .highPriorityGesture(pageDrag)
+                }
+                .sensoryFeedback(.selection, trigger: selection)
+        } else {
+            content
+                .simultaneousGesture(pageDrag)
+                .sensoryFeedback(.selection, trigger: selection)
+        }
+    }
+
+    private var pageDrag: some Gesture {
+        DragGesture(minimumDistance: 56, coordinateSpace: .local)
+            .onChanged { value in
+                guard !didCommit else { return }
+                guard shouldCommit(value) else { return }
+                if let page = targetPage(for: value) {
+                    didCommit = true
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                        onSelect(page)
                     }
-                    .onEnded { _ in
-                        didCommit = false
-                    }
-            )
-            .sensoryFeedback(.selection, trigger: selection)
+                }
+            }
+            .onEnded { _ in
+                didCommit = false
+            }
     }
 
     private func shouldCommit(_ value: DragGesture.Value) -> Bool {

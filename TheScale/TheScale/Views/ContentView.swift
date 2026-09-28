@@ -144,6 +144,14 @@ struct ContentView: View {
         // Weigh-now lives inside the Weigh tab only. A conditional
         // `tabViewBottomAccessory` left a blank white chrome bar on Settings / Coach / etc.
         // Follow system appearance so Progress / home / meals stay readable in dark mode.
+        .sheet(item: Binding(
+            get: { session.goalRevisionOffer },
+            set: { if $0 == nil { session.keepUnrealisticGoalDate() } }
+        )) { offer in
+            GoalDateRevisionSheet(offer: offer)
+                .environmentObject(session)
+                .presentationDetents([.medium, .large])
+        }
         .sheet(isPresented: Binding(
             get: { showNotificationCenter || session.isNotificationCenterPresented },
             set: { open in
@@ -334,6 +342,14 @@ struct ContentView: View {
             .onTapGesture { session.presentProgress() }
 
             adviceBlock(compact: compact)
+                .padding(14)
+                .background {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.04 : 0.35))
+                }
+                .overlay {
+                    InsightPulseOutline(accent: atmosphere.accent)
+                }
 
             homeStatusLine(compact: compact)
             Spacer(minLength: compact ? 12 : 24)
@@ -414,13 +430,6 @@ struct ContentView: View {
 
     private var brandRow: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image("BrandMark")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 40, height: 40)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .accessibilityHidden(true)
-
             VStack(alignment: .leading, spacing: 2) {
                 FatnagWordmark(size: 24, color: atmosphere.ink)
                     .shadow(
@@ -560,6 +569,92 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Traveling stroke around the home insight block.
+private struct InsightPulseOutline: View {
+    var accent: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduceMotion)) { context in
+            let cycle = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 6)
+            let angle = reduceMotion ? 40.0 : cycle / 6 * 360
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(
+                    AngularGradient(
+                        colors: [
+                            accent.opacity(0.08),
+                            accent.opacity(0.2),
+                            accent,
+                            Color.white.opacity(0.85),
+                            accent.opacity(0.2),
+                            accent.opacity(0.08)
+                        ],
+                        center: .center,
+                        angle: .degrees(angle)
+                    ),
+                    lineWidth: 1.75
+                )
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Pre-selects the earliest honest goal date. The user can move it later.
+struct GoalDateRevisionSheet: View {
+    @EnvironmentObject private var session: ScaleSessionViewModel
+    @Environment(\.dismiss) private var dismiss
+    let offer: GoalRevisionOffer
+    @State private var date: Date
+
+    init(offer: GoalRevisionOffer) {
+        self.offer = offer
+        _date = State(initialValue: offer.proposedDate)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("This date is too fast")
+                    .font(.system(size: 28, weight: .bold, design: .serif))
+                Text(offer.note)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Commando meals are on: intake drops to the safe weekly max. Keel pre-selected a date you can still change.")
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .fixedSize(horizontal: false, vertical: true)
+                DatePicker(
+                    "New goal date",
+                    selection: $date,
+                    in: offer.proposedDate...,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .accessibilityIdentifier("goal.revision.date")
+                Button {
+                    session.acceptRevisedGoalDate(date)
+                    dismiss()
+                } label: {
+                    Text("Use this date")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("goal.revision.accept")
+                Button("Keep my date") {
+                    session.keepUnrealisticGoalDate()
+                    dismiss()
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding(20)
+            .navigationBarTitleDisplayMode(.inline)
+        }
     }
 }
 

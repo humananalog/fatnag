@@ -115,8 +115,10 @@ final class ScaleSessionViewModel: ObservableObject {
         profile: .default,
         digest: nil
     )
-    /// Last computed weekly target mode (catch-up / accelerate / aggressive).
+    /// Last computed weekly target mode (catch-up / accelerate / aggressive / commando).
     @Published private(set) var weeklyTargetMode: WeeklyTargetMode = .aggressive
+    /// Quick sheet when the goal date cannot be hit safely. Date is pre-selected.
+    @Published var goalRevisionOffer: GoalRevisionOffer?
     /// True after history + baseline have warmed Progress / week-start math.
     @Published private(set) var progressSurfaceWarmed = false
     private var lastProgressWarmAt: Date?
@@ -1088,7 +1090,11 @@ final class ScaleSessionViewModel: ObservableObject {
         }
 
         isMealPlanLoading = true
-        defer { isMealPlanLoading = false }
+        KeelIslandActivityController.begin(label: "Meals")
+        defer {
+            isMealPlanLoading = false
+            KeelIslandActivityController.end()
+        }
 
         let brief = makeCoachBrief()
         let micro = "\(surface.targets.microName) \(surface.targets.microTargetLine)"
@@ -1220,6 +1226,7 @@ final class ScaleSessionViewModel: ObservableObject {
         mondayCard = draft
 
         let brief = makeCoachBrief(digest: digest)
+        KeelIslandActivityController.begin(label: "Monday")
         let result = await GrokClient.shared.mondayCardStreaming(
             brief: brief,
             progress: progress,
@@ -1237,6 +1244,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 self.mondayCard = live
             }
         }
+        KeelIslandActivityController.end()
 
         draft.encouragement = result.encouragement
         draft.meals = result.meals
@@ -1383,6 +1391,51 @@ final class ScaleSessionViewModel: ObservableObject {
             next.title = UnitFormat.sundayTitle(kg: hit.sundayTargetKg, system: preferredUnits)
         }
         weeklyGoal = next
+        considerGoalDateRevision(currentKg: healthBaselineKg ?? mondayKg)
+    }
+
+    /// Unrealistic goal date → commando meals, one notification, and a pre-filled date sheet.
+    private func considerGoalDateRevision(currentKg: Double) {
+        #if DEBUG
+        if isDemoPersonaActive || PromoCaptureMode.isActive { return }
+        #endif
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
+        guard let goalDate = profile.goalDate else { return }
+        let verdict = GoalPaceGuard.evaluate(
+            currentKg: currentKg,
+            targetKg: profile.idealWeightKg,
+            goalDate: goalDate
+        )
+        guard verdict.status == .rejected, let proposed = verdict.earliestFeasibleDate else { return }
+        let stamp = GoalRevisionStore.stamp(goalDate: goalDate, idealKg: profile.idealWeightKg)
+        guard GoalRevisionStore.lastStamp != stamp else { return }
+        GoalRevisionStore.lastStamp = stamp
+        goalRevisionOffer = GoalRevisionOffer(
+            proposedDate: proposed,
+            note: verdict.keelNote,
+            stamp: stamp
+        )
+        let proposedDate = proposed
+        Task { @MainActor in
+            await TrendNotificationScheduler.scheduleGoalRevision(proposed: proposedDate)
+            clearMealPlanCache()
+            _ = await refreshMealPlan(force: true)
+        }
+    }
+
+    func acceptRevisedGoalDate(_ date: Date) {
+        profile.goalDate = date
+        UserProfileStore.save(profile)
+        GoalRevisionStore.lastStamp = GoalRevisionStore.stamp(goalDate: date, idealKg: profile.idealWeightKg)
+        goalRevisionOffer = nil
+        ensureWeeklyGoalBaseline()
+        rebuildWeeklyGoalSurface()
+        clearMealPlanCache()
+        Task { await refreshMealPlan(force: true) }
+    }
+
+    func keepUnrealisticGoalDate() {
+        goalRevisionOffer = nil
     }
 
     /// Weight series for Monday week-start reconcile (charts → trend window → recent baseline).
@@ -1924,7 +1977,9 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func requestOrchestratorCoach() async -> CoachReply {
-        await GrokClient.shared.orchestrate(brief: makeCoachBrief())
+        KeelIslandActivityController.begin(label: "Keel")
+        defer { KeelIslandActivityController.end() }
+        return await GrokClient.shared.orchestrate(brief: makeCoachBrief())
     }
 
     /// Pull Health fitness signals, evaluate triggers, optionally call Grok.
@@ -2765,6 +2820,28 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
         if shouldSurfaceTransientHints {
             liveHint = status
         }
+    }
+}
+
+struct GoalRevisionOffer: Identifiable, Equatable {
+    let id = UUID()
+    var proposedDate: Date
+    var note: String
+    var stamp: String
+}
+
+enum GoalRevisionStore {
+    private static let key = "thescale.goalRevision.stamp"
+
+    static var lastStamp: String? {
+        get { UserDefaults.standard.string(forKey: key) }
+        set { UserDefaults.standard.set(newValue, forKey: key) }
+    }
+
+    static func stamp(goalDate: Date, idealKg: Double) -> String {
+        let day = Calendar.current.startOfDay(for: goalDate).timeIntervalSince1970
+        let kg = (idealKg * 10).rounded() / 10
+        return "\(day)-\(kg)"
     }
 }
 

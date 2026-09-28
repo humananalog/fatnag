@@ -243,7 +243,7 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         let eta = MacroGoalETA.compute(
             currentKg: 83.0,
             idealKg: 78.0,
-            plannedDate: cal.date(from: DateComponents(year: 2026, month: 12, day: 1))!,
+            plannedDate: nil,
             recentWeights: weights,
             weeklyDeltaKg: -0.3,
             now: now,
@@ -252,6 +252,51 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
         XCTAssertNotNil(eta.etaDate)
         XCTAssertTrue(eta.line.contains("ETA"))
         XCTAssertFalse(eta.line.contains("—"))
+        XCTAssertFalse(eta.needsDateRevision)
+    }
+
+    func testFeasibleGoalDateIsTheETANotAFasterPace() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 28, hour: 8))!
+        let goal = cal.date(from: DateComponents(year: 2027, month: 12, day: 31))!
+        // Hot fortnight would have projected an early 2027 landing. The goal date wins.
+        let weights = [
+            HealthWeightSample(weightKg: 92.0, date: cal.date(from: DateComponents(year: 2026, month: 9, day: 14, hour: 8))!),
+            HealthWeightSample(weightKg: 90.0, date: now)
+        ]
+        let eta = MacroGoalETA.compute(
+            currentKg: 90,
+            idealKg: 75,
+            plannedDate: goal,
+            recentWeights: weights,
+            weeklyDeltaKg: -0.9,
+            now: now,
+            calendar: cal
+        )
+        XCTAssertEqual(eta.etaDate, goal)
+        XCTAssertFalse(eta.needsDateRevision)
+        XCTAssertTrue(eta.line.contains("On plan"))
+        XCTAssertFalse(eta.line.contains("ETA"))
+    }
+
+    func testUnrealisticGoalProposesALaterDate() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 28, hour: 8))!
+        let goal = cal.date(from: DateComponents(year: 2026, month: 10, day: 20))!
+        let eta = MacroGoalETA.compute(
+            currentKg: 90,
+            idealKg: 75,
+            plannedDate: goal,
+            recentWeights: [],
+            weeklyDeltaKg: -0.3,
+            now: now,
+            calendar: cal
+        )
+        XCTAssertTrue(eta.needsDateRevision)
+        XCTAssertGreaterThan(eta.proposedGoalDate ?? now, goal)
+        XCTAssertTrue(eta.line.lowercased().contains("commando"))
     }
 
     func testWeighInAnalysisSergeantOnGainWhileCutting() {
@@ -266,7 +311,14 @@ final class WeeklyGoalSurfaceTests: XCTestCase {
             profile: .default
         )
         XCTAssertEqual(card.tone, .sergeant)
-        XCTAssertTrue(card.headline.contains("Alex") || card.body.lowercased().contains("kg"))
+        let massMention = card.body.lowercased()
+        XCTAssertTrue(
+            card.headline.contains("Alex")
+                || massMention.contains("kg")
+                || massMention.contains("g")
+                || massMention.contains("lb")
+                || massMention.contains("oz")
+        )
         XCTAssertFalse(card.body.contains("—"))
         XCTAssertFalse(card.body.lowercased().contains("diagnos"))
         XCTAssertFalse(card.popLine.isEmpty)

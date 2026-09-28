@@ -6,6 +6,59 @@ import WidgetKit
 struct TheScaleWidgetsBundle: WidgetBundle {
     var body: some Widget {
         WeighInLiveActivityWidget()
+        KeelIslandLiveActivityWidget()
+    }
+}
+
+/// Blinking LED in the Dynamic Island while Keel loads. Compact, so navigation stays free.
+struct KeelIslandLiveActivityWidget: Widget {
+    private var led: Color { Color(red: 0.25, green: 0.95, blue: 0.55) }
+
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: KeelIslandActivityAttributes.self) { context in
+            HStack(spacing: 10) {
+                Image(systemName: "circle.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(led)
+                    .symbolEffect(.pulse, options: .repeating)
+                Text("Keel · \(context.state.label)")
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 0)
+            }
+            .padding(16)
+            .activityBackgroundTint(Color.black.opacity(0.9))
+            .activitySystemActionForegroundColor(.white)
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Image(systemName: "circle.fill")
+                        .foregroundStyle(led)
+                        .symbolEffect(.pulse, options: .repeating)
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    Text(context.state.label)
+                        .font(.headline.weight(.bold))
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    Text("Keel is working. Keep moving.")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            } compactLeading: {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 8, weight: .black))
+                    .foregroundStyle(led)
+                    .symbolEffect(.pulse, options: .repeating)
+            } compactTrailing: {
+                Text("Keel")
+                    .font(.caption2.weight(.bold))
+            } minimal: {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 8, weight: .black))
+                    .foregroundStyle(led)
+                    .symbolEffect(.pulse, options: .repeating)
+            }
+        }
     }
 }
 

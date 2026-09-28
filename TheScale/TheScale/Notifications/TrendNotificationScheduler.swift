@@ -7,6 +7,21 @@ import UserNotifications
 enum TrendNotificationScheduler {
     static let badTrendId = "thescale.bad-trend"
     static let weeklyGoalId = "thescale.weekly-goal"
+    static let goalRevisionId = "thescale.goal-revision"
+
+    /// Fires once when the goal date is biologically unrealistic and commando meals start.
+    static func scheduleGoalRevision(proposed: Date) async {
+        let allowed = await requestAuthorizationIfNeeded()
+        guard allowed else { return }
+        let when = proposed.formatted(.dateTime.month(.abbreviated).day().year())
+        let content = UNMutableNotificationContent()
+        content.title = "Date too fast"
+        content.body = "Commando meals are on. Keel pre-selected \(when). Open to keep it or pick another day."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: goalRevisionId, content: content, trigger: trigger)
+        try? await UNUserNotificationCenter.current().add(request)
+    }
 
     static func requestAuthorizationIfNeeded() async -> Bool {
         #if DEBUG

@@ -214,6 +214,39 @@ enum CoachVoice {
 
     // MARK: - Pace / dream-weight lines
 
+    static func onPlanLine(
+        remainingAbsKg: Double,
+        paceKgPerWeek: Double,
+        planText: String,
+        sex: UserBodyProfile.Sex,
+        unitSystem: PreferredUnitSystem
+    ) -> String {
+        let remain = UnitFormat.massString(remainingAbsKg, system: unitSystem, fractionDigits: 1)
+        let pace = UnitFormat.massDeltaString(paceKgPerWeek, system: unitSystem, fractionDigits: 2)
+        switch sex {
+        case .female:
+            return "Your plan lands \(planText). About \(pace) per week, \(remain) still to go."
+        case .male:
+            return "On plan for \(planText) at \(pace)/wk · \(remain) to go."
+        }
+    }
+
+    static func unrealisticDateLine(
+        remainingAbsKg: Double,
+        planText: String,
+        proposedText: String,
+        sex: UserBodyProfile.Sex,
+        unitSystem: PreferredUnitSystem
+    ) -> String {
+        let remain = UnitFormat.massString(remainingAbsKg, system: unitSystem, fractionDigits: 1)
+        switch sex {
+        case .female:
+            return "\(planText) asks for more than a safe cut on \(remain). Commando meals are on. Earliest honest date: \(proposedText)."
+        case .male:
+            return "\(planText) is too fast for \(remain). Commando intake is on. Earliest honest date: \(proposedText)."
+        }
+    }
+
     static func paceLine(
         remainingAbsKg: Double,
         paceKgPerWeek: Double,

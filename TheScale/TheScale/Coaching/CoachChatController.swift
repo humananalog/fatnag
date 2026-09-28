@@ -266,7 +266,11 @@ final class CoachChatController: ObservableObject {
             )
         )
         isSending = true
-        defer { isSending = false }
+        KeelIslandActivityController.begin(label: "Keel")
+        defer {
+            isSending = false
+            KeelIslandActivityController.end()
+        }
 
         // Never feed prior failure / quota-lock bubbles back into Keel as "assistant" history.
         let historySnapshot = turns.filter {

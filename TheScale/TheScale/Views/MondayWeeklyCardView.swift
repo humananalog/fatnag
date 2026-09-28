@@ -22,6 +22,7 @@ struct MondayWeeklyCardView: View {
         case .hardcoreCatchUp: return Color(red: 0.86, green: 0.32, blue: 0.24)
         case .accelerate: return Color(red: 0.72, green: 0.92, blue: 0.28)
         case .aggressive: return Color(red: 0.35, green: 0.78, blue: 0.92)
+        case .commando: return Color(red: 0.92, green: 0.28, blue: 0.22)
         case .hold: return gold
         }
     }
