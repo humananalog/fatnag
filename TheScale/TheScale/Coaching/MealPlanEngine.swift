@@ -1,5 +1,11 @@
 import Foundation
 
+/// What the meal planner should put on screen for the current clock.
+enum MealPlanFocus: Equatable, Sendable {
+    case next(MealPlanMeal)
+    case kitchenClosed
+}
+
 /// One meal in the next-24h home meal plan carousel.
 struct MealPlanMeal: Equatable, Codable, Identifiable, Sendable {
     var id: UUID
@@ -179,6 +185,55 @@ enum MealPlanEngine {
             return min(59, max(0, mm))
         }()
         return Double(h) + Double(m) / 60.0
+    }
+
+    /// A plate stays "the meal" until this long after its slot.
+    static let mealGraceHours: Double = 1.25
+    /// Deep night before the first morning plate. After the last window, the kitchen stays shut.
+    static let kitchenClosedBeforeHour: Double = 5
+
+    /// The one plate that matches the clock, or a shut kitchen once the last window has passed.
+    static func focus(
+        meals: [MealPlanMeal],
+        now: Date = Date(),
+        calendar: Calendar = .current,
+        fasting: FastingWindow = .none
+    ) -> MealPlanFocus {
+        let nowHour = clockHour(now, calendar: calendar)
+        let timed = meals.compactMap { meal -> (MealPlanMeal, Double)? in
+            guard let hour = meal.approxHour else { return nil }
+            return (meal, hour)
+        }.sorted { $0.1 < $1.1 }
+
+        guard let first = timed.first, let last = timed.last else {
+            if nowHour >= 21 { return .kitchenClosed }
+            if let meal = meals.first { return .next(meal) }
+            return .kitchenClosed
+        }
+
+        let close = kitchenCloseHour(lastMealHour: last.1, fasting: fasting)
+        if nowHour >= close { return .kitchenClosed }
+        if nowHour < kitchenClosedBeforeHour, first.1 >= 6, close >= 18 {
+            return .kitchenClosed
+        }
+        if let open = timed.first(where: { nowHour < $0.1 + mealGraceHours }) {
+            return .next(open.0)
+        }
+        return .kitchenClosed
+    }
+
+    static func clockHour(_ date: Date, calendar: Calendar = .current) -> Double {
+        Double(calendar.component(.hour, from: date))
+            + Double(calendar.component(.minute, from: date)) / 60.0
+    }
+
+    /// Last plate's grace, pulled in when a fasting window ends sooner.
+    static func kitchenCloseHour(lastMealHour: Double, fasting: FastingWindow) -> Double {
+        var close = lastMealHour + mealGraceHours
+        if fasting.isActive {
+            close = min(close, fasting.eatingEndHour + 0.35)
+        }
+        return close
     }
 
     static func formatHour(_ hour: Double) -> String {

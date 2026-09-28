@@ -5,7 +5,6 @@ struct MealPlanCarouselView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
-    @State private var pageIndex = 0
 
     private var ink: Color {
         colorScheme == .dark
@@ -18,9 +17,6 @@ struct MealPlanCarouselView: View {
             ? Color(red: 0.70, green: 0.72, blue: 0.76)
             : Color(red: 0.28, green: 0.30, blue: 0.34)
     }
-
-    private let peek: CGFloat = 28
-    private let cardGap: CGFloat = 12
 
     private var sheetTop: Color {
         colorScheme == .dark
@@ -51,58 +47,33 @@ struct MealPlanCarouselView: View {
                 )
                 .ignoresSafeArea()
 
-                VStack(alignment: .leading, spacing: 16) {
-                    headerCopy
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    let focus = session.mealPlan.map {
+                        MealPlanEngine.focus(
+                            meals: $0.meals,
+                            now: context.date,
+                            fasting: fastingWindow
+                        )
+                    }
+                    VStack(alignment: .leading, spacing: 16) {
+                        headerCopy(focus: focus)
 
-                    if let plan = session.mealPlan, !plan.meals.isEmpty {
-                        GeometryReader { geo in
-                            // GeometryReader can report 0 during the first layout pass; never
-                            // feed negative / non-finite sizes into `.frame`.
-                            let safeWidth = geo.size.width.isFinite ? max(0, geo.size.width) : 0
-                            let safeHeight = geo.size.height.isFinite ? max(0, geo.size.height) : 0
-                            let cardWidth = max(240, safeWidth - peek * 2)
-                            let cardHeight = max(1, safeHeight - 8)
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                LazyHStack(spacing: cardGap) {
-                                    ForEach(Array(plan.meals.enumerated()), id: \.element.id) { index, meal in
-                                        mealCard(meal, accent: accents[index % accents.count])
-                                            .frame(width: cardWidth, height: cardHeight)
-                                            .id(index)
-                                    }
-                                }
-                                .scrollTargetLayout()
+                        if let plan = session.mealPlan, !plan.meals.isEmpty, let focus {
+                            switch focus {
+                            case .kitchenClosed:
+                                KitchenClosedHero(ink: ink, steel: steel)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            case .next(let meal):
+                                mealCard(meal, accent: accents[0])
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                Text(plan.sourceNote)
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(steel)
+                                    .padding(.horizontal, 4)
                             }
-                            .contentMargins(.horizontal, peek, for: .scrollContent)
-                            .scrollTargetBehavior(.viewAligned)
-                            .scrollPosition(id: Binding<Int?>(
-                                get: { pageIndex },
-                                set: { pageIndex = $0 ?? 0 }
-                            ))
+                        } else {
+                            emptyPlan
                         }
-                        .frame(maxHeight: .infinity)
-
-                        pageDots(count: plan.meals.count)
-
-                        Text(plan.sourceNote)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundStyle(steel)
-                            .padding(.horizontal, 4)
-                    } else {
-                        Spacer(minLength: 12)
-                        VStack(alignment: .leading, spacing: 12) {
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .strokeBorder(ink.opacity(0.2), lineWidth: 1.5)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 180)
-                            Text(session.isMealPlanLoading
-                                 ? String(localized: "meal.writing", defaultValue: "Keel is writing meals. You can keep moving.")
-                                 : String(localized: "meal.empty", defaultValue: "No meal plan yet."))
-                                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                                .foregroundStyle(ink)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(.horizontal, 8)
-                        Spacer(minLength: 12)
                     }
                 }
                 .padding(.vertical, 20)
@@ -128,49 +99,58 @@ struct MealPlanCarouselView: View {
                 session.refreshAlreadyWeighedToday()
                 await session.ensureMealPlan()
             }
-            .onChange(of: session.mealPlan?.meals.count ?? 0) { _, _ in
-                pageIndex = 0
-            }
         }
     }
 
-    private var headerCopy: some View {
+    private var fastingWindow: FastingWindow {
+        FastingWindowResolver.current(profile: session.profile)
+    }
+
+    private func headerCopy(focus: MealPlanFocus?) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(String(localized: "meal.whats_ahead", defaultValue: "What's ahead"))
-                .font(.system(size: 28, weight: .semibold, design: .serif))
-                .foregroundStyle(ink)
-            if let plan = session.mealPlan {
-                Text(String(
-                    format: String(localized: "meal.cap_line", defaultValue: "Cap %d kcal · protein %d g · %@"),
-                    plan.maxKcal,
-                    plan.proteinGrams,
-                    plan.dietRaw
-                ))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+            if focus == .kitchenClosed {
+                Text(String(localized: "meal.kitchen_closed", defaultValue: "Kitchen's closed"))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(steel)
             } else {
-                Text(String(localized: "meal.grounded", defaultValue: "Grounded in your deficit, diet prefs, and fasting window."))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(steel)
+                Text(String(localized: "meal.next_plate", defaultValue: "Next plate"))
+                    .font(.system(size: 28, weight: .semibold, design: .serif))
+                    .foregroundStyle(ink)
+                if let plan = session.mealPlan {
+                    Text(String(
+                        format: String(localized: "meal.cap_line", defaultValue: "Cap %d kcal · protein %d g · %@"),
+                        plan.maxKcal,
+                        plan.proteinGrams,
+                        plan.dietRaw
+                    ))
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(steel)
+                } else {
+                    Text(String(localized: "meal.grounded", defaultValue: "Grounded in your deficit, diet prefs, and fasting window."))
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(steel)
+                }
             }
         }
         .padding(.horizontal, 8)
     }
 
-    private func pageDots(count: Int) -> some View {
-        HStack(spacing: 8) {
-            ForEach(0..<count, id: \.self) { index in
-                Capsule()
-                    .fill(index == pageIndex ? ink : ink.opacity(0.22))
-                    .frame(width: index == pageIndex ? 18 : 8, height: 8)
-                    .accessibilityLabel("Page \(index + 1) of \(count)")
-                    .accessibilityAddTraits(index == pageIndex ? .isSelected : [])
-            }
+    private var emptyPlan: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Spacer(minLength: 12)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(ink.opacity(0.2), lineWidth: 1.5)
+                .frame(maxWidth: .infinity)
+                .frame(height: 180)
+            Text(session.isMealPlanLoading
+                 ? String(localized: "meal.writing", defaultValue: "Keel is writing meals. You can keep moving.")
+                 : String(localized: "meal.empty", defaultValue: "No meal plan yet."))
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .foregroundStyle(ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 12)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 4)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Meal pages")
+        .padding(.horizontal, 8)
     }
 
     private func mealCard(_ meal: MealPlanMeal, accent: Color) -> some View {
@@ -255,6 +235,64 @@ struct MealPlanCarouselView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Late-night plate: large type that streams in, one line after another.
+private struct KitchenClosedHero: View {
+    var ink: Color
+    var steel: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var anchor = Date()
+
+    private var lines: [(text: String, size: CGFloat, weight: Font.Weight, design: Font.Design, muted: Bool)] {
+        [
+            (String(localized: "meal.late.too", defaultValue: "Too late"), 72, .bold, .serif, false),
+            (String(localized: "meal.late.eat", defaultValue: "to eat now."), 44, .semibold, .serif, false),
+            (String(localized: "meal.late.bed", defaultValue: "Go to bed."), 60, .bold, .rounded, false),
+            (String(localized: "meal.late.hungry", defaultValue: "You won't be hungry."), 32, .semibold, .rounded, true)
+        ]
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: reduceMotion ? 1 : 1.0 / 30.0, paused: reduceMotion)) { context in
+            let counts = lineCounts(at: context.date)
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                    Text(String(line.text.prefix(counts[index])))
+                        .font(.system(size: line.size, weight: line.weight, design: line.design))
+                        .foregroundStyle(line.muted ? steel : ink)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.55)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(minHeight: line.size * 1.05, alignment: .leading)
+                        .opacity(counts[index] == 0 ? 0 : 1)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 12)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(
+            localized: "meal.late.a11y",
+            defaultValue: "Too late to eat now. Go to bed. You won't be hungry."
+        ))
+        .onAppear { anchor = Date() }
+    }
+
+    private func lineCounts(at date: Date) -> [Int] {
+        if reduceMotion { return lines.map { $0.text.count } }
+        let rate = 0.048
+        let gap = 0.22
+        var cursor = 0.0
+        let elapsed = date.timeIntervalSince(anchor)
+        return lines.map { line in
+            let start = cursor
+            cursor += Double(line.text.count) * rate + gap
+            if elapsed <= start { return 0 }
+            return min(line.text.count, Int((elapsed - start) / rate))
+        }
     }
 }
 
