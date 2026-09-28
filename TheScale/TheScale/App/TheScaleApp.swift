@@ -144,6 +144,16 @@ struct TheScaleApp: App {
                 #endif
                 schedulePostOnboardingWork()
             }
+            .task(id: scenePhase) {
+                guard scenePhase == .active, session.hasCompletedOnboarding else { return }
+                #if DEBUG
+                if PromoCaptureMode.isActive { return }
+                #endif
+                while !Task.isCancelled {
+                    await session.runActivityPulse()
+                    try? await Task.sleep(for: .seconds(10 * 60))
+                }
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, session.hasCompletedOnboarding else { return }
                 appLanguage = AppLanguageStore.current
@@ -170,10 +180,6 @@ struct TheScaleApp: App {
             // Compatible phones (no Apple Intelligence) auto-install 0.5B Metal polish.
             // AI-capable iPhones skip the download entirely.
             await OnDevicePolishBootstrap.configureAndInstallIfNeeded()
-            await GrokFitnessMonitor.scheduleIntervalNotification(
-                prefs: session.fitnessMonitorPreferences,
-                profileName: session.profile.greetingName
-            )
             await session.armHealthKitBackgroundDelivery()
             // Arm weekly + morning fallback even if the user never opens Settings.
             _ = await TrendNotificationScheduler.requestAuthorizationIfNeeded()

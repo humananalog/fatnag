@@ -33,6 +33,108 @@ final class ScaleNotificationContentTests: XCTestCase {
         XCTAssertGreaterThan(content.relevanceScore, 0.9)
     }
 
+    func testSleepRewardNamesTheHours() {
+        var digest = FitnessDigest.empty
+        digest.sleepHoursLastNight = 7.6
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 8))!
+        let pulse = ActivityPulseAnalyzer.evaluate(
+            digest: digest,
+            profileName: "Alex",
+            now: now,
+            calendar: cal
+        )
+        XCTAssertEqual(pulse?.tone, .reward)
+        XCTAssertEqual(pulse?.id, "sleep-2026-09-29-banked")
+        XCTAssertTrue(pulse?.phoneBody.contains("7.6") == true)
+    }
+
+    func testShortSleepIsAPunishment() {
+        var digest = FitnessDigest.empty
+        digest.sleepHoursLastNight = 4.2
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 7))!
+        let pulse = ActivityPulseAnalyzer.evaluate(
+            digest: digest,
+            profileName: "Alex",
+            sex: .female,
+            now: now,
+            calendar: cal
+        )
+        XCTAssertEqual(pulse?.tone, .punishment)
+        XCTAssertEqual(pulse?.glanceTitle, "Short sleep")
+    }
+
+    func testStepMilestoneAndQuietDigest() {
+        var digest = FitnessDigest.empty
+        digest.stepsToday = 10_240
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 16))!
+        let pulse = ActivityPulseAnalyzer.evaluate(
+            digest: digest,
+            profileName: "Alex",
+            now: now,
+            calendar: cal
+        )
+        XCTAssertEqual(pulse?.tone, .reward)
+        XCTAssertEqual(pulse?.id, "steps-2026-09-29-10000")
+        XCTAssertNil(ActivityPulseAnalyzer.evaluate(digest: .empty, profileName: "Alex", now: now, calendar: cal))
+    }
+
+    func testEveningSoftStepsAreAPunishment() {
+        var digest = FitnessDigest.empty
+        digest.stepsToday = 800
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 19))!
+        let pulse = ActivityPulseAnalyzer.evaluate(
+            digest: digest,
+            profileName: "Alex",
+            now: now,
+            calendar: cal
+        )
+        XCTAssertEqual(pulse?.tone, .punishment)
+        XCTAssertEqual(pulse?.id, "steps-low-2026-09-29")
+    }
+
+    func testPulseDoesNotRepeatTheSameBeat() {
+        let pulse = ActivityPulse(
+            id: "joke-1",
+            tone: .joke,
+            isStrong: false,
+            glanceTitle: "Still moving",
+            glanceLine: "2,000 steps",
+            phoneBody: "Keep walking."
+        )
+        let now = Date()
+        XCTAssertFalse(ActivityPulseAnalyzer.shouldDeliver(pulse: pulse, lastId: pulse.id, lastAt: nil, now: now))
+        XCTAssertFalse(ActivityPulseAnalyzer.shouldDeliver(
+            pulse: pulse,
+            lastId: "other",
+            lastAt: now.addingTimeInterval(-60),
+            now: now
+        ))
+        XCTAssertTrue(ActivityPulseAnalyzer.shouldDeliver(
+            pulse: pulse,
+            lastId: "other",
+            lastAt: now.addingTimeInterval(-50 * 60),
+            now: now
+        ))
+    }
+
+    func testTenMinuteModeDoesNotCallGrokEveryTenMinutes() {
+        var prefs = FitnessMonitorPreferences.default
+        prefs.enabled = true
+        prefs.interval = .every10Minutes
+        prefs.lastAutomatedCheckAt = Date().addingTimeInterval(-30 * 60)
+        XCTAssertFalse(FitnessTriggerMonitor.isAutomatedCheckDue(prefs: prefs))
+        prefs.lastAutomatedCheckAt = Date().addingTimeInterval(-7 * 3600)
+        XCTAssertTrue(FitnessTriggerMonitor.isAutomatedCheckDue(prefs: prefs))
+    }
+
     func testIntervalIsPassiveNoSound() {
         let content = ScaleNotificationContentFactory.make(
             ScaleNotificationCopy.fitnessInterval(

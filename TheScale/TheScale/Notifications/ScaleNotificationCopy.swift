@@ -145,6 +145,19 @@ enum ScaleNotificationCopy {
         )
     }
 
+    static func activityPulse(_ pulse: ActivityPulse, profileName: String) -> Moment {
+        let who = greet(profileName, anonymous: "Hey")
+        return Moment(
+            kind: .coachReminder,
+            glanceTitle: glanceSanitize(pulse.glanceTitle, max: 20),
+            glanceLine: clamp(pulse.glanceLine, max: 36),
+            phoneBody: clamp("\(who). \(pulse.phoneBody)", max: 150),
+            visualHeadline: glanceSanitize(pulse.glanceTitle, max: 20),
+            visualDetail: clamp(pulse.glanceLine, max: 40),
+            relevanceScore: pulse.isStrong ? 0.9 : 0.72
+        )
+    }
+
     static func fitnessInterval(profileName: String, intervalTitle: String) -> Moment {
         let who = greet(profileName, anonymous: "Hey")
         return Moment(
@@ -281,5 +294,211 @@ enum ScaleNotificationCopy {
             .first
             .map(String.init) ?? cleaned
         return glanceSanitize(first, max: 18)
+    }
+}
+
+enum ActivityPulseTone: String, Equatable, Sendable {
+    case greeting
+    case reward
+    case joke
+    case humor
+    case punishment
+}
+
+struct ActivityPulse: Equatable, Sendable {
+    var id: String
+    var tone: ActivityPulseTone
+    /// Milestones and sleep/workout beats can land sooner than a joke.
+    var isStrong: Bool
+    var glanceTitle: String
+    var glanceLine: String
+    var phoneBody: String
+}
+
+/// Turns a HealthKit digest into one coaching line. Empty Health stays quiet.
+enum ActivityPulseAnalyzer {
+    static let jokeGap: TimeInterval = 40 * 60
+    static let strongGap: TimeInterval = 8 * 60
+
+    static func evaluate(
+        digest: FitnessDigest,
+        profileName: String,
+        sex: UserBodyProfile.Sex = .male,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> ActivityPulse? {
+        guard digest.hasAnyFitnessSignal else { return nil }
+        let day = dayKey(now, calendar: calendar)
+        let hour = calendar.component(.hour, from: now)
+        let who = ScaleNotificationCopy.greet(profileName, anonymous: sex == .female ? "Hey" : "Recruit")
+
+        if (5...11).contains(hour), let sleep = digest.sleepHoursLastNight, sleep > 0 {
+            return sleepPulse(hours: sleep, day: day, who: who, sex: sex)
+        }
+
+        if let workout = digest.lastWorkout,
+           calendar.isDate(workout.endDate, inSameDayAs: now),
+           now.timeIntervalSince(workout.endDate) < 8 * 3600 {
+            let minutes = Int(workout.durationMinutes.rounded())
+            return ActivityPulse(
+                id: "workout-\(day)-\(Int(workout.startDate.timeIntervalSince1970 / 60))",
+                tone: .reward,
+                isStrong: true,
+                glanceTitle: "Workout banked",
+                glanceLine: "\(minutes) min \(workout.activityName)",
+                phoneBody: "\(workout.activityName), \(minutes) min. That's a reward. Eat like you want to keep it, not like you earned a bakery."
+            )
+        }
+
+        if let steps = digest.stepsToday, steps >= 0 {
+            let count = Int(steps.rounded())
+            if let bucket = stepBucket(count) {
+                return ActivityPulse(
+                    id: "steps-\(day)-\(bucket)",
+                    tone: .reward,
+                    isStrong: true,
+                    glanceTitle: "\(formatted(count)) steps",
+                    glanceLine: "Milestone",
+                    phoneBody: stepRewardBody(count: count, bucket: bucket, who: who, sex: sex)
+                )
+            }
+            if hour >= 18, count < 2_500 {
+                return ActivityPulse(
+                    id: "steps-low-\(day)",
+                    tone: .punishment,
+                    isStrong: true,
+                    glanceTitle: "Steps are soft",
+                    glanceLine: "\(formatted(count)) today",
+                    phoneBody: punishmentSteps(count: count, sex: sex)
+                )
+            }
+            if (11...20).contains(hour), count >= 1_200 {
+                let slot = hour / 2
+                return ActivityPulse(
+                    id: "joke-\(day)-\(slot)",
+                    tone: slot.isMultiple(of: 2) ? .joke : .humor,
+                    isStrong: false,
+                    glanceTitle: "Still moving",
+                    glanceLine: "\(formatted(count)) steps",
+                    phoneBody: jokeLine(slot: slot, steps: count, sex: sex)
+                )
+            }
+        }
+
+        if (6...10).contains(hour) {
+            return ActivityPulse(
+                id: "greet-\(day)",
+                tone: .greeting,
+                isStrong: false,
+                glanceTitle: "Morning",
+                glanceLine: "You're up",
+                phoneBody: sex == .female
+                    ? "Good morning. Water, a weigh-in, then the day. I'll bring the jokes once the steps show up."
+                    : "Morning. Weigh in, then walk. Jokes unlock after the steps do."
+            )
+        }
+        return nil
+    }
+
+    static func shouldDeliver(
+        pulse: ActivityPulse,
+        lastId: String?,
+        lastAt: Date?,
+        now: Date
+    ) -> Bool {
+        if lastId == pulse.id { return false }
+        let gap = pulse.isStrong ? strongGap : jokeGap
+        if let lastAt, now.timeIntervalSince(lastAt) < gap { return false }
+        return true
+    }
+
+    private static func sleepPulse(hours: Double, day: String, who: String, sex: UserBodyProfile.Sex) -> ActivityPulse {
+        let label = String(format: "%.1f", hours)
+        if hours >= 7 {
+            return ActivityPulse(
+                id: "sleep-\(day)-banked",
+                tone: .reward,
+                isStrong: true,
+                glanceTitle: "Sleep banked",
+                glanceLine: "\(label)h last night",
+                phoneBody: sex == .female
+                    ? "\(label) hours down. That's a reward. Spend it on the plan, not a victory pastry."
+                    : "\(label) hours in the bank. Reward accepted. Don't cash it out at the snack cupboard."
+            )
+        }
+        if hours < 5.5 {
+            return ActivityPulse(
+                id: "sleep-\(day)-short",
+                tone: .punishment,
+                isStrong: true,
+                glanceTitle: "Short sleep",
+                glanceLine: "\(label)h last night",
+                phoneBody: sex == .female
+                    ? "\(label) hours. Punishment is a plain day: protein, a walk, no heroics. Be kind, not chaotic."
+                    : "\(label) hours. Punishment: boring food, real steps, no victory snacks. The day is already taxed."
+            )
+        }
+        return ActivityPulse(
+            id: "sleep-\(day)-ok",
+            tone: .greeting,
+            isStrong: true,
+            glanceTitle: "Night logged",
+            glanceLine: "\(label)h sleep",
+            phoneBody: "\(who) slept \(label) hours. Not a medal, not a crisis. Hit the plan and keep the wrist on tonight."
+        )
+    }
+
+    private static func stepBucket(_ count: Int) -> Int? {
+        if count >= 10_000 { return 10_000 }
+        if count >= 7_000 { return 7_000 }
+        if count >= 4_000 { return 4_000 }
+        return nil
+    }
+
+    private static func stepRewardBody(count: Int, bucket: Int, who: String, sex: UserBodyProfile.Sex) -> String {
+        switch bucket {
+        case 10_000:
+            return sex == .female
+                ? "\(formatted(count)) steps. Reward: you may feel smug for four minutes. Then eat the plan."
+                : "\(formatted(count)) steps. Reward unlocked. Smugness expires in four minutes. Dinner still counts."
+        case 7_000:
+            return "\(formatted(count)) steps. That's a real reward, \(who). Don't negotiate it away at 9pm."
+        default:
+            return "\(formatted(count)) steps. Humor me and keep going. 4k is a start, not a parade."
+        }
+    }
+
+    private static func punishmentSteps(count: Int, sex: UserBodyProfile.Sex) -> String {
+        sex == .female
+            ? "\(formatted(count)) steps and the evening is here. Punishment is a lap around the block, not a speech."
+            : "\(formatted(count)) steps. Punishment: shoes on, ten minutes outside. The couch is not a personality."
+    }
+
+    private static func jokeLine(slot: Int, steps: Int, sex: UserBodyProfile.Sex) -> String {
+        let lines: [String] = sex == .female
+            ? [
+                "\(formatted(steps)) steps. Joke's on the sofa. You're winning by a sidewalk.",
+                "Still moving. The only plot twist I want is protein at dinner.",
+                "Steps are up. Humor status: proud, not impressed enough to allow a pastry.",
+                "Look at you, walking like it was your idea. Keep the streak boring."
+            ]
+            : [
+                "\(formatted(steps)) steps. The couch filed a missing-person report. Stay missing.",
+                "Joke: rest is earned. You have not earned a bakery.",
+                "Humor checkpoint. Legs work. Keep them employed.",
+                "Steps are talking. They say don't sit down and call it recovery."
+            ]
+        return lines[abs(slot) % lines.count]
+    }
+
+    private static func formatted(_ count: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: count)) ?? "\(count)"
+    }
+
+    private static func dayKey(_ date: Date, calendar: Calendar) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 }

@@ -53,8 +53,8 @@ enum GrokFitnessMonitor {
             return
         }
         let request = BGAppRefreshTaskRequest(identifier: bgRefreshTaskId)
-        let delay = prefs.interval.nominalSeconds ?? (24 * 3600)
-        request.earliestBeginDate = Date().addingTimeInterval(min(delay, 12 * 3600))
+        // Analyzer cadence. iOS may delay this; HealthKit wakes still run the same pass.
+        request.earliestBeginDate = Date().addingTimeInterval(10 * 60)
         do {
             try BGTaskScheduler.shared.submit(request)
         } catch {
@@ -78,47 +78,76 @@ enum GrokFitnessMonitor {
         }
     }
 
-    /// Schedule a gentle local notification as a wake hint (iOS will not guarantee BG timing).
+    static let activityPulseId = "thescale.activity-pulse"
+    private static let lastPulseIdKey = "thescale.activityPulse.id"
+    private static let lastPulseAtKey = "thescale.activityPulse.at"
+    private static let scheduledPulseIdKey = "thescale.activityPulse.scheduledId"
+
+    /// Next scheduled activity line. Repeating empty "open Coach" pings are gone.
+    /// The body is the latest reward / joke / greeting / punishment from HealthKit.
     static func scheduleIntervalNotification(
         prefs: FitnessMonitorPreferences,
-        profileName: String
+        profileName: String,
+        pulse: ActivityPulse? = nil
     ) async {
         let center = UNUserNotificationCenter.current()
+        guard prefs.enabled, prefs.interval != .manualOnly, let pulse else {
+            center.removePendingNotificationRequests(withIdentifiers: [intervalNotifyId])
+            UserDefaults.standard.removeObject(forKey: scheduledPulseIdKey)
+            return
+        }
+        let pending = await center.pendingNotificationRequests()
+        if pending.contains(where: { $0.identifier == intervalNotifyId }),
+           UserDefaults.standard.string(forKey: scheduledPulseIdKey) == pulse.id {
+            return
+        }
         center.removePendingNotificationRequests(withIdentifiers: [intervalNotifyId])
-        guard prefs.enabled, prefs.interval != .manualOnly else { return }
         let allowed = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
         guard allowed else { return }
 
-        let name = profileName.isEmpty ? "Hey" : profileName
-        // Interval is a quiet wake hint — keep Watch glance short; skip FM essay polish.
         let content = ScaleNotificationContentFactory.make(
-            ScaleNotificationCopy.fitnessInterval(
-                profileName: name,
-                intervalTitle: prefs.interval.title
-            )
+            ScaleNotificationCopy.activityPulse(pulse, profileName: profileName)
         )
+        // 10-minute mode analyzes often and banners on a new beat. The queued
+        // notification is a 6-hour safety net so a locked phone still gets a real line.
+        let seconds: TimeInterval = {
+            if prefs.interval == .every10Minutes { return 6 * 3600 }
+            return max(prefs.interval.nominalSeconds ?? (6 * 3600), 60)
+        }()
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
+        try? await center.add(
+            UNNotificationRequest(identifier: intervalNotifyId, content: content, trigger: trigger)
+        )
+        UserDefaults.standard.set(pulse.id, forKey: scheduledPulseIdKey)
+    }
 
-        switch prefs.interval {
-        case .manualOnly:
+    /// Immediate banner when the 10-minute analyzer finds a new beat.
+    static func notifyActivityPulse(
+        _ pulse: ActivityPulse,
+        profileName: String,
+        now: Date = Date()
+    ) async {
+        let lastId = UserDefaults.standard.string(forKey: lastPulseIdKey)
+        let lastAt = UserDefaults.standard.object(forKey: lastPulseAtKey) as? Date
+        guard ActivityPulseAnalyzer.shouldDeliver(pulse: pulse, lastId: lastId, lastAt: lastAt, now: now) else {
             return
-        case .every6Hours:
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 6 * 3600, repeats: true)
-            try? await center.add(
-                UNNotificationRequest(identifier: intervalNotifyId, content: content, trigger: trigger)
-            )
-        case .every12Hours, .morningAndEvening:
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 12 * 3600, repeats: true)
-            try? await center.add(
-                UNNotificationRequest(identifier: intervalNotifyId, content: content, trigger: trigger)
-            )
-        case .daily:
-            var date = DateComponents()
-            date.hour = 8
-            date.minute = 20
-            let trigger = UNCalendarNotificationTrigger(dateMatching: date, repeats: true)
-            try? await center.add(
-                UNNotificationRequest(identifier: intervalNotifyId, content: content, trigger: trigger)
-            )
+        }
+        let allowed = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
+        guard allowed else { return }
+        let content = ScaleNotificationContentFactory.make(
+            ScaleNotificationCopy.activityPulse(pulse, profileName: profileName)
+        )
+        let request = UNNotificationRequest(
+            identifier: activityPulseId,
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        )
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+            UserDefaults.standard.set(pulse.id, forKey: lastPulseIdKey)
+            UserDefaults.standard.set(now, forKey: lastPulseAtKey)
+        } catch {
+            // Soft-fail: the next analyzer pass can try again.
         }
     }
 

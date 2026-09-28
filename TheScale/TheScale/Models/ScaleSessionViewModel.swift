@@ -1982,6 +1982,42 @@ final class ScaleSessionViewModel: ObservableObject {
         return await GrokClient.shared.orchestrate(brief: makeCoachBrief())
     }
 
+    /// Local HealthKit pass every 10 minutes. No Grok call. Notifies only on a new beat.
+    func runActivityPulse() async {
+        let prefs = fitnessMonitorPreferences
+        guard prefs.enabled, prefs.interval != .manualOnly else { return }
+        #if DEBUG
+        if PromoCaptureMode.isActive { return }
+        #endif
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
+        do {
+            try await healthStore.requestAuthorizationIfNeeded()
+            let digest = try await healthStore.fetchFitnessDigest(
+                preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes,
+                now: Date()
+            )
+            lastFitnessDigest = digest
+            await deliverActivityPulse(digest: digest)
+            GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: prefs)
+        } catch {
+            // Next pass retries. Pages stay up.
+        }
+    }
+
+    private func deliverActivityPulse(digest: FitnessDigest) async {
+        guard let pulse = ActivityPulseAnalyzer.evaluate(
+            digest: digest,
+            profileName: profile.greetingName,
+            sex: profile.sex
+        ) else { return }
+        await GrokFitnessMonitor.notifyActivityPulse(pulse, profileName: profile.greetingName)
+        await GrokFitnessMonitor.scheduleIntervalNotification(
+            prefs: fitnessMonitorPreferences,
+            profileName: profile.greetingName,
+            pulse: pulse
+        )
+    }
+
     /// Pull Health fitness signals, evaluate triggers, optionally call Grok.
     @discardableResult
     func runFitnessMonitorCheck(force: Bool) async -> Bool {
@@ -2020,6 +2056,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 healthAccessStatusLine = digest.settingsStatusLine
 
                 if monitoringOn {
+                    await deliverActivityPulse(digest: digest)
                     let triggers = FitnessTriggerMonitor.evaluate(
                         digest: digest,
                         thresholds: prefs.thresholds
@@ -2095,10 +2132,6 @@ final class ScaleSessionViewModel: ObservableObject {
                     }
 
                     fitnessMonitorPreferences = prefs
-                    await GrokFitnessMonitor.scheduleIntervalNotification(
-                        prefs: prefs,
-                        profileName: profile.greetingName
-                    )
                     GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: prefs)
                     GrokFitnessMonitor.scheduleBackgroundProcessing(prefs: prefs)
                 }
