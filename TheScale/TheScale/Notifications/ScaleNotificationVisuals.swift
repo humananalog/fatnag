@@ -53,9 +53,11 @@ enum ScaleNotificationVisuals {
                 )
             }
 
-            // Soft vignette for Lock Screen richness (iPhone); Watch ignores attachment.
-            cg.setFillColor(UIColor.black.withAlphaComponent(0.18).cgColor)
-            cg.fill(CGRect(x: 0, y: size.height - 48, width: size.width, height: 48))
+            // Extra black wash so white type stays high-contrast on Lock Screen / banners.
+            cg.setFillColor(UIColor.black.withAlphaComponent(0.42).cgColor)
+            cg.fill(CGRect(origin: .zero, size: size))
+            cg.setFillColor(UIColor.black.withAlphaComponent(0.28).cgColor)
+            cg.fill(CGRect(x: 0, y: size.height - 52, width: size.width, height: 52))
 
             drawGlyph(style: style, in: CGRect(x: 20, y: 30, width: 58, height: 58), context: cg)
 
@@ -70,7 +72,7 @@ enum ScaleNotificationVisuals {
                 let sub = detail as NSString
                 let subAttrs: [NSAttributedString.Key: Any] = [
                     .font: UIFont.systemFont(ofSize: 16, weight: .semibold),
-                    .foregroundColor: UIColor.white.withAlphaComponent(0.9)
+                    .foregroundColor: UIColor.white
                 ]
                 sub.draw(at: CGPoint(x: 92, y: 74), withAttributes: subAttrs)
             }
@@ -79,11 +81,11 @@ enum ScaleNotificationVisuals {
             let brandNag = "nag" as NSString
             let fatAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 12, weight: .light),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.7)
+                .foregroundColor: UIColor.white.withAlphaComponent(0.85)
             ]
             let nagAttrs: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 12, weight: .heavy),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.7)
+                .foregroundColor: UIColor.white.withAlphaComponent(0.85)
             ]
             let fatSize = brandFat.size(withAttributes: fatAttrs)
             brandFat.draw(at: CGPoint(x: 90, y: 118), withAttributes: fatAttrs)
@@ -92,33 +94,20 @@ enum ScaleNotificationVisuals {
         return image.pngData()
     }
 
+    /// Near-black bases so white type reads as white-over-black on every style.
     private static func gradient(for style: ScaleNotificationVisualStyle) -> (UIColor, UIColor) {
+        let black = UIColor(red: 0.02, green: 0.02, blue: 0.03, alpha: 1)
         switch style {
         case .trendUp:
-            return (
-                UIColor(red: 0.55, green: 0.18, blue: 0.16, alpha: 1),
-                UIColor(red: 0.22, green: 0.10, blue: 0.12, alpha: 1)
-            )
+            return (UIColor(red: 0.18, green: 0.04, blue: 0.05, alpha: 1), black)
         case .goal:
-            return (
-                UIColor(red: 0.12, green: 0.32, blue: 0.28, alpha: 1),
-                UIColor(red: 0.08, green: 0.16, blue: 0.18, alpha: 1)
-            )
+            return (UIColor(red: 0.04, green: 0.12, blue: 0.10, alpha: 1), black)
         case .heart:
-            return (
-                UIColor(red: 0.45, green: 0.14, blue: 0.28, alpha: 1),
-                UIColor(red: 0.18, green: 0.08, blue: 0.16, alpha: 1)
-            )
+            return (UIColor(red: 0.14, green: 0.03, blue: 0.08, alpha: 1), black)
         case .watch:
-            return (
-                UIColor(red: 0.18, green: 0.22, blue: 0.34, alpha: 1),
-                UIColor(red: 0.08, green: 0.10, blue: 0.16, alpha: 1)
-            )
+            return (UIColor(red: 0.05, green: 0.07, blue: 0.12, alpha: 1), black)
         case .pulse, .coach, .sample:
-            return (
-                UIColor(red: 0.14, green: 0.18, blue: 0.24, alpha: 1),
-                UIColor(red: 0.06, green: 0.08, blue: 0.12, alpha: 1)
-            )
+            return (UIColor(red: 0.05, green: 0.06, blue: 0.08, alpha: 1), black)
         }
     }
 

@@ -937,11 +937,25 @@ struct SettingsView: View {
                 }
 
                 labeledField(
-                    title: "Preferred language",
-                    help: "Language for Coach replies when live Keel is on."
+                    title: String(localized: "settings.language", defaultValue: "App language"),
+                    help: String(localized: "settings.language.help", defaultValue: "Entire app UI. Also used for Coach replies when live Keel is on.")
                 ) {
-                    TextField("e.g. English, French", text: $session.profile.preferredLanguage)
-                        .focused($focusedField, equals: .language)
+                    Picker(
+                        String(localized: "settings.language", defaultValue: "App language"),
+                        selection: Binding(
+                            get: { AppLanguageStore.current },
+                            set: { lang in
+                                AppLanguageStore.current = lang
+                                session.profile.preferredLanguage = lang.profileLanguageName
+                            }
+                        )
+                    ) {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Text(lang.nativeLabel).tag(lang)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .accessibilityIdentifier("settings.appLanguage")
                 }
 
                 labeledField(

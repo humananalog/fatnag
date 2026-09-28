@@ -4,15 +4,17 @@ import Foundation
 @MainActor
 final class OnboardingFlowModel: ObservableObject {
     enum Step: Int, CaseIterable, Equatable {
-        case identity = 0
-        case body = 1
-        case anatomy = 2
-        case dream = 3
-        case lifestyle = 4
-        case confirm = 5
+        case language = 0
+        case identity = 1
+        case body = 2
+        case anatomy = 3
+        case dream = 4
+        case lifestyle = 5
+        case confirm = 6
     }
 
-    @Published var step: Step = .identity
+    @Published var step: Step = .language
+    @Published var appLanguage: AppLanguage = AppLanguageStore.current
     @Published var name = ""
     @Published var freeform = ""
     @Published var heightCm: Double = 170
@@ -89,6 +91,8 @@ final class OnboardingFlowModel: ObservableObject {
 
     var canAdvance: Bool {
         switch step {
+        case .language:
+            return true
         case .identity:
             return !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .body:
@@ -111,12 +115,15 @@ final class OnboardingFlowModel: ObservableObject {
 
     var primaryCTA: String {
         switch step {
-        case .identity: return "Continue"
-        case .body: return "Continue"
-        case .anatomy: return isInferring ? "Filling profile…" : "Set dream weight"
-        case .dream: return "Lock target"
-        case .lifestyle: return "Continue"
-        case .confirm: return "Start weighing"
+        case .language: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
+        case .identity: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
+        case .body: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
+        case .anatomy: return isInferring
+            ? String(localized: "onboarding.cta.filling", defaultValue: "Filling profile…")
+            : String(localized: "onboarding.cta.dream", defaultValue: "Set dream weight")
+        case .dream: return String(localized: "onboarding.cta.lock", defaultValue: "Lock target")
+        case .lifestyle: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
+        case .confirm: return String(localized: "onboarding.cta.start", defaultValue: "Start weighing")
         }
     }
 
@@ -143,10 +150,11 @@ final class OnboardingFlowModel: ObservableObject {
         foodAvoidances = profile.foodAvoidances
         ethnicity = profile.ethnicity
         preferredLanguage = profile.preferredLanguage
+        appLanguage = AppLanguageStore.current
         culturalVibe = profile.culturalVibe
         intermittentFasting = profile.intermittentFasting
         enableNotifications = notifications.notifyOnBadTrend
-        // First launch: force explicit gender + adult age. Re-entry keeps profile values.
+        // First launch: force language → explicit gender + adult age. Re-entry keeps profile values.
         if OnboardingStore.hasCompleted {
             ageYears = profile.ageYears
             sex = profile.sex
@@ -157,6 +165,7 @@ final class OnboardingFlowModel: ObservableObject {
                 difficultyBand = GoalDifficultyFlavor.band(sex: profile.sex, level: level, ratio: nil)
             }
         } else {
+            step = .language
             ageYears = 0
             sex = nil
             difficultyBand = nil
@@ -178,6 +187,10 @@ final class OnboardingFlowModel: ObservableObject {
     /// Advances one step. On anatomy → dream, runs inference first.
     func advance(infer: ((OnboardingFlowModel) async -> OnboardingInferenceDraft)? = nil) async {
         switch step {
+        case .language:
+            AppLanguageStore.current = appLanguage
+            preferredLanguage = appLanguage.profileLanguageName
+            step = .identity
         case .identity:
             step = .body
         case .body:

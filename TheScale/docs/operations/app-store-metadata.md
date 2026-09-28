@@ -14,6 +14,7 @@ Fill these in ASC before Submit for Review. Binary alone is not enough.
 | Bundle ID | `app.thescale.ios` (unchanged) |
 | SKU | `thescale-ios` (or your convention) |
 | Primary language | English (U.S.) |
+| Additional localizations | In-app language picker (onboarding step 1 + Settings). String Catalog covers App Store distribution locales; expand ASC locale listings as screenshots land. |
 | Category | **Health & Fitness** |
 | Secondary | Lifestyle (optional) |
 | Seller | Human Analog Limited (`XHVW66YM39`) |

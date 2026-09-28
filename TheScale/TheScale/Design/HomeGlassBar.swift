@@ -12,11 +12,11 @@ enum HomeGlassDestination: String, CaseIterable, Identifiable, Hashable, Sendabl
 
     var title: String {
         switch self {
-        case .weigh: return "Weigh"
-        case .progress: return "Progress"
-        case .keel: return "Keel"
-        case .meals: return "Meals"
-        case .settings: return "Settings"
+        case .weigh: return String(localized: "tab.weigh", defaultValue: "Weigh")
+        case .progress: return String(localized: "tab.progress", defaultValue: "Progress")
+        case .keel: return String(localized: "tab.keel", defaultValue: "Keel")
+        case .meals: return String(localized: "tab.meals", defaultValue: "Meals")
+        case .settings: return String(localized: "tab.settings", defaultValue: "Settings")
         }
     }
 
@@ -88,7 +88,9 @@ private struct HomeMenuPageSwipeModifier: ViewModifier {
                         guard shouldCommit(value) else { return }
                         if let page = targetPage(for: value) {
                             didCommit = true
-                            onSelect(page)
+                            withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                                onSelect(page)
+                            }
                         }
                     }
                     .onEnded { _ in

@@ -82,6 +82,8 @@ struct ContentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var showNotificationCenter = false
     @State private var pendingNotifCount = 0
+    /// Banking-style mass privacy: dots by default, eye toggles reveal.
+    @State private var hideHomeMass = MassPrivacyStore.hideHomeMass
 
     private var surface: WeeklyGoalSurface {
         session.weeklyGoalSurface
@@ -105,7 +107,11 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: Binding(
             get: { session.homeTab },
-            set: { session.selectHomeTab($0) }
+            set: { newValue in
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                    session.selectHomeTab(newValue)
+                }
+            }
         )) {
             Tab(HomeGlassDestination.weigh.title, systemImage: HomeGlassDestination.weigh.systemImage, value: HomeGlassDestination.weigh) {
                 weighTabRoot
@@ -176,6 +182,16 @@ struct ContentView: View {
         )) {
             MondayWeeklyCardView()
                 .environmentObject(session)
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { session.isSpikeRedCardPresented },
+            set: { if !$0 { session.dismissSpikeRedCard() } }
+        )) {
+            if let plan = session.pendingSpikeRecoveryPlan {
+                WeightSpikeRedCardView(plan: plan) {
+                    session.dismissSpikeRedCard()
+                }
+            }
         }
         .sheet(isPresented: Binding(
             get: { session.isAppReviewPromptPresented },
@@ -406,9 +422,7 @@ struct ContentView: View {
                         radius: 0,
                         y: 1
                     )
-                Text(greetingLine)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(atmosphere.ink.opacity(0.78))
+                homeMassPrivacyRow
             }
             Spacer(minLength: 0)
             Button {
@@ -429,24 +443,60 @@ struct ContentView: View {
         .accessibilityLabel(brandAccessibilityLabel)
     }
 
-    private var greetingLine: String {
+    private var homeMassPrivacyRow: some View {
         let name = session.profile.greetingName
         let units = session.preferredUnits
-        if let kg = session.healthBaselineKg {
-            let mass = UnitFormat.massString(kg, system: units, fractionDigits: 1)
-            if name.isEmpty {
-                return "\(mass) · this week"
+        return HStack(spacing: 6) {
+            if !name.isEmpty {
+                Text(name)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.ink.opacity(0.78))
             }
-            return "\(name) · \(mass)"
+            if session.healthBaselineKg != nil {
+                Button {
+                    hideHomeMass.toggle()
+                    MassPrivacyStore.hideHomeMass = hideHomeMass
+                } label: {
+                    HStack(spacing: 5) {
+                        Text(hideHomeMass
+                             ? MassPrivacyStore.maskedMass(system: units)
+                             : revealedMassLabel)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(atmosphere.ink.opacity(0.78))
+                        Image(systemName: hideHomeMass ? "eye.slash.fill" : "eye.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(atmosphere.ink.opacity(0.55))
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("home.massPrivacy")
+                .accessibilityLabel(hideHomeMass
+                    ? String(localized: "home.mass.reveal", defaultValue: "Show weight")
+                    : String(localized: "home.mass.hide", defaultValue: "Hide weight"))
+            } else if name.isEmpty {
+                Text(String(localized: "home.weekly_goal", defaultValue: "Weekly goal"))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(atmosphere.ink.opacity(0.78))
+            }
         }
-        if name.isEmpty { return "Weekly goal" }
-        return "\(name) · weekly goal"
+    }
+
+    private var revealedMassLabel: String {
+        let units = session.preferredUnits
+        guard let kg = session.healthBaselineKg else { return "" }
+        let mass = UnitFormat.massString(kg, system: units, fractionDigits: 1)
+        return "\(mass) · \(String(localized: "home.this_week", defaultValue: "this week"))"
     }
 
     private var brandAccessibilityLabel: String {
         let name = session.profile.greetingName
         let units = session.preferredUnits
         if let baseline = session.healthBaselineKg {
+            if hideHomeMass {
+                if name.isEmpty { return "fatnag. Weight hidden." }
+                return "fatnag. Hello \(name). Weight hidden."
+            }
             let mass = UnitFormat.massString(baseline, system: units, fractionDigits: 1)
             if name.isEmpty {
                 return "fatnag. Last Health weight \(mass)."

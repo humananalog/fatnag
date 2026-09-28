@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// First launch: identity → body → anatomy → dream → lifestyle → confirm.
+/// First launch: language → identity → body → anatomy → dream → lifestyle → confirm.
 /// Every step is one screenfit page on iPhone 15. Hard facts. Short lines.
 struct OnboardingView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
@@ -45,6 +45,7 @@ struct OnboardingView: View {
 
                     Group {
                         switch flow.step {
+                        case .language: languageStep(compact: compact)
                         case .identity: identityStep(compact: compact)
                         case .body: bodyStep(compact: compact)
                         case .anatomy: anatomyStep(compact: compact)
@@ -54,17 +55,18 @@ struct OnboardingView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .id(flow.appLanguage.rawValue)
 
                     if flow.isInferring {
-                        Text("Shaping profile…")
+                        Text(String(localized: "onboarding.shaping", defaultValue: "Shaping profile…"))
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(moss)
                             .accessibilityIdentifier("onboarding.inferring")
                     }
 
                     HStack(spacing: 10) {
-                        if flow.step != .identity {
-                            Button("Back") {
+                        if flow.step != .language {
+                            Button(String(localized: "onboarding.back", defaultValue: "Back")) {
                                 withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
                                     flow.goBack()
                                 }
@@ -97,6 +99,8 @@ struct OnboardingView: View {
             }
         }
         .preferredColorScheme(.light)
+        .environment(\.locale, flow.appLanguage.locale)
+        .environment(\.layoutDirection, flow.appLanguage.layoutDirection)
         .onAppear {
             flow.seed(
                 from: session.profile,
@@ -104,6 +108,43 @@ struct OnboardingView: View {
                 units: session.preferredUnits
             )
         }
+    }
+
+    private func languageStep(compact: Bool) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(String(localized: "onboarding.language.hint", defaultValue: "Choose the language for fatnag. Every screen follows this choice."))
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(steel)
+                LazyVStack(spacing: 0) {
+                    ForEach(AppLanguage.allCases.filter { $0 != .system } + [.system]) { lang in
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                flow.appLanguage = lang
+                                AppLanguageStore.current = lang
+                            }
+                        } label: {
+                            HStack {
+                                Text(lang.nativeLabel)
+                                    .font(.system(size: compact ? 16 : 17, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(ink)
+                                Spacer()
+                                if flow.appLanguage == lang {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(moss)
+                                }
+                            }
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 4)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("onboarding.language.\(lang.rawValue)")
+                        Divider().opacity(0.35)
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("onboarding.language")
     }
 
     private var stepDots: some View {
@@ -122,23 +163,25 @@ struct OnboardingView: View {
 
     private var stepTitle: String {
         switch flow.step {
-        case .identity: return "Mission"
-        case .body: return "Body"
-        case .anatomy: return "Frame"
-        case .dream: return "Dream weight"
-        case .lifestyle: return "Food & place"
-        case .confirm: return "Lock in"
+        case .language: return String(localized: "onboarding.step.language", defaultValue: "Language")
+        case .identity: return String(localized: "onboarding.step.identity", defaultValue: "Mission")
+        case .body: return String(localized: "onboarding.step.body", defaultValue: "Body")
+        case .anatomy: return String(localized: "onboarding.step.anatomy", defaultValue: "Frame")
+        case .dream: return String(localized: "onboarding.step.dream", defaultValue: "Dream weight")
+        case .lifestyle: return String(localized: "onboarding.step.lifestyle", defaultValue: "Food & place")
+        case .confirm: return String(localized: "onboarding.step.confirm", defaultValue: "Lock in")
         }
     }
 
     private var stepSubtitle: String {
         switch flow.step {
-        case .identity: return "Consistency coach. Not a diet app."
-        case .body: return "18+. Required for BIA and Keel."
-        case .anatomy: return "Height, weight, optional BF%. Units live-convert."
-        case .dream: return "Drag the disc. Impossible pace gets a hard no."
-        case .lifestyle: return "Optional. Leave blank; we may ask gently later."
-        case .confirm: return "Legal once. Then weigh."
+        case .language: return String(localized: "onboarding.sub.language", defaultValue: "First. Sets the whole app.")
+        case .identity: return String(localized: "onboarding.sub.identity", defaultValue: "Consistency coach. Not a diet app.")
+        case .body: return String(localized: "onboarding.sub.body", defaultValue: "18+. Required for BIA and Keel.")
+        case .anatomy: return String(localized: "onboarding.sub.anatomy", defaultValue: "Height, weight, optional BF%. Units live-convert.")
+        case .dream: return String(localized: "onboarding.sub.dream", defaultValue: "Drag the disc. Impossible pace gets a hard no.")
+        case .lifestyle: return String(localized: "onboarding.sub.lifestyle", defaultValue: "Optional. Leave blank; we may ask gently later.")
+        case .confirm: return String(localized: "onboarding.sub.confirm", defaultValue: "Legal once. Then weigh.")
         }
     }
 
@@ -663,6 +706,12 @@ struct OnboardingView: View {
 
     private func advance() async {
         switch flow.step {
+        case .language:
+            AppLanguageStore.current = flow.appLanguage
+            flow.preferredLanguage = flow.appLanguage.profileLanguageName
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
+                flow.step = .identity
+            }
         case .identity:
             withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
                 flow.step = .body
@@ -694,6 +743,8 @@ struct OnboardingView: View {
     }
 
     private func finish() {
+        AppLanguageStore.current = flow.appLanguage
+        flow.preferredLanguage = flow.appLanguage.profileLanguageName
         let profile = flow.buildProfile()
         session.profile = profile
         session.preferredUnits = flow.unitSystem

@@ -11,6 +11,8 @@ struct LiveWeighInSheet: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @State private var pulse = false
     @State private var confirmWeightOnly = false
+    @State private var showSpikeGate = false
+    @State private var spikeGateAllowsSaveAnyway = false
     @State private var calibrationStoredMessage: String?
     @FocusState private var referenceFocused: Bool
     @FocusState private var weightFieldFocused: Bool
@@ -81,10 +83,31 @@ struct LiveWeighInSheet: View {
         .alert("Save weight only?", isPresented: $confirmWeightOnly) {
             Button("Cancel", role: .cancel) {}
             Button("Save weight + BMI only") {
-                Task { await session.saveDraftToHealth() }
+                Task { await beginConfirmSave() }
             }
         } message: {
             Text("No body composition was captured, so body fat % will not be written. You can still edit weight before confirming.")
+        }
+        .alert(
+            spikeGateTitle,
+            isPresented: $showSpikeGate
+        ) {
+            Button("Discard", role: .destructive) {
+                session.pendingSpikeVerdict = nil
+                session.cancelAutoConfirm()
+                session.dismissWeighIn()
+            }
+            if spikeGateAllowsSaveAnyway {
+                Button("It's me — save") {
+                    Task { await session.saveDraftToHealth() }
+                }
+            }
+            Button("Re-weigh", role: .cancel) {
+                session.pendingSpikeVerdict = nil
+            }
+        } message: {
+            Text(session.pendingSpikeVerdict?.reason
+                  ?? String(localized: "spike.gate.fallback", defaultValue: "This reading looks off."))
         }
         .alert("Calibration saved", isPresented: Binding(
             get: { calibrationStoredMessage != nil },
@@ -97,6 +120,33 @@ struct LiveWeighInSheet: View {
         } message: {
             Text(calibrationStoredMessage ?? "")
         }
+    }
+
+    private var spikeGateTitle: String {
+        guard let spike = session.pendingSpikeVerdict else {
+            return String(localized: "spike.gate.title", defaultValue: "Check this reading")
+        }
+        switch spike.kind {
+        case .impossible:
+            return String(localized: "spike.gate.impossible", defaultValue: "Not physically possible")
+        case .notableGain:
+            return String(localized: "spike.gate.gain", defaultValue: "Sudden gain — confirm?")
+        case .notableLoss:
+            return String(localized: "spike.gate.loss", defaultValue: "Sudden loss — confirm?")
+        }
+    }
+
+    /// Physics gate before Health write. Impossible/notable swings need explicit confirm.
+    private func beginConfirmSave() async {
+        guard let kg = session.displayWeightKg ?? session.draft?.weightKg else { return }
+        if let spike = session.evaluateSpikeBeforeSave(weighedKg: kg) {
+            session.pendingSpikeVerdict = spike
+            spikeGateAllowsSaveAnyway = true
+            showSpikeGate = true
+            return
+        }
+        session.pendingSpikeVerdict = nil
+        await session.saveDraftToHealth()
     }
 
     private var mainColumn: some View {
@@ -695,7 +745,7 @@ struct LiveWeighInSheet: View {
                     if session.isWeightOnlyReading || session.draft?.includeCompositionInHealth == false {
                         confirmWeightOnly = true
                     } else {
-                        Task { await session.saveDraftToHealth() }
+                        Task { await beginConfirmSave() }
                     }
                 } label: {
                     Label(
@@ -762,7 +812,7 @@ struct LiveWeighInSheet: View {
             if session.isWeightOnlyReading || session.draft?.includeCompositionInHealth == false {
                 confirmWeightOnly = true
             } else {
-                await session.saveDraftToHealth()
+                await beginConfirmSave()
             }
         }
     }

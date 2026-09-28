@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import UserNotifications
 
 /// A nearby Xiaomi scale discovered via BLE advertisements.
 struct DiscoveredScale: Identifiable, Equatable, Sendable {
@@ -159,6 +160,11 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var weighNowGateResolved = false
     /// Monday morning post-weigh weekly goal card.
     @Published private(set) var isMondayCardPresented = false
+    /// Full-screen red card after a confirmed short-term weight spike.
+    @Published private(set) var isSpikeRedCardPresented = false
+    @Published private(set) var pendingSpikeRecoveryPlan: WeightRecoveryPlan?
+    /// Pre-save physics gate (impossible / notable swing).
+    @Published var pendingSpikeVerdict: WeightSpikeVerdict?
     @Published private(set) var mondayCard: MondayCardPayload?
     @Published private(set) var isMondayCardLoading = false
     @Published private(set) var mondayCardStreamEncouragement = ""
@@ -487,6 +493,11 @@ final class ScaleSessionViewModel: ObservableObject {
     func dismissWeighInHero() {
         isWeighInHeroPresented = false
         refreshAlreadyWeighedToday()
+        // Red card (if any) takes the next full-screen slot before History.
+        if pendingSpikeRecoveryPlan != nil {
+            isSpikeRedCardPresented = true
+            return
+        }
         isResultsPresented = true
         let offerMonday = pendingMondayAfterHero
         let kg = pendingMondayWeighKg
@@ -497,6 +508,96 @@ final class ScaleSessionViewModel: ObservableObject {
                 await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
             }
         }
+    }
+
+    func dismissSpikeRedCard() {
+        isSpikeRedCardPresented = false
+        pendingSpikeRecoveryPlan = nil
+        isResultsPresented = true
+        let offerMonday = pendingMondayAfterHero
+        let kg = pendingMondayWeighKg
+        pendingMondayAfterHero = false
+        pendingMondayWeighKg = nil
+        if offerMonday, let kg {
+            Task {
+                await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
+            }
+        }
+    }
+
+    /// Physics gate before Confirm / auto-confirm. Nil → safe to save.
+    func evaluateSpikeBeforeSave(weighedKg: Double) -> WeightSpikeVerdict? {
+        let prior: (kg: Double, date: Date)? = {
+            if let first = recentHealthWeights.first {
+                return (first.weightKg, first.date)
+            }
+            if let kg = healthBaselineKg {
+                return (kg, Date().addingTimeInterval(-86_400))
+            }
+            return nil
+        }()
+        return WeightSpikeEvaluator.evaluate(
+            weighedKg: weighedKg,
+            priorKg: prior?.kg,
+            priorDate: prior?.date
+        )
+    }
+
+    /// Apply aggressive recovery: keep weekStart, rewrite Sunday/daily targets, kick notif.
+    func applyConfirmedSpikeRecovery(_ spike: WeightSpikeVerdict) {
+        guard spike.kind == .notableGain || (spike.kind == .impossible && spike.deltaKg > 0) else {
+            return
+        }
+        let plan = WeightSpikeEvaluator.recoveryPlan(
+            name: profile.greetingName,
+            spike: spike,
+            weekStartKg: weeklyGoal.weekStartKg,
+            idealKg: profile.idealWeightKg,
+            system: preferredUnits
+        )
+        var next = weeklyGoal
+        // Never treat the spike as the new Monday baseline.
+        next.targetDeltaKg = plan.weeklyDeltaKg
+        next.title = UnitFormat.sundayTitle(kg: plan.sundayTargetKg, system: preferredUnits)
+        weeklyGoal = next
+        weeklyTargetMode = .hardcoreCatchUp
+        UserDefaults.standard.set(Date().addingTimeInterval(5 * 86_400), forKey: Self.spikeRecoveryUntilKey)
+        var surface = weeklyGoalSurface
+        surface.todayAdvice = plan.kickBody
+        weeklyGoalSurface = surface
+        pendingSpikeRecoveryPlan = plan
+        Task { await Self.scheduleSpikeKickNotification(plan: plan, profileName: profile.greetingName) }
+    }
+
+    private static let spikeRecoveryUntilKey = "thescale.spikeRecoveryUntil"
+    private static let spikeKickNotifyId = "thescale.weight-spike-kick"
+
+    private static func scheduleSpikeKickNotification(
+        plan: WeightRecoveryPlan,
+        profileName: String
+    ) async {
+        let allowed = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
+        guard allowed else { return }
+        let moment = ScaleNotificationCopy.weightSpikeKick(
+            profileName: profileName,
+            headline: plan.kickHeadline,
+            body: plan.kickBody
+        )
+        let content = ScaleNotificationContentFactory.make(moment)
+        let request = UNNotificationRequest(
+            identifier: spikeKickNotifyId,
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1.5, repeats: false)
+        )
+        try? await UNUserNotificationCenter.current().add(request)
+    }
+
+    /// True while a spike recovery plan should block softer Sunday rewrites.
+    var spikeRecoveryActive: Bool {
+        guard let until = UserDefaults.standard.object(forKey: Self.spikeRecoveryUntilKey) as? Date else {
+            return false
+        }
+        return until > Date()
     }
 
     /// Soft lifestyle gap sheet at calm moments (after meals dismiss, after results).
@@ -1012,6 +1113,13 @@ final class ScaleSessionViewModel: ObservableObject {
             system: preferredUnits
         )
         weeklyTargetMode = hit.mode
+
+        // Spike recovery: keep the aggressive Sunday already set; do not soften upward.
+        if spikeRecoveryActive {
+            weeklyGoal = next
+            weeklyTargetMode = .hardcoreCatchUp
+            return
+        }
 
         // Always re-sync delta + Sunday title from the biology-capped engine.
         // Stale titles (or pacing-line titles with other "X kg" tokens) must not stick.
@@ -2043,6 +2151,12 @@ final class ScaleSessionViewModel: ObservableObject {
                 noteHappyMomentForFeedback(card)
             }
             rebuildWeeklyGoalSurface()
+            // Confirmed notable gain → recovery plan + red card after hero.
+            if let spike = pendingSpikeVerdict,
+               spike.kind == .notableGain || (spike.kind == .impossible && spike.deltaKg > 0) {
+                applyConfirmedSpikeRecovery(spike)
+            }
+            pendingSpikeVerdict = nil
             let offerMonday = MondayCardEngine.shouldOfferAfterWeighIn()
             pendingMondayAfterHero = offerMonday
             pendingMondayWeighKg = offerMonday ? weighKg : nil

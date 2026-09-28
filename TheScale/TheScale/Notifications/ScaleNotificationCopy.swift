@@ -80,6 +80,23 @@ enum ScaleNotificationCopy {
         )
     }
 
+    static func weightSpikeKick(
+        profileName: String,
+        headline: String,
+        body: String
+    ) -> Moment {
+        let who = greet(profileName, anonymous: "Hey")
+        return Moment(
+            kind: .weightSpike,
+            glanceTitle: "Red card",
+            glanceLine: clamp(headline, max: 36),
+            phoneBody: clamp("\(who). \(body)", max: 140),
+            visualHeadline: "Red card",
+            visualDetail: clamp(headline, max: 40),
+            relevanceScore: 1.0
+        )
+    }
+
     static func badTrend(
         profileName: String,
         currentKg: Double?,

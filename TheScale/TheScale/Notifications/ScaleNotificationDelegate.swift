@@ -15,7 +15,7 @@ final class ScaleNotificationDelegate: NSObject, UNUserNotificationCenterDelegat
         case .fitnessInterval, .weeklyGoal:
             // Quiet while already in-app: list only, no sound.
             return [.banner, .list]
-        case .coachWake, .morningWeigh:
+        case .coachWake, .morningWeigh, .weightSpike:
             return [.banner, .sound, .list, .badge]
         case .sample, .badTrend, .watchWear, .preSleepHR, .coachReminder, .none:
             return [.banner, .sound, .list]

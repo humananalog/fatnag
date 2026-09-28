@@ -6,6 +6,7 @@ struct TheScaleApp: App {
     @StateObject private var session = ScaleSessionViewModel()
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSplash = !ProcessInfo.processInfo.arguments.contains("-uitesting-skip-splash")
+    @State private var appLanguage = AppLanguageStore.current
 
     init() {
         UNUserNotificationCenter.current().delegate = ScaleNotificationDelegate.shared
@@ -39,6 +40,9 @@ struct TheScaleApp: App {
                             .environmentObject(session)
                     }
                 }
+                .environment(\.locale, appLanguage.locale)
+                .environment(\.layoutDirection, appLanguage.layoutDirection)
+                .id(appLanguage.rawValue)
                 .opacity(showSplash ? 0 : 1)
 
                 if showSplash {
@@ -75,6 +79,7 @@ struct TheScaleApp: App {
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active, session.hasCompletedOnboarding else { return }
+                appLanguage = AppLanguageStore.current
                 Task {
                     await session.refreshHomeGauges(force: false)
                     _ = await session.runFitnessMonitorCheck(force: false)
@@ -83,6 +88,9 @@ struct TheScaleApp: App {
                 }
                 GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: session.fitnessMonitorPreferences)
                 GrokFitnessMonitor.scheduleBackgroundProcessing(prefs: session.fitnessMonitorPreferences)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .appLanguageDidChange)) { _ in
+                appLanguage = AppLanguageStore.current
             }
         }
     }

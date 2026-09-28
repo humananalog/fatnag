@@ -13,12 +13,14 @@ enum ScaleNotificationKind: String, Sendable {
     case sample
     /// Out of bed / left bedtime: sergeant weigh-now drill.
     case morningWeigh
+    /// Confirmed short-term weight spike → kick-in-the-ass recovery.
+    case weightSpike
 
     var categoryId: String {
         switch self {
         case .coachWake, .coachReminder: return ScaleNotificationCategoryID.coachReminder
         case .morningWeigh: return ScaleNotificationCategoryID.morningWeigh
-        case .badTrend: return ScaleNotificationCategoryID.badTrend
+        case .badTrend, .weightSpike: return ScaleNotificationCategoryID.badTrend
         case .weeklyGoal: return ScaleNotificationCategoryID.weeklyGoal
         case .fitnessInterval: return ScaleNotificationCategoryID.fitnessInterval
         case .watchWear, .preSleepHR: return ScaleNotificationCategoryID.fitnessSignal
@@ -29,7 +31,7 @@ enum ScaleNotificationKind: String, Sendable {
     var threadId: String {
         switch self {
         case .coachWake, .coachReminder, .morningWeigh: return "thescale.coach"
-        case .badTrend, .weeklyGoal: return "thescale.trend"
+        case .badTrend, .weeklyGoal, .weightSpike: return "thescale.trend"
         case .fitnessInterval, .watchWear, .preSleepHR: return "thescale.fitness"
         case .sample: return "thescale.sample"
         }
@@ -38,7 +40,7 @@ enum ScaleNotificationKind: String, Sendable {
     /// Time Sensitive only for true wake pings the user asked to land on time.
     var interruptionLevel: UNNotificationInterruptionLevel {
         switch self {
-        case .coachWake, .morningWeigh: return .timeSensitive
+        case .coachWake, .morningWeigh, .weightSpike: return .timeSensitive
         case .coachReminder, .badTrend, .watchWear, .preSleepHR, .sample:
             return .active
         case .weeklyGoal, .fitnessInterval:
@@ -48,7 +50,7 @@ enum ScaleNotificationKind: String, Sendable {
 
     var relevanceScore: Double {
         switch self {
-        case .coachWake, .morningWeigh: return 1.0
+        case .coachWake, .morningWeigh, .weightSpike: return 1.0
         case .sample: return 0.95
         case .badTrend, .watchWear, .preSleepHR: return 0.85
         case .coachReminder: return 0.8
@@ -65,7 +67,7 @@ enum ScaleNotificationKind: String, Sendable {
             return .weigh
         case .badTrend:
             return .history
-        case .weeklyGoal:
+        case .weeklyGoal, .weightSpike:
             return .progress
         }
     }
@@ -73,7 +75,7 @@ enum ScaleNotificationKind: String, Sendable {
     /// Communication-style avatar presentation (Coach sender).
     var usesCommunicationStyle: Bool {
         switch self {
-        case .coachWake, .coachReminder, .watchWear, .preSleepHR, .sample, .morningWeigh:
+        case .coachWake, .coachReminder, .watchWear, .preSleepHR, .sample, .morningWeigh, .weightSpike:
             return true
         case .badTrend, .weeklyGoal, .fitnessInterval:
             return false
@@ -82,7 +84,7 @@ enum ScaleNotificationKind: String, Sendable {
 
     var visualStyle: ScaleNotificationVisualStyle {
         switch self {
-        case .badTrend: return .trendUp
+        case .badTrend, .weightSpike: return .trendUp
         case .weeklyGoal: return .goal
         case .watchWear: return .watch
         case .preSleepHR: return .heart
