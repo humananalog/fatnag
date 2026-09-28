@@ -37,16 +37,19 @@ struct NotificationCenterSheet: View {
         NavigationStack {
             Group {
                 if isLoading {
-                    ProgressView("Loading alerts...")
+                    ProgressView(String(localized: "notif.loading", defaultValue: "Loading alerts..."))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
                         Section {
                             permissionCard
                         } header: {
-                            sectionHeader("Permission", systemImage: "lock.shield")
+                            sectionHeader(
+                                String(localized: "notif.permission", defaultValue: "Permission"),
+                                systemImage: "lock.shield"
+                            )
                         } footer: {
-                            Text("Focus and Do Not Disturb can still silence banners.")
+                            Text(String(localized: "notif.focus_footer", defaultValue: "Focus and Do Not Disturb can still silence banners."))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(mist)
                         }
@@ -54,8 +57,8 @@ struct NotificationCenterSheet: View {
                         Section {
                             if pending.isEmpty {
                                 emptyRow(
-                                    title: "Nothing queued",
-                                    detail: "Turn on Morning weigh or weekly reminders in Settings, then pull to refresh."
+                                    title: String(localized: "notif.empty_queued", defaultValue: "Nothing queued"),
+                                    detail: String(localized: "notif.empty_queued_detail", defaultValue: "Turn on Morning weigh or weekly reminders in Settings, then pull to refresh.")
                                 )
                             } else {
                                 ForEach(pending) { row in
@@ -68,11 +71,17 @@ struct NotificationCenterSheet: View {
                                 }
                             }
                         } header: {
-                            sectionHeader("Coming up", systemImage: "calendar")
+                            sectionHeader(
+                                String(localized: "notif.coming_up", defaultValue: "Coming up"),
+                                systemImage: "calendar"
+                            )
                         } footer: {
                             Text(pending.isEmpty
-                                  ? "Scheduled alerts appear here before they fire."
-                                  : "\(pending.count) scheduled")
+                                  ? String(localized: "notif.scheduled_footer", defaultValue: "Scheduled alerts appear here before they fire.")
+                                  : String(
+                                        format: String(localized: "notif.scheduled_count", defaultValue: "%d scheduled"),
+                                        pending.count
+                                    ))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(mist)
                         }
@@ -80,8 +89,8 @@ struct NotificationCenterSheet: View {
                         Section {
                             if delivered.isEmpty {
                                 emptyRow(
-                                    title: "No recent deliveries",
-                                    detail: "After Coach pings land, they show up here."
+                                    title: String(localized: "notif.empty_delivered", defaultValue: "No recent deliveries"),
+                                    detail: String(localized: "notif.empty_delivered_detail", defaultValue: "After Coach pings land, they show up here.")
                                 )
                             } else {
                                 ForEach(delivered, id: \.request.identifier) { note in
@@ -94,7 +103,10 @@ struct NotificationCenterSheet: View {
                                 }
                             }
                         } header: {
-                            sectionHeader("Recently delivered", systemImage: "tray.full")
+                            sectionHeader(
+                                String(localized: "notif.recently_delivered", defaultValue: "Recently delivered"),
+                                systemImage: "tray.full"
+                            )
                         }
                     }
                     .listStyle(.insetGrouped)
@@ -102,11 +114,11 @@ struct NotificationCenterSheet: View {
                     .refreshable { await reload() }
                 }
             }
-            .navigationTitle("Alerts")
+            .navigationTitle(String(localized: "notif.title", defaultValue: "Alerts"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(String(localized: "common.done", defaultValue: "Done")) { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -114,7 +126,7 @@ struct NotificationCenterSheet: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
-                    .accessibilityLabel("Refresh")
+                    .accessibilityLabel(String(localized: "common.refresh", defaultValue: "Refresh"))
                 }
             }
             .task {
@@ -139,7 +151,9 @@ struct NotificationCenterSheet: View {
                     )
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(authDenied ? "Alerts blocked" : "Alerts allowed")
+                    Text(authDenied
+                          ? String(localized: "notif.blocked", defaultValue: "Alerts blocked")
+                          : String(localized: "notif.allowed", defaultValue: "Alerts allowed"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
                     Text(authLine)
@@ -155,7 +169,7 @@ struct NotificationCenterSheet: View {
                         UIApplication.shared.open(url)
                     }
                 } label: {
-                    Text("Open System Settings")
+                    Text(String(localized: "notif.open_settings", defaultValue: "Open System Settings"))
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)

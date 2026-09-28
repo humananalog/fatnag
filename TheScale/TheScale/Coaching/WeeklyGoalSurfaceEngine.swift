@@ -11,11 +11,11 @@ enum WeeklyTrackBand: String, Equatable, Sendable {
 
     var statusLabel: String {
         switch self {
-        case .crushed: return "Crushed"
-        case .ahead: return "Ahead"
-        case .onTrack: return "On track"
-        case .atRisk: return "At risk"
-        case .unknown: return "Set baseline"
+        case .crushed: return String(localized: "week.band.crushed", defaultValue: "Crushed")
+        case .ahead: return String(localized: "week.band.ahead", defaultValue: "Ahead")
+        case .onTrack: return String(localized: "week.band.on_track", defaultValue: "On track")
+        case .atRisk: return String(localized: "week.band.at_risk", defaultValue: "At risk")
+        case .unknown: return String(localized: "week.band.unknown", defaultValue: "Set baseline")
         }
     }
 }
@@ -43,10 +43,10 @@ enum ProgressWeekMoment: String, Equatable, Sendable {
 
     var statusHeadline: String {
         switch self {
-        case .mondayFresh: return "This week's plan"
-        case .earlyWeek: return "Building the week"
-        case .midWeek: return "Mid-week check"
-        case .lateWeek: return "Sunday push"
+        case .mondayFresh: return String(localized: "week.moment.monday_fresh", defaultValue: "This week's plan")
+        case .earlyWeek: return String(localized: "week.moment.early", defaultValue: "Building the week")
+        case .midWeek: return String(localized: "week.moment.mid", defaultValue: "Mid-week check")
+        case .lateWeek: return String(localized: "week.moment.late", defaultValue: "Sunday push")
         }
     }
 }
@@ -352,7 +352,7 @@ enum WeeklyGoalSurfaceEngine {
         isWinner: Bool
     ) -> String {
         if moment == .mondayFresh { return ProgressWeekMoment.mondayFresh.statusHeadline }
-        if isWinner { return "Crushed" }
+        if isWinner { return String(localized: "week.band.crushed", defaultValue: "Crushed") }
         switch moment {
         case .mondayFresh:
             return moment.statusHeadline
@@ -361,8 +361,12 @@ enum WeeklyGoalSurfaceEngine {
         case .midWeek:
             return band.statusLabel
         case .lateWeek:
-            if band == .atRisk { return "Sunday push" }
-            if band == .onTrack || band == .ahead { return "Finish strong" }
+            if band == .atRisk {
+                return String(localized: "week.moment.late", defaultValue: "Sunday push")
+            }
+            if band == .onTrack || band == .ahead {
+                return String(localized: "week.headline.finish_strong", defaultValue: "Finish strong")
+            }
             return band.statusLabel
         }
     }
@@ -519,7 +523,7 @@ enum WeeklyGoalSurfaceEngine {
             steps: steps,
             maxCalories: Int(maxCal.rounded()),
             proteinGrams: max(70, protein),
-            proteinLabel: "Protein",
+            proteinLabel: String(localized: "targets.protein", defaultValue: "Protein"),
             microName: micro.name,
             microTargetLine: micro.line,
             intakeTracked: intakeTracked
@@ -542,7 +546,7 @@ enum WeeklyGoalSurfaceEngine {
         guard showNutritionTargets else { return [] }
         return [
             HomeDailyTargetChip(
-                title: "Energy",
+                title: String(localized: "targets.energy", defaultValue: "Energy"),
                 valueLine: CoachVoice.energyChipLine(
                     kcal: targets.maxCalories,
                     diet: diet,
@@ -568,9 +572,12 @@ enum WeeklyGoalSurfaceEngine {
         digest: FitnessDigest?
     ) -> [DailyMetricProgress] {
         let stepsCurrent = digest?.stepsToday
+        let stepsTitle = String(localized: "targets.steps", defaultValue: "Steps")
+        let moveTitle = String(localized: "targets.move", defaultValue: "Move")
+        let energyTitle = String(localized: "targets.energy", defaultValue: "Energy")
         let steps = progressRow(
             kind: .steps,
-            title: "Steps",
+            title: stepsTitle,
             current: stepsCurrent,
             target: Double(targets.steps),
             higherIsBetter: true,
@@ -586,7 +593,7 @@ enum WeeklyGoalSurfaceEngine {
             rows.append(
                 progressRow(
                     kind: .energy,
-                    title: "Move",
+                    title: moveTitle,
                     current: burn,
                     target: moveTarget,
                     higherIsBetter: true,
@@ -604,11 +611,11 @@ enum WeeklyGoalSurfaceEngine {
         if let dietKcal = digest?.dietaryEnergyKcalToday, dietKcal > 0 {
             // Keep Move if we already added it; also show dietary Energy as the energy kind
             // Prefer a single Energy gauge from diet when logged.
-            rows.removeAll { $0.kind == .energy && $0.title == "Move" }
+            rows.removeAll { $0.kind == .energy && $0.title == moveTitle }
             rows.append(
                 progressRow(
                     kind: .energy,
-                    title: "Energy",
+                    title: energyTitle,
                     current: dietKcal,
                     target: Double(targets.maxCalories),
                     higherIsBetter: false,
@@ -726,16 +733,19 @@ enum WeeklyGoalSurfaceEngine {
         weeklyDeltaKg: Double,
         diet: DietPreference
     ) -> (name: String, line: String) {
+        let iron = String(localized: "targets.iron", defaultValue: "Iron")
+        let fiber = String(localized: "targets.fiber", defaultValue: "Fiber")
+        let potassium = String(localized: "targets.potassium", defaultValue: "Potassium")
         if diet == .vegan || diet == .vegetarian {
-            return ("Iron", "Hit ≥ 18 mg · pair with vitamin C")
+            return (iron, String(localized: "targets.iron.vegan", defaultValue: "Hit ≥ 18 mg · pair with vitamin C"))
         }
         if profile.sex == .female {
-            return ("Iron", "Prioritize ≥ 18 mg with meals")
+            return (iron, String(localized: "targets.iron.female", defaultValue: "Prioritize ≥ 18 mg with meals"))
         }
         if weeklyDeltaKg < -0.1 {
-            return ("Fiber", "Hit ≥ 30 g · keeps the cut sane")
+            return (fiber, String(localized: "targets.fiber.cut", defaultValue: "Hit ≥ 30 g · keeps the cut sane"))
         }
-        return ("Potassium", "Aim ≥ 3,500 mg from food")
+        return (potassium, String(localized: "targets.potassium.aim", defaultValue: "Aim ≥ 3,500 mg from food"))
     }
 
     // MARK: - Today-ahead advice

@@ -10,9 +10,9 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var displayName: String {
         switch self {
-        case .free: return "Free"
-        case .plus: return "Plus"
-        case .pro: return "Pro"
+        case .free: return String(localized: "plan.free", defaultValue: "Free")
+        case .plus: return String(localized: "plan.plus", defaultValue: "Plus")
+        case .pro: return String(localized: "plan.pro", defaultValue: "Pro")
         }
     }
 
@@ -27,9 +27,9 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var priceLabel: String {
         switch self {
-        case .free: return "Free"
-        case .plus: return "$2 / month"
-        case .pro: return "$8 / month"
+        case .free: return String(localized: "plan.free", defaultValue: "Free")
+        case .plus: return String(localized: "plan.plus.price", defaultValue: "$2 / month")
+        case .pro: return String(localized: "plan.pro.price", defaultValue: "$8 / month")
         }
     }
 
@@ -46,11 +46,20 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
     var blurb: String {
         switch self {
         case .free:
-            return "Scale, Health, charts. \(weeklyGrokCredits) live Keel asks a week."
+            return String(
+                format: String(localized: "plan.free.blurb", defaultValue: "Scale, Health, charts. %d live Keel asks a week."),
+                weeklyGrokCredits
+            )
         case .plus:
-            return "Daily heat. \(weeklyGrokCredits) live Keel credits a week."
+            return String(
+                format: String(localized: "plan.plus.blurb", defaultValue: "Daily heat. %d live Keel credits a week."),
+                weeklyGrokCredits
+            )
         case .pro:
-            return "No soft ceiling. \(weeklyGrokCredits) live Keel credits a week."
+            return String(
+                format: String(localized: "plan.pro.blurb", defaultValue: "No soft ceiling. %d live Keel credits a week."),
+                weeklyGrokCredits
+            )
         }
     }
 
@@ -58,11 +67,11 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
     var paywallArgument: String {
         switch self {
         case .free:
-            return "Taste the tone."
+            return String(localized: "plan.free.arg", defaultValue: "Taste the tone.")
         case .plus:
-            return "A sharp ask a day."
+            return String(localized: "plan.plus.arg", defaultValue: "A sharp ask a day.")
         case .pro:
-            return "Never ration pressure."
+            return String(localized: "plan.pro.arg", defaultValue: "Never ration pressure.")
         }
     }
 

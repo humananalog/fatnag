@@ -261,7 +261,7 @@ struct ContentView: View {
                             session.presentManualEntry()
                         }
                     } label: {
-                        Label("Weigh now", systemImage: "scalemass.fill")
+                        Label(String(localized: "home.weigh_now", defaultValue: "Weigh now"), systemImage: "scalemass.fill")
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                             .frame(maxWidth: .infinity)
                     }
@@ -270,7 +270,7 @@ struct ContentView: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .accessibilityIdentifier("home.weighNow")
-                    .accessibilityLabel("Weigh now")
+                    .accessibilityLabel(String(localized: "home.weigh_now", defaultValue: "Weigh now"))
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -338,7 +338,7 @@ struct ContentView: View {
     private func homeStatusLine(compact: Bool) -> some View {
         Group {
             if !session.healthKitAvailable {
-                Text("Health unavailable.")
+                Text(String(localized: "home.health_unavailable", defaultValue: "Health unavailable."))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(atmosphere.ink.opacity(0.7))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -349,7 +349,7 @@ struct ContentView: View {
 
     private func adviceBlock(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("INSIGHT")
+            Text(String(localized: "home.insight", defaultValue: "INSIGHT"))
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .tracking(1.0)
                 .foregroundStyle(atmosphere.ink.opacity(0.55))
@@ -436,7 +436,7 @@ struct ContentView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("home.charts")
-            .accessibilityLabel("Charts")
+            .accessibilityLabel(String(localized: "home.charts", defaultValue: "Charts"))
             HomeNotificationBell(isPresented: $showNotificationCenter, badgeCount: pendingNotifCount)
         }
         .accessibilityElement(children: .contain)
@@ -515,7 +515,7 @@ struct ContentView: View {
                     .tracking(0.8)
                     .foregroundStyle(atmosphere.ink.opacity(0.65))
                 Spacer()
-                Button("Dismiss") {
+                Button(String(localized: "common.dismiss", defaultValue: "Dismiss")) {
                     session.dismissWeighInAnalysis()
                 }
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -527,7 +527,7 @@ struct ContentView: View {
                     .monospacedDigit()
                     .foregroundStyle(atmosphere.accent)
                     .accessibilityIdentifier("home.weighInWinnerDelta")
-                Text("You're a winner.")
+                Text(String(localized: "home.winner", defaultValue: "You're a winner."))
                     .font(.system(size: 15, weight: .heavy, design: .rounded))
                     .foregroundStyle(atmosphere.ink)
                     .accessibilityIdentifier("home.weighInWinner")

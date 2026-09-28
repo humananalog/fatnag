@@ -61,7 +61,7 @@ struct WeighInHeroMomentView: View {
                                     .foregroundStyle(card.isWinnerLoss ? accent : ivory.opacity(0.85))
                                     .accessibilityIdentifier("weighInHero.delta")
                                 if card.isWinnerLoss {
-                                    Text("You're a winner.")
+                                    Text(String(localized: "home.winner", defaultValue: "You're a winner."))
                                         .font(.system(size: 18, weight: .heavy, design: .rounded))
                                         .foregroundStyle(ivory)
                                         .accessibilityIdentifier("weighInHero.winner")
@@ -90,7 +90,8 @@ struct WeighInHeroMomentView: View {
                 Button {
                     session.dismissWeighInHero()
                 } label: {
-                    Text(card.map { $0.tone.cta(sex: $0.sex) } ?? "Continue")
+                    Text(card.map { $0.tone.cta(sex: $0.sex) }
+                          ?? String(localized: "common.continue", defaultValue: "Continue"))
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
                         .frame(maxWidth: .infinity)

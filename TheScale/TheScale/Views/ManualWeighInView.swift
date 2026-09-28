@@ -30,7 +30,10 @@ struct ManualWeighInView: View {
         let normalized = weightText.replacingOccurrences(of: ",", with: ".")
         guard !normalized.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         guard let value = Double(normalized) else {
-            return "Enter a number in \(units.massLabel)."
+            return String(
+                format: String(localized: "manual.enter_number", defaultValue: "Enter a number in %@."),
+                units.massLabel
+            )
         }
         let kg = UnitFormat.kg(fromMass: value, system: units)
         return ProfileNumericBounds.rejectWeighKgMessage(kg)
@@ -76,15 +79,18 @@ struct ManualWeighInView: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") { weightFocused = false }
+                Button(String(localized: "common.done", defaultValue: "Done")) { weightFocused = false }
                     .fontWeight(.semibold)
             }
         }
-        .alert("Could not save", isPresented: Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { errorMessage = nil }
+        .alert(
+            String(localized: "manual.save_failed", defaultValue: "Could not save"),
+            isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )
+        ) {
+            Button(String(localized: "common.ok", defaultValue: "OK"), role: .cancel) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
         }
@@ -101,14 +107,14 @@ struct ManualWeighInView: View {
                     .frame(width: 40, height: 40)
                     .background(.ultraThinMaterial, in: Circle())
             }
-            .accessibilityLabel("Close manual entry")
+            .accessibilityLabel(String(localized: "manual.close_a11y", defaultValue: "Close manual entry"))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Manual")
+                Text(String(localized: "common.manual", defaultValue: "Manual"))
                     .font(.system(size: 22, weight: .semibold, design: .serif))
                     .foregroundStyle(ink)
                     .lineLimit(1)
-                Text("Mass only · no scale")
+                Text(String(localized: "manual.mass_only", defaultValue: "Mass only · no scale"))
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(steel)
                     .lineLimit(1)
@@ -116,7 +122,7 @@ struct ManualWeighInView: View {
 
             Spacer(minLength: 8)
 
-            Text("MANUAL")
+            Text(String(localized: "manual.badge", defaultValue: "MANUAL"))
                 .font(.system(size: 10, weight: .bold, design: .rounded))
                 .tracking(1.2)
                 .foregroundStyle(ink.opacity(0.7))
@@ -148,7 +154,7 @@ struct ManualWeighInView: View {
                     .foregroundStyle(steel)
             }
 
-            Text("Writes weight and BMI to Apple Health. No body fat.")
+            Text(String(localized: "manual.health_hint", defaultValue: "Writes weight and BMI to Apple Health. No body fat."))
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(steel.opacity(0.9))
                 .multilineTextAlignment(.center)
@@ -173,7 +179,7 @@ struct ManualWeighInView: View {
                 }
             } label: {
                 HStack {
-                    Text("When")
+                    Text(String(localized: "manual.when", defaultValue: "When"))
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundStyle(ink.opacity(0.75))
                     Spacer()
@@ -190,11 +196,11 @@ struct ManualWeighInView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Change date and time")
+            .accessibilityLabel(String(localized: "manual.when_a11y", defaultValue: "Change date and time"))
 
             if showDatePicker {
                 DatePicker(
-                    "When",
+                    String(localized: "manual.when", defaultValue: "When"),
                     selection: $occurredAt,
                     in: ...Date(),
                     displayedComponents: [.date, .hourAndMinute]
@@ -217,7 +223,9 @@ struct ManualWeighInView: View {
                     ProgressView()
                         .tint(.white)
                 }
-                Text(isSaving ? "Saving…" : "Save to Health")
+                Text(isSaving
+                      ? String(localized: "live.saving", defaultValue: "Saving…")
+                      : String(localized: "manual.save_health", defaultValue: "Save to Health"))
             }
             .font(.system(size: 17, weight: .semibold, design: .rounded))
             .frame(maxWidth: .infinity)
@@ -229,7 +237,7 @@ struct ManualWeighInView: View {
             )
         }
         .disabled(parsedKg == nil || isSaving || !session.healthKitAvailable)
-        .accessibilityHint("Saves mass only, then opens History")
+        .accessibilityHint(String(localized: "manual.save_hint_a11y", defaultValue: "Saves mass only, then opens History"))
     }
 
     private func save() async {

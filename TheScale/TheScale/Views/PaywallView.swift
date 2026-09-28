@@ -86,7 +86,7 @@ struct PaywallView: View {
                             .background(.ultraThinMaterial, in: Circle())
                             .overlay(Circle().strokeBorder(ivory.opacity(0.22), lineWidth: 1))
                     }
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel(String(localized: "common.close", defaultValue: "Close"))
                     .padding(.trailing, 16)
                     .padding(.top, gripperClearance)
                 }
@@ -109,7 +109,7 @@ struct PaywallView: View {
                 LegalDocumentView(document: document)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") { legalDocument = nil }
+                            Button(String(localized: "common.done", defaultValue: "Done")) { legalDocument = nil }
                         }
                     }
             }
@@ -157,12 +157,12 @@ struct PaywallView: View {
             VStack(alignment: .leading, spacing: 10) {
                 FatnagWordmark(size: 14, color: gold.opacity(0.95))
 
-                Text("Stay sharp.")
+                Text(String(localized: "paywall.stay_sharp", defaultValue: "Stay sharp."))
                     .font(.system(size: 36, weight: .semibold, design: .serif))
                     .foregroundStyle(ivory)
                     .shadow(color: .black.opacity(0.35), radius: 8, y: 2)
 
-                Text("Credits do not buy pleasure. Credits buy better outcomes.")
+                Text(String(localized: "paywall.credits_line", defaultValue: "Credits do not buy pleasure. Credits buy better outcomes."))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(gold.opacity(0.95))
                     .fixedSize(horizontal: false, vertical: true)
@@ -182,7 +182,7 @@ struct PaywallView: View {
 
     private var panelContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Live Keel when you go soft. Pro is the pressure path.")
+            Text(String(localized: "paywall.subhead", defaultValue: "Live Keel when you go soft. Pro is the pressure path."))
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(mist)
                 .fixedSize(horizontal: false, vertical: true)
@@ -227,7 +227,7 @@ struct PaywallView: View {
             ProgressView()
                 .controlSize(.small)
                 .tint(mist)
-            Text("Loading App Store prices…")
+            Text(String(localized: "paywall.loading_prices", defaultValue: "Loading App Store prices…"))
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(mist)
             Spacer(minLength: 0)
@@ -240,17 +240,17 @@ struct PaywallView: View {
 
     private var catalogEmpty: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Subscriptions unavailable")
+            Text(String(localized: "paywall.catalog_unavailable", defaultValue: "Subscriptions unavailable"))
                 .font(.system(size: 14, weight: .bold, design: .rounded))
                 .foregroundStyle(ivory)
             Text(
                 store.purchaseError
-                    ?? "Plus and Pro aren’t in the App Store catalog yet. Try Restore, or check back after products go live under Human Analog."
+                    ?? String(localized: "paywall.catalog_empty", defaultValue: "Plus and Pro aren’t in the App Store catalog yet. Try Restore, or check back after products go live under Human Analog.")
             )
             .font(.system(size: 12, weight: .medium, design: .rounded))
             .foregroundStyle(mist)
             .fixedSize(horizontal: false, vertical: true)
-            Button("Retry") {
+            Button(String(localized: "common.retry", defaultValue: "Retry")) {
                 Task { await store.refresh() }
             }
             .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -342,14 +342,14 @@ struct PaywallView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
                 if isPro && !isCurrent {
-                    Text("Best")
+                    Text(String(localized: "paywall.best", defaultValue: "Best"))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(gold, in: Capsule())
                 } else if isStep {
-                    Text("Next")
+                    Text(String(localized: "paywall.next", defaultValue: "Next"))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(ivory.opacity(0.9))
                         .padding(.horizontal, 8)
@@ -370,7 +370,7 @@ struct PaywallView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if isCurrent {
-                Text("Current plan")
+                Text(String(localized: "paywall.current_plan", defaultValue: "Current plan"))
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(Color(red: 0.55, green: 0.78, blue: 0.62))
             }
@@ -388,7 +388,12 @@ struct PaywallView: View {
                                 .controlSize(.small)
                                 .tint(isPro ? ink : ivory)
                         }
-                        Text(isPro ? "Go Pro" : "Choose \(plan.displayName)")
+                        Text(isPro
+                              ? String(localized: "paywall.go_pro", defaultValue: "Go Pro")
+                              : String(
+                                    format: String(localized: "paywall.choose", defaultValue: "Choose %@"),
+                                    plan.displayName
+                                ))
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                     }
                     .frame(maxWidth: .infinity)
@@ -459,21 +464,23 @@ struct PaywallView: View {
                             .controlSize(.small)
                             .tint(mist)
                     }
-                    Text(store.isRestoring ? "Restoring…" : "Restore purchases")
+                    Text(store.isRestoring
+                          ? String(localized: "paywall.restoring", defaultValue: "Restoring…")
+                          : String(localized: "paywall.restore", defaultValue: "Restore purchases"))
                 }
             }
             .font(.system(size: 14, weight: .semibold, design: .rounded))
             .foregroundStyle(mist)
             .disabled(store.isBusy)
             .accessibilityIdentifier("paywall.restore")
-            Text("Cancel anytime in App Store subscriptions. Auto-renews monthly until you cancel at least 24 hours before the period ends.")
+            Text(String(localized: "paywall.cancel_note", defaultValue: "Cancel anytime in App Store subscriptions. Auto-renews monthly until you cancel at least 24 hours before the period ends."))
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundStyle(mist.opacity(0.75))
                 .multilineTextAlignment(.center)
             HStack(spacing: 18) {
-                Button("Privacy Policy") { legalDocument = .privacyPolicy }
+                Button(String(localized: "legal.privacy", defaultValue: "Privacy Policy")) { legalDocument = .privacyPolicy }
                     .accessibilityIdentifier("paywall.privacyPolicy")
-                Button("Terms of Use") { legalDocument = .termsOfUse }
+                Button(String(localized: "legal.terms", defaultValue: "Terms of Use")) { legalDocument = .termsOfUse }
                     .accessibilityIdentifier("paywall.termsOfUse")
             }
             .font(.system(size: 12, weight: .semibold, design: .rounded))

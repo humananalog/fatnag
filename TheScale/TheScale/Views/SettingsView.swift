@@ -100,30 +100,30 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 28) {
                 brandHeader
 
-                sectionLabel("You")
+                sectionLabel(String(localized: "settings.section.you", defaultValue: "You"))
                 profileCard
 
-                sectionLabel("Weekly AI")
+                sectionLabel(String(localized: "settings.section.weekly_ai", defaultValue: "Weekly AI"))
                 planCard
 
-                sectionLabel("Coach")
+                sectionLabel(String(localized: "settings.section.coach", defaultValue: "Coach"))
                 coachCard
 
-                sectionLabel("Alerts & Health")
+                sectionLabel(String(localized: "settings.section.alerts_health", defaultValue: "Alerts & Health"))
                 notificationsCard
                 fitnessMonitorCard
 
-                sectionLabel("Scale")
+                sectionLabel(String(localized: "settings.section.scale", defaultValue: "Scale"))
                 calibrationCard
 
-                sectionLabel("Privacy & Legal")
+                sectionLabel(String(localized: "settings.section.privacy_legal", defaultValue: "Privacy & Legal"))
                 privacyCard
                 legalCard
 
-                sectionLabel("Help")
+                sectionLabel(String(localized: "settings.section.help", defaultValue: "Help"))
                 feedbackCard
 
-                sectionLabel("App")
+                sectionLabel(String(localized: "settings.section.app", defaultValue: "App"))
                 aboutCard
             }
             .padding(.horizontal, 20)
@@ -150,12 +150,12 @@ struct SettingsView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(settingsBackground.ignoresSafeArea())
-        .navigationTitle("Settings")
+        .navigationTitle(String(localized: "settings.title", defaultValue: "Settings"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") { dismissKeyboard() }
+                Button(String(localized: "common.done", defaultValue: "Done")) { dismissKeyboard() }
                     .fontWeight(.semibold)
             }
         }
@@ -370,10 +370,13 @@ struct SettingsView: View {
                 Button {
                     Task { await subscription.restore() }
                 } label: {
-                    Label(
-                        subscription.isRestoring ? "Restoring…" : "Restore purchases",
-                        systemImage: "arrow.clockwise"
-                    )
+                    Label {
+                        Text(subscription.isRestoring
+                              ? String(localized: "paywall.restoring", defaultValue: "Restoring…")
+                              : String(localized: "paywall.restore", defaultValue: "Restore purchases"))
+                    } icon: {
+                        Image(systemName: "arrow.clockwise")
+                    }
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -1019,7 +1022,11 @@ struct SettingsView: View {
     private var notificationsCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 0) {
-                Label("Notifications", systemImage: "bell.badge")
+                Label {
+                    Text(String(localized: "settings.notifications", defaultValue: "Notifications"))
+                } icon: {
+                    Image(systemName: "bell.badge")
+                }
                     .font(.headline)
                     .foregroundStyle(ink)
 
@@ -1246,7 +1253,11 @@ struct SettingsView: View {
                     Button {
                         Task { await session.requestHealthAccessFromSettings() }
                     } label: {
-                        Label("Allow Health", systemImage: "heart.text.square.fill")
+                        Label {
+                            Text(String(localized: "settings.allow_health", defaultValue: "Allow Health"))
+                        } icon: {
+                            Image(systemName: "heart.text.square.fill")
+                        }
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -1490,7 +1501,11 @@ struct SettingsView: View {
                 Button {
                     showFeedback = true
                 } label: {
-                    Label("Send feedback", systemImage: "paperplane")
+                    Label {
+                        Text(String(localized: "settings.send_feedback", defaultValue: "Send feedback"))
+                    } icon: {
+                        Image(systemName: "paperplane")
+                    }
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -1565,7 +1580,11 @@ struct SettingsView: View {
                 Button {
                     exportLocalData()
                 } label: {
-                    Label("Export my data", systemImage: "square.and.arrow.up")
+                    Label {
+                        Text(String(localized: "settings.export_data", defaultValue: "Export my data"))
+                    } icon: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -1574,7 +1593,11 @@ struct SettingsView: View {
                 Button(role: .destructive) {
                     showEraseConfirm = true
                 } label: {
-                    Label("Erase my data", systemImage: "trash")
+                    Label {
+                        Text(String(localized: "settings.erase_data", defaultValue: "Erase my data"))
+                    } icon: {
+                        Image(systemName: "trash")
+                    }
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)

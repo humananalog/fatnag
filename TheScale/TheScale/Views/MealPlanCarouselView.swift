@@ -94,7 +94,7 @@ struct MealPlanCarouselView: View {
                             .padding(.horizontal, 4)
                     } else {
                         Spacer()
-                        Text("No meal plan yet.")
+                        Text(String(localized: "meal.empty", defaultValue: "No meal plan yet."))
                             .font(.system(size: 17, weight: .semibold, design: .rounded))
                             .foregroundStyle(ink)
                         Spacer()
@@ -103,20 +103,20 @@ struct MealPlanCarouselView: View {
                 .padding(.vertical, 20)
                 .padding(.horizontal, 12)
             }
-            .navigationTitle("Meal plan")
+            .navigationTitle(String(localized: "meal.title", defaultValue: "Meal plan"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Refresh") {
+                    Button(String(localized: "common.refresh", defaultValue: "Refresh")) {
                         Task { await session.refreshMealPlan(force: true) }
                     }
                     .disabled(session.isMealPlanLoading)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if session.alreadyWeighedToday {
-                        Button("Manual") { session.presentManualEntry() }
+                        Button(String(localized: "common.manual", defaultValue: "Manual")) { session.presentManualEntry() }
                     } else if session.weighNowGateResolved {
-                        Button("Weigh") { session.selectHomeTab(.weigh) }
+                        Button(String(localized: "common.weigh", defaultValue: "Weigh")) { session.selectHomeTab(.weigh) }
                     }
                 }
             }
@@ -132,15 +132,20 @@ struct MealPlanCarouselView: View {
 
     private var headerCopy: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("What's ahead")
+            Text(String(localized: "meal.whats_ahead", defaultValue: "What's ahead"))
                 .font(.system(size: 28, weight: .semibold, design: .serif))
                 .foregroundStyle(ink)
             if let plan = session.mealPlan {
-                Text("Cap \(plan.maxKcal) kcal · protein \(plan.proteinGrams) g · \(plan.dietRaw)")
+                Text(String(
+                    format: String(localized: "meal.cap_line", defaultValue: "Cap %d kcal · protein %d g · %@"),
+                    plan.maxKcal,
+                    plan.proteinGrams,
+                    plan.dietRaw
+                ))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(steel)
             } else {
-                Text("Grounded in your deficit, diet prefs, and fasting window.")
+                Text(String(localized: "meal.grounded", defaultValue: "Grounded in your deficit, diet prefs, and fasting window."))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(steel)
             }
@@ -205,8 +210,8 @@ struct MealPlanCarouselView: View {
             }
 
             HStack(spacing: 16) {
-                labeled("Macro", meal.keyMacro, accent: accent)
-                labeled("Micro", meal.keyMicro, accent: accent)
+                labeled(String(localized: "meal.macro", defaultValue: "Macro"), meal.keyMacro, accent: accent)
+                labeled(String(localized: "meal.micro", defaultValue: "Micro"), meal.keyMicro, accent: accent)
             }
 
             Text("~\(meal.approxKcal) kcal")

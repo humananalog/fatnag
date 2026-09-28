@@ -120,7 +120,7 @@ struct ProgressSheet: View {
                         .progressActionBlock(revealed: deltaIn, reduceMotion: reduceMotion, slide: 40, fromScale: 0.58)
 
                     if surface.isWinnerWeek {
-                        Text("You're a winner.")
+                        Text(String(localized: "home.winner", defaultValue: "You're a winner."))
                             .font(.system(size: 16, weight: .heavy, design: .rounded))
                             .foregroundStyle(atmosphere.ink)
                             .accessibilityIdentifier("progress.weekWinner")
@@ -147,14 +147,14 @@ struct ProgressSheet: View {
                 .ignoresSafeArea()
                 .animation(.easeInOut(duration: 0.55), value: session.profile.sex)
             }
-            .navigationTitle("Progress")
+            .navigationTitle(String(localized: "progress.title", defaultValue: "Progress"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     if session.alreadyWeighedToday {
-                        Button("Manual") { session.presentManualEntry() }
+                        Button(String(localized: "common.manual", defaultValue: "Manual")) { session.presentManualEntry() }
                     } else if session.weighNowGateResolved {
-                        Button("Weigh") { session.selectHomeTab(.weigh) }
+                        Button(String(localized: "common.weigh", defaultValue: "Weigh")) { session.selectHomeTab(.weigh) }
                     }
                 }
             }
@@ -171,14 +171,17 @@ struct ProgressSheet: View {
                 refreshProgressData()
                 playEntrance()
             }
-            .alert("Send trend summary to Keel?", isPresented: $showPrivacyGate) {
-                Button("Cancel", role: .cancel) {}
-                Button("Agree & coach") {
+            .alert(
+                String(localized: "progress.privacy.title", defaultValue: "Send trend summary to Keel?"),
+                isPresented: $showPrivacyGate
+            ) {
+                Button(String(localized: "common.cancel", defaultValue: "Cancel"), role: .cancel) {}
+                Button(String(localized: "progress.privacy.agree", defaultValue: "Agree & coach")) {
                     GrokPrivacyConsent.isAccepted = true
                     Task { await runCoach() }
                 }
             } message: {
-                Text("Only a short weight/fat trend summary goes to Keel when you tap roast. Revoke in Settings.")
+                Text(String(localized: "progress.privacy.body", defaultValue: "Only a short weight/fat trend summary goes to Keel when you tap roast. Revoke in Settings."))
             }
         }
     }
@@ -201,29 +204,39 @@ struct ProgressSheet: View {
 
     private var progressCaption: String {
         switch surface.weekMoment {
-        case .mondayFresh: return "week just opened"
-        case .earlyWeek: return "early-week pace"
-        case .midWeek: return "mid-week progress"
-        case .lateWeek: return "finish to Sunday"
+        case .mondayFresh:
+            return String(localized: "progress.caption.monday_fresh", defaultValue: "week just opened")
+        case .earlyWeek:
+            return String(localized: "progress.caption.early_week", defaultValue: "early-week pace")
+        case .midWeek:
+            return String(localized: "progress.caption.mid_week", defaultValue: "mid-week progress")
+        case .lateWeek:
+            return String(localized: "progress.caption.late_week", defaultValue: "finish to Sunday")
         }
     }
 
     private var deltaBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Goal \(UnitFormat.massDeltaString(surface.weeklyDeltaKg, system: units))")
+            Text(String(
+                format: String(localized: "progress.goal_delta", defaultValue: "Goal %@"),
+                UnitFormat.massDeltaString(surface.weeklyDeltaKg, system: units)
+            ))
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(atmosphere.accent)
                 .accessibilityIdentifier("progress.weekDelta")
 
             if let moved = surface.movedDeltaKg {
-                Text("Moved \(UnitFormat.massDeltaString(moved, system: units)) so far")
+                Text(String(
+                    format: String(localized: "progress.moved_so_far", defaultValue: "Moved %@ so far"),
+                    UnitFormat.massDeltaString(moved, system: units)
+                ))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(atmosphere.ink.opacity(0.78))
                     .accessibilityIdentifier("progress.movedDelta")
             } else {
-                Text("Weigh in to lock this week's move")
+                Text(String(localized: "progress.lock_move", defaultValue: "Weigh in to lock this week's move"))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.muted)
                     .accessibilityIdentifier("progress.movedDelta")
@@ -234,7 +247,7 @@ struct ProgressSheet: View {
     @ViewBuilder
     private var weekHeroBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("WEEK START")
+            Text(String(localized: "progress.week_start", defaultValue: "WEEK START"))
                 .font(.system(size: 12, weight: .heavy, design: .rounded))
                 .tracking(1.8)
                 .foregroundStyle(atmosphere.muted)
@@ -260,7 +273,7 @@ struct ProgressSheet: View {
     @ViewBuilder
     private var sundayHeroBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("SUNDAY TARGET")
+            Text(String(localized: "horizon.sunday_target", defaultValue: "SUNDAY TARGET"))
                 .font(.system(size: 12, weight: .heavy, design: .rounded))
                 .tracking(1.8)
                 .foregroundStyle(atmosphere.muted)
@@ -350,7 +363,11 @@ struct ProgressSheet: View {
             Button {
                 session.reopenResults()
             } label: {
-                Label("Charts", systemImage: "chart.xyaxis.line")
+                Label {
+                    Text(String(localized: "progress.charts", defaultValue: "Charts"))
+                } icon: {
+                    Image(systemName: "chart.xyaxis.line")
+                }
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(atmosphere.ink)
                     .frame(maxWidth: .infinity)
@@ -365,7 +382,7 @@ struct ProgressSheet: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("progress.charts")
-            .accessibilityLabel("Open weight and body fat charts")
+            .accessibilityLabel(String(localized: "progress.charts.a11y", defaultValue: "Open weight and body fat charts"))
 
             Button {
                 if GrokPrivacyConsent.isAccepted || !GrokSharedConfig.isLiveConfigured {
@@ -374,7 +391,9 @@ struct ProgressSheet: View {
                     showPrivacyGate = true
                 }
             } label: {
-                Text(GrokSharedConfig.isLiveConfigured ? "Keel roast" : "Keel roast (offline)")
+                Text(GrokSharedConfig.isLiveConfigured
+                      ? String(localized: "progress.keel_roast", defaultValue: "Keel roast")
+                      : String(localized: "progress.keel_roast.offline", defaultValue: "Keel roast (offline)"))
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(colorScheme == .dark ? atmosphere.ink : Color(red: 0.04, green: 0.05, blue: 0.07))
                     .frame(maxWidth: .infinity)

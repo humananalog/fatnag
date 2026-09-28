@@ -105,7 +105,7 @@ struct MondayWeeklyCardView: View {
                     .frame(width: 40, height: 40)
                     .background(.ultraThinMaterial, in: Circle())
             }
-            .accessibilityLabel("Close Monday card")
+            .accessibilityLabel(String(localized: "monday.close_a11y", defaultValue: "Close Monday card"))
 
             Spacer(minLength: 8)
 
@@ -123,7 +123,7 @@ struct MondayWeeklyCardView: View {
             Spacer()
             ProgressView()
                 .tint(ivory)
-            Text("Building this week's card…")
+            Text(String(localized: "monday.building", defaultValue: "Building this week's card…"))
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(mist)
             Spacer()
@@ -143,7 +143,7 @@ struct MondayWeeklyCardView: View {
                 .offset(y: appeared ? 0 : 12)
                 .accessibilityIdentifier("mondayHero.badge")
 
-            Text("This week")
+            Text(String(localized: "monday.this_week", defaultValue: "This week"))
                 .font(.system(size: 18, weight: .semibold, design: .serif))
                 .foregroundStyle(ivory.opacity(0.72))
                 .padding(.top, 14)
@@ -213,7 +213,9 @@ struct MondayWeeklyCardView: View {
                     showDetail.toggle()
                 }
             } label: {
-                Text(showDetail ? "Hide detail" : "Meals & physics")
+                Text(showDetail
+                      ? String(localized: "monday.hide_detail", defaultValue: "Hide detail")
+                      : String(localized: "monday.meals_physics", defaultValue: "Meals & physics"))
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(mist)
                     .frame(maxWidth: .infinity)

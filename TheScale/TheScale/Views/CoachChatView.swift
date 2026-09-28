@@ -52,14 +52,17 @@ struct CoachChatView: View {
             chat.seedWelcome(name: session.profile.greetingName)
             Task { _ = await session.runFitnessMonitorCheck(force: false) }
         }
-        .alert("Send chat context to Keel?", isPresented: $showPrivacyGate) {
-            Button("Cancel", role: .cancel) {}
-            Button("Agree & send") {
+        .alert(
+            String(localized: "coach.privacy.title", defaultValue: "Send chat context to Keel?"),
+            isPresented: $showPrivacyGate
+        ) {
+            Button(String(localized: "common.cancel", defaultValue: "Cancel"), role: .cancel) {}
+            Button(String(localized: "coach.privacy.agree", defaultValue: "Agree & send")) {
                 GrokPrivacyConsent.isAccepted = true
                 Task { await chat.send(session: session) }
             }
         } message: {
-            Text("Only this chat plus a short weight/fat/fitness digest go to the shared Keel backend. Memory stays on-device except the facts relevant to the ask. No per-user API key.")
+            Text(String(localized: "coach.privacy.body", defaultValue: "Only this chat plus a short weight/fat/fitness digest go to the shared Keel backend. Memory stays on-device except the facts relevant to the ask. No per-user API key."))
         }
         .sheet(isPresented: $chat.showPaywall) {
             PaywallView(
@@ -110,7 +113,7 @@ struct CoachChatView: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.white.opacity(0.7))
             }
-            .accessibilityLabel("Dismiss")
+            .accessibilityLabel(String(localized: "common.dismiss", defaultValue: "Dismiss"))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -130,7 +133,7 @@ struct CoachChatView: View {
                     .scaleGlassCircle()
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text("Coach")
+                Text(String(localized: "coach.title", defaultValue: "Coach"))
                     .font(.system(size: 26, weight: .semibold, design: .serif))
                     .foregroundStyle(.white)
                 Text(statusLine)
@@ -165,8 +168,11 @@ struct CoachChatView: View {
     private var privacyLine: some View {
         Text(
             GrokPrivacyConsent.isAccepted
-                ? "Consent on. \(subscription.quotaSnapshot.statusLine). Chat + compact Health digest + relevant memory only."
-                : "Consent off until you agree (or stay offline)."
+                ? String(
+                    format: String(localized: "coach.consent.on", defaultValue: "Consent on. %@. Chat + compact Health digest + relevant memory only."),
+                    subscription.quotaSnapshot.statusLine
+                )
+                : String(localized: "coach.consent.off", defaultValue: "Consent off until you agree (or stay offline).")
         )
         .font(.system(size: 12, weight: .medium, design: .rounded))
         .foregroundStyle(.white.opacity(0.5))
@@ -181,22 +187,22 @@ struct CoachChatView: View {
             VStack(alignment: turn.kind == .user ? .trailing : .leading, spacing: 6) {
                 if turn.kind == .assistant {
                     HStack(spacing: 6) {
-                        Text("COACH")
+                        Text(String(localized: "coach.badge.coach", defaultValue: "COACH"))
                             .font(.system(size: 10, weight: .bold, design: .rounded))
                             .tracking(0.8)
                             .foregroundStyle(ember.opacity(0.9))
                         if turn.usedNetwork {
-                            Text("LIVE")
+                            Text(String(localized: "coach.badge.live", defaultValue: "LIVE"))
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
                                 .foregroundStyle(signal)
                         }
                         if turn.isStreaming {
-                            Text("STREAM")
+                            Text(String(localized: "coach.badge.stream", defaultValue: "STREAM"))
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
                                 .foregroundStyle(signal.opacity(0.75))
                         }
                         if turn.isQuotaLock {
-                            Text("LIMIT")
+                            Text(String(localized: "coach.badge.limit", defaultValue: "LIMIT"))
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color.orange.opacity(0.95))
                         }
@@ -232,7 +238,7 @@ struct CoachChatView: View {
                     }
                 )
                 if turn.isQuotaLock {
-                    Text("Tap to unlock Coach")
+                    Text(String(localized: "coach.unlock", defaultValue: "Tap to unlock Coach"))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.orange.opacity(0.95))
                 }
@@ -292,7 +298,11 @@ struct CoachChatView: View {
 
     private var composer: some View {
         HStack(spacing: 10) {
-            TextField("Ask something sharp…", text: $chat.draft, axis: .vertical)
+            TextField(
+                String(localized: "coach.placeholder", defaultValue: "Ask something sharp…"),
+                text: $chat.draft,
+                axis: .vertical
+            )
                 .font(inputFont)
                 .lineLimit(1...5)
                 .focused($focused)
@@ -313,7 +323,9 @@ struct CoachChatView: View {
                     .frame(width: 46, height: 46)
                     .background(ember, in: Circle())
             }
-            .accessibilityLabel(chat.isSending ? "Sending" : "Send to Coach")
+            .accessibilityLabel(chat.isSending
+                ? String(localized: "coach.sending", defaultValue: "Sending")
+                : String(localized: "coach.send", defaultValue: "Send"))
             .disabled(chat.isSending || chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(.horizontal, 16)

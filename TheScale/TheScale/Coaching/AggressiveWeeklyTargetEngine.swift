@@ -14,20 +14,20 @@ enum WeeklyTargetMode: String, Equatable, Sendable {
     /// Short Monday-hero badge (Keel voice, no medical framing).
     var mondayHeroBadge: String {
         switch self {
-        case .hardcoreCatchUp: return "HARDCORE"
-        case .accelerate: return "AHEAD"
-        case .aggressive: return "AGGRESSIVE"
-        case .hold: return "HOLD"
+        case .hardcoreCatchUp: return String(localized: "week.mode.hardcore", defaultValue: "HARDCORE")
+        case .accelerate: return String(localized: "week.mode.ahead", defaultValue: "AHEAD")
+        case .aggressive: return String(localized: "week.mode.aggressive", defaultValue: "AGGRESSIVE")
+        case .hold: return String(localized: "week.mode.hold", defaultValue: "HOLD")
         }
     }
 
     /// One-line CTA under the Sunday target.
     var mondayHeroCTA: String {
         switch self {
-        case .hardcoreCatchUp: return "No coast. Close the gap."
-        case .accelerate: return "Celebrate, then push."
-        case .aggressive: return "Hit Sunday. Full send."
-        case .hold: return "Hold the line."
+        case .hardcoreCatchUp: return String(localized: "week.mode.hardcore.cta", defaultValue: "No coast. Close the gap.")
+        case .accelerate: return String(localized: "week.mode.ahead.cta", defaultValue: "Celebrate, then push.")
+        case .aggressive: return String(localized: "week.mode.aggressive.cta", defaultValue: "Hit Sunday. Full send.")
+        case .hold: return String(localized: "week.mode.hold.cta", defaultValue: "Hold the line.")
         }
     }
 }
