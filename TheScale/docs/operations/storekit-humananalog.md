@@ -39,7 +39,7 @@ Use this before TestFlight / App Review.
    - Reference: Plus Monthly → Product ID `app.thescale.ios.plus.monthly` → 1 month → $2.00 (or local equivalent).
    - Reference: Pro Monthly → Product ID `app.thescale.ios.pro.monthly` → 1 month → $8.00.
 5. Localization + review screenshot / notes as ASC requires.
-6. Privacy Policy URL: `https://humananalog.github.io/the-scale/privacy` (`ScaleLegal.privacyPolicyURL`).
+6. Privacy Policy URL: `https://humananalog.github.io/fatnag/privacy` (`ScaleLegal.privacyPolicyURL`).
 7. Agreements, Tax, and Banking must be Active for the Human Analog legal entity or products stay empty.
 
 ### Sandbox Apple ID

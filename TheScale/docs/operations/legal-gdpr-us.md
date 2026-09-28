@@ -27,8 +27,8 @@ Keel Coach remains **consent-gated** (`GrokPrivacyConsent`) with accepted-at tim
 
 Publish the same bodies at:
 
-- `https://humananalog.github.io/the-scale/privacy`
-- `https://humananalog.github.io/the-scale/terms`
+- `https://humananalog.github.io/fatnag/privacy`
+- `https://humananalog.github.io/fatnag/terms`
 
 **Exact steps:** `docs/operations/legal-url-hosting.md` (HTML stubs under `/docs/legal-site/`). Do not invent live URLs — Pages (or equivalent) must actually deploy first.
 

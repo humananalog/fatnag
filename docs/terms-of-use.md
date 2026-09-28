@@ -4,7 +4,7 @@
 **App:** FATNAG (iOS)  
 **Contact:** privacy@humananalog.ai
 
-Host the full Terms at `ScaleLegal.termsOfUseURL` (default `https://humananalog.github.io/the-scale/terms`).
+Host the full Terms at `ScaleLegal.termsOfUseURL` (default `https://humananalog.github.io/fatnag/terms`).
 
 **Source of truth:** `ScaleLegal.termsOfUseBody` in the iOS app (Settings → Legal → Terms of Use).
 

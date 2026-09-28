@@ -4,13 +4,13 @@ import Foundation
 /// Keep medical disclaimer out of notifications and Coach chat bodies.
 enum ScaleLegal {
     /// Public privacy policy for App Store Connect. Keep this URL live.
-    static let privacyPolicyURL = URL(string: "https://humananalog.github.io/the-scale/privacy")!
+    static let privacyPolicyURL = URL(string: "https://humananalog.github.io/fatnag/privacy")!
 
     /// Public terms URL (mirror of in-app Terms).
-    static let termsOfUseURL = URL(string: "https://humananalog.github.io/the-scale/terms")!
+    static let termsOfUseURL = URL(string: "https://humananalog.github.io/fatnag/terms")!
 
     /// Public support page for App Store Connect Support URL.
-    static let supportURL = URL(string: "https://humananalog.github.io/the-scale/support")!
+    static let supportURL = URL(string: "https://humananalog.github.io/fatnag/support")!
 
     /// Controller / seller of record.
     static let controllerName = "Human Analog Limited"
