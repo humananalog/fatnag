@@ -17,7 +17,7 @@ final class ScaleNotificationDelegate: NSObject, UNUserNotificationCenterDelegat
             return [.banner, .list]
         case .coachWake, .morningWeigh, .weightSpike:
             return [.banner, .sound, .list, .badge]
-        case .sample, .badTrend, .watchWear, .preSleepHR, .coachReminder, .none:
+        case .sample, .badTrend, .watchWear, .preSleepHR, .coachReminder, .nag, .none:
             return [.banner, .sound, .list]
         }
     }

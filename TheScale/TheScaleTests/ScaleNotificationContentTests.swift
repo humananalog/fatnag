@@ -135,6 +135,31 @@ final class ScaleNotificationContentTests: XCTestCase {
         XCTAssertTrue(FitnessTriggerMonitor.isAutomatedCheckDue(prefs: prefs))
     }
 
+    func testActivityPulseIsSignedNag() {
+        let pulse = ActivityPulse(
+            id: "sleep-test",
+            tone: .reward,
+            isStrong: true,
+            glanceTitle: "Sleep banked",
+            glanceLine: "7.6h last night",
+            phoneBody: "7.6 hours in the bank. Reward accepted."
+        )
+        let content = ScaleNotificationContentFactory.make(
+            ScaleNotificationCopy.activityPulse(pulse, profileName: "Alex")
+        )
+        XCTAssertEqual(content.title, "Nag")
+        XCTAssertEqual(content.subtitle, "Sleep banked")
+        XCTAssertTrue(content.body.contains("Alex"))
+        XCTAssertEqual(
+            content.userInfo[ScaleNotificationUserInfoKey.kind] as? String,
+            ScaleNotificationKind.nag.rawValue
+        )
+        XCTAssertEqual(content.threadIdentifier, "thescale.nag")
+        XCTAssertEqual(content.categoryIdentifier, ScaleNotificationCategoryID.nag)
+        XCTAssertEqual(content.interruptionLevel, .active)
+        XCTAssertNotNil(content.sound)
+    }
+
     func testIntervalIsPassiveNoSound() {
         let content = ScaleNotificationContentFactory.make(
             ScaleNotificationCopy.fitnessInterval(

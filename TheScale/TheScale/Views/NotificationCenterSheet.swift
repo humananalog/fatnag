@@ -376,7 +376,7 @@ struct NotificationCenterSheet: View {
         case TrendNotificationScheduler.weeklyGoalId: return "Weekly goal"
         case TrendNotificationScheduler.badTrendId: return "Trend check"
         case "thescale.key-coach-moment": return "Key moment"
-        case GrokFitnessMonitor.intervalNotifyId, GrokFitnessMonitor.activityPulseId: return "Activity"
+        case GrokFitnessMonitor.intervalNotifyId, GrokFitnessMonitor.activityPulseId: return "Nag"
         default:
             if identifier.hasPrefix(CoachReminderScheduler.notificationIdPrefix)
                 || identifier == CoachReminderScheduler.wakeReminderId

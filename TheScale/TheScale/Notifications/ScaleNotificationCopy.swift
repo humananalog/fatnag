@@ -147,13 +147,14 @@ enum ScaleNotificationCopy {
 
     static func activityPulse(_ pulse: ActivityPulse, profileName: String) -> Moment {
         let who = greet(profileName, anonymous: "Hey")
+        let beat = glanceSanitize(pulse.glanceTitle, max: 20)
         return Moment(
-            kind: .coachReminder,
-            glanceTitle: glanceSanitize(pulse.glanceTitle, max: 20),
-            glanceLine: clamp(pulse.glanceLine, max: 36),
+            kind: .nag,
+            glanceTitle: "Nag",
+            glanceLine: beat,
             phoneBody: clamp("\(who). \(pulse.phoneBody)", max: 150),
-            visualHeadline: glanceSanitize(pulse.glanceTitle, max: 20),
-            visualDetail: clamp(pulse.glanceLine, max: 40),
+            visualHeadline: "Nag",
+            visualDetail: beat,
             relevanceScore: pulse.isStrong ? 0.9 : 0.72
         )
     }

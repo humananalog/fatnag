@@ -56,8 +56,13 @@ enum ScaleNotificationContentFactory {
         }
 
         if draft.kind.usesCommunicationStyle {
-            return applyCommunicationStyle(to: content, body: content.body, threadId: draft.kind.threadId)
-                ?? content
+            let senderName = draft.kind == .nag ? "Nag" : "Coach"
+            return applyCommunicationStyle(
+                to: content,
+                body: content.body,
+                threadId: draft.kind.threadId,
+                displayName: senderName
+            ) ?? content
         }
         return content
     }
@@ -82,17 +87,19 @@ enum ScaleNotificationContentFactory {
     private static func applyCommunicationStyle(
         to content: UNMutableNotificationContent,
         body: String,
-        threadId: String
+        threadId: String,
+        displayName: String
     ) -> UNNotificationContent? {
-        let handle = INPersonHandle(value: "coach@fatnag.local", type: .unknown)
+        let senderId = displayName == "Nag" ? "nag" : "coach"
+        let handle = INPersonHandle(value: "\(senderId)@fatnag.local", type: .unknown)
         let avatar = coachAvatarImage()
         let coach = INPerson(
             personHandle: handle,
             nameComponents: nil,
-            displayName: "Coach",
+            displayName: displayName,
             image: avatar,
             contactIdentifier: nil,
-            customIdentifier: "fatnag.coach",
+            customIdentifier: "fatnag.\(senderId)",
             isMe: false,
             suggestionType: .none
         )

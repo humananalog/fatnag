@@ -1303,7 +1303,7 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                Text("Every 10 minutes the phone reads steps, workouts, and sleep, then sends one line: a greeting, a joke, a reward, or a hard nudge. Empty check-ins are not sent. iOS may delay background wakes.")
+                Text("Every 10 minutes the phone reads steps, workouts, and sleep. A new beat arrives as Nag: a greeting, a joke, a reward, or a hard nudge. Empty check-ins are not sent. iOS may delay background wakes.")
                     .font(.caption2)
                     .foregroundStyle(steel)
                     .fixedSize(horizontal: false, vertical: true)

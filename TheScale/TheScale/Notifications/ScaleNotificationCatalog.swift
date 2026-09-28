@@ -15,6 +15,8 @@ enum ScaleNotificationKind: String, Sendable {
     case morningWeigh
     /// Confirmed short-term weight spike → kick-in-the-ass recovery.
     case weightSpike
+    /// Signature fatnag voice: reward, joke, greeting, or nudge from Health.
+    case nag
 
     var categoryId: String {
         switch self {
@@ -25,6 +27,7 @@ enum ScaleNotificationKind: String, Sendable {
         case .fitnessInterval: return ScaleNotificationCategoryID.fitnessInterval
         case .watchWear, .preSleepHR: return ScaleNotificationCategoryID.fitnessSignal
         case .sample: return ScaleNotificationCategoryID.sample
+        case .nag: return ScaleNotificationCategoryID.nag
         }
     }
 
@@ -34,6 +37,7 @@ enum ScaleNotificationKind: String, Sendable {
         case .badTrend, .weeklyGoal, .weightSpike: return "thescale.trend"
         case .fitnessInterval, .watchWear, .preSleepHR: return "thescale.fitness"
         case .sample: return "thescale.sample"
+        case .nag: return "thescale.nag"
         }
     }
 
@@ -41,7 +45,7 @@ enum ScaleNotificationKind: String, Sendable {
     var interruptionLevel: UNNotificationInterruptionLevel {
         switch self {
         case .coachWake, .morningWeigh, .weightSpike: return .timeSensitive
-        case .coachReminder, .badTrend, .watchWear, .preSleepHR, .sample:
+        case .coachReminder, .badTrend, .watchWear, .preSleepHR, .sample, .nag:
             return .active
         case .weeklyGoal, .fitnessInterval:
             return .passive
@@ -54,6 +58,7 @@ enum ScaleNotificationKind: String, Sendable {
         case .sample: return 0.95
         case .badTrend, .watchWear, .preSleepHR: return 0.85
         case .coachReminder: return 0.8
+        case .nag: return 0.88
         case .weeklyGoal: return 0.55
         case .fitnessInterval: return 0.35
         }
@@ -61,7 +66,7 @@ enum ScaleNotificationKind: String, Sendable {
 
     var destination: ScaleNotificationDestination {
         switch self {
-        case .coachWake, .coachReminder, .fitnessInterval, .watchWear, .preSleepHR, .sample:
+        case .coachWake, .coachReminder, .fitnessInterval, .watchWear, .preSleepHR, .sample, .nag:
             return .coach
         case .morningWeigh:
             return .weigh
@@ -75,7 +80,7 @@ enum ScaleNotificationKind: String, Sendable {
     /// Communication-style avatar presentation (Coach sender).
     var usesCommunicationStyle: Bool {
         switch self {
-        case .coachWake, .coachReminder, .watchWear, .preSleepHR, .sample, .morningWeigh, .weightSpike:
+        case .coachWake, .coachReminder, .watchWear, .preSleepHR, .sample, .morningWeigh, .weightSpike, .nag:
             return true
         case .badTrend, .weeklyGoal, .fitnessInterval:
             return false
@@ -91,6 +96,7 @@ enum ScaleNotificationKind: String, Sendable {
         case .coachWake, .coachReminder, .morningWeigh: return .coach
         case .fitnessInterval: return .pulse
         case .sample: return .sample
+        case .nag: return .nag
         }
     }
 }
@@ -103,6 +109,7 @@ enum ScaleNotificationCategoryID {
     static let fitnessInterval = "THESCALE_FITNESS_INTERVAL"
     static let fitnessSignal = "THESCALE_FITNESS_SIGNAL"
     static let sample = "THESCALE_SAMPLE"
+    static let nag = "THESCALE_NAG"
 }
 
 enum ScaleNotificationActionID {
@@ -137,6 +144,7 @@ enum ScaleNotificationVisualStyle: String, Sendable {
     case heart
     case pulse
     case sample
+    case nag
 }
 
 /// Registers actionable categories once at launch (iOS 27 UNNotificationCategory).
@@ -221,6 +229,14 @@ enum ScaleNotificationCategories {
             categorySummaryFormat: "%u Watch signals",
             options: [.hiddenPreviewsShowTitle, .hiddenPreviewsShowSubtitle]
         )
+        let nag = UNNotificationCategory(
+            identifier: ScaleNotificationCategoryID.nag,
+            actions: [openCoach, snooze],
+            intentIdentifiers: [],
+            hiddenPreviewsBodyPlaceholder: "Nag",
+            categorySummaryFormat: "%u Nags",
+            options: [.customDismissAction, .hiddenPreviewsShowTitle, .hiddenPreviewsShowSubtitle]
+        )
         let sample = UNNotificationCategory(
             identifier: ScaleNotificationCategoryID.sample,
             actions: [openCoach, openProgress],
@@ -231,7 +247,7 @@ enum ScaleNotificationCategories {
         )
 
         UNUserNotificationCenter.current().setNotificationCategories([
-            coach, morning, badTrend, weekly, interval, signal, sample
+            coach, morning, badTrend, weekly, interval, signal, nag, sample
         ])
     }
 }
