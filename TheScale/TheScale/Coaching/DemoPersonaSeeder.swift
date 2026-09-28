@@ -126,7 +126,7 @@ enum DemoPersonaSeeder {
         switch persona {
         case .male:
             return UserBodyProfile(
-                displayName: "Alex",
+                displayName: "Bob",
                 heightCm: 178,
                 ageYears: 34,
                 sex: .male,
@@ -150,7 +150,7 @@ enum DemoPersonaSeeder {
             )
         case .female:
             return UserBodyProfile(
-                displayName: "Maya",
+                displayName: "Alice",
                 heightCm: 165,
                 ageYears: 29,
                 sex: .female,
@@ -334,7 +334,7 @@ enum DemoPersonaSeeder {
     }
 
     private static func makeChat(_ persona: Persona, now: Date) -> [CoachChatTurn] {
-        let name = persona == .male ? "Alex" : "Maya"
+        let name = persona == .male ? "Bob" : "Alice"
         let cal = Calendar.current
         let t0 = cal.date(byAdding: .hour, value: -26, to: now) ?? now
         let t1 = cal.date(byAdding: .hour, value: -25, to: now) ?? now
@@ -398,7 +398,7 @@ enum DemoPersonaSeeder {
         let week = MondayWeekKey.current(now: now)
         let sunday = Calendar.current.date(byAdding: .day, value: 6, to: MondayCardEngine.startOfWeekMonday(now: now))
             ?? now
-        let name = persona == .male ? "Alex" : "Maya"
+        let name = persona == .male ? "Bob" : "Alice"
         return MondayCardPayload(
             weekKey: week.storageKey,
             weighInSignature: "demo-\(persona.rawValue)",
