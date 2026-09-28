@@ -6,6 +6,8 @@ struct TheScaleApp: App {
     @StateObject private var session = ScaleSessionViewModel()
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSplash = !ProcessInfo.processInfo.arguments.contains("-uitesting-skip-splash")
+    /// First-launch karaoke after splash. UI tests that skip splash also skip this.
+    @State private var showFirstLaunchLanding = false
     @State private var appLanguage = AppLanguageStore.current
 
     init() {
@@ -43,14 +45,25 @@ struct TheScaleApp: App {
                 .environment(\.locale, appLanguage.locale)
                 .environment(\.layoutDirection, appLanguage.layoutDirection)
                 .id(appLanguage.rawValue)
-                .opacity(showSplash ? 0 : 1)
+                .opacity(showSplash || showFirstLaunchLanding ? 0 : 1)
+
+                if showFirstLaunchLanding {
+                    FirstLaunchLandingView {
+                        showFirstLaunchLanding = false
+                    }
+                    .transition(.opacity)
+                    .zIndex(2)
+                }
 
                 if showSplash {
                     SplashView {
                         showSplash = false
+                        if !session.hasCompletedOnboarding {
+                            showFirstLaunchLanding = true
+                        }
                     }
                     .transition(.opacity)
-                    .zIndex(1)
+                    .zIndex(3)
                 }
             }
             .onAppear {
@@ -61,11 +74,15 @@ struct TheScaleApp: App {
                 // Drop per-user paste keys from 2.0 / 2.1; coaching uses shared build config only.
                 GrokLegacyKeychain.clearUserEnteredKey()
                 // Failsafe: never leave the user on splash forever if its Task is cancelled.
+                // Does not skip the first-launch landing.
                 if showSplash {
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 3_500_000_000)
                         if showSplash {
                             showSplash = false
+                            if !session.hasCompletedOnboarding {
+                                showFirstLaunchLanding = true
+                            }
                         }
                     }
                 }
