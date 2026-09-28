@@ -1,4 +1,9 @@
 (() => {
+
+  const polish = document.createElement("link");
+  polish.rel = "stylesheet";
+  polish.href = "/polish.css";
+  document.head.appendChild(polish);
   const y = document.getElementById("y");
   if (y) y.textContent = String(new Date().getFullYear());
 
