@@ -5,7 +5,14 @@ import UserNotifications
 struct TheScaleApp: App {
     @StateObject private var session = ScaleSessionViewModel()
     @Environment(\.scenePhase) private var scenePhase
-    @State private var showSplash = !ProcessInfo.processInfo.arguments.contains("-uitesting-skip-splash")
+    @State private var showSplash = {
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-uitesting-skip-splash") { return false }
+        #if DEBUG
+        if DemoPersonaSeeder.Persona.fromLaunchArguments(args) != nil { return false }
+        #endif
+        return true
+    }()
     /// First-launch karaoke after splash. UI tests that skip splash also skip this.
     @State private var showFirstLaunchLanding = false
     @State private var appLanguage = AppLanguageStore.current
@@ -23,6 +30,12 @@ struct TheScaleApp: App {
         if args.contains("-uitesting-reset-onboarding") {
             OnboardingStore.hasCompleted = false
         }
+        #if DEBUG
+        // Seed UserDefaults before ScaleSessionViewModel loads profile / onboarding flag.
+        if let persona = DemoPersonaSeeder.Persona.fromLaunchArguments(args) {
+            DemoPersonaSeeder.persist(persona)
+        }
+        #endif
     }
 
     var body: some Scene {
@@ -71,6 +84,13 @@ struct TheScaleApp: App {
                     OnboardingStore.hasCompleted = false
                     session.hasCompletedOnboarding = false
                 }
+                #if DEBUG
+                if let persona = DemoPersonaSeeder.Persona.fromLaunchArguments() {
+                    DemoPersonaSeeder.hydrate(persona, into: session)
+                    showSplash = false
+                    showFirstLaunchLanding = false
+                }
+                #endif
                 // Drop per-user paste keys from 2.0 / 2.1; coaching uses shared build config only.
                 GrokLegacyKeychain.clearUserEnteredKey()
                 // Failsafe: never leave the user on splash forever if its Task is cancelled.

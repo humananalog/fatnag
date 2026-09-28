@@ -659,10 +659,73 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     #if DEBUG
+    /// When true, HealthKit refreshes must not wipe seeded promo history / gauges.
+    private(set) var isDemoPersonaActive = false
+
     /// Preview / debug injection for hero moment UI.
     func previewInjectWeighInHero(_ card: WeighInAnalysisCard) {
         lastWeighInAnalysis = card
         isWeighInHeroPresented = true
+    }
+
+    /// Load male/female demo persona for Simulator promo recordings.
+    func applyDemoPersona(_ sex: UserBodyProfile.Sex) {
+        let persona: DemoPersonaSeeder.Persona = sex == .female ? .female : .male
+        DemoPersonaSeeder.hydrate(persona, into: self)
+    }
+
+    /// Apply full demo payload (stores already persisted by seeder).
+    func applyDemoPersonaPayload(
+        profile: UserBodyProfile,
+        weeklyGoal: WeeklyMiniGoal,
+        mealPlan: MealPlanPayload?,
+        mondayCard: MondayCardPayload?,
+        weights: [HealthMetricSample],
+        bodyFat: [HealthMetricSample],
+        currentKg: Double,
+        digest: FitnessDigest
+    ) {
+        self.profile = profile
+        self.weeklyGoal = weeklyGoal
+        self.mealPlan = mealPlan
+        self.mondayCard = mondayCard
+        hasCompletedOnboarding = true
+        preferredUnits = .metric
+        applyDemoHealthSurface(
+            weights: weights,
+            bodyFat: bodyFat,
+            currentKg: currentKg,
+            digest: digest
+        )
+    }
+
+    /// Inject chart + gauge surfaces used by demo personas (DEBUG only).
+    func applyDemoHealthSurface(
+        weights: [HealthMetricSample],
+        bodyFat: [HealthMetricSample],
+        currentKg: Double,
+        digest: FitnessDigest
+    ) {
+        historyWeights = weights
+        historyBodyFatPercents = bodyFat
+        historyTrendWindowWeights = Array(weights.suffix(14))
+        historyRange = .lastMonth
+        recentHealthWeights = weights.suffix(8).reversed().map {
+            HealthWeightSample(weightKg: $0.value, date: $0.date)
+        }
+        healthBaselineKg = currentKg
+        lastFitnessDigest = digest
+        lastHomeGaugeRefreshAt = Date()
+        progressSurfaceWarmed = true
+        lastProgressWarmAt = Date()
+        isDemoPersonaActive = true
+        refreshAlreadyWeighedToday()
+        ensureWeeklyGoalBaseline()
+        rebuildWeeklyGoalSurface()
+    }
+
+    func clearDemoPersonaLock() {
+        isDemoPersonaActive = false
     }
     #endif
 
@@ -1155,6 +1218,12 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Prefer this for UI speed; full Coach digest stays on `refreshFitnessDigestForCoach`.
     @discardableResult
     func refreshHomeGauges(force: Bool = false) async -> WeeklyGoalSurface {
+        #if DEBUG
+        if isDemoPersonaActive {
+            rebuildWeeklyGoalSurface()
+            return weeklyGoalSurface
+        }
+        #endif
         if !force,
            let last = lastHomeGaugeRefreshAt,
            Date().timeIntervalSince(last) < 8,
@@ -1825,6 +1894,12 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Always also loads the last 2 weeks for Trend projection (independent of picker range).
     func loadHistory(for range: HealthHistoryRange = .default) async throws {
         historyRange = range
+        #if DEBUG
+        if isDemoPersonaActive {
+            refreshAlreadyWeighedToday()
+            return
+        }
+        #endif
         guard healthKitAvailable else {
             historyWeights = []
             historyBodyFatPercents = []

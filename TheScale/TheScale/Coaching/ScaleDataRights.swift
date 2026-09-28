@@ -93,6 +93,9 @@ enum ScaleDataRights {
         session.clearMealPlanCache()
         session.hasCompletedOnboarding = false
         LegalAcceptanceStore.clear()
+        #if DEBUG
+        session.clearDemoPersonaLock()
+        #endif
     }
 
     private static func encodeJSONObject<T: Encodable>(_ value: T) -> Any? {

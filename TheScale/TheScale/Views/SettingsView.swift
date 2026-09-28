@@ -1607,6 +1607,40 @@ struct SettingsView: View {
                     .font(.caption2)
                     .foregroundStyle(steel)
 
+                #if DEBUG
+                Divider().padding(.vertical, 2)
+
+                Text("Debug · Promo demos")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
+
+                Text("Loads a full camera-ready persona (profile, 4 weeks of weighs, gauges, meals, Keel chat). Simulator only.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+
+                Button {
+                    session.applyDemoPersona(.male)
+                    dataRightsNote = "Demo male (Alex) loaded. Charts + gauges are seeded."
+                    session.dismissSettings()
+                } label: {
+                    Label("Load demo · Male (Alex)", systemImage: "person.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.demoMale")
+
+                Button {
+                    session.applyDemoPersona(.female)
+                    dataRightsNote = "Demo female (Maya) loaded. Charts + gauges are seeded."
+                    session.dismissSettings()
+                } label: {
+                    Label("Load demo · Female (Maya)", systemImage: "person.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.demoFemale")
+                #endif
+
                 if let dataRightsNote {
                     Text(dataRightsNote)
                         .font(.caption2.weight(.semibold))
