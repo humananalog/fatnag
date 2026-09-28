@@ -1,0 +1,4 @@
+.wrangler/
+.redeploy*.json
+.full-deploy.json
+.vercel/
