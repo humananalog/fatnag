@@ -115,15 +115,15 @@ final class OnboardingFlowModel: ObservableObject {
 
     var primaryCTA: String {
         switch step {
-        case .language: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
-        case .identity: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
-        case .body: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
+        case .language: return AppLanguageStore.text("onboarding.cta.continue", default: "Continue")
+        case .identity: return AppLanguageStore.text("onboarding.cta.continue", default: "Continue")
+        case .body: return AppLanguageStore.text("onboarding.cta.continue", default: "Continue")
         case .anatomy: return isInferring
-            ? String(localized: "onboarding.cta.filling", defaultValue: "Filling profile…")
-            : String(localized: "onboarding.cta.dream", defaultValue: "Set dream weight")
-        case .dream: return String(localized: "onboarding.cta.lock", defaultValue: "Lock target")
-        case .lifestyle: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
-        case .confirm: return String(localized: "onboarding.cta.start", defaultValue: "Start weighing")
+            ? AppLanguageStore.text("onboarding.cta.filling", default: "Filling profile…")
+            : AppLanguageStore.text("onboarding.cta.dream", default: "Set dream weight")
+        case .dream: return AppLanguageStore.text("onboarding.cta.lock", default: "Lock target")
+        case .lifestyle: return AppLanguageStore.text("onboarding.cta.continue", default: "Continue")
+        case .confirm: return AppLanguageStore.text("onboarding.cta.start", default: "Start weighing")
         }
     }
 

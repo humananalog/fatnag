@@ -21,6 +21,7 @@ struct TheScaleApp: App {
         UNUserNotificationCenter.current().delegate = ScaleNotificationDelegate.shared
         ScaleNotificationCategories.register()
         GrokFitnessMonitor.registerBackgroundTask()
+        AppLanguageBundleInstaller.installIfNeeded()
         AppLanguageStore.syncBundleLanguages()
         Self.applyLaunchArguments()
     }

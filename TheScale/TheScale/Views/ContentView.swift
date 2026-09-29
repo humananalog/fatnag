@@ -278,7 +278,7 @@ struct ContentView: View {
                             session.presentManualEntry()
                         }
                     } label: {
-                        Label(String(localized: "home.weigh_now", defaultValue: "Weigh now"), systemImage: "scalemass.fill")
+                        Label(AppLanguageStore.text("home.weigh_now", default: "Weigh now"), systemImage: "scalemass.fill")
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                             .frame(maxWidth: .infinity)
                     }
@@ -287,7 +287,7 @@ struct ContentView: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .accessibilityIdentifier("home.weighNow")
-                    .accessibilityLabel(String(localized: "home.weigh_now", defaultValue: "Weigh now"))
+                    .accessibilityLabel(AppLanguageStore.text("home.weigh_now", default: "Weigh now"))
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -363,7 +363,7 @@ struct ContentView: View {
     private func homeStatusLine(compact: Bool) -> some View {
         Group {
             if !session.healthKitAvailable {
-                Text(String(localized: "home.health_unavailable", defaultValue: "Health unavailable."))
+                Text(AppLanguageStore.text("home.health_unavailable", default: "Health unavailable."))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(atmosphere.ink.opacity(0.7))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -374,7 +374,7 @@ struct ContentView: View {
 
     private func adviceBlock(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(String(localized: "home.insight", defaultValue: "INSIGHT"))
+            Text(AppLanguageStore.text("home.insight", default: "INSIGHT"))
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .tracking(1.0)
                 .foregroundStyle(atmosphere.ink.opacity(0.55))
@@ -454,7 +454,7 @@ struct ContentView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("home.charts")
-            .accessibilityLabel(String(localized: "home.charts", defaultValue: "Charts"))
+            .accessibilityLabel(AppLanguageStore.text("home.charts", default: "Charts"))
             HomeNotificationBell(
                 isPresented: $showNotificationCenter,
                 badgeCount: pendingNotifCount,
@@ -494,10 +494,10 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("home.massPrivacy")
                 .accessibilityLabel(hideHomeMass
-                    ? String(localized: "home.mass.reveal", defaultValue: "Show weight")
-                    : String(localized: "home.mass.hide", defaultValue: "Hide weight"))
+                    ? AppLanguageStore.text("home.mass.reveal", default: "Show weight")
+                    : AppLanguageStore.text("home.mass.hide", default: "Hide weight"))
             } else if name.isEmpty {
-                Text(String(localized: "home.weekly_goal", defaultValue: "Weekly goal"))
+                Text(AppLanguageStore.text("home.weekly_goal", default: "Weekly goal"))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.ink.opacity(0.78))
             }
@@ -508,7 +508,7 @@ struct ContentView: View {
         let units = session.preferredUnits
         guard let kg = session.healthBaselineKg else { return "" }
         let mass = UnitFormat.massString(kg, system: units, fractionDigits: 1)
-        return "\(mass) · \(String(localized: "home.this_week", defaultValue: "this week"))"
+        return "\(mass) · \(AppLanguageStore.text("home.this_week", default: "this week"))"
     }
 
     private var brandAccessibilityLabel: String {
@@ -537,7 +537,7 @@ struct ContentView: View {
                     .tracking(0.8)
                     .foregroundStyle(atmosphere.ink.opacity(0.65))
                 Spacer()
-                Button(String(localized: "common.dismiss", defaultValue: "Dismiss")) {
+                Button(AppLanguageStore.text("common.dismiss", default: "Dismiss")) {
                     session.dismissWeighInAnalysis()
                 }
                 .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -549,7 +549,7 @@ struct ContentView: View {
                     .monospacedDigit()
                     .foregroundStyle(atmosphere.accent)
                     .accessibilityIdentifier("home.weighInWinnerDelta")
-                Text(String(localized: "home.winner", defaultValue: "You're a winner."))
+                Text(AppLanguageStore.text("home.winner", default: "You're a winner."))
                     .font(.system(size: 15, weight: .heavy, design: .rounded))
                     .foregroundStyle(atmosphere.ink)
                     .accessibilityIdentifier("home.weighInWinner")
@@ -621,20 +621,17 @@ struct GoalDateRevisionSheet: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
-                Text(String(localized: "goal.revision.title", defaultValue: "This date is too fast"))
+                Text(AppLanguageStore.text("goal.revision.title", default: "This date is too fast"))
                     .font(.system(size: 28, weight: .bold, design: .serif))
                 Text(offer.note)
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(String(
-                    localized: "goal.revision.body",
-                    defaultValue: "Commando meals are on: intake drops to the safe weekly max. Keel pre-selected a date you can still change."
-                ))
+                Text(AppLanguageStore.text("goal.revision.body", default: "Commando meals are on: intake drops to the safe weekly max. Keel pre-selected a date you can still change."))
                     .font(.system(size: 15, weight: .medium, design: .rounded))
                     .fixedSize(horizontal: false, vertical: true)
                 DatePicker(
-                    String(localized: "goal.revision.picker", defaultValue: "New goal date"),
+                    AppLanguageStore.text("goal.revision.picker", default: "New goal date"),
                     selection: $date,
                     in: offer.proposedDate...,
                     displayedComponents: .date
@@ -645,14 +642,14 @@ struct GoalDateRevisionSheet: View {
                     session.acceptRevisedGoalDate(date)
                     dismiss()
                 } label: {
-                    Text(String(localized: "goal.revision.accept", defaultValue: "Use this date"))
+                    Text(AppLanguageStore.text("goal.revision.accept", default: "Use this date"))
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("goal.revision.accept")
-                Button(String(localized: "goal.revision.keep", defaultValue: "Keep my date")) {
+                Button(AppLanguageStore.text("goal.revision.keep", default: "Keep my date")) {
                     session.keepUnrealisticGoalDate()
                     dismiss()
                 }

@@ -16,22 +16,22 @@ enum WeeklyTargetMode: String, Equatable, Sendable {
     /// Short Monday-hero badge (Keel voice, no medical framing).
     var mondayHeroBadge: String {
         switch self {
-        case .hardcoreCatchUp: return String(localized: "week.mode.hardcore", defaultValue: "HARDCORE")
-        case .accelerate: return String(localized: "week.mode.ahead", defaultValue: "AHEAD")
-        case .aggressive: return String(localized: "week.mode.aggressive", defaultValue: "AGGRESSIVE")
-        case .commando: return String(localized: "week.mode.commando", defaultValue: "COMMANDO")
-        case .hold: return String(localized: "week.mode.hold", defaultValue: "HOLD")
+        case .hardcoreCatchUp: return AppLanguageStore.text("week.mode.hardcore", default: "HARDCORE")
+        case .accelerate: return AppLanguageStore.text("week.mode.ahead", default: "AHEAD")
+        case .aggressive: return AppLanguageStore.text("week.mode.aggressive", default: "AGGRESSIVE")
+        case .commando: return AppLanguageStore.text("week.mode.commando", default: "COMMANDO")
+        case .hold: return AppLanguageStore.text("week.mode.hold", default: "HOLD")
         }
     }
 
     /// One-line CTA under the Sunday target.
     var mondayHeroCTA: String {
         switch self {
-        case .hardcoreCatchUp: return String(localized: "week.mode.hardcore.cta", defaultValue: "No coast. Close the gap.")
-        case .accelerate: return String(localized: "week.mode.ahead.cta", defaultValue: "Celebrate, then push.")
-        case .aggressive: return String(localized: "week.mode.aggressive.cta", defaultValue: "Hit Sunday. Full send.")
-        case .commando: return String(localized: "week.mode.commando.cta", defaultValue: "Cut intake. The date has to move.")
-        case .hold: return String(localized: "week.mode.hold.cta", defaultValue: "Hold the line.")
+        case .hardcoreCatchUp: return AppLanguageStore.text("week.mode.hardcore.cta", default: "No coast. Close the gap.")
+        case .accelerate: return AppLanguageStore.text("week.mode.ahead.cta", default: "Celebrate, then push.")
+        case .aggressive: return AppLanguageStore.text("week.mode.aggressive.cta", default: "Hit Sunday. Full send.")
+        case .commando: return AppLanguageStore.text("week.mode.commando.cta", default: "Cut intake. The date has to move.")
+        case .hold: return AppLanguageStore.text("week.mode.hold.cta", default: "Hold the line.")
         }
     }
 }

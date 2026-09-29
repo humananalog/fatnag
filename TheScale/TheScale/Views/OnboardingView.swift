@@ -58,7 +58,7 @@ struct OnboardingView: View {
                     .id(flow.appLanguage.rawValue)
 
                     if flow.isInferring {
-                        Text(String(localized: "onboarding.shaping", defaultValue: "Shaping profile…"))
+                        Text(AppLanguageStore.text("onboarding.shaping", default: "Shaping profile…"))
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(moss)
                             .accessibilityIdentifier("onboarding.inferring")
@@ -66,7 +66,7 @@ struct OnboardingView: View {
 
                     HStack(spacing: 10) {
                         if flow.step != .language {
-                            Button(String(localized: "onboarding.back", defaultValue: "Back")) {
+                            Button(AppLanguageStore.text("onboarding.back", default: "Back")) {
                                 withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
                                     flow.goBack()
                                 }
@@ -113,7 +113,7 @@ struct OnboardingView: View {
     private func languageStep(compact: Bool) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                Text(String(localized: "onboarding.language.hint", defaultValue: "Choose the language for fatnag. Every screen follows this choice."))
+                Text(AppLanguageStore.text("onboarding.language.hint", default: "Choose the language for fatnag. Every screen follows this choice."))
                     .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(steel)
                 LazyVStack(spacing: 0) {
@@ -164,25 +164,25 @@ struct OnboardingView: View {
 
     private var stepTitle: String {
         switch flow.step {
-        case .language: return String(localized: "onboarding.step.language", defaultValue: "Language")
-        case .identity: return String(localized: "onboarding.step.identity", defaultValue: "Mission")
-        case .body: return String(localized: "onboarding.step.body", defaultValue: "Body")
-        case .anatomy: return String(localized: "onboarding.step.anatomy", defaultValue: "Frame")
-        case .dream: return String(localized: "onboarding.step.dream", defaultValue: "Dream weight")
-        case .lifestyle: return String(localized: "onboarding.step.lifestyle", defaultValue: "Food & place")
-        case .confirm: return String(localized: "onboarding.step.confirm", defaultValue: "Lock in")
+        case .language: return AppLanguageStore.text("onboarding.step.language", default: "Language")
+        case .identity: return AppLanguageStore.text("onboarding.step.identity", default: "Mission")
+        case .body: return AppLanguageStore.text("onboarding.step.body", default: "Body")
+        case .anatomy: return AppLanguageStore.text("onboarding.step.anatomy", default: "Frame")
+        case .dream: return AppLanguageStore.text("onboarding.step.dream", default: "Dream weight")
+        case .lifestyle: return AppLanguageStore.text("onboarding.step.lifestyle", default: "Food & place")
+        case .confirm: return AppLanguageStore.text("onboarding.step.confirm", default: "Lock in")
         }
     }
 
     private var stepSubtitle: String {
         switch flow.step {
-        case .language: return String(localized: "onboarding.sub.language", defaultValue: "First. Sets the whole app.")
-        case .identity: return String(localized: "onboarding.sub.identity", defaultValue: "Consistency coach. Not a diet app.")
-        case .body: return String(localized: "onboarding.sub.body", defaultValue: "18+. Required for BIA and Keel.")
-        case .anatomy: return String(localized: "onboarding.sub.anatomy", defaultValue: "Height, weight, optional BF%. Units live-convert.")
-        case .dream: return String(localized: "onboarding.sub.dream", defaultValue: "Drag the disc. Impossible pace gets a hard no.")
-        case .lifestyle: return String(localized: "onboarding.sub.lifestyle", defaultValue: "Optional. Leave blank; we may ask gently later.")
-        case .confirm: return String(localized: "onboarding.sub.confirm", defaultValue: "Legal once. Then weigh.")
+        case .language: return AppLanguageStore.text("onboarding.sub.language", default: "First. Sets the whole app.")
+        case .identity: return AppLanguageStore.text("onboarding.sub.identity", default: "Consistency coach. Not a diet app.")
+        case .body: return AppLanguageStore.text("onboarding.sub.body", default: "18+. Required for BIA and Keel.")
+        case .anatomy: return AppLanguageStore.text("onboarding.sub.anatomy", default: "Height, weight, optional BF%. Units live-convert.")
+        case .dream: return AppLanguageStore.text("onboarding.sub.dream", default: "Drag the disc. Impossible pace gets a hard no.")
+        case .lifestyle: return AppLanguageStore.text("onboarding.sub.lifestyle", default: "Optional. Leave blank; we may ask gently later.")
+        case .confirm: return AppLanguageStore.text("onboarding.sub.confirm", default: "Legal once. Then weigh.")
         }
     }
 

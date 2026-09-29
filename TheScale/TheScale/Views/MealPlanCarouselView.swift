@@ -79,19 +79,19 @@ struct MealPlanCarouselView: View {
                 .padding(.vertical, 20)
                 .padding(.horizontal, 12)
             }
-            .navigationTitle(String(localized: "meal.title", defaultValue: "Meal plan"))
+            .navigationTitle(AppLanguageStore.text("meal.title", default: "Meal plan"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(String(localized: "common.refresh", defaultValue: "Refresh")) {
+                    Button(AppLanguageStore.text("common.refresh", default: "Refresh")) {
                         Task { await session.refreshMealPlan(force: true) }
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if session.alreadyWeighedToday {
-                        Button(String(localized: "common.manual", defaultValue: "Manual")) { session.presentManualEntry() }
+                        Button(AppLanguageStore.text("common.manual", default: "Manual")) { session.presentManualEntry() }
                     } else if session.weighNowGateResolved {
-                        Button(String(localized: "common.weigh", defaultValue: "Weigh")) { session.selectHomeTab(.weigh) }
+                        Button(AppLanguageStore.text("common.weigh", default: "Weigh")) { session.selectHomeTab(.weigh) }
                     }
                 }
             }
@@ -109,16 +109,16 @@ struct MealPlanCarouselView: View {
     private func headerCopy(focus: MealPlanFocus?) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             if focus == .kitchenClosed {
-                Text(String(localized: "meal.kitchen_closed", defaultValue: "Kitchen's closed"))
+                Text(AppLanguageStore.text("meal.kitchen_closed", default: "Kitchen's closed"))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(steel)
             } else {
-                Text(String(localized: "meal.next_plate", defaultValue: "Next plate"))
+                Text(AppLanguageStore.text("meal.next_plate", default: "Next plate"))
                     .font(.system(size: 28, weight: .semibold, design: .serif))
                     .foregroundStyle(ink)
                 if let plan = session.mealPlan {
                     Text(String(
-                        format: String(localized: "meal.cap_line", defaultValue: "Cap %d kcal · protein %d g · %@"),
+                        format: AppLanguageStore.text("meal.cap_line", default: "Cap %d kcal · protein %d g · %@"),
                         plan.maxKcal,
                         plan.proteinGrams,
                         plan.dietRaw
@@ -126,7 +126,7 @@ struct MealPlanCarouselView: View {
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(steel)
                 } else {
-                    Text(String(localized: "meal.grounded", defaultValue: "Grounded in your deficit, diet prefs, and fasting window."))
+                    Text(AppLanguageStore.text("meal.grounded", default: "Grounded in your deficit, diet prefs, and fasting window."))
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(steel)
                 }
@@ -143,8 +143,8 @@ struct MealPlanCarouselView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 180)
             Text(session.isMealPlanLoading
-                 ? String(localized: "meal.writing", defaultValue: "Keel is writing meals. You can keep moving.")
-                 : String(localized: "meal.empty", defaultValue: "No meal plan yet."))
+                 ? AppLanguageStore.text("meal.writing", default: "Keel is writing meals. You can keep moving.")
+                 : AppLanguageStore.text("meal.empty", default: "No meal plan yet."))
                 .font(.system(size: 17, weight: .semibold, design: .rounded))
                 .foregroundStyle(ink)
                 .fixedSize(horizontal: false, vertical: true)
@@ -194,8 +194,8 @@ struct MealPlanCarouselView: View {
             }
 
             HStack(spacing: 16) {
-                labeled(String(localized: "meal.macro", defaultValue: "Macro"), meal.keyMacro, accent: accent)
-                labeled(String(localized: "meal.micro", defaultValue: "Micro"), meal.keyMicro, accent: accent)
+                labeled(AppLanguageStore.text("meal.macro", default: "Macro"), meal.keyMacro, accent: accent)
+                labeled(AppLanguageStore.text("meal.micro", default: "Micro"), meal.keyMicro, accent: accent)
             }
 
             Text("~\(meal.approxKcal) kcal")
@@ -247,10 +247,10 @@ private struct KitchenClosedHero: View {
 
     private var lines: [(text: String, size: CGFloat, weight: Font.Weight, design: Font.Design, muted: Bool)] {
         [
-            (String(localized: "meal.late.too", defaultValue: "Too late"), 72, .bold, .serif, false),
-            (String(localized: "meal.late.eat", defaultValue: "to eat now."), 44, .semibold, .serif, false),
-            (String(localized: "meal.late.bed", defaultValue: "Go to bed."), 60, .bold, .rounded, false),
-            (String(localized: "meal.late.hungry", defaultValue: "You won't be hungry."), 32, .semibold, .rounded, true)
+            (AppLanguageStore.text("meal.late.too", default: "Too late"), 72, .bold, .serif, false),
+            (AppLanguageStore.text("meal.late.eat", default: "to eat now."), 44, .semibold, .serif, false),
+            (AppLanguageStore.text("meal.late.bed", default: "Go to bed."), 60, .bold, .rounded, false),
+            (AppLanguageStore.text("meal.late.hungry", default: "You won't be hungry."), 32, .semibold, .rounded, true)
         ]
     }
 
@@ -274,10 +274,7 @@ private struct KitchenClosedHero: View {
         .padding(.horizontal, 8)
         .padding(.top, 12)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(
-            localized: "meal.late.a11y",
-            defaultValue: "Too late to eat now. Go to bed. You won't be hungry."
-        ))
+        .accessibilityLabel(AppLanguageStore.text("meal.late.a11y", default: "Too late to eat now. Go to bed. You won't be hungry."))
         .onAppear { anchor = Date() }
     }
 

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import ObjectiveC
 
 /// In-app language override (App Store distribution locales). Persisted; drives `.environment(\.locale)`.
 enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
@@ -44,7 +45,7 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     /// Native name for the language picker (always in that language).
     var nativeLabel: String {
         switch self {
-        case .system: return String(localized: "lang.system", defaultValue: "System")
+        case .system: return AppLanguageStore.text("lang.system", default: "System")
         case .english: return "English"
         case .spanish: return "Español"
         case .french: return "Français"
@@ -178,6 +179,16 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
+    /// Code used in `Localizable.xcstrings` language keys.
+    var catalogLanguageCode: String {
+        switch self {
+        case .system:
+            return resolved.catalogLanguageCode
+        default:
+            return rawValue
+        }
+    }
+
     /// Concrete language when the choice is System.
     var resolved: AppLanguage {
         guard self == .system else { return self }
@@ -248,29 +259,28 @@ enum AppLanguageStore {
     @discardableResult
     static func apply(_ language: AppLanguage) -> AppLanguage? {
         guard let lang = AppLanguage.validated(language.rawValue), lang.isSupported else { return nil }
-        syncBundleLanguages(lang)
         current = lang
         return lang
     }
 
     /// Point Bundle / `String(localized:)` at the in-app language. SwiftUI `.locale` alone is not enough.
     static func syncBundleLanguages(_ language: AppLanguage = current) {
+        AppLanguageBundleInstaller.installIfNeeded()
         if language == .system {
             UserDefaults.standard.removeObject(forKey: "AppleLanguages")
         } else {
-            UserDefaults.standard.set([language.resolved.rawValue], forKey: "AppleLanguages")
+            UserDefaults.standard.set([language.resolved.catalogLanguageCode], forKey: "AppleLanguages")
         }
         UserDefaults.standard.synchronize()
     }
 
     /// Lookup that always uses the validated in-app language (sheets, Settings, splash).
     static func text(_ key: String, default defaultValue: String) -> String {
-        let locale = current.resolved.locale
-        var resource = LocalizedStringResource(String.LocalizationValue(stringLiteral: key))
-        resource.locale = locale
-        let resolved = String(localized: resource)
-        if resolved == key || resolved.isEmpty { return defaultValue }
-        return resolved
+        let lang = current.resolved.catalogLanguageCode
+        if let value = StringCatalogLookup.string(key: key, language: lang) {
+            return value
+        }
+        return defaultValue
     }
 
     /// Pins model prompts to the validated language.
@@ -282,6 +292,66 @@ enum AppLanguageStore {
 
     /// Effective locale for SwiftUI environment.
     static var effectiveLocale: Locale { current.locale }
+}
+
+// MARK: - Catalog-backed localization
+
+/// Resolves strings from compiled `*.lproj/Localizable.strings` for the in-app language.
+/// SwiftUI `.environment(\.locale)` does not affect `String(localized:)`; this does.
+enum StringCatalogLookup {
+    static func string(key: String, language: String) -> String? {
+        for code in languageCandidates(language) {
+            if let value = lookup(key: key, inLproj: code) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func languageCandidates(_ language: String) -> [String] {
+        var codes = [language]
+        let prefix = language.split(separator: "-").first.map(String.init) ?? language
+        if prefix != language, !language.hasPrefix("zh") {
+            codes.append(prefix)
+        }
+        if language != "en" {
+            codes.append("en")
+        }
+        return codes
+    }
+
+    private static func lookup(key: String, inLproj code: String) -> String? {
+        let lprojURL = Bundle.main.bundleURL.appendingPathComponent("\(code).lproj", isDirectory: true)
+        guard let bundle = Bundle(url: lprojURL) else { return nil }
+        // Sentinel: missing keys come back as the key or the value argument.
+        let sentinel = "\u{FFFF}"
+        let value = bundle.localizedString(forKey: key, value: sentinel, table: nil)
+        if value == sentinel || value == key || value.isEmpty { return nil }
+        return value
+    }
+}
+
+enum AppLanguageBundleInstaller {
+    private static let lock = NSLock()
+    private static var _didInstall = false
+
+    static func installIfNeeded() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !_didInstall else { return }
+        _didInstall = true
+        object_setClass(Bundle.main, LanguageAwareBundle.self)
+    }
+}
+
+private final class LanguageAwareBundle: Bundle, @unchecked Sendable {
+    override func localizedString(forKey key: String, value: String?, table tableName: String?) -> String {
+        let lang = AppLanguageStore.current.resolved.catalogLanguageCode
+        if let translated = StringCatalogLookup.string(key: key, language: lang) {
+            return translated
+        }
+        return super.localizedString(forKey: key, value: value, table: tableName)
+    }
 }
 
 /// Banking-style mass privacy on the home greeting line.

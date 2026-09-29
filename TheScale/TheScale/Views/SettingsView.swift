@@ -102,33 +102,33 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 28) {
                 brandHeader
 
-                sectionLabel(String(localized: "settings.section.language", defaultValue: "Language"))
+                sectionLabel(AppLanguageStore.text("settings.section.language", default: "Language"))
                 languageCard
 
-                sectionLabel(String(localized: "settings.section.you", defaultValue: "You"))
+                sectionLabel(AppLanguageStore.text("settings.section.you", default: "You"))
                 profileCard
 
-                sectionLabel(String(localized: "settings.section.weekly_ai", defaultValue: "Weekly AI"))
+                sectionLabel(AppLanguageStore.text("settings.section.weekly_ai", default: "Weekly AI"))
                 planCard
 
-                sectionLabel(String(localized: "settings.section.coach", defaultValue: "Coach"))
+                sectionLabel(AppLanguageStore.text("settings.section.coach", default: "Coach"))
                 coachCard
 
-                sectionLabel(String(localized: "settings.section.alerts_health", defaultValue: "Alerts & Health"))
+                sectionLabel(AppLanguageStore.text("settings.section.alerts_health", default: "Alerts & Health"))
                 notificationsCard
                 fitnessMonitorCard
 
-                sectionLabel(String(localized: "settings.section.scale", defaultValue: "Scale"))
+                sectionLabel(AppLanguageStore.text("settings.section.scale", default: "Scale"))
                 calibrationCard
 
-                sectionLabel(String(localized: "settings.section.privacy_legal", defaultValue: "Privacy & Legal"))
+                sectionLabel(AppLanguageStore.text("settings.section.privacy_legal", default: "Privacy & Legal"))
                 privacyCard
                 legalCard
 
-                sectionLabel(String(localized: "settings.section.help", defaultValue: "Help"))
+                sectionLabel(AppLanguageStore.text("settings.section.help", default: "Help"))
                 feedbackCard
 
-                sectionLabel(String(localized: "settings.section.app", defaultValue: "App"))
+                sectionLabel(AppLanguageStore.text("settings.section.app", default: "App"))
                 aboutCard
             }
             .padding(.horizontal, 20)
@@ -155,12 +155,12 @@ struct SettingsView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(settingsBackground.ignoresSafeArea())
-        .navigationTitle(String(localized: "settings.title", defaultValue: "Settings"))
+        .navigationTitle(AppLanguageStore.text("settings.title", default: "Settings"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button(String(localized: "common.done", defaultValue: "Done")) { dismissKeyboard() }
+                Button(AppLanguageStore.text("common.done", default: "Done")) { dismissKeyboard() }
                     .fontWeight(.semibold)
             }
         }
@@ -256,36 +256,27 @@ struct SettingsView: View {
     private var languageCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 10) {
-                Label(String(localized: "settings.language", defaultValue: "App language"), systemImage: "globe")
+                Label(AppLanguageStore.text("settings.language", default: "App language"), systemImage: "globe")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text(String(
-                    localized: "settings.language.help",
-                    defaultValue: "Sets the app UI, the splash line, and Keel. On-device models use the same language."
-                ))
+                Text(AppLanguageStore.text("settings.language.help", default: "Sets the app UI, the splash line, and Keel. On-device models use the same language."))
                 .font(.footnote)
                 .foregroundStyle(steel)
                 .fixedSize(horizontal: false, vertical: true)
 
                 Picker(
-                    String(localized: "settings.language", defaultValue: "App language"),
+                    AppLanguageStore.text("settings.language", default: "App language"),
                     selection: Binding(
                         get: { AppLanguageStore.current },
                         set: { lang in
                             guard let applied = AppLanguageStore.apply(lang) else {
                                 languageRejected = true
-                                languageValidationNote = String(
-                                    localized: "settings.language.invalid",
-                                    defaultValue: "That language is not available."
-                                )
+                                languageValidationNote = AppLanguageStore.text("settings.language.invalid", default: "That language is not available.")
                                 return
                             }
                             languageRejected = false
                             session.profile.preferredLanguage = applied.resolved.profileLanguageName
-                            languageValidationNote = String(
-                                localized: "settings.language.applied",
-                                defaultValue: "UI and Keel now use \(applied.nativeLabel)."
-                            )
+                            languageValidationNote = AppLanguageStore.text("settings.language.applied", default: "UI and Keel now use \(applied.nativeLabel).")
                         }
                     )
                 ) {
@@ -319,10 +310,7 @@ struct SettingsView: View {
             Text(FatnagBrand.tagline)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(copper)
-            Text(String(
-                localized: "settings.brand.blurb",
-                defaultValue: "Profile, Coach, Health, and privacy — all on this iPhone."
-            ))
+            Text(AppLanguageStore.text("settings.brand.blurb", default: "Profile, Coach, Health, and privacy — all on this iPhone."))
                 .font(.footnote)
                 .foregroundStyle(steel)
                 .fixedSize(horizontal: false, vertical: true)
@@ -358,13 +346,10 @@ struct SettingsView: View {
         let snap = subscription.quotaSnapshot
         return settingsPanel {
             VStack(alignment: .leading, spacing: 12) {
-                Label(String(localized: "settings.ai.usage", defaultValue: "Online AI usage"), systemImage: "chart.bar.fill")
+                Label(AppLanguageStore.text("settings.ai.usage", default: "Online AI usage"), systemImage: "chart.bar.fill")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text(String(
-                    localized: "settings.ai.usage.help",
-                    defaultValue: "Live Keel for chat, Monday card, fitness checks, and meal plans. On-device Coach stays unlimited. Resets Monday."
-                ))
+                Text(AppLanguageStore.text("settings.ai.usage.help", default: "Live Keel for chat, Monday card, fitness checks, and meal plans. On-device Coach stays unlimited. Resets Monday."))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -442,8 +427,8 @@ struct SettingsView: View {
                 } label: {
                     Label {
                         Text(subscription.isRestoring
-                              ? String(localized: "paywall.restoring", defaultValue: "Restoring…")
-                              : String(localized: "paywall.restore", defaultValue: "Restore purchases"))
+                              ? AppLanguageStore.text("paywall.restoring", default: "Restoring…")
+                              : AppLanguageStore.text("paywall.restore", default: "Restore purchases"))
                     } icon: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -510,13 +495,10 @@ struct SettingsView: View {
     private var profileCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 14) {
-                Text(String(localized: "settings.profile", defaultValue: "Profile"))
+                Text(AppLanguageStore.text("settings.profile", default: "Profile"))
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text(String(
-                    localized: "settings.profile.help",
-                    defaultValue: "On-device for body fat estimates, greetings, and Coach tone."
-                ))
+                Text(AppLanguageStore.text("settings.profile.help", default: "On-device for body fat estimates, greetings, and Coach tone."))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -529,19 +511,16 @@ struct SettingsView: View {
                         .textContentType(.givenName)
                 }
 
-                Text(String(localized: "settings.units", defaultValue: "Units"))
+                Text(AppLanguageStore.text("settings.units", default: "Units"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
-                Picker(String(localized: "settings.units", defaultValue: "Units"), selection: $session.preferredUnits) {
+                Picker(AppLanguageStore.text("settings.units", default: "Units"), selection: $session.preferredUnits) {
                     ForEach(PreferredUnitSystem.allCases) { system in
                         Text(system.shortTitle).tag(system)
                     }
                 }
                 .pickerStyle(.segmented)
-                Text(String(
-                    localized: "settings.units.help",
-                    defaultValue: "Weight, height, portions, meal plan, and Coach use this. Health stays metric under the hood."
-                ))
+                Text(AppLanguageStore.text("settings.units.help", default: "Weight, height, portions, meal plan, and Coach use this. Health stays metric under the hood."))
                     .font(.caption2)
                     .foregroundStyle(steel)
 
@@ -599,14 +578,11 @@ struct SettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(String(localized: "settings.dream_weight", defaultValue: "Dream / target weight"))
+                    Text(AppLanguageStore.text("settings.dream_weight", default: "Dream / target weight"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(ink)
                     Text(
-                        String(
-                            localized: "settings.dream_weight.help",
-                            defaultValue: "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Markers follow metric or imperial Units."
-                        )
+                        AppLanguageStore.text("settings.dream_weight.help", default: "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Markers follow metric or imperial Units.")
                     )
                     .font(.caption2)
                     .foregroundStyle(steel)
@@ -625,10 +601,7 @@ struct SettingsView: View {
                         steel: steel,
                         accent: accent,
                         accessibilityId: "settings.targetWeight.analog",
-                        caption: String(
-                            localized: "settings.dream_weight.caption",
-                            defaultValue: "Haptic ticks · confirm to save"
-                        ),
+                        caption: AppLanguageStore.text("settings.dream_weight.caption", default: "Haptic ticks · confirm to save"),
                         onCommit: { kg in
                             pendingIdealKg = kg
                             if abs(kg - session.profile.idealWeightKg) > 0.05 {
@@ -731,7 +704,7 @@ struct SettingsView: View {
                 )
                 .font(.footnote)
 
-                Text(String(localized: "settings.gender", defaultValue: "Gender"))
+                Text(AppLanguageStore.text("settings.gender", default: "Gender"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
                 Picker(
@@ -752,16 +725,13 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("settings.gender")
 
-                Text(String(localized: "settings.diet", defaultValue: "Diet"))
+                Text(AppLanguageStore.text("settings.diet", default: "Diet"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
-                Text(String(
-                    localized: "settings.diet.help",
-                    defaultValue: "How you eat most days. Drives meal-plan tone."
-                ))
+                Text(AppLanguageStore.text("settings.diet.help", default: "How you eat most days. Drives meal-plan tone."))
                     .font(.caption2)
                     .foregroundStyle(steel)
-                Picker(String(localized: "settings.diet", defaultValue: "Diet"), selection: Binding(
+                Picker(AppLanguageStore.text("settings.diet", default: "Diet"), selection: Binding(
                     get: { session.profile.dietPreference },
                     set: {
                         session.profile.dietPreference = $0
@@ -956,13 +926,10 @@ struct SettingsView: View {
     private var coachCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 14) {
-                Text(String(localized: "settings.persona", defaultValue: "Persona & AI"))
+                Text(AppLanguageStore.text("settings.persona", default: "Persona & AI"))
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text(String(
-                    localized: "settings.persona.help",
-                    defaultValue: "Tone stays on-device until you consent to a live Keel ask."
-                ))
+                Text(AppLanguageStore.text("settings.persona.help", default: "Tone stays on-device until you consent to a live Keel ask."))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -1089,22 +1056,19 @@ struct SettingsView: View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 0) {
                 Label {
-                    Text(String(localized: "settings.notifications", defaultValue: "Notifications"))
+                    Text(AppLanguageStore.text("settings.notifications", default: "Notifications"))
                 } icon: {
                     Image(systemName: "bell.badge")
                 }
                     .font(.headline)
                     .foregroundStyle(ink)
 
-                Text(String(
-                    localized: "settings.alerts.help",
-                    defaultValue: "Local banners with actions. Focus and Do Not Disturb can still silence them."
-                ))
+                Text(AppLanguageStore.text("settings.alerts.help", default: "Local banners with actions. Focus and Do Not Disturb can still silence them."))
                     .font(.footnote)
                     .foregroundStyle(steel)
                     .padding(.top, 6)
 
-                notificationsSubsectionDivider(title: String(localized: "notif.permission", defaultValue: "Permission"))
+                notificationsSubsectionDivider(title: AppLanguageStore.text("notif.permission", default: "Permission"))
 
                 Text(notificationAuthLine)
                     .font(.caption)
@@ -1323,7 +1287,7 @@ struct SettingsView: View {
                         Task { await session.requestHealthAccessFromSettings() }
                     } label: {
                         Label {
-                            Text(String(localized: "settings.allow_health", defaultValue: "Allow Health"))
+                            Text(AppLanguageStore.text("settings.allow_health", default: "Allow Health"))
                         } icon: {
                             Image(systemName: "heart.text.square.fill")
                         }
@@ -1472,13 +1436,10 @@ struct SettingsView: View {
     private var calibrationCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 14) {
-                Label(String(localized: "settings.calibration", defaultValue: "Weight calibration"), systemImage: "slider.horizontal.3")
+                Label(AppLanguageStore.text("settings.calibration", default: "Weight calibration"), systemImage: "slider.horizontal.3")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text(String(
-                    localized: "settings.calibration.help",
-                    defaultValue: "Enter true mass, open the live sheet, weigh, then store."
-                ))
+                Text(AppLanguageStore.text("settings.calibration.help", default: "Enter true mass, open the live sheet, weigh, then store."))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -1578,7 +1539,7 @@ struct SettingsView: View {
                     showFeedback = true
                 } label: {
                     Label {
-                        Text(String(localized: "settings.send_feedback", defaultValue: "Send feedback"))
+                        Text(AppLanguageStore.text("settings.send_feedback", default: "Send feedback"))
                     } icon: {
                         Image(systemName: "paperplane")
                     }
@@ -1657,7 +1618,7 @@ struct SettingsView: View {
                     exportLocalData()
                 } label: {
                     Label {
-                        Text(String(localized: "settings.export_data", defaultValue: "Export my data"))
+                        Text(AppLanguageStore.text("settings.export_data", default: "Export my data"))
                     } icon: {
                         Image(systemName: "square.and.arrow.up")
                     }
@@ -1670,7 +1631,7 @@ struct SettingsView: View {
                     showEraseConfirm = true
                 } label: {
                     Label {
-                        Text(String(localized: "settings.erase_data", defaultValue: "Erase my data"))
+                        Text(AppLanguageStore.text("settings.erase_data", default: "Erase my data"))
                     } icon: {
                         Image(systemName: "trash")
                     }

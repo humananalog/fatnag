@@ -131,7 +131,7 @@ struct ProgressSheet: View {
                     }
 
                     if surface.isWinnerWeek {
-                        Text(String(localized: "home.winner", defaultValue: "You're a winner."))
+                        Text(AppLanguageStore.text("home.winner", default: "You're a winner."))
                             .font(.system(size: 16, weight: .heavy, design: .rounded))
                             .foregroundStyle(atmosphere.ink)
                             .accessibilityIdentifier("progress.weekWinner")
@@ -162,14 +162,14 @@ struct ProgressSheet: View {
                 .ignoresSafeArea()
                 .animation(.easeInOut(duration: 0.55), value: session.profile.sex)
             }
-            .navigationTitle(String(localized: "progress.title", defaultValue: "Progress"))
+            .navigationTitle(AppLanguageStore.text("progress.title", default: "Progress"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     if session.alreadyWeighedToday {
-                        Button(String(localized: "common.manual", defaultValue: "Manual")) { session.presentManualEntry() }
+                        Button(AppLanguageStore.text("common.manual", default: "Manual")) { session.presentManualEntry() }
                     } else if session.weighNowGateResolved {
-                        Button(String(localized: "common.weigh", defaultValue: "Weigh")) { session.selectHomeTab(.weigh) }
+                        Button(AppLanguageStore.text("common.weigh", default: "Weigh")) { session.selectHomeTab(.weigh) }
                     }
                 }
             }
@@ -187,16 +187,16 @@ struct ProgressSheet: View {
                 playEntrance()
             }
             .alert(
-                String(localized: "progress.privacy.title", defaultValue: "Send trend summary to Keel?"),
+                AppLanguageStore.text("progress.privacy.title", default: "Send trend summary to Keel?"),
                 isPresented: $showPrivacyGate
             ) {
-                Button(String(localized: "common.cancel", defaultValue: "Cancel"), role: .cancel) {}
-                Button(String(localized: "progress.privacy.agree", defaultValue: "Agree & coach")) {
+                Button(AppLanguageStore.text("common.cancel", default: "Cancel"), role: .cancel) {}
+                Button(AppLanguageStore.text("progress.privacy.agree", default: "Agree & coach")) {
                     GrokPrivacyConsent.isAccepted = true
                     Task { await runCoach() }
                 }
             } message: {
-                Text(String(localized: "progress.privacy.body", defaultValue: "Only a short weight/fat trend summary goes to Keel when you tap roast. Revoke in Settings."))
+                Text(AppLanguageStore.text("progress.privacy.body", default: "Only a short weight/fat trend summary goes to Keel when you tap roast. Revoke in Settings."))
             }
         }
     }
@@ -220,20 +220,20 @@ struct ProgressSheet: View {
     private var progressCaption: String {
         switch surface.weekMoment {
         case .mondayFresh:
-            return String(localized: "progress.caption.monday_fresh", defaultValue: "week just opened")
+            return AppLanguageStore.text("progress.caption.monday_fresh", default: "week just opened")
         case .earlyWeek:
-            return String(localized: "progress.caption.early_week", defaultValue: "early-week pace")
+            return AppLanguageStore.text("progress.caption.early_week", default: "early-week pace")
         case .midWeek:
-            return String(localized: "progress.caption.mid_week", defaultValue: "mid-week progress")
+            return AppLanguageStore.text("progress.caption.mid_week", default: "mid-week progress")
         case .lateWeek:
-            return String(localized: "progress.caption.late_week", defaultValue: "finish to Sunday")
+            return AppLanguageStore.text("progress.caption.late_week", default: "finish to Sunday")
         }
     }
 
     private var deltaBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(String(
-                format: String(localized: "progress.goal_delta", defaultValue: "Goal %@"),
+                format: AppLanguageStore.text("progress.goal_delta", default: "Goal %@"),
                 UnitFormat.massDeltaString(surface.weeklyDeltaKg, system: units)
             ))
                 .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -243,7 +243,7 @@ struct ProgressSheet: View {
 
             if let moved = surface.movedDeltaKg {
                 Text(String(
-                    format: String(localized: "progress.moved_so_far", defaultValue: "Moved %@ so far"),
+                    format: AppLanguageStore.text("progress.moved_so_far", default: "Moved %@ so far"),
                     UnitFormat.massDeltaString(moved, system: units)
                 ))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -251,7 +251,7 @@ struct ProgressSheet: View {
                     .foregroundStyle(atmosphere.ink.opacity(0.78))
                     .accessibilityIdentifier("progress.movedDelta")
             } else {
-                Text(String(localized: "progress.lock_move", defaultValue: "Weigh in to lock this week's move"))
+                Text(AppLanguageStore.text("progress.lock_move", default: "Weigh in to lock this week's move"))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.muted)
                     .accessibilityIdentifier("progress.movedDelta")
@@ -263,7 +263,7 @@ struct ProgressSheet: View {
     private var weekJourney: some View {
         HStack(alignment: .center, spacing: 8) {
             journeyColumn(
-                title: String(localized: "progress.week_start", defaultValue: "WEEK START"),
+                title: AppLanguageStore.text("progress.week_start", default: "WEEK START"),
                 kilograms: surface.weekStartKg,
                 alignment: .leading,
                 size: showsPaceChrome ? 30 : 36,
@@ -285,7 +285,7 @@ struct ProgressSheet: View {
                 .frame(width: showsPaceChrome ? 64 : 78)
 
             journeyColumn(
-                title: String(localized: "horizon.sunday_target", defaultValue: "SUNDAY TARGET"),
+                title: AppLanguageStore.text("horizon.sunday_target", default: "SUNDAY TARGET"),
                 kilograms: surface.sundayTargetKg,
                 alignment: .trailing,
                 size: showsPaceChrome ? 32 : 40,
@@ -428,7 +428,7 @@ struct ProgressSheet: View {
             session.reopenResults()
         } label: {
             Label {
-                Text(String(localized: "progress.charts", defaultValue: "Charts"))
+                Text(AppLanguageStore.text("progress.charts", default: "Charts"))
             } icon: {
                 Image(systemName: "chart.xyaxis.line")
             }
@@ -446,7 +446,7 @@ struct ProgressSheet: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("progress.charts")
-        .accessibilityLabel(String(localized: "progress.charts.a11y", defaultValue: "Open weight and body fat charts"))
+        .accessibilityLabel(AppLanguageStore.text("progress.charts.a11y", default: "Open weight and body fat charts"))
     }
 
     private var roastButton: some View {
@@ -459,8 +459,8 @@ struct ProgressSheet: View {
                 }
             } label: {
                 Text(GrokSharedConfig.isLiveConfigured
-                      ? String(localized: "progress.keel_roast", defaultValue: "Keel roast")
-                      : String(localized: "progress.keel_roast.offline", defaultValue: "Keel roast (offline)"))
+                      ? AppLanguageStore.text("progress.keel_roast", default: "Keel roast")
+                      : AppLanguageStore.text("progress.keel_roast.offline", default: "Keel roast (offline)"))
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(colorScheme == .dark ? atmosphere.ink : Color(red: 0.04, green: 0.05, blue: 0.07))
                     .frame(maxWidth: .infinity)

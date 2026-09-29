@@ -12,11 +12,11 @@ enum HomeGlassDestination: String, CaseIterable, Identifiable, Hashable, Sendabl
 
     var title: String {
         switch self {
-        case .weigh: return String(localized: "tab.weigh", defaultValue: "Weigh")
-        case .progress: return String(localized: "tab.progress", defaultValue: "Progress")
-        case .keel: return String(localized: "tab.keel", defaultValue: "Keel")
-        case .meals: return String(localized: "tab.meals", defaultValue: "Meals")
-        case .settings: return String(localized: "tab.settings", defaultValue: "Settings")
+        case .weigh: return AppLanguageStore.text("tab.weigh", default: "Weigh")
+        case .progress: return AppLanguageStore.text("tab.progress", default: "Progress")
+        case .keel: return AppLanguageStore.text("tab.keel", default: "Keel")
+        case .meals: return AppLanguageStore.text("tab.meals", default: "Meals")
+        case .settings: return AppLanguageStore.text("tab.settings", default: "Settings")
         }
     }
 

@@ -10,9 +10,9 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var displayName: String {
         switch self {
-        case .free: return String(localized: "plan.free", defaultValue: "Free")
-        case .plus: return String(localized: "plan.plus", defaultValue: "Plus")
-        case .pro: return String(localized: "plan.pro", defaultValue: "Pro")
+        case .free: return AppLanguageStore.text("plan.free", default: "Free")
+        case .plus: return AppLanguageStore.text("plan.plus", default: "Plus")
+        case .pro: return AppLanguageStore.text("plan.pro", default: "Pro")
         }
     }
 
@@ -27,9 +27,9 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var priceLabel: String {
         switch self {
-        case .free: return String(localized: "plan.free", defaultValue: "Free")
-        case .plus: return String(localized: "plan.plus.price", defaultValue: "$2 / month")
-        case .pro: return String(localized: "plan.pro.price", defaultValue: "$8 / month")
+        case .free: return AppLanguageStore.text("plan.free", default: "Free")
+        case .plus: return AppLanguageStore.text("plan.plus.price", default: "$2 / month")
+        case .pro: return AppLanguageStore.text("plan.pro.price", default: "$8 / month")
         }
     }
 
@@ -47,17 +47,17 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .free:
             return String(
-                format: String(localized: "plan.free.blurb", defaultValue: "Scale, Health, charts. %d live Keel asks a week."),
+                format: AppLanguageStore.text("plan.free.blurb", default: "Scale, Health, charts. %d live Keel asks a week."),
                 weeklyGrokCredits
             )
         case .plus:
             return String(
-                format: String(localized: "plan.plus.blurb", defaultValue: "Daily heat. %d live Keel credits a week."),
+                format: AppLanguageStore.text("plan.plus.blurb", default: "Daily heat. %d live Keel credits a week."),
                 weeklyGrokCredits
             )
         case .pro:
             return String(
-                format: String(localized: "plan.pro.blurb", defaultValue: "No soft ceiling. %d live Keel credits a week."),
+                format: AppLanguageStore.text("plan.pro.blurb", default: "No soft ceiling. %d live Keel credits a week."),
                 weeklyGrokCredits
             )
         }
@@ -67,11 +67,11 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
     var paywallArgument: String {
         switch self {
         case .free:
-            return String(localized: "plan.free.arg", defaultValue: "Taste the tone.")
+            return AppLanguageStore.text("plan.free.arg", default: "Taste the tone.")
         case .plus:
-            return String(localized: "plan.plus.arg", defaultValue: "A sharp ask a day.")
+            return AppLanguageStore.text("plan.plus.arg", default: "A sharp ask a day.")
         case .pro:
-            return String(localized: "plan.pro.arg", defaultValue: "Never ration pressure.")
+            return AppLanguageStore.text("plan.pro.arg", default: "Never ration pressure.")
         }
     }
 

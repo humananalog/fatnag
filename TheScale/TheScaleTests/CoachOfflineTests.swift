@@ -207,12 +207,19 @@ final class CoachOfflineTests: XCTestCase {
     func testLanguageSettingValidatesAndLocksModels() {
         let key = "thescale.appLanguage"
         let prior = UserDefaults.standard.string(forKey: key)
+        let priorApple = UserDefaults.standard.stringArray(forKey: "AppleLanguages")
         defer {
             if let prior {
                 UserDefaults.standard.set(prior, forKey: key)
             } else {
                 UserDefaults.standard.removeObject(forKey: key)
             }
+            if let priorApple {
+                UserDefaults.standard.set(priorApple, forKey: "AppleLanguages")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            }
+            AppLanguageStore.syncBundleLanguages(AppLanguageStore.current)
         }
         XCTAssertNil(AppLanguage.validated("Tagalog"))
         XCTAssertNil(AppLanguage.validated(" "))
@@ -227,6 +234,33 @@ final class CoachOfflineTests: XCTestCase {
         XCTAssertEqual(
             UserDefaults.standard.stringArray(forKey: "AppleLanguages")?.first,
             "fr"
+        )
+        AppLanguageBundleInstaller.installIfNeeded()
+        let frBundle = Bundle(url: Bundle.main.bundleURL.appendingPathComponent("fr.lproj", isDirectory: true))
+        XCTAssertNotNil(frBundle, "fr.lproj must be in the app after catalog compile")
+        XCTAssertEqual(
+            frBundle?.localizedString(forKey: "onboarding.cta.continue", value: "?", table: nil),
+            "Continuer"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("home.mass.reveal", default: "Show weight"),
+            "Afficher le poids"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("onboarding.cta.continue", default: "Continue"),
+            "Continuer"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("tab.weigh", default: "Weigh"),
+            "Peser"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("tab.settings", default: "Settings"),
+            "Réglages"
+        )
+        XCTAssertEqual(
+            Bundle.main.localizedString(forKey: "tab.weigh", value: "Weigh", table: nil),
+            "Peser"
         )
     }
 

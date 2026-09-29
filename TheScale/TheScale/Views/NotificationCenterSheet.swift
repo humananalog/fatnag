@@ -49,7 +49,7 @@ struct NotificationCenterSheet: View {
         NavigationStack {
             Group {
                 if isLoading {
-                    ProgressView(String(localized: "notif.loading", defaultValue: "Loading alerts..."))
+                    ProgressView(AppLanguageStore.text("notif.loading", default: "Loading alerts..."))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
@@ -57,11 +57,11 @@ struct NotificationCenterSheet: View {
                             permissionCard
                         } header: {
                             sectionHeader(
-                                String(localized: "notif.permission", defaultValue: "Permission"),
+                                AppLanguageStore.text("notif.permission", default: "Permission"),
                                 systemImage: "lock.shield"
                             )
                         } footer: {
-                            Text(String(localized: "notif.focus_footer", defaultValue: "Focus and Do Not Disturb can still silence banners."))
+                            Text(AppLanguageStore.text("notif.focus_footer", default: "Focus and Do Not Disturb can still silence banners."))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(mist)
                         }
@@ -69,8 +69,8 @@ struct NotificationCenterSheet: View {
                         Section {
                             if pending.isEmpty {
                                 emptyRow(
-                                    title: String(localized: "notif.empty_queued", defaultValue: "Nothing queued"),
-                                    detail: String(localized: "notif.empty_queued_detail", defaultValue: "Turn on Morning weigh or weekly reminders in Settings, then pull to refresh.")
+                                    title: AppLanguageStore.text("notif.empty_queued", default: "Nothing queued"),
+                                    detail: AppLanguageStore.text("notif.empty_queued_detail", default: "Turn on Morning weigh or weekly reminders in Settings, then pull to refresh.")
                                 )
                             } else {
                                 ForEach(pending) { row in
@@ -87,14 +87,14 @@ struct NotificationCenterSheet: View {
                             }
                         } header: {
                             sectionHeader(
-                                String(localized: "notif.coming_up", defaultValue: "Coming up"),
+                                AppLanguageStore.text("notif.coming_up", default: "Coming up"),
                                 systemImage: "calendar"
                             )
                         } footer: {
                             Text(pending.isEmpty
-                                  ? String(localized: "notif.scheduled_footer", defaultValue: "Scheduled alerts appear here before they fire.")
+                                  ? AppLanguageStore.text("notif.scheduled_footer", default: "Scheduled alerts appear here before they fire.")
                                   : String(
-                                        format: String(localized: "notif.scheduled_count", defaultValue: "%d scheduled"),
+                                        format: AppLanguageStore.text("notif.scheduled_count", default: "%d scheduled"),
                                         pending.count
                                     ))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
@@ -104,8 +104,8 @@ struct NotificationCenterSheet: View {
                         Section {
                             if delivered.isEmpty {
                                 emptyRow(
-                                    title: String(localized: "notif.empty_active", defaultValue: "Nothing active"),
-                                    detail: String(localized: "notif.empty_active_detail", defaultValue: "Acknowledged alerts move to Archive.")
+                                    title: AppLanguageStore.text("notif.empty_active", default: "Nothing active"),
+                                    detail: AppLanguageStore.text("notif.empty_active_detail", default: "Acknowledged alerts move to Archive.")
                                 )
                             } else {
                                 ForEach(delivered) { row in
@@ -126,7 +126,7 @@ struct NotificationCenterSheet: View {
                                             Task { await acknowledge(row) }
                                         } label: {
                                             Label(
-                                                String(localized: "notif.acknowledge", defaultValue: "Acknowledge"),
+                                                AppLanguageStore.text("notif.acknowledge", default: "Acknowledge"),
                                                 systemImage: "archivebox"
                                             )
                                         }
@@ -136,11 +136,11 @@ struct NotificationCenterSheet: View {
                             }
                         } header: {
                             sectionHeader(
-                                String(localized: "notif.active", defaultValue: "Active"),
+                                AppLanguageStore.text("notif.active", default: "Active"),
                                 systemImage: "tray.full"
                             )
                         } footer: {
-                            Text(String(localized: "notif.active_footer", defaultValue: "Tap to open the related page. Swipe left to delete or archive."))
+                            Text(AppLanguageStore.text("notif.active_footer", default: "Tap to open the related page. Swipe left to delete or archive."))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(mist)
                         }
@@ -160,12 +160,12 @@ struct NotificationCenterSheet: View {
                                 }
                             } header: {
                                 sectionHeader(
-                                    String(localized: "notif.archive", defaultValue: "Archive"),
+                                    AppLanguageStore.text("notif.archive", default: "Archive"),
                                     systemImage: "archivebox"
                                 )
                             } footer: {
                                 Text(String(
-                                    format: String(localized: "notif.archive_count", defaultValue: "%d acknowledged"),
+                                    format: AppLanguageStore.text("notif.archive_count", default: "%d acknowledged"),
                                     archived.count
                                 ))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
@@ -178,11 +178,11 @@ struct NotificationCenterSheet: View {
                     .refreshable { await reload() }
                 }
             }
-            .navigationTitle(String(localized: "notif.title", defaultValue: "Alerts"))
+            .navigationTitle(AppLanguageStore.text("notif.title", default: "Alerts"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "common.done", defaultValue: "Done")) { dismiss() }
+                    Button(AppLanguageStore.text("common.done", default: "Done")) { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -190,7 +190,7 @@ struct NotificationCenterSheet: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
-                    .accessibilityLabel(String(localized: "common.refresh", defaultValue: "Refresh"))
+                    .accessibilityLabel(AppLanguageStore.text("common.refresh", default: "Refresh"))
                 }
             }
             .task {
@@ -216,8 +216,8 @@ struct NotificationCenterSheet: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(authDenied
-                          ? String(localized: "notif.blocked", defaultValue: "Alerts blocked")
-                          : String(localized: "notif.allowed", defaultValue: "Alerts allowed"))
+                          ? AppLanguageStore.text("notif.blocked", default: "Alerts blocked")
+                          : AppLanguageStore.text("notif.allowed", default: "Alerts allowed"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
                     Text(authLine)
@@ -233,7 +233,7 @@ struct NotificationCenterSheet: View {
                         UIApplication.shared.open(url)
                     }
                 } label: {
-                    Text(String(localized: "notif.open_settings", defaultValue: "Open System Settings"))
+                    Text(AppLanguageStore.text("notif.open_settings", default: "Open System Settings"))
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -255,7 +255,7 @@ struct NotificationCenterSheet: View {
 
     private func deleteButton(action: @escaping () -> Void) -> some View {
         Button(role: .destructive, action: action) {
-            Label(String(localized: "notif.delete", defaultValue: "Delete"), systemImage: "trash")
+            Label(AppLanguageStore.text("notif.delete", default: "Delete"), systemImage: "trash")
         }
     }
 

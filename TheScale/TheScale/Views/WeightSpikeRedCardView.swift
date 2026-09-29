@@ -19,7 +19,7 @@ struct WeightSpikeRedCardView: View {
             .ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 18) {
-                Text(String(localized: "spike.red.badge", defaultValue: "RED CARD"))
+                Text(AppLanguageStore.text("spike.red.badge", default: "RED CARD"))
                     .font(.system(size: 13, weight: .heavy, design: .rounded))
                     .tracking(1.4)
                     .foregroundStyle(ink.opacity(0.75))
@@ -57,7 +57,7 @@ struct WeightSpikeRedCardView: View {
                 Spacer(minLength: 12)
 
                 Button(action: onDismiss) {
-                    Text(String(localized: "spike.red.cta", defaultValue: "Got it. Back on track."))
+                    Text(AppLanguageStore.text("spike.red.cta", default: "Got it. Back on track."))
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)

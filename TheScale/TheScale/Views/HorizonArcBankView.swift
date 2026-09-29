@@ -33,7 +33,7 @@ struct HorizonArcBankView: View {
 
     private var sundayHero: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(String(localized: "horizon.sunday_target", defaultValue: "SUNDAY TARGET"))
+            Text(AppLanguageStore.text("horizon.sunday_target", default: "SUNDAY TARGET"))
                 .font(.system(size: 12, weight: .heavy, design: .rounded))
                 .tracking(1.2)
                 .foregroundStyle(ink.opacity(0.55))
@@ -53,7 +53,7 @@ struct HorizonArcBankView: View {
                         .foregroundStyle(steel)
                 } else {
                     Text(weekTitle.isEmpty
-                         ? String(localized: "horizon.set_goal", defaultValue: "Set goal")
+                         ? AppLanguageStore.text("horizon.set_goal", default: "Set goal")
                          : weekTitle)
                         .font(.system(size: compact ? 36 : 44, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
@@ -81,7 +81,7 @@ struct HorizonArcBankView: View {
                         .accessibilityIdentifier("home.movedDelta")
                 }
                 if isWinnerWeek {
-                    Text(String(localized: "horizon.winner", defaultValue: "Winner"))
+                    Text(AppLanguageStore.text("horizon.winner", default: "Winner"))
                         .font(.system(size: 12, weight: .heavy, design: .rounded))
                         .tracking(0.6)
                         .foregroundStyle(accent)
@@ -96,7 +96,7 @@ struct HorizonArcBankView: View {
 
     private var goalChip: String {
         String(
-            format: String(localized: "horizon.goal_delta", defaultValue: "Goal %@"),
+            format: AppLanguageStore.text("horizon.goal_delta", default: "Goal %@"),
             UnitFormat.massDeltaString(weeklyDeltaKg, system: unitSystem)
         )
     }
@@ -104,7 +104,7 @@ struct HorizonArcBankView: View {
     private var movedChip: String? {
         guard let movedDeltaKg else { return nil }
         return String(
-            format: String(localized: "horizon.moved_delta", defaultValue: "Moved %@"),
+            format: AppLanguageStore.text("horizon.moved_delta", default: "Moved %@"),
             UnitFormat.massDeltaString(movedDeltaKg, system: unitSystem)
         )
     }
@@ -114,7 +114,7 @@ struct HorizonArcBankView: View {
         if let kg = sundayTargetKg {
             let mass = UnitFormat.massString(kg, system: unitSystem, fractionDigits: 1)
             return String(
-                format: String(localized: "horizon.a11y.sunday", defaultValue: "Sunday target %@. %@. %@%@"),
+                format: AppLanguageStore.text("horizon.a11y.sunday", default: "Sunday target %@. %@. %@%@"),
                 mass, bandLabel, goalChip, moveBit
             )
         }
@@ -123,7 +123,7 @@ struct HorizonArcBankView: View {
 
     private var activityGauges: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(String(localized: "horizon.today", defaultValue: "TODAY"))
+            Text(AppLanguageStore.text("horizon.today", default: "TODAY"))
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .tracking(1.0)
                 .foregroundStyle(ink.opacity(0.55))
@@ -173,7 +173,7 @@ struct HorizonArcBankView: View {
 
     private var dailyTargets: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(String(localized: "horizon.daily_targets", defaultValue: "DAILY TARGETS"))
+            Text(AppLanguageStore.text("horizon.daily_targets", default: "DAILY TARGETS"))
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .tracking(1.0)
                 .foregroundStyle(ink.opacity(0.55))
