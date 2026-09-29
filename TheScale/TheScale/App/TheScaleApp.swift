@@ -21,6 +21,7 @@ struct TheScaleApp: App {
         UNUserNotificationCenter.current().delegate = ScaleNotificationDelegate.shared
         ScaleNotificationCategories.register()
         GrokFitnessMonitor.registerBackgroundTask()
+        AppLanguageStore.syncBundleLanguages()
         Self.applyLaunchArguments()
     }
 
@@ -72,9 +73,6 @@ struct TheScaleApp: App {
                             .environmentObject(session)
                     }
                 }
-                .environment(\.locale, appLanguage.locale)
-                .environment(\.layoutDirection, appLanguage.layoutDirection)
-                .id(appLanguage.rawValue)
                 .opacity(showSplash || showFirstLaunchLanding ? 0 : 1)
 
                 if showFirstLaunchLanding {
@@ -96,6 +94,9 @@ struct TheScaleApp: App {
                     .zIndex(3)
                 }
             }
+            .environment(\.locale, appLanguage.locale)
+            .environment(\.layoutDirection, appLanguage.layoutDirection)
+            .id(appLanguage.rawValue)
             .onAppear {
                 if ProcessInfo.processInfo.arguments.contains("-uitesting-reset-onboarding") {
                     OnboardingStore.hasCompleted = false

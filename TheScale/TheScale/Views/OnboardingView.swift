@@ -120,8 +120,9 @@ struct OnboardingView: View {
                     ForEach(AppLanguage.allCases.filter { $0 != .system } + [.system]) { lang in
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
-                                flow.appLanguage = lang
-                                AppLanguageStore.current = lang
+                                guard let applied = AppLanguageStore.apply(lang) else { return }
+                                flow.appLanguage = applied
+                                flow.preferredLanguage = applied.resolved.profileLanguageName
                             }
                         } label: {
                             HStack {

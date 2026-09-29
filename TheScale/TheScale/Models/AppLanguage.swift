@@ -238,6 +238,7 @@ enum AppLanguageStore {
         }
         set {
             guard let lang = AppLanguage.validated(newValue.rawValue) else { return }
+            syncBundleLanguages(lang)
             UserDefaults.standard.set(lang.rawValue, forKey: key)
             NotificationCenter.default.post(name: .appLanguageDidChange, object: nil)
         }
@@ -247,8 +248,29 @@ enum AppLanguageStore {
     @discardableResult
     static func apply(_ language: AppLanguage) -> AppLanguage? {
         guard let lang = AppLanguage.validated(language.rawValue), lang.isSupported else { return nil }
+        syncBundleLanguages(lang)
         current = lang
         return lang
+    }
+
+    /// Point Bundle / `String(localized:)` at the in-app language. SwiftUI `.locale` alone is not enough.
+    static func syncBundleLanguages(_ language: AppLanguage = current) {
+        if language == .system {
+            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+        } else {
+            UserDefaults.standard.set([language.resolved.rawValue], forKey: "AppleLanguages")
+        }
+        UserDefaults.standard.synchronize()
+    }
+
+    /// Lookup that always uses the validated in-app language (sheets, Settings, splash).
+    static func text(_ key: String, default defaultValue: String) -> String {
+        let locale = current.resolved.locale
+        var resource = LocalizedStringResource(String.LocalizationValue(stringLiteral: key))
+        resource.locale = locale
+        let resolved = String(localized: resource)
+        if resolved == key || resolved.isEmpty { return defaultValue }
+        return resolved
     }
 
     /// Pins model prompts to the validated language.

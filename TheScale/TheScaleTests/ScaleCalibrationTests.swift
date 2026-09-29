@@ -2,6 +2,17 @@ import XCTest
 @testable import TheScale
 
 final class ScaleCalibrationTests: XCTestCase {
+    func testMajorTicksLandOnRoundMass() {
+        XCTAssertTrue(AnalogScaleMarks.isMajor(display: 80))
+        XCTAssertTrue(AnalogScaleMarks.isMajor(display: 75))
+        XCTAssertTrue(AnalogScaleMarks.isMajor(display: 70))
+        XCTAssertFalse(AnalogScaleMarks.isMajor(display: 77))
+        XCTAssertFalse(AnalogScaleMarks.isMajor(display: 82))
+        XCTAssertFalse(AnalogScaleMarks.isMajor(display: 78.5))
+        XCTAssertTrue(AnalogScaleMarks.isMajor(display: 155, majorStep: 5))
+        XCTAssertFalse(AnalogScaleMarks.isMajor(display: 157, majorStep: 5))
+    }
+
     func testIdentityByDefault() {
         let cal = ScaleCalibration.default
         XCTAssertEqual(cal.apply(toRawKg: 80.0), 80.0, accuracy: 0.0001)

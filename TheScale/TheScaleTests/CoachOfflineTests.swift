@@ -224,6 +224,10 @@ final class CoachOfflineTests: XCTestCase {
         XCTAssertTrue(AppLanguage.french.modelDirective.contains("French"))
         XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male).contains("Language lock"))
         XCTAssertTrue(AppLanguageStore.locked("Hello").contains("French"))
+        XCTAssertEqual(
+            UserDefaults.standard.stringArray(forKey: "AppleLanguages")?.first,
+            "fr"
+        )
     }
 
     func testLegacyKeychainClearIsIdempotent() {

@@ -26,10 +26,8 @@ struct AnalogDreamScaleView: View {
         unitSystem == .metric ? 0.5 : 1.0
     }
 
-    /// Major label every N minor ticks: metric 5 kg (10×0.5), imperial 5 lb (5×1).
-    private var majorEvery: Int {
-        unitSystem == .metric ? 10 : 5
-    }
+    /// Major marks land on round values: 70 / 75 / 80 kg, or 150 / 155 / 160 lb.
+    private var majorStepDisplay: Double { 5.0 }
 
     /// Degrees of disc per display unit (kg or lb).
     private var degreesPerDisplay: Double {
@@ -168,15 +166,13 @@ struct AnalogDreamScaleView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             VStack(spacing: 0) {
-                Capsule()
-                    .fill(accent)
-                    .frame(width: 3, height: 28)
-                    .shadow(color: ink.opacity(0.35), radius: 1.5, y: 1)
+                // Grey pointer only. No teal shaft.
                 TriangleMarker()
-                    .fill(accent)
-                    .frame(width: 12, height: 10)
+                    .fill(steel.opacity(colorScheme == .dark ? 0.92 : 0.78))
+                    .frame(width: 16, height: 14)
+                    .shadow(color: ink.opacity(0.25), radius: 1.2, y: 1)
             }
-            .padding(.top, 10)
+            .padding(.top, 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .allowsHitTesting(false)
 
@@ -210,7 +206,7 @@ struct AnalogDreamScaleView: View {
                 // 0° = +x (3 o'clock), -90° = 12 o'clock.
                 let deg = -90 + degFromZero
                 let rad = deg * .pi / 180
-                let isMajor = i % majorEvery == 0
+                let isMajor = isMajorDisplay(display)
                 let outer = radius
                 let inner = radius - (isMajor ? 22 : 12)
                 let cosA = Darwin.cos(rad)
@@ -273,9 +269,12 @@ struct AnalogDreamScaleView: View {
         if minorIndex != lastMinorTick {
             lastMinorTick = minorIndex
             UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
-            if minorIndex % majorEvery == 0, minorIndex != lastMajorTick {
-                lastMajorTick = minorIndex
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.85)
+            if isMajorDisplay(snapped) {
+                let majorIndex = Int((snapped / majorStepDisplay).rounded())
+                if majorIndex != lastMajorTick {
+                    lastMajorTick = majorIndex
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.85)
+                }
             }
         }
         let kg = UnitFormat.kg(fromMass: snapped, system: unitSystem)
@@ -287,9 +286,22 @@ struct AnalogDreamScaleView: View {
             onCommit?(weightKg)
         }
     }
+    private func isMajorDisplay(_ display: Double) -> Bool {
+        AnalogScaleMarks.isMajor(display: display, majorStep: majorStepDisplay)
+    }
+}
+
+/// Round major marks (70 / 75 / 80), not whatever the lower bound happens to be.
+enum AnalogScaleMarks {
+    static func isMajor(display: Double, majorStep: Double = 5) -> Bool {
+        guard majorStep > 0 else { return false }
+        let nearest = (display / majorStep).rounded() * majorStep
+        return abs(display - nearest) < 0.001
+    }
 }
 
 private struct TriangleMarker: Shape {
+    /// Tip points down toward the dial.
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.midX, y: rect.maxY))

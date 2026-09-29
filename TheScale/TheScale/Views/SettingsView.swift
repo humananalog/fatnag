@@ -319,7 +319,10 @@ struct SettingsView: View {
             Text(FatnagBrand.tagline)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(copper)
-            Text("Profile, Coach, Health, and privacy — all on this iPhone.")
+            Text(String(
+                localized: "settings.brand.blurb",
+                defaultValue: "Profile, Coach, Health, and privacy — all on this iPhone."
+            ))
                 .font(.footnote)
                 .foregroundStyle(steel)
                 .fixedSize(horizontal: false, vertical: true)
@@ -355,10 +358,13 @@ struct SettingsView: View {
         let snap = subscription.quotaSnapshot
         return settingsPanel {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Online AI usage", systemImage: "chart.bar.fill")
+                Label(String(localized: "settings.ai.usage", defaultValue: "Online AI usage"), systemImage: "chart.bar.fill")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Live Keel for chat, Monday card, fitness checks, and meal plans. On-device Coach stays unlimited. Resets Monday.")
+                Text(String(
+                    localized: "settings.ai.usage.help",
+                    defaultValue: "Live Keel for chat, Monday card, fitness checks, and meal plans. On-device Coach stays unlimited. Resets Monday."
+                ))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -504,10 +510,13 @@ struct SettingsView: View {
     private var profileCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Profile")
+                Text(String(localized: "settings.profile", defaultValue: "Profile"))
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("On-device for body fat estimates, greetings, and Coach tone.")
+                Text(String(
+                    localized: "settings.profile.help",
+                    defaultValue: "On-device for body fat estimates, greetings, and Coach tone."
+                ))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -520,16 +529,19 @@ struct SettingsView: View {
                         .textContentType(.givenName)
                 }
 
-                Text("Units")
+                Text(String(localized: "settings.units", defaultValue: "Units"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
-                Picker("Units", selection: $session.preferredUnits) {
+                Picker(String(localized: "settings.units", defaultValue: "Units"), selection: $session.preferredUnits) {
                     ForEach(PreferredUnitSystem.allCases) { system in
                         Text(system.shortTitle).tag(system)
                     }
                 }
                 .pickerStyle(.segmented)
-                Text("Weight, height, portions, meal plan, and Coach use this. Health stays metric under the hood.")
+                Text(String(
+                    localized: "settings.units.help",
+                    defaultValue: "Weight, height, portions, meal plan, and Coach use this. Health stays metric under the hood."
+                ))
                     .font(.caption2)
                     .foregroundStyle(steel)
 
@@ -587,11 +599,14 @@ struct SettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Dream / target weight")
+                    Text(String(localized: "settings.dream_weight", defaultValue: "Dream / target weight"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(ink)
                     Text(
-                        "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Markers follow metric or imperial Units."
+                        String(
+                            localized: "settings.dream_weight.help",
+                            defaultValue: "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Markers follow metric or imperial Units."
+                        )
                     )
                     .font(.caption2)
                     .foregroundStyle(steel)
@@ -610,7 +625,10 @@ struct SettingsView: View {
                         steel: steel,
                         accent: accent,
                         accessibilityId: "settings.targetWeight.analog",
-                        caption: "Haptic ticks · confirm to save",
+                        caption: String(
+                            localized: "settings.dream_weight.caption",
+                            defaultValue: "Haptic ticks · confirm to save"
+                        ),
                         onCommit: { kg in
                             pendingIdealKg = kg
                             if abs(kg - session.profile.idealWeightKg) > 0.05 {
@@ -713,7 +731,7 @@ struct SettingsView: View {
                 )
                 .font(.footnote)
 
-                Text("Gender")
+                Text(String(localized: "settings.gender", defaultValue: "Gender"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
                 Picker(
@@ -734,13 +752,16 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("settings.gender")
 
-                Text("Diet")
+                Text(String(localized: "settings.diet", defaultValue: "Diet"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
-                Text("How you eat most days. Drives meal-plan tone.")
+                Text(String(
+                    localized: "settings.diet.help",
+                    defaultValue: "How you eat most days. Drives meal-plan tone."
+                ))
                     .font(.caption2)
                     .foregroundStyle(steel)
-                Picker("Diet", selection: Binding(
+                Picker(String(localized: "settings.diet", defaultValue: "Diet"), selection: Binding(
                     get: { session.profile.dietPreference },
                     set: {
                         session.profile.dietPreference = $0
@@ -935,10 +956,13 @@ struct SettingsView: View {
     private var coachCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Persona & AI")
+                Text(String(localized: "settings.persona", defaultValue: "Persona & AI"))
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Tone stays on-device until you consent to a live Keel ask.")
+                Text(String(
+                    localized: "settings.persona.help",
+                    defaultValue: "Tone stays on-device until you consent to a live Keel ask."
+                ))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -1072,12 +1096,15 @@ struct SettingsView: View {
                     .font(.headline)
                     .foregroundStyle(ink)
 
-                Text("Local banners with actions. Focus and Do Not Disturb can still silence them.")
+                Text(String(
+                    localized: "settings.alerts.help",
+                    defaultValue: "Local banners with actions. Focus and Do Not Disturb can still silence them."
+                ))
                     .font(.footnote)
                     .foregroundStyle(steel)
                     .padding(.top, 6)
 
-                notificationsSubsectionDivider(title: "Permission")
+                notificationsSubsectionDivider(title: String(localized: "notif.permission", defaultValue: "Permission"))
 
                 Text(notificationAuthLine)
                     .font(.caption)
@@ -1445,10 +1472,13 @@ struct SettingsView: View {
     private var calibrationCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 14) {
-                Label("Weight calibration", systemImage: "slider.horizontal.3")
+                Label(String(localized: "settings.calibration", defaultValue: "Weight calibration"), systemImage: "slider.horizontal.3")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Enter true mass, open the live sheet, weigh, then store.")
+                Text(String(
+                    localized: "settings.calibration.help",
+                    defaultValue: "Enter true mass, open the live sheet, weigh, then store."
+                ))
                     .font(.footnote)
                     .foregroundStyle(steel)
 

@@ -621,17 +621,20 @@ struct GoalDateRevisionSheet: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
-                Text("This date is too fast")
+                Text(String(localized: "goal.revision.title", defaultValue: "This date is too fast"))
                     .font(.system(size: 28, weight: .bold, design: .serif))
                 Text(offer.note)
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Commando meals are on: intake drops to the safe weekly max. Keel pre-selected a date you can still change.")
+                Text(String(
+                    localized: "goal.revision.body",
+                    defaultValue: "Commando meals are on: intake drops to the safe weekly max. Keel pre-selected a date you can still change."
+                ))
                     .font(.system(size: 15, weight: .medium, design: .rounded))
                     .fixedSize(horizontal: false, vertical: true)
                 DatePicker(
-                    "New goal date",
+                    String(localized: "goal.revision.picker", defaultValue: "New goal date"),
                     selection: $date,
                     in: offer.proposedDate...,
                     displayedComponents: .date
@@ -642,14 +645,14 @@ struct GoalDateRevisionSheet: View {
                     session.acceptRevisedGoalDate(date)
                     dismiss()
                 } label: {
-                    Text("Use this date")
+                    Text(String(localized: "goal.revision.accept", defaultValue: "Use this date"))
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("goal.revision.accept")
-                Button("Keep my date") {
+                Button(String(localized: "goal.revision.keep", defaultValue: "Keep my date")) {
                     session.keepUnrealisticGoalDate()
                     dismiss()
                 }
