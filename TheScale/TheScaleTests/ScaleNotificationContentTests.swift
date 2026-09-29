@@ -189,6 +189,27 @@ final class ScaleNotificationContentTests: XCTestCase {
         ))
     }
 
+    func testDeleteDropsOnlyThatArchivedAlert() {
+        let kept = ArchivedAlert(
+            id: "keep",
+            requestId: "thescale.activity-pulse",
+            title: "Nag",
+            body: "Still here",
+            deliveredAt: Date(timeIntervalSince1970: 10),
+            acknowledgedAt: Date(timeIntervalSince1970: 20)
+        )
+        let gone = ArchivedAlert(
+            id: "gone",
+            requestId: "thescale.morning",
+            title: "Weigh now",
+            body: "Morning",
+            deliveredAt: Date(timeIntervalSince1970: 30),
+            acknowledgedAt: Date(timeIntervalSince1970: 40)
+        )
+        let left = NotificationArchiveStore.removing(id: "gone", from: [kept, gone])
+        XCTAssertEqual(left.map(\.id), ["keep"])
+    }
+
     func testIntervalIsPassiveNoSound() {
         let content = ScaleNotificationContentFactory.make(
             ScaleNotificationCopy.fitnessInterval(

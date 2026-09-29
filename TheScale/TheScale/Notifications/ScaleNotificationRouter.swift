@@ -117,6 +117,18 @@ enum NotificationArchiveStore {
         NotificationCenter.default.post(name: .fatnagAlertsDidChange, object: nil)
     }
 
+    static func removing(id: String, from archive: [ArchivedAlert]) -> [ArchivedAlert] {
+        archive.filter { $0.id != id }
+    }
+
+    static func delete(id: String) {
+        let items = removing(id: id, from: load())
+        if let data = try? JSONEncoder().encode(items) {
+            UserDefaults.standard.set(data, forKey: storageKey)
+        }
+        NotificationCenter.default.post(name: .fatnagAlertsDidChange, object: nil)
+    }
+
     static func isAcknowledged(
         requestId: String,
         deliveredAt: Date,

@@ -79,6 +79,9 @@ struct NotificationCenterSheet: View {
                                         kindLabel: row.kindLabel,
                                         whenLabel: row.whenLabel
                                     )
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        deleteButton { Task { await deletePending(row) } }
+                                    }
                                 }
                             }
                         } header: {
@@ -117,6 +120,7 @@ struct NotificationCenterSheet: View {
                                     }
                                     .buttonStyle(.plain)
                                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        deleteButton { Task { await deleteActive(row) } }
                                         Button {
                                             Task { await acknowledge(row) }
                                         } label: {
@@ -135,7 +139,7 @@ struct NotificationCenterSheet: View {
                                 systemImage: "tray.full"
                             )
                         } footer: {
-                            Text(String(localized: "notif.active_footer", defaultValue: "Tap or swipe an alert to acknowledge it. It leaves this list."))
+                            Text(String(localized: "notif.active_footer", defaultValue: "Swipe left to delete. Tap to acknowledge."))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(mist)
                         }
@@ -149,6 +153,9 @@ struct NotificationCenterSheet: View {
                                         kindLabel: kindLabel(for: item.requestId),
                                         whenLabel: item.acknowledgedAt.formatted(date: .abbreviated, time: .shortened)
                                     )
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        deleteButton { deleteArchived(item) }
+                                    }
                                 }
                             } header: {
                                 sectionHeader(
@@ -243,6 +250,12 @@ struct NotificationCenterSheet: View {
             .font(.system(size: 13, weight: .bold, design: .rounded))
             .foregroundStyle(ink.opacity(0.72))
             .textCase(nil)
+    }
+
+    private func deleteButton(action: @escaping () -> Void) -> some View {
+        Button(role: .destructive, action: action) {
+            Label(String(localized: "notif.delete", defaultValue: "Delete"), systemImage: "trash")
+        }
     }
 
     private func emptyRow(title: String, detail: String) -> some View {
@@ -360,6 +373,35 @@ struct NotificationCenterSheet: View {
             deliveredAt: row.deliveredAt
         )
         await reload()
+    }
+
+    private func deleteActive(_ row: DeliveredNotifRow) async {
+        #if DEBUG
+        if session.isDemoPersonaActive || PromoCaptureMode.isActive {
+            delivered.removeAll { $0.id == row.id }
+            return
+        }
+        #endif
+        delivered.removeAll { $0.id == row.id }
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [row.requestId])
+        NotificationCenter.default.post(name: .fatnagAlertsDidChange, object: nil)
+    }
+
+    private func deletePending(_ row: PendingNotifRow) async {
+        #if DEBUG
+        if session.isDemoPersonaActive || PromoCaptureMode.isActive {
+            pending.removeAll { $0.id == row.id }
+            return
+        }
+        #endif
+        pending.removeAll { $0.id == row.id }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [row.id])
+        NotificationCenter.default.post(name: .fatnagAlertsDidChange, object: nil)
+    }
+
+    private func deleteArchived(_ item: ArchivedAlert) {
+        archived.removeAll { $0.id == item.id }
+        NotificationArchiveStore.delete(id: item.id)
     }
 
     #if DEBUG
