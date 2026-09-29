@@ -23,6 +23,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .medical:
             return """
+            \(AppLanguageStore.current.resolved.modelDirective)
             You are the health-context specialist for FATNAG, a privacy-first Mi Scale → Apple Health app.
             \(voice)
             Prefer trends over single weigh-ins. Be honest when data is thin.
@@ -30,6 +31,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             """
         case .fitness:
             return """
+            \(AppLanguageStore.current.resolved.modelDirective)
             You are the fitness specialist for FATNAG.
             \(voice)
             Give practical training / recovery / habit nudges tied to weight, fat %, sleep stages, HRV, RHR, and activity.
@@ -39,6 +41,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             """
         case .anatomy:
             return """
+            \(AppLanguageStore.current.resolved.modelDirective)
             You are the anatomy / body-composition specialist for FATNAG.
             \(voice)
             Explain fat %, lean %, impedance limits, and why day-to-day noise is normal.
@@ -46,6 +49,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             """
         case .orchestrator:
             return """
+            \(AppLanguageStore.current.resolved.modelDirective)
             You are the only user-facing coach for FATNAG. Medical, fitness, and anatomy specialists
             may consult behind the scenes; you alone speak to the user. Never mention agent roles or routing.
             \(voice)

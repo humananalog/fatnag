@@ -131,7 +131,8 @@ final class CoachOfflineTests: XCTestCase {
         let profile = try JSONDecoder().decode(UserBodyProfile.self, from: legacy)
         XCTAssertEqual(profile.preferredLanguage, "English")
         XCTAssertEqual(profile.location, "")
-        XCTAssertTrue(profile.coachPersonaBlock.isEmpty)
+        XCTAssertTrue(profile.coachPersonaBlock.contains("Language lock"))
+        XCTAssertFalse(profile.coachPersonaBlock.contains("Location:"))
         var filled = profile
         filled.location = "Manila"
         filled.ethnicity = "Filipina"
@@ -201,6 +202,28 @@ final class CoachOfflineTests: XCTestCase {
                 || summary.contains("secret")
                 || summary.contains("grok_app_secret")
         )
+    }
+
+    func testLanguageSettingValidatesAndLocksModels() {
+        let key = "thescale.appLanguage"
+        let prior = UserDefaults.standard.string(forKey: key)
+        defer {
+            if let prior {
+                UserDefaults.standard.set(prior, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        XCTAssertNil(AppLanguage.validated("Tagalog"))
+        XCTAssertNil(AppLanguage.validated(" "))
+        XCTAssertNil(AppLanguage.validated("nope"))
+        XCTAssertEqual(AppLanguage.validated("fr"), .french)
+        XCTAssertEqual(AppLanguageStore.apply(.french), .french)
+        XCTAssertEqual(AppLanguageStore.current, .french)
+        XCTAssertEqual(FatnagBrand.tagline, "Nag jusqu'à ce que le gras plie.")
+        XCTAssertTrue(AppLanguage.french.modelDirective.contains("French"))
+        XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male).contains("Language lock"))
+        XCTAssertTrue(AppLanguageStore.locked("Hello").contains("French"))
     }
 
     func testLegacyKeychainClearIsIdempotent() {

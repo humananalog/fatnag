@@ -119,7 +119,7 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         var lines: [String] = []
         let loc = location.trimmingCharacters(in: .whitespacesAndNewlines)
         let eth = ethnicity.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lang = preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lang = AppLanguageStore.current.resolved.profileLanguageName
         let vibe = culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines)
         if !loc.isEmpty {
             let localBit = useLocalContext
@@ -128,6 +128,7 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
             lines.append("Location: \(loc)\(localBit)")
         }
         if !eth.isEmpty { lines.append("Ethnicity / culture: \(eth)") }
+        lines.append(AppLanguageStore.current.resolved.modelDirective)
         if !lang.isEmpty { lines.append("Preferred language: \(lang)") }
         if !vibe.isEmpty { lines.append("Vibe / cultural style: \(vibe)") }
         lines.append("Diet preference: \(dietPreference.title)\(dietPreferenceConfirmed ? "" : " (unconfirmed)")")

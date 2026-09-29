@@ -22,7 +22,7 @@ struct FatnagWordmark: View {
 /// Vector asset for places that need `Image` (template-tinted).
 enum FatnagBrand {
     static let displayName = "fatnag"
-    static let tagline = "Nag until the fat folds."
+    static var tagline: String { AppLanguageStore.current.resolved.splashTagline }
 
     static var wordmarkImage: Image {
         Image("FatnagWordmark")

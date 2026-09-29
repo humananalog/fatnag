@@ -108,7 +108,7 @@ enum FoundationModelCoach {
         context: String,
         sex: UserBodyProfile.Sex = .male
     ) async -> (title: String, body: String, usedFoundationModel: Bool) {
-        let voice = CoachVoice.bannerRules(sex: sex)
+        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex))
         guard FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else {
                 return (fallbackTitle, fallbackBody, false)
@@ -175,7 +175,7 @@ enum FoundationModelCoach {
         extraContext: String = "",
         sex: UserBodyProfile.Sex = .male
     ) async -> (shouldNotify: Bool, reason: String, usedFoundationModel: Bool) {
-        let voice = CoachVoice.bannerRules(sex: sex)
+        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex))
         guard FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else {
                 return (true, "Background wake; algorithmic trigger stands.", false)
@@ -242,7 +242,7 @@ enum FoundationModelCoach {
         digestBlock: String,
         sex: UserBodyProfile.Sex = .male
     ) async -> String? {
-        let voice = CoachVoice.bannerRules(sex: sex)
+        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex))
         guard FoundationModelAvailability.isAvailable else {
             return await OnDevicePolishService.shared.summarizeFitnessDigest(
                 profileName: profileName,
@@ -281,7 +281,7 @@ enum FoundationModelCoach {
         from userText: String,
         sex: UserBodyProfile.Sex = .male
     ) async -> [CoachMemoryFact] {
-        let voice = CoachVoice.bannerRules(sex: sex)
+        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex))
         guard FoundationModelAvailability.isAvailable else {
             return await OnDevicePolishService.shared.extractMemoryFacts(
                 from: userText,
@@ -364,13 +364,13 @@ enum FoundationModelCoach {
             ? "Also describe portions with palms/fists/handfuls in titles or micro lines when natural. Daily picture: \(picture). Protein picture: \(proteinPic)."
             : ""
         do {
-            let session = LanguageModelSession(instructions: """
+            let session = LanguageModelSession(instructions: AppLanguageStore.locked("""
                 You write practical meal menus for FATNAG on-device.
                 \(CoachVoice.bannerRules(sex: sex))
                 Fitness coaching only. Never diagnose. No em dashes.
                 Every ingredient needs a metric portion (g or ml). Real dishes, not fluff.
                 Honour diet preference and fasting windows.
-                """)
+                """))
             let prompt = """
                 Build exactly \(plateCount) upcoming meal\(plateCount == 1 ? "" : "s") for \(who) from local now \(localTime).
                 Diet: \(diet.title). Daily max \(maxKcal) kcal. Protein \(proteinGrams) g. Micro focus: \(microHint).
@@ -444,11 +444,11 @@ enum FoundationModelCoach {
         guard trimmed.count >= 4 else { return local }
 
         do {
-            let session = LanguageModelSession(instructions: """
+            let session = LanguageModelSession(instructions: AppLanguageStore.locked("""
                 You structure onboarding profiles for FATNAG, a private fitness app.
                 Stay on-device. Infer only what the user's note supports. Prefer empty / 0 over guessing.
                 Never invent height, age, or sex. Never add medical advice.
-                """)
+                """))
             let prompt = """
                 Extract profile fields from this freeform note for \(name.isEmpty ? "the user" : name).
                 Known body (do not invent; may use when interpreting goals): height \(Int(heightCm.rounded())) cm, age \(Int(ageYears.rounded())), sex \(sex.rawValue), stated ideal \(String(format: "%.1f", idealKg)) kg.

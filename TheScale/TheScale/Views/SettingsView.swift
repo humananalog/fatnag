@@ -24,6 +24,8 @@ struct SettingsView: View {
     @State private var exportShareURL: URL?
     @State private var showEraseConfirm = false
     @State private var dataRightsNote: String?
+    @State private var languageValidationNote: String?
+    @State private var languageRejected = false
     /// Draft age on the wheel before Confirm.
     @State private var draftAgeYears: Int = 30
     @State private var pendingHeightCm: Double?
@@ -99,6 +101,9 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 brandHeader
+
+                sectionLabel(String(localized: "settings.section.language", defaultValue: "Language"))
+                languageCard
 
                 sectionLabel(String(localized: "settings.section.you", defaultValue: "You"))
                 profileCard
@@ -246,6 +251,65 @@ struct SettingsView: View {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+    }
+
+    private var languageCard: some View {
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(String(localized: "settings.language", defaultValue: "App language"), systemImage: "globe")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text(String(
+                    localized: "settings.language.help",
+                    defaultValue: "Sets the app UI, the splash line, and Keel. On-device models use the same language."
+                ))
+                .font(.footnote)
+                .foregroundStyle(steel)
+                .fixedSize(horizontal: false, vertical: true)
+
+                Picker(
+                    String(localized: "settings.language", defaultValue: "App language"),
+                    selection: Binding(
+                        get: { AppLanguageStore.current },
+                        set: { lang in
+                            guard let applied = AppLanguageStore.apply(lang) else {
+                                languageRejected = true
+                                languageValidationNote = String(
+                                    localized: "settings.language.invalid",
+                                    defaultValue: "That language is not available."
+                                )
+                                return
+                            }
+                            languageRejected = false
+                            session.profile.preferredLanguage = applied.resolved.profileLanguageName
+                            languageValidationNote = String(
+                                localized: "settings.language.applied",
+                                defaultValue: "UI and Keel now use \(applied.nativeLabel)."
+                            )
+                        }
+                    )
+                ) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.nativeLabel).tag(lang)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("settings.appLanguage")
+
+                Text(AppLanguageStore.current.resolved.splashTagline)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink)
+                    .accessibilityIdentifier("settings.language.tagline")
+
+                if let languageValidationNote {
+                    Text(languageValidationNote)
+                        .font(.caption)
+                        .foregroundStyle(languageRejected ? Color.orange : steel)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("settings.language.validation")
+                }
+            }
+        }
     }
 
     private var brandHeader: some View {
@@ -937,28 +1001,6 @@ struct SettingsView: View {
                 ) {
                     TextField("Optional", text: $session.profile.ethnicity)
                         .focused($focusedField, equals: .ethnicity)
-                }
-
-                labeledField(
-                    title: String(localized: "settings.language", defaultValue: "App language"),
-                    help: String(localized: "settings.language.help", defaultValue: "Entire app UI. Also used for Coach replies when live Keel is on.")
-                ) {
-                    Picker(
-                        String(localized: "settings.language", defaultValue: "App language"),
-                        selection: Binding(
-                            get: { AppLanguageStore.current },
-                            set: { lang in
-                                AppLanguageStore.current = lang
-                                session.profile.preferredLanguage = lang.profileLanguageName
-                            }
-                        )
-                    ) {
-                        ForEach(AppLanguage.allCases) { lang in
-                            Text(lang.nativeLabel).tag(lang)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .accessibilityIdentifier("settings.appLanguage")
                 }
 
                 labeledField(
