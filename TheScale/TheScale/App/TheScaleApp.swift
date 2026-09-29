@@ -74,6 +74,9 @@ struct TheScaleApp: App {
                             .environmentObject(session)
                     }
                 }
+                .environment(\.locale, appLanguage.locale)
+                .environment(\.layoutDirection, appLanguage.layoutDirection)
+                .id(appLanguage.rawValue)
                 .opacity(showSplash || showFirstLaunchLanding ? 0 : 1)
 
                 if showFirstLaunchLanding {
@@ -85,6 +88,8 @@ struct TheScaleApp: App {
                 }
 
                 if showSplash {
+                    // Outside language `.id` remount so the tagline stays the persisted
+                    // Settings language (or system on first launch) for the whole slam.
                     SplashView {
                         showSplash = false
                         if !session.hasCompletedOnboarding {
@@ -95,9 +100,6 @@ struct TheScaleApp: App {
                     .zIndex(3)
                 }
             }
-            .environment(\.locale, appLanguage.locale)
-            .environment(\.layoutDirection, appLanguage.layoutDirection)
-            .id(appLanguage.rawValue)
             .onAppear {
                 if ProcessInfo.processInfo.arguments.contains("-uitesting-reset-onboarding") {
                     OnboardingStore.hasCompleted = false

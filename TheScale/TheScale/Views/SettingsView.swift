@@ -293,7 +293,7 @@ struct SettingsView: View {
                 .pickerStyle(.menu)
                 .accessibilityIdentifier("settings.appLanguage")
 
-                Text(AppLanguageStore.current.resolved.splashTagline)
+                Text(AppLanguageStore.splashTagline)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(ink)
                     .accessibilityIdentifier("settings.language.tagline")

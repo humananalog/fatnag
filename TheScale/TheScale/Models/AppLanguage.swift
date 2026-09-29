@@ -274,6 +274,13 @@ enum AppLanguageStore {
         UserDefaults.standard.synchronize()
     }
 
+    /// Splash / cold-open tagline.
+    /// - Returning user: last language chosen in Settings / onboarding (resolved).
+    /// - First launch (nothing saved): system language.
+    static var splashTagline: String {
+        current.resolved.splashTagline
+    }
+
     /// Lookup that always uses the validated in-app language (sheets, Settings, splash).
     static func text(_ key: String, default defaultValue: String) -> String {
         let lang = current.resolved.catalogLanguageCode

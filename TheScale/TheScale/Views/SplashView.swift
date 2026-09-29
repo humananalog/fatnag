@@ -17,6 +17,8 @@ struct SplashView: View {
     @State private var tagOpacity: Double = 0
     @State private var exitOpacity: Double = 1
     @State private var impactTick = false
+    /// Frozen at appear from last Settings language, or system on first launch.
+    @State private var tagline = AppLanguageStore.splashTagline
 
     private let ink = Color.black
     private let ivory = Color.white
@@ -71,11 +73,12 @@ struct SplashView: View {
                 .accessibilityIdentifier("splash.brand")
 
                 VStack(spacing: 6) {
-                    Text(FatnagBrand.tagline)
+                    Text(tagline)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(ivory.opacity(0.55))
                         .tracking(0.3)
                         .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("splash.tagline")
                     Text(splashVersionLine)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(ivory.opacity(0.38))
@@ -92,7 +95,10 @@ struct SplashView: View {
         .persistentSystemOverlays(.hidden)
         .sensoryFeedback(.impact(flexibility: .solid, intensity: 0.85), trigger: impactTick)
         .accessibilityAddTraits(.isHeader)
-        .onAppear { runSequence() }
+        .onAppear {
+            tagline = AppLanguageStore.splashTagline
+            runSequence()
+        }
     }
 
     private var splashVersionLine: String {
