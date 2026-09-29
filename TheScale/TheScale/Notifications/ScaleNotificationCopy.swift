@@ -15,15 +15,22 @@ enum ScaleNotificationCopy {
         var visualHeadline: String?
         var visualDetail: String?
         var relevanceScore: Double?
+        /// Overrides `kind.destination` when the same kind opens different pages.
+        var destination: ScaleNotificationDestination?
 
         func asDraft() -> ScaleNotificationContentFactory.Draft {
-            ScaleNotificationContentFactory.Draft(
+            var extras: [String: String] = [:]
+            if let destination {
+                extras[ScaleNotificationUserInfoKey.destination] = destination.rawValue
+            }
+            return ScaleNotificationContentFactory.Draft(
                 kind: kind,
                 title: glanceTitle,
                 subtitle: glanceLine,
                 body: phoneBody,
                 visualHeadline: visualHeadline ?? glanceTitle,
                 visualDetail: visualDetail ?? glanceLine,
+                userInfoExtras: extras,
                 relevanceScore: relevanceScore
             )
         }
@@ -155,8 +162,23 @@ enum ScaleNotificationCopy {
             phoneBody: clamp("\(who). \(pulse.phoneBody)", max: 150),
             visualHeadline: "Nag",
             visualDetail: beat,
-            relevanceScore: pulse.isStrong ? 0.9 : 0.72
+            relevanceScore: pulse.isStrong ? 0.9 : 0.72,
+            destination: destination(for: pulse)
         )
+    }
+
+    /// Nag tones land on the page that matches the beat.
+    static func destination(for pulse: ActivityPulse) -> ScaleNotificationDestination {
+        switch pulse.tone {
+        case .greeting:
+            return .weigh
+        case .punishment:
+            return .progress
+        case .reward:
+            return pulse.id.hasPrefix("workout") ? .meals : .progress
+        case .joke, .humor:
+            return .coach
+        }
     }
 
     static func fitnessInterval(profileName: String, intervalTitle: String) -> Moment {

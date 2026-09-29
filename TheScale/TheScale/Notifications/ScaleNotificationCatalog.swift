@@ -66,7 +66,7 @@ enum ScaleNotificationKind: String, Sendable {
 
     var destination: ScaleNotificationDestination {
         switch self {
-        case .coachWake, .coachReminder, .fitnessInterval, .watchWear, .preSleepHR, .sample, .nag:
+        case .coachWake, .coachReminder, .sample:
             return .coach
         case .morningWeigh:
             return .weigh
@@ -74,6 +74,11 @@ enum ScaleNotificationKind: String, Sendable {
             return .history
         case .weeklyGoal, .weightSpike:
             return .progress
+        case .fitnessInterval, .watchWear, .preSleepHR:
+            return .coach
+        case .nag:
+            // Overridden per Nag tone in userInfo when fired.
+            return .coach
         }
     }
 
@@ -126,6 +131,7 @@ enum ScaleNotificationDestination: String, Sendable {
     case history
     case settings
     case weigh
+    case meals
 }
 
 enum ScaleNotificationUserInfoKey {
@@ -231,7 +237,7 @@ enum ScaleNotificationCategories {
         )
         let nag = UNNotificationCategory(
             identifier: ScaleNotificationCategoryID.nag,
-            actions: [openCoach, snooze],
+            actions: [openWeigh, openProgress, openCoach, snooze],
             intentIdentifiers: [],
             hiddenPreviewsBodyPlaceholder: "Nag",
             categorySummaryFormat: "%u Nags",

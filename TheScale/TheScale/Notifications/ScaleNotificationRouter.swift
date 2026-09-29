@@ -5,8 +5,30 @@ import UserNotifications
 @MainActor
 enum ScaleNotificationRouter {
     /// Installed by ContentView / app shell so notification actions can open UI.
-    static var openDestination: ((ScaleNotificationDestination) -> Void)?
+    private static var openDestinationHandler: ((ScaleNotificationDestination) -> Void)?
+    /// Cold-start taps arrive before ContentView installs the handler.
+    private static var pendingDestination: ScaleNotificationDestination?
     static var openAppNotificationSettings: (() -> Void)?
+
+    /// Assign from the home shell. Flushes any tap that landed while the UI was still launching.
+    static var openDestination: ((ScaleNotificationDestination) -> Void)? {
+        get { openDestinationHandler }
+        set {
+            openDestinationHandler = newValue
+            if let newValue, let pending = pendingDestination {
+                pendingDestination = nil
+                newValue(pending)
+            }
+        }
+    }
+
+    static func route(_ destination: ScaleNotificationDestination) {
+        if let openDestinationHandler {
+            openDestinationHandler(destination)
+        } else {
+            pendingDestination = destination
+        }
+    }
 
     static func handle(response: UNNotificationResponse) async {
         let content = response.notification.request.content
@@ -40,6 +62,10 @@ enum ScaleNotificationRouter {
                    let dest = ScaleNotificationDestination(rawValue: target) {
                     return dest
                 }
+                if let kindRaw = userInfo[ScaleNotificationUserInfoKey.kind] as? String,
+                   let kind = ScaleNotificationKind(rawValue: kindRaw) {
+                    return kind.destination
+                }
                 return .coach
             default:
                 return nil
@@ -47,7 +73,7 @@ enum ScaleNotificationRouter {
         }()
 
         if let destination {
-            openDestination?(destination)
+            route(destination)
         }
     }
 
@@ -55,7 +81,7 @@ enum ScaleNotificationRouter {
         if let openAppNotificationSettings {
             openAppNotificationSettings()
         } else {
-            openDestination?(.settings)
+            route(.settings)
         }
     }
 

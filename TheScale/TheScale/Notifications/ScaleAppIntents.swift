@@ -9,7 +9,7 @@ struct OpenCoachIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        ScaleNotificationRouter.openDestination?(.coach)
+        ScaleNotificationRouter.route(.coach)
         return .result()
     }
 }
@@ -21,7 +21,7 @@ struct OpenProgressIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        ScaleNotificationRouter.openDestination?(.progress)
+        ScaleNotificationRouter.route(.progress)
         return .result()
     }
 }
@@ -33,7 +33,7 @@ struct OpenHistoryIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        ScaleNotificationRouter.openDestination?(.history)
+        ScaleNotificationRouter.route(.history)
         return .result()
     }
 }

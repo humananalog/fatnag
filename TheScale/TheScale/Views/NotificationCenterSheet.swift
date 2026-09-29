@@ -30,6 +30,7 @@ struct NotificationCenterSheet: View {
         let kindLabel: String
         let whenLabel: String
         let deliveredAt: Date
+        let destination: ScaleNotificationDestination
     }
 
     private var ink: Color {
@@ -109,7 +110,7 @@ struct NotificationCenterSheet: View {
                             } else {
                                 ForEach(delivered) { row in
                                     Button {
-                                        Task { await acknowledge(row) }
+                                        Task { await openAndAcknowledge(row) }
                                     } label: {
                                         notificationRow(
                                             title: row.title,
@@ -139,7 +140,7 @@ struct NotificationCenterSheet: View {
                                 systemImage: "tray.full"
                             )
                         } footer: {
-                            Text(String(localized: "notif.active_footer", defaultValue: "Swipe left to delete. Tap to acknowledge."))
+                            Text(String(localized: "notif.active_footer", defaultValue: "Tap to open the related page. Swipe left to delete or archive."))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(mist)
                         }
@@ -353,10 +354,17 @@ struct NotificationCenterSheet: View {
                     body: note.request.content.body,
                     kindLabel: kindLabel(for: note.request.identifier),
                     whenLabel: note.date.formatted(date: .abbreviated, time: .shortened),
-                    deliveredAt: note.date
+                    deliveredAt: note.date,
+                    destination: destination(for: note.request.content, requestId: note.request.identifier)
                 )
             }
         isLoading = false
+    }
+
+    private func openAndAcknowledge(_ row: DeliveredNotifRow) async {
+        await acknowledge(row)
+        dismiss()
+        session.handleNotificationDestination(row.destination)
     }
 
     private func acknowledge(_ row: DeliveredNotifRow) async {
@@ -433,7 +441,8 @@ struct NotificationCenterSheet: View {
                     body: "\(name). That \(kg) bump is weekend bullshit, not new fat. Drink water, hit protein, weigh tomorrow.",
                     kindLabel: "Red card",
                     whenLabel: "Today 8:12",
-                    deliveredAt: Date()
+                    deliveredAt: Date(),
+                    destination: .progress
                 ),
                 DeliveredNotifRow(
                     id: "demo.delivered.trend",
@@ -442,7 +451,8 @@ struct NotificationCenterSheet: View {
                     body: "\(name). Week is working. Don't blow it with a victory pastry like an idiot.",
                     kindLabel: "Trend check",
                     whenLabel: "Yesterday 18:40",
-                    deliveredAt: Date()
+                    deliveredAt: Date(),
+                    destination: .history
                 ),
                 DeliveredNotifRow(
                     id: "demo.delivered.watch",
@@ -451,7 +461,8 @@ struct NotificationCenterSheet: View {
                     body: "\(name). No HR all day. Strap the damn watch or stop pretending you're training.",
                     kindLabel: "Watch signal",
                     whenLabel: "Yesterday 21:05",
-                    deliveredAt: Date()
+                    deliveredAt: Date(),
+                    destination: .coach
                 ),
             ]
         case .female:
@@ -472,7 +483,8 @@ struct NotificationCenterSheet: View {
                     body: "\(name), that \(kg) blip is salt and cycle - not a relapse. Hold the line. Proud of you showing up.",
                     kindLabel: "Red card",
                     whenLabel: "Today 8:12",
-                    deliveredAt: Date()
+                    deliveredAt: Date(),
+                    destination: .progress
                 ),
                 DeliveredNotifRow(
                     id: "demo.delivered.trend",
@@ -481,7 +493,8 @@ struct NotificationCenterSheet: View {
                     body: "\(name), the week slope is down. Keep the protein plates and the walk after lunch.",
                     kindLabel: "Trend check",
                     whenLabel: "Yesterday 18:40",
-                    deliveredAt: Date()
+                    deliveredAt: Date(),
+                    destination: .history
                 ),
                 DeliveredNotifRow(
                     id: "demo.delivered.coach",
@@ -490,12 +503,50 @@ struct NotificationCenterSheet: View {
                     body: "\(name), you showed up. That's the hard part. Eat the plan, ignore the panic edit.",
                     kindLabel: "Coach reminder",
                     whenLabel: "Yesterday 12:20",
-                    deliveredAt: Date()
+                    deliveredAt: Date(),
+                    destination: .coach
                 ),
             ]
         }
     }
     #endif
+
+    private func destination(
+        for content: UNNotificationContent,
+        requestId: String
+    ) -> ScaleNotificationDestination {
+        if let raw = content.userInfo[ScaleNotificationUserInfoKey.destination] as? String,
+           let dest = ScaleNotificationDestination(rawValue: raw) {
+            return dest
+        }
+        if let target = content.targetContentIdentifier,
+           let dest = ScaleNotificationDestination(rawValue: target) {
+            return dest
+        }
+        if let kindRaw = content.userInfo[ScaleNotificationUserInfoKey.kind] as? String,
+           let kind = ScaleNotificationKind(rawValue: kindRaw) {
+            return kind.destination
+        }
+        return destinationFallback(forRequestId: requestId)
+    }
+
+    private func destinationFallback(forRequestId identifier: String) -> ScaleNotificationDestination {
+        switch identifier {
+        case MorningWeighDrillScheduler.fallbackRequestId,
+             MorningWeighDrillScheduler.requestId,
+             MorningWeighDrillScheduler.testRequestId:
+            return .weigh
+        case TrendNotificationScheduler.weeklyGoalId:
+            return .progress
+        case TrendNotificationScheduler.badTrendId:
+            return .history
+        default:
+            if identifier.hasPrefix("thescale.fitness-trigger.") {
+                return .coach
+            }
+            return .coach
+        }
+    }
 
     private func kindLabel(for identifier: String) -> String {
         switch identifier {

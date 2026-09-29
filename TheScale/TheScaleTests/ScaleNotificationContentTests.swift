@@ -158,6 +158,44 @@ final class ScaleNotificationContentTests: XCTestCase {
         XCTAssertEqual(content.categoryIdentifier, ScaleNotificationCategoryID.nag)
         XCTAssertEqual(content.interruptionLevel, .active)
         XCTAssertNotNil(content.sound)
+        XCTAssertEqual(
+            content.userInfo[ScaleNotificationUserInfoKey.destination] as? String,
+            ScaleNotificationDestination.progress.rawValue
+        )
+    }
+
+    func testNagDestinationsFollowTone() {
+        XCTAssertEqual(
+            ScaleNotificationCopy.destination(for: ActivityPulse(
+                id: "greet-1", tone: .greeting, isStrong: false,
+                glanceTitle: "Morning", glanceLine: "Up", phoneBody: "Weigh"
+            )),
+            .weigh
+        )
+        XCTAssertEqual(
+            ScaleNotificationCopy.destination(for: ActivityPulse(
+                id: "steps-low-1", tone: .punishment, isStrong: true,
+                glanceTitle: "Soft", glanceLine: "800", phoneBody: "Walk"
+            )),
+            .progress
+        )
+        XCTAssertEqual(
+            ScaleNotificationCopy.destination(for: ActivityPulse(
+                id: "workout-1", tone: .reward, isStrong: true,
+                glanceTitle: "Banked", glanceLine: "Run", phoneBody: "Eat"
+            )),
+            .meals
+        )
+        XCTAssertEqual(
+            ScaleNotificationCopy.destination(for: ActivityPulse(
+                id: "joke-1", tone: .joke, isStrong: false,
+                glanceTitle: "Moving", glanceLine: "2k", phoneBody: "Ha"
+            )),
+            .coach
+        )
+        XCTAssertEqual(ScaleNotificationKind.morningWeigh.destination, .weigh)
+        XCTAssertEqual(ScaleNotificationKind.weeklyGoal.destination, .progress)
+        XCTAssertEqual(ScaleNotificationKind.badTrend.destination, .history)
     }
 
     func testAcknowledgedAlertLeavesTheActiveInbox() {

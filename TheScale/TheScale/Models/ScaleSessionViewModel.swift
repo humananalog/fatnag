@@ -1907,6 +1907,8 @@ final class ScaleSessionViewModel: ObservableObject {
             } else {
                 presentManualEntry()
             }
+        case .meals:
+            presentMealPlan()
         }
     }
 

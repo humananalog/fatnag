@@ -31,7 +31,6 @@ enum ScaleNotificationContentFactory {
         content.threadIdentifier = draft.kind.threadId
         content.interruptionLevel = draft.kind.interruptionLevel
         content.relevanceScore = draft.relevanceScore ?? draft.kind.relevanceScore
-        content.targetContentIdentifier = draft.kind.destination.rawValue
 
         var info: [AnyHashable: Any] = [
             ScaleNotificationUserInfoKey.destination: draft.kind.destination.rawValue,
@@ -44,6 +43,11 @@ enum ScaleNotificationContentFactory {
             info[key] = value
         }
         content.userInfo = info
+        if let dest = info[ScaleNotificationUserInfoKey.destination] as? String {
+            content.targetContentIdentifier = dest
+        } else {
+            content.targetContentIdentifier = draft.kind.destination.rawValue
+        }
 
         let headline = draft.visualHeadline ?? content.title
         let detail = draft.visualDetail ?? (content.subtitle.isEmpty ? content.body : content.subtitle)
