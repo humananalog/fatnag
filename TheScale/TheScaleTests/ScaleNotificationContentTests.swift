@@ -147,7 +147,7 @@ final class ScaleNotificationContentTests: XCTestCase {
         let content = ScaleNotificationContentFactory.make(
             ScaleNotificationCopy.activityPulse(pulse, profileName: "Alex")
         )
-        XCTAssertEqual(content.title, "Nag")
+        XCTAssertEqual(content.title, "🔥 Nag")
         XCTAssertEqual(content.subtitle, "Sleep banked")
         XCTAssertTrue(content.body.contains("Alex"))
         XCTAssertEqual(
@@ -260,9 +260,9 @@ final class ScaleNotificationContentTests: XCTestCase {
         XCTAssertEqual(content.title, "Coach check")
     }
 
-    func testGlanceSanitizeStripsEmojiAndNamePrefix() {
+    func testGlanceSanitizeKeepsEmojiAndDropsNamePrefix() {
         let cleaned = ScaleNotificationCopy.glanceSanitize("Alex: Keel · 💩 drill")
-        XCTAssertFalse(cleaned.contains("💩"))
+        XCTAssertTrue(cleaned.contains("💩"))
         XCTAssertFalse(cleaned.hasPrefix("Alex"))
         XCTAssertLessThanOrEqual(cleaned.count, 22)
     }

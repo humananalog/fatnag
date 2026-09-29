@@ -349,16 +349,16 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         XCTAssertEqual(prefs.morningWeighFallbackMinute, 15)
     }
 
-    func testDrillCopyIsWatchGlanceFirst() {
+    func testDrillCopyHasShitEmoji() {
         let copy = MorningWeighDrillScheduler.drillCopy(profileName: "Alex", variant: .fallback)
-        XCTAssertEqual(copy.title, "Weigh now")
-        XCTAssertFalse(copy.title.contains("💩"))
+        XCTAssertTrue(copy.title.contains("💩"))
         XCTAssertLessThanOrEqual(copy.title.count, 22)
         XCTAssertTrue(copy.subtitle.lowercased().contains("bladder") || copy.subtitle.lowercased().contains("scale"))
         XCTAssertTrue(copy.body.contains("Alex"))
+        XCTAssertTrue(copy.body.contains("💩"))
         XCTAssertTrue(copy.body.lowercased().contains("fatnag"))
         let anonymous = MorningWeighDrillScheduler.drillCopy(profileName: "", variant: .fallback)
-        XCTAssertEqual(anonymous.title, "Weigh now")
+        XCTAssertTrue(anonymous.title.contains("💩"))
         XCTAssertTrue(anonymous.body.contains("Soldier"))
     }
 
@@ -368,8 +368,8 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         )
         XCTAssertEqual(content.interruptionLevel, .timeSensitive)
         XCTAssertEqual(content.categoryIdentifier, ScaleNotificationCategoryID.morningWeigh)
-        XCTAssertEqual(content.title, "Weigh now")
-        XCTAssertFalse(content.title.contains("💩"))
+        XCTAssertTrue(content.title.contains("💩"))
+        XCTAssertTrue(content.body.contains("💩"))
         XCTAssertTrue(content.body.lowercased().contains("scale"))
     }
 }

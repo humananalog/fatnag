@@ -9,7 +9,7 @@ import UIKit
 
 @Generable(description: "Local notification glance title (Watch) and expanded body (iPhone) for fatnag")
 struct NotificationCopyDraft: Equatable, Sendable {
-    @Guide(description: "Watch glance title. Max 20 characters. Verb or number first. NO emoji. NO name prefix. No em dashes. No AI markers.")
+    @Guide(description: "Watch glance title. Max 22 characters. Verb or number first. Emoji OK (💩 on weigh drills). NO name prefix. No em dashes. No AI markers.")
     var title: String
 
     @Guide(description: "iPhone expanded body. Friendly badass dark humour. Call user by name when natural. Max ~120 characters. No em dashes. No medical disclaimer. No AI markers.")

@@ -19,9 +19,9 @@ enum MorningWeighDrillScheduler {
     nonisolated static let fireDateMatchTolerance: TimeInterval = 60
 
     /// Watch glance + iPhone body. Time Sensitive via kind.
-    nonisolated static let drillTitle = "Weigh now"
+    nonisolated static let drillTitle = "💩 Weigh"
     nonisolated static let drillSubtitle = "Empty bladder · scale"
-    nonisolated static let drillBodyCore = "Drop a load, step on the scale, then open fatnag. Morning mass locks the week."
+    nonisolated static let drillBodyCore = "Go drop a 💩, step on the scale, then open fatnag. Morning mass locks the week."
 
     /// Call after digest refresh / scene active / trend refresh.
     /// Safe to call often: fallback `add` only runs when the intended fire date changed.

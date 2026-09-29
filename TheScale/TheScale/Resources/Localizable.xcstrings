@@ -2490,7 +2490,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Filling profile…"
+            "value": "Remplissage du profil…"
           }
         },
         "de": {
@@ -2572,7 +2572,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Set dream weight"
+            "value": "Fixer le poids rêve"
           }
         },
         "de": {
@@ -2654,7 +2654,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lock target"
+            "value": "Verrouiller la cible"
           }
         },
         "de": {
@@ -4130,7 +4130,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hit ≥ 18 mg · pair with vitamin C"
+            "value": "Viser ≥ 18 mg · avec vitamine C"
           }
         },
         "de": {
@@ -4212,7 +4212,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Prioritize ≥ 18 mg with meals"
+            "value": "Prioriser ≥ 18 mg aux repas"
           }
         },
         "de": {
@@ -4294,7 +4294,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hit ≥ 30 g · keeps the cut sane"
+            "value": "Viser ≥ 30 g · garde la coupe saine"
           }
         },
         "de": {
@@ -4376,7 +4376,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aim ≥ 3,500 mg from food"
+            "value": "Viser ≥ 3 500 mg via l’alimentation"
           }
         },
         "de": {
@@ -5114,7 +5114,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Weigh every morning, empty bladder, same scale."
+            "value": "Pèse-toi chaque matin, vessie vide, même balance."
           }
         },
         "de": {
@@ -5196,7 +5196,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hit the calorie and protein caps on the home board. No make-up-later."
+            "value": "Respecte les plafonds calories et protéines du tableau. Pas de rattrapage plus tard."
           }
         },
         "de": {
@@ -5278,7 +5278,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Next %d days: sleep on time, walk the step target, no celebration eats."
+            "value": "Prochains %d jours : dors à l’heure, marche ton objectif de pas, pas de festin de célébration."
           }
         },
         "de": {
@@ -5360,7 +5360,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "If this was not you on the scale, discard the sample and re-weigh."
+            "value": "Si ce n’était pas toi sur la balance, ignore l’échantillon et repèse-toi."
           }
         },
         "de": {
@@ -5442,7 +5442,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recovery: %@ / week toward %@ by Sunday (safe metabolism cap)."
+            "value": "Récupération : %@ / semaine vers %@ d’ici dimanche (plafond métabolisme sûr)."
           }
         },
         "de": {
@@ -5770,7 +5770,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "$2 / month"
+            "value": "2 $ / mois"
           }
         },
         "de": {
@@ -5852,7 +5852,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "$8 / month"
+            "value": "8 $ / mois"
           }
         },
         "de": {
@@ -5934,7 +5934,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scale, Health, charts. %d live Keel asks a week."
+            "value": "Balance, Santé, graphiques. %d demandes Keel live par semaine."
           }
         },
         "de": {
@@ -6016,7 +6016,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Daily heat. %d live Keel credits a week."
+            "value": "La pression au quotidien. %d crédits Keel live par semaine."
           }
         },
         "de": {
@@ -6098,7 +6098,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "No soft ceiling. %d live Keel credits a week."
+            "value": "Pas de plafond mou. %d crédits Keel live par semaine."
           }
         },
         "de": {
@@ -6180,7 +6180,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Taste the tone."
+            "value": "Goûte le ton."
           }
         },
         "de": {
@@ -6262,7 +6262,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "A sharp ask a day."
+            "value": "Une question tranchante par jour."
           }
         },
         "de": {
@@ -6344,7 +6344,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Never ration pressure."
+            "value": "Ne rationne jamais la pression."
           }
         },
         "de": {
@@ -6426,7 +6426,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "You"
+            "value": "Toi"
           }
         },
         "de": {
@@ -6508,7 +6508,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Weekly AI"
+            "value": "IA hebdo"
           }
         },
         "de": {
@@ -6672,7 +6672,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alerts & Health"
+            "value": "Alertes & Santé"
           }
         },
         "de": {
@@ -6754,7 +6754,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scale"
+            "value": "Balance"
           }
         },
         "de": {
@@ -6836,7 +6836,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Privacy & Legal"
+            "value": "Confidentialité & Légal"
           }
         },
         "de": {
@@ -6918,7 +6918,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Help"
+            "value": "Aide"
           }
         },
         "de": {
@@ -7246,7 +7246,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Restoring…"
+            "value": "Restauration…"
           }
         },
         "de": {
@@ -7410,7 +7410,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entire app UI. Also used for Coach replies when live Keel is on."
+            "value": "Toute l’interface, le splash, et Keel. Les modèles sur l’appareil utilisent la même langue."
           }
         },
         "de": {
@@ -7574,7 +7574,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Allow Health"
+            "value": "Autoriser Santé"
           }
         },
         "de": {
@@ -7656,7 +7656,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Send feedback"
+            "value": "Envoyer un avis"
           }
         },
         "de": {
@@ -7738,7 +7738,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Export my data"
+            "value": "Exporter mes données"
           }
         },
         "de": {
@@ -7820,7 +7820,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Erase my data"
+            "value": "Effacer mes données"
           }
         },
         "de": {
@@ -8066,7 +8066,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Credits do not buy pleasure. Credits buy better outcomes."
+            "value": "Les crédits n’achètent pas le plaisir. Ils achètent de meilleurs résultats."
           }
         },
         "de": {
@@ -8148,7 +8148,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Live Keel when you go soft. Pro is the pressure path."
+            "value": "Keel live quand tu faiblis. Pro, c’est la voie de la pression."
           }
         },
         "de": {
@@ -8230,7 +8230,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Loading App Store prices…"
+            "value": "Chargement des prix App Store…"
           }
         },
         "de": {
@@ -8312,7 +8312,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Subscriptions unavailable"
+            "value": "Abonnements indisponibles"
           }
         },
         "de": {
@@ -8394,7 +8394,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Plus and Pro aren’t in the App Store catalog yet. Try Restore, or check back after products go live under Human Analog."
+            "value": "Plus et Pro ne sont pas encore au catalogue App Store. Essaie Restaurer, ou reviens quand les produits Human Analog seront en ligne."
           }
         },
         "de": {
@@ -8558,7 +8558,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Best"
+            "value": "Meilleur"
           }
         },
         "de": {
@@ -8640,7 +8640,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Next"
+            "value": "Suivant"
           }
         },
         "de": {
@@ -8722,7 +8722,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Current plan"
+            "value": "Formule actuelle"
           }
         },
         "de": {
@@ -8804,7 +8804,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Go Pro"
+            "value": "Passer Pro"
           }
         },
         "de": {
@@ -8886,7 +8886,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose %@"
+            "value": "Choisir %@"
           }
         },
         "de": {
@@ -8968,7 +8968,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cancel anytime in App Store subscriptions. Auto-renews monthly until you cancel at least 24 hours before the period ends."
+            "value": "Annule quand tu veux dans les abonnements App Store. Renouvellement mensuel auto jusqu’à annulation au moins 24 h avant la fin de période."
           }
         },
         "de": {
@@ -9214,7 +9214,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Close Monday card"
+            "value": "Fermer la carte du lundi"
           }
         },
         "de": {
@@ -9296,7 +9296,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Building this week's card…"
+            "value": "Construction de la carte de la semaine…"
           }
         },
         "de": {
@@ -9378,7 +9378,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "This week"
+            "value": "Cette semaine"
           }
         },
         "de": {
@@ -9460,7 +9460,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hide detail"
+            "value": "Masquer le détail"
           }
         },
         "de": {
@@ -9542,7 +9542,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Meals & physics"
+            "value": "Repas & physique"
           }
         },
         "de": {
@@ -9624,7 +9624,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enter a number in %@."
+            "value": "Entre un nombre en %@."
           }
         },
         "de": {
@@ -9706,7 +9706,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Could not save"
+            "value": "Enregistrement impossible"
           }
         },
         "de": {
@@ -9870,7 +9870,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Close manual entry"
+            "value": "Fermer la saisie manuelle"
           }
         },
         "de": {
@@ -10034,7 +10034,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mass only · no scale"
+            "value": "Masse seule · pas de balance"
           }
         },
         "de": {
@@ -10116,7 +10116,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "MANUAL"
+            "value": "MANUEL"
           }
         },
         "de": {
@@ -10198,7 +10198,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Writes weight and BMI to Apple Health. No body fat."
+            "value": "Écrit le poids et l’IMC dans Apple Santé. Pas de masse grasse."
           }
         },
         "de": {
@@ -10280,7 +10280,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "When"
+            "value": "Quand"
           }
         },
         "de": {
@@ -10362,7 +10362,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Change date and time"
+            "value": "Changer la date et l’heure"
           }
         },
         "de": {
@@ -10526,7 +10526,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Save to Health"
+            "value": "Enregistrer dans Santé"
           }
         },
         "de": {
@@ -10608,7 +10608,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Saves mass only, then opens History"
+            "value": "Enregistre la masse seule, puis ouvre l’Historique"
           }
         },
         "de": {
@@ -10690,7 +10690,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Save weight only?"
+            "value": "Enregistrer le poids seul ?"
           }
         },
         "de": {
@@ -10854,7 +10854,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Save weight + BMI only"
+            "value": "Enregistrer poids + IMC seulement"
           }
         },
         "de": {
@@ -10936,7 +10936,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "No body composition was captured, so body fat % will not be written. You can still edit weight before confirming."
+            "value": "Aucune composition corporelle capturée : le % de graisse ne sera pas écrit. Tu peux encore modifier le poids avant de confirmer."
           }
         },
         "de": {
@@ -11018,7 +11018,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Discard"
+            "value": "Jeter"
           }
         },
         "de": {
@@ -11100,7 +11100,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "It's me — save"
+            "value": "C’est moi — enregistrer"
           }
         },
         "de": {
@@ -11182,7 +11182,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Re-weigh"
+            "value": "Repeser"
           }
         },
         "de": {
@@ -11264,7 +11264,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "This reading looks off."
+            "value": "Cette mesure a l’air louche."
           }
         },
         "de": {
@@ -11346,7 +11346,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Calibration saved"
+            "value": "Calibration enregistrée"
           }
         },
         "de": {
@@ -11428,7 +11428,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Check this reading"
+            "value": "Vérifie cette mesure"
           }
         },
         "de": {
@@ -11510,7 +11510,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sudden loss — confirm?"
+            "value": "Perte soudaine — confirmer ?"
           }
         },
         "de": {
@@ -11592,7 +11592,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Close weigh-in"
+            "value": "Fermer la pesée"
           }
         },
         "de": {
@@ -11674,7 +11674,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Calibrate"
+            "value": "Calibrer"
           }
         },
         "de": {
@@ -11756,7 +11756,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reference mass on the scale"
+            "value": "Masse de référence sur la balance"
           }
         },
         "de": {
@@ -12002,7 +12002,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Place that mass barefoot-optional on the platform. Live kg below is raw from the scale. Store when it settles."
+            "value": "Pose cette masse sur le plateau. Le kg live ci-dessous est brut depuis la balance. Enregistre quand c’est stable."
           }
         },
         "de": {
@@ -12084,7 +12084,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Raw reading %.3f kg → target %.3f kg"
+            "value": "Lecture brute %.3f kg → cible %.3f kg"
           }
         },
         "de": {
@@ -12166,7 +12166,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Waiting for a scale reading…"
+            "value": "En attente d’une lecture balance…"
           }
         },
         "de": {
@@ -12248,7 +12248,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stored %@ from raw %.3f kg → true %.3f kg. Live weighs will use this correction."
+            "value": "Enregistré %@ depuis brut %.3f kg → vrai %.3f kg. Les pesées live utiliseront cette correction."
           }
         },
         "de": {
@@ -12330,7 +12330,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Store calibration"
+            "value": "Enregistrer la calibration"
           }
         },
         "de": {
@@ -12412,7 +12412,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wait for settled kg"
+            "value": "Attends un kg stable"
           }
         },
         "de": {
@@ -12494,7 +12494,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Does not write to Apple Health. Body fat % is informational only during calibration."
+            "value": "N’écrit pas dans Apple Santé. Le % de graisse est informatif pendant la calibration."
           }
         },
         "de": {
@@ -12576,7 +12576,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ raw"
+            "value": "%@ brut"
           }
         },
         "de": {
@@ -12658,7 +12658,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "calibrated"
+            "value": "calibré"
           }
         },
         "de": {
@@ -12740,7 +12740,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Edit weight"
+            "value": "Modifier le poids"
           }
         },
         "de": {
@@ -12822,7 +12822,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Double tap to edit before saving to Health"
+            "value": "Double tap pour modifier avant d’enregistrer dans Santé"
           }
         },
         "de": {
@@ -12904,7 +12904,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Weight"
+            "value": "Poids"
           }
         },
         "de": {
@@ -12986,7 +12986,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Body fat"
+            "value": "Masse grasse"
           }
         },
         "de": {
@@ -13068,7 +13068,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lean"
+            "value": "Maigre"
           }
         },
         "de": {
@@ -13150,7 +13150,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Body fat %"
+            "value": "Graisse %"
           }
         },
         "de": {
@@ -13232,7 +13232,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Decrease body fat by 0.1 percent"
+            "value": "Baisser la graisse de 0,1 pour cent"
           }
         },
         "de": {
@@ -13314,7 +13314,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fat"
+            "value": "Graisse"
           }
         },
         "de": {
@@ -13396,7 +13396,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Increase body fat by 0.1 percent"
+            "value": "Augmenter la graisse de 0,1 pour cent"
           }
         },
         "de": {
@@ -13478,7 +13478,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lean %"
+            "value": "Maigre %"
           }
         },
         "de": {
@@ -13560,7 +13560,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Decrease lean by 0.1 percent"
+            "value": "Baisser le maigre de 0,1 pour cent"
           }
         },
         "de": {
@@ -13642,7 +13642,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Increase lean by 0.1 percent"
+            "value": "Augmenter le maigre de 0,1 pour cent"
           }
         },
         "de": {
@@ -13724,7 +13724,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Clear reading"
+            "value": "Effacer la lecture"
           }
         },
         "de": {
@@ -13806,7 +13806,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Clear rejected weight reading"
+            "value": "Effacer la lecture de poids rejetée"
           }
         },
         "de": {
@@ -13888,7 +13888,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Saved to Apple Health"
+            "value": "Enregistré dans Apple Santé"
           }
         },
         "de": {
@@ -13970,7 +13970,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Auto-confirm in %ds"
+            "value": "Auto-confirm en %ds"
           }
         },
         "de": {
@@ -14216,7 +14216,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "BMI"
+            "value": "IMC"
           }
         },
         "de": {
@@ -14298,7 +14298,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Composition needs a barefoot scan. Edit weight freely; fat % stays off until it arrives."
+            "value": "La composition demande un scan pieds nus. Modifie le poids librement ; le % de graisse reste off jusqu’à l’arrivée."
           }
         },
         "de": {
@@ -14380,7 +14380,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Write fat % + lean to Health"
+            "value": "Écrire graisse % + maigre dans Santé"
           }
         },
         "de": {
@@ -14462,7 +14462,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Weight-only. Adjust kg above; body fat stays off until the barefoot scan finishes."
+            "value": "Poids seul. Ajuste les kg ci-dessus ; la graisse reste off jusqu’à la fin du scan pieds nus."
           }
         },
         "de": {
@@ -14544,7 +14544,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only Confirm writes to Apple Health. Mistakes stay on this iPhone until then."
+            "value": "Seul Confirmer écrit dans Apple Santé. Les erreurs restent sur cet iPhone jusque-là."
           }
         },
         "de": {
@@ -14626,7 +14626,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Calibration corrects weight kg only. Body fat stays informational."
+            "value": "La calibration corrige seulement les kg. La graisse reste informative."
           }
         },
         "de": {
@@ -14708,7 +14708,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Body composition locked from the barefoot scan."
+            "value": "Composition corporelle verrouillée depuis le scan pieds nus."
           }
         },
         "de": {
@@ -14790,7 +14790,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "No body fat this session (socks/shoes or stepped off early)."
+            "value": "Pas de masse grasse cette session (chaussettes/chaussures ou tu es descendu trop tôt)."
           }
         },
         "de": {
@@ -14872,7 +14872,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Waiting for barefoot body composition. Stay on the electrodes."
+            "value": "En attente de la composition pieds nus. Reste sur les électrodes."
           }
         },
         "de": {
@@ -14954,7 +14954,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Weight streaming. Body fat % appears after the scale finishes scanning."
+            "value": "Poids en direct. Le % de graisse apparaît après le scan de la balance."
           }
         },
         "de": {
@@ -15036,7 +15036,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Body fat % and lean % appear here once the scan finishes."
+            "value": "Le % de graisse et le % maigre apparaissent ici une fois le scan terminé."
           }
         },
         "de": {
@@ -15118,7 +15118,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "No meal plan yet."
+            "value": "Pas encore de plan repas."
           }
         },
         "de": {
@@ -15200,7 +15200,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Meal plan"
+            "value": "Plan repas"
           }
         },
         "de": {
@@ -15446,7 +15446,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "What's ahead"
+            "value": "À venir"
           }
         },
         "de": {
@@ -15528,7 +15528,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cap %d kcal · protein %d g · %@"
+            "value": "Plafond %d kcal · protéines %d g · %@"
           }
         },
         "de": {
@@ -15610,7 +15610,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grounded in your deficit, diet prefs, and fasting window."
+            "value": "Ancré dans ton déficit, tes préférences et ta fenêtre de jeûne."
           }
         },
         "de": {
@@ -16020,7 +16020,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Send trend summary to Keel?"
+            "value": "Envoyer le résumé de tendance à Keel ?"
           }
         },
         "de": {
@@ -16102,7 +16102,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Agree & coach"
+            "value": "Accepter & coach"
           }
         },
         "de": {
@@ -16184,7 +16184,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only a short weight/fat trend summary goes to Keel when you tap roast. Revoke in Settings."
+            "value": "Seul un court résumé poids/graisse va à Keel quand tu tapes roast. Révoque dans Réglages."
           }
         },
         "de": {
@@ -16266,7 +16266,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "week just opened"
+            "value": "semaine tout juste ouverte"
           }
         },
         "de": {
@@ -16348,7 +16348,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "early-week pace"
+            "value": "rythme début de semaine"
           }
         },
         "de": {
@@ -16430,7 +16430,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "mid-week progress"
+            "value": "progrès mi-semaine"
           }
         },
         "de": {
@@ -16512,7 +16512,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "finish to Sunday"
+            "value": "finir jusqu’à dimanche"
           }
         },
         "de": {
@@ -16594,7 +16594,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Goal %@"
+            "value": "Objectif %@"
           }
         },
         "de": {
@@ -16676,7 +16676,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Moved %@ so far"
+            "value": "Déjà %@ de fait"
           }
         },
         "de": {
@@ -16758,7 +16758,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Weigh in to lock this week's move"
+            "value": "Pèse-toi pour verrouiller le mouvement de la semaine"
           }
         },
         "de": {
@@ -17004,7 +17004,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Charts"
+            "value": "Graphiques"
           }
         },
         "de": {
@@ -17086,7 +17086,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open weight and body fat charts"
+            "value": "Ouvrir les graphiques poids et masse grasse"
           }
         },
         "de": {
@@ -17414,7 +17414,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Send chat context to Keel?"
+            "value": "Envoyer le contexte du chat à Keel ?"
           }
         },
         "de": {
@@ -17496,7 +17496,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Agree & send"
+            "value": "Accepter & envoyer"
           }
         },
         "de": {
@@ -17578,7 +17578,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Only this chat plus a short weight/fat/fitness digest go to the shared Keel backend. Memory stays on-device except the facts relevant to the ask. No per-user API key."
+            "value": "Seul ce chat plus un court digest poids/graisse/forme vont au backend Keel partagé. La mémoire reste sur l’appareil sauf les faits utiles à la demande. Pas de clé API par utilisateur."
           }
         },
         "de": {
@@ -17824,7 +17824,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Consent on. %@. Chat + compact Health digest + relevant memory only."
+            "value": "Consentement activé. %@. Chat + digest Santé compact + mémoire pertinente seulement."
           }
         },
         "de": {
@@ -17906,7 +17906,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Consent off until you agree (or stay offline)."
+            "value": "Consentement off jusqu’à acceptation (ou reste hors ligne)."
           }
         },
         "de": {
@@ -18234,7 +18234,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "LIMIT"
+            "value": "LIMITE"
           }
         },
         "de": {
@@ -18316,7 +18316,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tap to unlock Coach"
+            "value": "Touche pour débloquer le Coach"
           }
         },
         "de": {
@@ -18398,7 +18398,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ask something sharp…"
+            "value": "Demande quelque chose de tranchant…"
           }
         },
         "de": {
@@ -18480,7 +18480,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sending"
+            "value": "Envoi"
           }
         },
         "de": {
@@ -18562,7 +18562,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Send"
+            "value": "Envoyer"
           }
         },
         "de": {
@@ -18644,7 +18644,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Loading alerts..."
+            "value": "Chargement des alertes…"
           }
         },
         "de": {
@@ -18808,7 +18808,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Focus and Do Not Disturb can still silence banners."
+            "value": "Concentration et Ne pas déranger peuvent encore couper les bannières."
           }
         },
         "de": {
@@ -18890,7 +18890,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nothing queued"
+            "value": "Rien en file"
           }
         },
         "de": {
@@ -18972,7 +18972,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Turn on Morning weigh or weekly reminders in Settings, then pull to refresh."
+            "value": "Active la pesée du matin ou les rappels hebdo dans Réglages, puis tire pour actualiser."
           }
         },
         "de": {
@@ -19054,7 +19054,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Coming up"
+            "value": "À venir"
           }
         },
         "de": {
@@ -19136,7 +19136,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Scheduled alerts appear here before they fire."
+            "value": "Les alertes planifiées apparaissent ici avant de partir."
           }
         },
         "de": {
@@ -19218,7 +19218,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%d scheduled"
+            "value": "%d planifiées"
           }
         },
         "de": {
@@ -19300,7 +19300,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "No recent deliveries"
+            "value": "Pas de livraisons récentes"
           }
         },
         "de": {
@@ -19382,7 +19382,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "After Coach pings land, they show up here."
+            "value": "Quand les pings Coach arrivent, ils s’affichent ici."
           }
         },
         "de": {
@@ -19464,7 +19464,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recently delivered"
+            "value": "Livrées récemment"
           }
         },
         "de": {
@@ -19628,7 +19628,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alerts blocked"
+            "value": "Alertes bloquées"
           }
         },
         "de": {
@@ -19710,7 +19710,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alerts allowed"
+            "value": "Alertes autorisées"
           }
         },
         "de": {
@@ -19792,7 +19792,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open System Settings"
+            "value": "Ouvrir Réglages système"
           }
         },
         "de": {
@@ -20202,7 +20202,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sunday target %@. %@. %@%@"
+            "value": "Cible dimanche %@. %@. %@%@"
           }
         },
         "de": {
@@ -20448,7 +20448,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Shaping profile…"
+            "value": "Mise en forme du profil…"
           }
         },
         "de": {
@@ -20530,7 +20530,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose the language for fatnag. Every screen follows this choice."
+            "value": "Choisis la langue pour fatnag. Tous les écrans suivent ce choix."
           }
         },
         "de": {
@@ -20612,7 +20612,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Consistency coach. Not a diet app."
+            "value": "Coach de constance. Pas une app régime."
           }
         },
         "de": {
@@ -20694,7 +20694,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "18+. Required for BIA and Keel."
+            "value": "18+. Requis pour la BIA et Keel."
           }
         },
         "de": {
@@ -20776,7 +20776,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Height, weight, optional BF%. Units live-convert."
+            "value": "Taille, poids, %MG optionnel. Les unités convertissent en direct."
           }
         },
         "de": {
@@ -20858,7 +20858,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Drag the disc. Impossible pace gets a hard no."
+            "value": "Fais glisser le disque. Un rythme impossible reçoit un non ferme."
           }
         },
         "de": {
@@ -20940,7 +20940,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Optional. Leave blank; we may ask gently later."
+            "value": "Optionnel. Laisse vide ; on peut demander plus tard, gentiment."
           }
         },
         "de": {
@@ -21022,7 +21022,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Legal once. Then weigh."
+            "value": "Légal une fois. Ensuite, on pèse."
           }
         },
         "de": {
@@ -21411,6 +21411,530 @@
           "stringUnit": {
             "state": "translated",
             "value": "رسوم"
+          }
+        }
+      }
+    },
+    "settings.section.language": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Langue"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Language"
+          }
+        }
+      }
+    },
+    "settings.alerts.help": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bannières locales avec actions. Concentration et Ne pas déranger peuvent encore les couper."
+          }
+        }
+      }
+    },
+    "settings.brand.blurb": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil, Coach, Santé et confidentialité — tout sur cet iPhone."
+          }
+        }
+      }
+    },
+    "settings.profile": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil"
+          }
+        }
+      }
+    },
+    "settings.profile.help": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sur l’appareil pour les estimations de graisse, les salutations et le ton du Coach."
+          }
+        }
+      }
+    },
+    "settings.units": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unités"
+          }
+        }
+      }
+    },
+    "settings.units.help": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poids, taille, portions, plan repas et Coach suivent ça. Santé reste métrique en coulisse."
+          }
+        }
+      }
+    },
+    "settings.dream_weight": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Poids rêve / cible"
+          }
+        }
+      }
+    },
+    "settings.dream_weight.help": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fais glisser la balance, puis confirme. La plage est sûre pour ton IMC selon taille, sexe et âge. Les repères suivent les Unités métriques ou impériales."
+          }
+        }
+      }
+    },
+    "settings.dream_weight.caption": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ticks haptiques · confirme pour enregistrer"
+          }
+        }
+      }
+    },
+    "settings.gender": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genre"
+          }
+        }
+      }
+    },
+    "settings.diet": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Régime"
+          }
+        }
+      }
+    },
+    "settings.diet.help": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comment tu manges la plupart du temps. Oriente le ton du plan repas."
+          }
+        }
+      }
+    },
+    "settings.persona": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Persona & IA"
+          }
+        }
+      }
+    },
+    "settings.persona.help": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le ton reste sur l’appareil jusqu’à ton consentement pour une demande Keel live."
+          }
+        }
+      }
+    },
+    "settings.calibration": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibration du poids"
+          }
+        }
+      }
+    },
+    "settings.calibration.help": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entre la vraie masse, ouvre la feuille live, pèse, puis enregistre."
+          }
+        }
+      }
+    },
+    "settings.language.applied": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’UI et Keel utilisent maintenant %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UI and Keel now use %@."
+          }
+        }
+      }
+    },
+    "settings.language.invalid": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette langue n’est pas disponible."
+          }
+        }
+      }
+    },
+    "settings.watch_mirror": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Watch"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Watch"
+          }
+        }
+      }
+    },
+    "settings.watch_mirror.help": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les alertes fatnag se mirent sur l’Apple Watch si « Miroir des alertes iPhone » est activé pour fatnag dans l’app Watch."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "fatnag alerts mirror to Apple Watch when Mirror iPhone Alerts is on for fatnag in the Watch app."
+          }
+        }
+      }
+    },
+    "notif.delete": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer"
+          }
+        }
+      }
+    },
+    "notif.acknowledge": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acquitter"
+          }
+        }
+      }
+    },
+    "notif.active": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actives"
+          }
+        }
+      }
+    },
+    "notif.active_footer": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touche pour ouvrir la page liée. Glisse à gauche pour supprimer ou archiver."
+          }
+        }
+      }
+    },
+    "notif.archive": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive"
+          }
+        }
+      }
+    },
+    "notif.archive_count": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d acquittées"
+          }
+        }
+      }
+    },
+    "notif.empty_active": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien d’actif"
+          }
+        }
+      }
+    },
+    "notif.empty_active_detail": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les alertes acquittées passent dans l’Archive."
+          }
+        }
+      }
+    },
+    "goal.revision.title": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette date est trop rapide"
+          }
+        }
+      }
+    },
+    "goal.revision.body": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repas Commando activés : l’apport tombe au max hebdo sûr. Keel a présélectionné une date que tu peux encore changer."
+          }
+        }
+      }
+    },
+    "goal.revision.picker": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouvelle date d’objectif"
+          }
+        }
+      }
+    },
+    "goal.revision.accept": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser cette date"
+          }
+        }
+      }
+    },
+    "goal.revision.keep": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garder ma date"
+          }
+        }
+      }
+    },
+    "settings.alerts.denied": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coach cannot fire drills while denied. Tap System, then allow alerts for FATNAG."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le Coach ne peut pas envoyer de drills si c’est refusé. Tape Système, puis autorise les alertes pour FATNAG."
+          }
+        }
+      }
+    },
+    "settings.alerts.allow": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser"
+          }
+        }
+      }
+    },
+    "settings.alerts.system": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Système"
+          }
+        }
+      }
+    },
+    "settings.alerts.what": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you get"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce que tu reçois"
+          }
+        }
+      }
+    },
+    "settings.alerts.bad_trend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bad-trend alerts"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alertes mauvaise tendance"
+          }
+        }
+      }
+    },
+    "settings.alerts.weekly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weekly mini-goal reminder"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rappel mini-objectif hebdo"
+          }
+        }
+      }
+    },
+    "settings.alerts.morning": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Morning weigh"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pesée du matin"
+          }
+        }
+      }
+    },
+    "settings.alerts.morning_drill": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Morning weigh drill"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drill pesée du matin"
+          }
+        }
+      }
+    },
+    "settings.alerts.morning_help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About 06:30 local, or soon after Health wake. Window closes at 08:00. Skips the day if you already weighed."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vers 06:30 locale, ou juste après le réveil Santé. Fenêtre jusqu’à 08:00. Saute le jour si tu t’es déjà pesé."
+          }
+        }
+      }
+    },
+    "settings.alerts.fallback_clock": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fallback clock (before 8:00)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Horloge de secours (avant 8:00)"
           }
         }
       }

@@ -259,6 +259,14 @@ final class CoachOfflineTests: XCTestCase {
             "Réglages"
         )
         XCTAssertEqual(
+            AppLanguageStore.text("settings.section.you", default: "You"),
+            "Toi"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("settings.notifications", default: "Notifications"),
+            "Notifications"
+        )
+        XCTAssertEqual(
             Bundle.main.localizedString(forKey: "tab.weigh", value: "Weigh", table: nil),
             "Peser"
         )

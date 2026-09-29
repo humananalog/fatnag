@@ -6,7 +6,7 @@ enum ScaleNotificationCopy {
     /// Canonical moment → factory draft with Watch-safe glance fields.
     struct Moment: Sendable {
         var kind: ScaleNotificationKind
-        /// Wrist / Lock Screen primary line. Verb or metric first. No emoji. ≤20.
+        /// Wrist / Lock Screen primary line. Verb or metric first. Emoji OK (💩 etc.). ≤22.
         var glanceTitle: String
         /// One fact under the title. ≤36.
         var glanceLine: String
@@ -42,10 +42,10 @@ enum ScaleNotificationCopy {
         let who = greet(profileName, anonymous: "Soldier")
         return Moment(
             kind: .morningWeigh,
-            glanceTitle: "Weigh now",
+            glanceTitle: "💩 Weigh",
             glanceLine: "Empty bladder · scale",
-            phoneBody: "\(who). Drop a load, step on the scale, then open fatnag. Morning mass locks the week.",
-            visualHeadline: "Weigh now",
+            phoneBody: "\(who). Go drop a 💩, step on the scale, then open fatnag. Morning mass locks the week.",
+            visualHeadline: "💩 Weigh now",
             visualDetail: "Morning drill",
             relevanceScore: 1.0
         )
@@ -154,17 +154,32 @@ enum ScaleNotificationCopy {
 
     static func activityPulse(_ pulse: ActivityPulse, profileName: String) -> Moment {
         let who = greet(profileName, anonymous: "Hey")
-        let beat = glanceSanitize(pulse.glanceTitle, max: 20)
+        let beat = glanceSanitize(pulse.glanceTitle, max: 18)
+        let title = nagGlanceTitle(for: pulse)
         return Moment(
             kind: .nag,
-            glanceTitle: "Nag",
+            glanceTitle: title,
             glanceLine: beat,
             phoneBody: clamp("\(who). \(pulse.phoneBody)", max: 150),
-            visualHeadline: "Nag",
+            visualHeadline: title,
             visualDetail: beat,
             relevanceScore: pulse.isStrong ? 0.9 : 0.72,
             destination: destination(for: pulse)
         )
+    }
+
+    /// Signature Nag glance — emoji on purpose for Watch + Lock Screen.
+    static func nagGlanceTitle(for pulse: ActivityPulse) -> String {
+        switch pulse.tone {
+        case .greeting:
+            return "👋 Nag"
+        case .reward:
+            return "🔥 Nag"
+        case .joke, .humor:
+            return "😂 Nag"
+        case .punishment:
+            return "💩 Nag"
+        }
     }
 
     /// Nag tones land on the page that matches the beat.
@@ -258,23 +273,18 @@ enum ScaleNotificationCopy {
 
     // MARK: - Sanitize / helpers
 
-    /// Force Watch-safe title: strip emoji, "Name:" prefixes, length.
-    static func glanceSanitize(_ raw: String, max: Int = 20) -> String {
+    /// Keep Watch glance readable: trim length and "Name:" prefixes. Emoji stay (💩 etc.).
+    static func glanceSanitize(_ raw: String, max: Int = 22) -> String {
         var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        text = text.unicodeScalars.filter { scalar in
-            let v = scalar.value
-            // Drop emoji / pictographs; keep basic punctuation & letters.
-            if (0x1F300...0x1FAFF).contains(v) { return false }
-            if (0x2600...0x27BF).contains(v) { return false }
-            if v == 0xFE0F || v == 0x200D { return false }
-            return true
-        }.map(String.init).joined()
         text = text.replacingOccurrences(of: "  ", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         // Drop "Alex: " / "Hey: " style prefixes that waste wrist space.
         if let colon = text.firstIndex(of: ":") {
             let head = text[..<colon]
-            if head.count <= 14, !head.contains(where: \.isNumber) {
+            let headHasEmoji = head.unicodeScalars.contains {
+                (0x1F300...0x1FAFF).contains($0.value) || (0x2600...0x27BF).contains($0.value)
+            }
+            if head.count <= 14, !head.contains(where: \.isNumber), !headHasEmoji {
                 let rest = text[text.index(after: colon)...]
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 if !rest.isEmpty { text = String(rest) }

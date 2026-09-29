@@ -276,7 +276,13 @@ struct SettingsView: View {
                             }
                             languageRejected = false
                             session.profile.preferredLanguage = applied.resolved.profileLanguageName
-                            languageValidationNote = AppLanguageStore.text("settings.language.applied", default: "UI and Keel now use \(applied.nativeLabel).")
+                            languageValidationNote = String(
+                                format: AppLanguageStore.text(
+                                    "settings.language.applied",
+                                    default: "UI and Keel now use %@."
+                                ),
+                                applied.nativeLabel
+                            )
                         }
                     )
                 ) {
@@ -1068,6 +1074,15 @@ struct SettingsView: View {
                     .foregroundStyle(steel)
                     .padding(.top, 6)
 
+                Text(AppLanguageStore.text(
+                    "settings.watch_mirror.help",
+                    default: "fatnag alerts mirror to Apple Watch when Mirror iPhone Alerts is on for fatnag in the Watch app."
+                ))
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+
                 notificationsSubsectionDivider(title: AppLanguageStore.text("notif.permission", default: "Permission"))
 
                 Text(notificationAuthLine)
@@ -1076,7 +1091,10 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 if notificationAuthDenied {
-                    Text("Coach cannot fire drills while denied. Tap System, then allow alerts for FATNAG.")
+                    Text(AppLanguageStore.text(
+                        "settings.alerts.denied",
+                        default: "Coach cannot fire drills while denied. Tap System, then allow alerts for FATNAG."
+                    ))
                         .font(.caption2)
                         .foregroundStyle(Color.orange)
                         .padding(.top, 4)
@@ -1090,7 +1108,7 @@ struct SettingsView: View {
                             await refreshNotificationStatus()
                         }
                     } label: {
-                        Label("Allow", systemImage: "bell")
+                        Label(AppLanguageStore.text("settings.alerts.allow", default: "Allow"), systemImage: "bell")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -1098,17 +1116,17 @@ struct SettingsView: View {
                     Button {
                         openNotificationSettings()
                     } label: {
-                        Label("System", systemImage: "gear")
+                        Label(AppLanguageStore.text("settings.alerts.system", default: "System"), systemImage: "gear")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                 }
                 .padding(.top, 10)
 
-                notificationsSubsectionDivider(title: "What you get")
+                notificationsSubsectionDivider(title: AppLanguageStore.text("settings.alerts.what", default: "What you get"))
 
                 Toggle(
-                    "Bad-trend alerts",
+                    AppLanguageStore.text("settings.alerts.bad_trend", default: "Bad-trend alerts"),
                     isOn: Binding(
                         get: { session.notificationPreferences.notifyOnBadTrend },
                         set: {
@@ -1120,7 +1138,7 @@ struct SettingsView: View {
                     )
                 )
                 Toggle(
-                    "Weekly mini-goal reminder",
+                    AppLanguageStore.text("settings.alerts.weekly", default: "Weekly mini-goal reminder"),
                     isOn: Binding(
                         get: { session.notificationPreferences.weeklyGoalReminders },
                         set: {
@@ -1132,10 +1150,10 @@ struct SettingsView: View {
                     )
                 )
 
-                notificationsSubsectionDivider(title: "Morning weigh")
+                notificationsSubsectionDivider(title: AppLanguageStore.text("settings.alerts.morning", default: "Morning weigh"))
 
                 Toggle(
-                    "Morning weigh drill",
+                    AppLanguageStore.text("settings.alerts.morning_drill", default: "Morning weigh drill"),
                     isOn: Binding(
                         get: { session.notificationPreferences.morningWeighDrill },
                         set: {
@@ -1149,14 +1167,20 @@ struct SettingsView: View {
                         }
                     )
                 )
-                Text("About 06:30 local, or soon after Health wake. Window closes at 08:00. Skips the day if you already weighed.")
+                Text(AppLanguageStore.text(
+                    "settings.alerts.morning_help",
+                    default: "About 06:30 local, or soon after Health wake. Window closes at 08:00. Skips the day if you already weighed."
+                ))
                     .font(.caption2)
                     .foregroundStyle(steel)
                     .padding(.top, 2)
 
                 if session.notificationPreferences.morningWeighDrill {
                     HStack {
-                        Text("Fallback clock (before 8:00)")
+                        Text(AppLanguageStore.text(
+                            "settings.alerts.fallback_clock",
+                            default: "Fallback clock (before 8:00)"
+                        ))
                             .font(.caption)
                             .foregroundStyle(steel)
                         Spacer()
