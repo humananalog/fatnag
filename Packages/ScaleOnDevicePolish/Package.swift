@@ -11,10 +11,12 @@ let package = Package(
         .library(name: "ScaleOnDevicePolish", targets: ["ScaleOnDevicePolish"]),
     ],
     targets: [
+        // Path-based so Xcode does not depend on DerivedData SPM artifact extraction
+        // (remote binaryTarget vanished whenever disk was full / caches reset).
+        // Populate with: ./scripts/fetch-llama.sh
         .binaryTarget(
             name: "llama",
-            url: "https://github.com/ggml-org/llama.cpp/releases/download/b5046/llama-b5046-xcframework.zip",
-            checksum: "c19be78b5f00d8d29a25da41042cb7afa094cbf6280a225abe614b03b20029ab"
+            path: "Vendor/llama.xcframework"
         ),
         .target(
             name: "ScaleOnDevicePolish",

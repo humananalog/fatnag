@@ -2,3 +2,5 @@
 .swiftpm/
 *.xcodeproj
 DerivedData/
+# ~282MB; restore with ./scripts/fetch-llama.sh
+Vendor/llama.xcframework/
