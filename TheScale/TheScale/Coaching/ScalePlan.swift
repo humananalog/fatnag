@@ -39,12 +39,12 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Marketing list price (USD / month).
+    /// Marketing list price (USD / month). App Store X.99 tiers.
     var monthlyPriceUSD: Decimal {
         switch self {
         case .free: return 0
-        case .plus: return 2
-        case .pro: return 8
+        case .plus: return Decimal(string: "1.99")!
+        case .pro: return Decimal(string: "7.99")!
         }
     }
 
@@ -52,8 +52,8 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
     var annualPriceUSD: Decimal {
         switch self {
         case .free: return 0
-        case .plus: return 20 // vs $24 if paid monthly
-        case .pro: return 80 // vs $96 if paid monthly
+        case .plus: return Decimal(string: "19.99")! // vs $23.88 if paid monthly
+        case .pro: return Decimal(string: "79.99")! // vs $95.88 if paid monthly
         }
     }
 
@@ -68,16 +68,16 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
         case .plus:
             switch period {
             case .monthly:
-                return AppLanguageStore.text("plan.plus.price", default: "$2 / month")
+                return AppLanguageStore.text("plan.plus.price", default: "$1.99 / month")
             case .annual:
-                return AppLanguageStore.text("plan.plus.price.annual", default: "$20 / year")
+                return AppLanguageStore.text("plan.plus.price.annual", default: "$19.99 / year")
             }
         case .pro:
             switch period {
             case .monthly:
-                return AppLanguageStore.text("plan.pro.price", default: "$8 / month")
+                return AppLanguageStore.text("plan.pro.price", default: "$7.99 / month")
             case .annual:
-                return AppLanguageStore.text("plan.pro.price.annual", default: "$80 / year")
+                return AppLanguageStore.text("plan.pro.price.annual", default: "$79.99 / year")
             }
         }
     }

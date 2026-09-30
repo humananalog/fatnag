@@ -24,8 +24,8 @@ final class ScaleStorefrontTests: XCTestCase {
     }
 
     func testAnnualIsCheaperThanTwelveMonths() {
-        XCTAssertEqual(ScalePlan.plus.annualPriceUSD, 20)
-        XCTAssertEqual(ScalePlan.pro.annualPriceUSD, 80)
+        XCTAssertEqual(ScalePlan.plus.annualPriceUSD, Decimal(string: "19.99")!)
+        XCTAssertEqual(ScalePlan.pro.annualPriceUSD, Decimal(string: "79.99")!)
         XCTAssertLessThan(
             ScalePlan.plus.annualPriceUSD,
             ScalePlan.plus.monthlyPriceUSD * 12

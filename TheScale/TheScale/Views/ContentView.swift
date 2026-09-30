@@ -249,8 +249,9 @@ struct ContentView: View {
         )) {
             PaywallView(
                 lockMessage: nil,
-                highlighted: .pro,
-                reviewCaptureLayout: session.paywallUsesReviewCaptureLayout
+                highlighted: session.paywallCaptureHighlight,
+                reviewCaptureLayout: session.paywallUsesReviewCaptureLayout,
+                initialBillingPeriod: session.paywallCaptureBillingPeriod
             )
             .environmentObject(session)
             .presentationDetents([.large])

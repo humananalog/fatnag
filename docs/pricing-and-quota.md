@@ -5,8 +5,8 @@ Industry-standard tier names: **Free**, **Plus**, **Pro**.
 | Plan | Price | Weekly live Grok credits | Intent |
 |------|-------|--------------------------|--------|
 | Free | $0 | 5 | Full scale / Health / charts / on-device Coach; Grok teaser |
-| Plus | $2 / month | 28 (~4 / day) | Active daily Coach without burning margin |
-| Pro | $8 / month | 120 (~17 / day) | Power users / heavy chat + fitness digest days |
+| Plus | $1.99 / month · $19.99 / year | 28 (~4 / day) | Active daily Coach without burning margin |
+| Pro | $7.99 / month · $79.99 / year | 120 (~17 / day) | Power users / heavy chat + fitness digest days |
 
 ## Product rules
 
@@ -26,10 +26,11 @@ Client `CoachWeeklyQuota` (UserDefaults) is UX only. The Cloudflare Worker (`the
 
 ## StoreKit
 
-- Plus monthly: `app.thescale.ios.plus.monthly` ($2)
-- Plus annual: `app.thescale.ios.plus.annual` ($20 — ~2 months free vs monthly)
-- Pro monthly: `app.thescale.ios.pro.monthly` ($8)
-- Pro annual: `app.thescale.ios.pro.annual` ($80 — ~2 months free vs monthly)
+- Plus monthly: `app.thescale.ios.plus.monthly` ($1.99)
+- Plus annual: `app.thescale.ios.plus.annual` ($19.99 — ~2 months free vs monthly)
+- Pro monthly: `app.thescale.ios.pro.monthly` ($7.99)
+- Pro annual: `app.thescale.ios.pro.annual` ($79.99 — ~2 months free vs monthly)
+- USD uses App Store **X.99** price points (not whole dollars).
 - Paywall defaults to **Annual**; Monthly is a top selector.
 - Local DEBUG: scheme uses `TheScale/Config/Products.storekit`
 - App Store Connect: create all four product IDs in one subscription group before shipping.

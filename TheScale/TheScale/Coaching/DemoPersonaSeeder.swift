@@ -5,7 +5,7 @@ import Foundation
 ///
 /// Launch with:
 ///   `-demoMale` or `-demoFemale`
-/// Optional: `-promoShot=home|weigh|charts|alerts|progress|keel|paywall` to jump to a capture surface
+/// Optional: `-promoShot=home|weigh|charts|alerts|progress|keel|paywall|paywall-plus-monthly|…` to jump to a capture surface
 /// HealthKit: hydrate also writes steps/energy/diet/sleep/workouts into the Simulator store.
 /// Optional: `-uitesting-skip-splash` (also auto-skipped when a demo flag is present).
 ///

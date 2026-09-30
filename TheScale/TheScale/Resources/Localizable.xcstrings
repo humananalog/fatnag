@@ -44461,7 +44461,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "$2 / month"
+            "value": "$1.99 / month"
           }
         },
         "es": {
@@ -45297,7 +45297,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "$8 / month"
+            "value": "$7.99 / month"
           }
         },
         "es": {
@@ -69910,6 +69910,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Offline"
+          }
+        }
+      }
+    },
+    "plan.plus.price.annual": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$19.99 / year"
+          }
+        }
+      }
+    },
+    "plan.pro.price.annual": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$79.99 / year"
           }
         }
       }

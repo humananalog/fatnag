@@ -64,7 +64,7 @@ struct TheScaleApp: App {
     }
 
     #if DEBUG
-    /// `-promoShot=home|weigh|charts|alerts|progress|keel|paywall` (also accepts bare `-promoShot` + next argv).
+    /// `-promoShot=home|weigh|charts|alerts|progress|keel|paywall|paywall-plus-annual|…` (also accepts bare `-promoShot` + next argv).
     private static func promoShotArgument(
         _ args: [String] = ProcessInfo.processInfo.arguments
     ) -> String? {

@@ -17,16 +17,27 @@ struct PaywallView: View {
 
     var lockMessage: String?
     /// Soft nudge for the next step up. Pro stays visually primary either way.
-    var highlighted: ScalePlan = .pro
+    var highlighted: ScalePlan
     /// Shorter hero so Annual/Monthly + Free/Plus/Pro fit one ASC Review Information frame.
-    var reviewCaptureLayout: Bool = false
+    var reviewCaptureLayout: Bool
 
     @State private var scrollY: CGFloat = 0
     @State private var appeared = false
     @State private var legalDocument: ScaleLegal.Document?
-    /// Annual first — better deal + better cashflow.
-    @State private var billingPeriod: ScaleBillingPeriod = .annual
+    /// Annual first — better deal + better cashflow (overridable for ASC captures).
+    @State private var billingPeriod: ScaleBillingPeriod
 
+    init(
+        lockMessage: String? = nil,
+        highlighted: ScalePlan = .pro,
+        reviewCaptureLayout: Bool = false,
+        initialBillingPeriod: ScaleBillingPeriod = .annual
+    ) {
+        self.lockMessage = lockMessage
+        self.highlighted = highlighted
+        self.reviewCaptureLayout = reviewCaptureLayout
+        _billingPeriod = State(initialValue: initialBillingPeriod)
+    }
 
     private var universe: ScalePaletteUniverse {
         .resolve(sex: session.profile.sex)

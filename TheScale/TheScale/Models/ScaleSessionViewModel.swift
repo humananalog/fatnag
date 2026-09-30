@@ -141,8 +141,12 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var isNotificationCenterPresented = false
     /// Unlock Coach paywall (Settings / quota lock / `-promoShot=paywall` ASC capture).
     @Published var isPaywallPresented = false
-    /// Compact paywall layout for ASC Review Information screenshot (`-promoShot=paywall`).
+    /// Compact paywall layout for ASC Review Information screenshot (`-promoShot=paywall…`).
     @Published var paywallUsesReviewCaptureLayout = false
+    /// Billing period forced for ASC paywall captures.
+    @Published var paywallCaptureBillingPeriod: ScaleBillingPeriod = .annual
+    /// Tier highlight for ASC paywall captures (Plus vs Pro).
+    @Published var paywallCaptureHighlight: ScalePlan = .pro
     @Published private(set) var mealPlan: MealPlanPayload?
     @Published private(set) var isMealPlanLoading = false
     /// Hero coach card after a successful weigh-in (sergeant / encourage / skeptical).
@@ -842,6 +846,8 @@ final class ScaleSessionViewModel: ObservableObject {
         isNotificationCenterPresented = false
         isPaywallPresented = false
         paywallUsesReviewCaptureLayout = false
+        paywallCaptureBillingPeriod = .annual
+        paywallCaptureHighlight = .pro
         pendingProfileGap = nil
 
         switch key {
@@ -863,21 +869,32 @@ final class ScaleSessionViewModel: ObservableObject {
             selectHomeTab(.keel)
         case "meals", "05":
             selectHomeTab(.meals)
-        case "paywall", "unlock", "asc", "subscription", "iap":
-            // ASC subscription Review Information — Annual selected, tiers + prices on screen.
-            // Stay on Weigh tab so ContentView sheet host stays mounted; present after a beat.
-            selectHomeTab(.weigh)
-            paywallUsesReviewCaptureLayout = true
-            #if DEBUG
-            // Free + marketing prices (no StoreKit config when launched via simctl).
-            _ = ScaleSubscriptionStore.shared.applyDevPlan(.free)
-            #endif
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 450_000_000)
-                self.isPaywallPresented = true
-            }
+        case "paywall", "unlock", "asc", "subscription", "iap",
+             "paywall-annual", "paywall-pro-annual", "asc-pro-annual":
+            presentASCPaywallCapture(period: .annual, highlight: .pro)
+        case "paywall-monthly", "paywall-pro-monthly", "asc-pro-monthly":
+            presentASCPaywallCapture(period: .monthly, highlight: .pro)
+        case "paywall-plus-annual", "asc-plus-annual":
+            presentASCPaywallCapture(period: .annual, highlight: .plus)
+        case "paywall-plus-monthly", "asc-plus-monthly":
+            presentASCPaywallCapture(period: .monthly, highlight: .plus)
         default:
             selectHomeTab(.weigh)
+        }
+    }
+
+    /// ASC Review Information — Annual/Monthly + Plus/Pro highlight, Free plan so Buy CTAs show.
+    private func presentASCPaywallCapture(period: ScaleBillingPeriod, highlight: ScalePlan) {
+        selectHomeTab(.weigh)
+        paywallUsesReviewCaptureLayout = true
+        paywallCaptureBillingPeriod = period
+        paywallCaptureHighlight = highlight
+        #if DEBUG
+        _ = ScaleSubscriptionStore.shared.applyDevPlan(.free)
+        #endif
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            self.isPaywallPresented = true
         }
     }
 

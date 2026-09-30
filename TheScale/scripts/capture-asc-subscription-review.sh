@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# Capture Unlock Coach paywall for App Store Connect → Subscription → Review Information.
+# Capture Unlock Coach paywall screenshots for App Store Connect Review Information.
+# One PNG per Coach SKU (Apple X.99 prices: $1.99 / $19.99 / $7.99 / $79.99).
 #
-# Output (reuse the same PNG on all four Coach SKUs):
-#   TheScale/docs/operations/asc-review-screenshots/subscription-review-paywall-annual.png
+# Outputs under TheScale/docs/operations/asc-review-screenshots/:
+#   review-plus-annual.png
+#   review-plus-monthly.png
+#   review-pro-annual.png
+#   review-pro-monthly.png
 #
 # Usage:
 #   ./TheScale/scripts/capture-asc-subscription-review.sh
@@ -12,14 +16,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT_DIR="$ROOT/TheScale/docs/operations/asc-review-screenshots"
-OUT="$OUT_DIR/subscription-review-paywall-annual.png"
 SCHEME="${SCHEME:-TheScale}"
 PROJECT="$ROOT/TheScale/TheScale.xcodeproj"
 BUNDLE_ID="${BUNDLE_ID:-app.thescale.ios}"
 DEVICE_NAME="${DEVICE_NAME:-iPhone 17}"
 DERIVED="${DERIVED:-$ROOT/TheScale/build/asc-review-derived}"
-SETTLE_SECONDS="${SETTLE_SECONDS:-3.2}"
-# Must match DemoPersonaSeeder (-demoMale / -demoFemale), not a marketing name.
+SETTLE_SECONDS="${SETTLE_SECONDS:-4.0}"
 if [[ -z "${DEMO_FLAG:-}" ]]; then
   DEMO_FLAG="-demoMale"
 fi
@@ -31,7 +33,7 @@ if [[ ! -d "$DEVELOPER_DIR" ]]; then
 fi
 
 mkdir -p "$OUT_DIR"
-rm -f "$OUT_DIR/_probe.png"
+rm -f "$OUT_DIR"/_t*.png "$OUT_DIR"/_probe.png
 
 echo "==> Booting simulator: $DEVICE_NAME"
 xcrun simctl boot "$DEVICE_NAME" 2>/dev/null || true
@@ -91,20 +93,37 @@ xcrun simctl status_bar "$UDID" override \
   --batteryLevel 100 \
   --operatorName "" >/dev/null 2>&1 || true
 
-echo "==> Installing + launching paywall promo shot ($DEMO_FLAG -promoShot=paywall)"
+echo "==> Installing once"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 xcrun simctl uninstall "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 xcrun simctl install "$UDID" "$APP" >/dev/null
 xcrun simctl privacy "$UDID" grant all "$BUNDLE_ID" >/dev/null 2>&1 || true
-xcrun simctl launch "$UDID" "$BUNDLE_ID" \
-  "$DEMO_FLAG" \
-  "-promoShot=paywall" \
-  >/dev/null
 
-sleep "$SETTLE_SECONDS"
-xcrun simctl io "$UDID" screenshot --type=png "$OUT"
-xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+capture_one() {
+  local shot="$1"
+  local out_name="$2"
+  local out="$OUT_DIR/$out_name"
+  echo "  • -promoShot=$shot → $out_name"
+  xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+  xcrun simctl launch "$UDID" "$BUNDLE_ID" \
+    "$DEMO_FLAG" \
+    "-promoShot=$shot" \
+    >/dev/null
+  sleep "$SETTLE_SECONDS"
+  xcrun simctl io "$UDID" screenshot --type=png "$out"
+  xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+}
 
-echo "==> Wrote $OUT"
-echo "Upload this same PNG to Review Information on all four Coach subscriptions."
-open -R "$OUT" >/dev/null 2>&1 || true
+echo "==> Capturing four Review Information screenshots"
+capture_one "paywall-plus-annual" "review-plus-annual.png"
+capture_one "paywall-plus-monthly" "review-plus-monthly.png"
+capture_one "paywall-pro-annual" "review-pro-annual.png"
+capture_one "paywall-pro-monthly" "review-pro-monthly.png"
+
+# Compatibility alias used by older ASC checklist docs.
+cp -f "$OUT_DIR/review-pro-annual.png" "$OUT_DIR/subscription-review-paywall-annual.png"
+
+echo "==> Wrote:"
+ls -la "$OUT_DIR"/review-*.png "$OUT_DIR"/subscription-review-paywall-annual.png
+echo "Upload matching PNG to each Coach SKU Review Information field."
+open -R "$OUT_DIR/review-plus-annual.png" >/dev/null 2>&1 || true
