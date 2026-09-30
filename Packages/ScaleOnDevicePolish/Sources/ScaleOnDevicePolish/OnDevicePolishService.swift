@@ -1,12 +1,25 @@
 import Foundation
 
+/// Runs llama load/infer off the main actor so UI stays responsive on non-AI iPhones.
+private actor LlamaPolishWorker {
+    private let engine = LlamaMetalEngine()
+    private var loadedPath: String?
+
+    func complete(modelPath: String, prompt: String, maxTokens: Int32) throws -> String {
+        if loadedPath != modelPath {
+            try engine.load(modelPath: modelPath)
+            loadedPath = modelPath
+        }
+        return try engine.complete(prompt: prompt, maxTokens: maxTokens)
+    }
+}
+
 /// High-level polish API used when Apple Intelligence is unavailable on compatible iPhones.
 @MainActor
 public final class OnDevicePolishService: ObservableObject {
     public static let shared = OnDevicePolishService()
 
-    private let engine = LlamaMetalEngine()
-    private var loadedPath: String?
+    private let worker = LlamaPolishWorker()
     private let defaultVoice = """
         You write for FATNAG, a private fitness coach on the user's iPhone.
         Call the user by name when given. Friendly, badass, dark humour; sometimes vulgar; never corporate.
@@ -28,11 +41,9 @@ public final class OnDevicePolishService: ObservableObject {
         OnDevicePolishInstaller.shared.snapshot
     }
 
-    private func ensureLoaded() throws {
-        let path = OnDevicePolishInstaller.shared.modelFileURL.path
-        if loadedPath == path { return }
-        try engine.load(modelPath: path)
-        loadedPath = path
+    private var modelPathIfReady: String? {
+        guard isReady else { return nil }
+        return OnDevicePolishInstaller.shared.modelFileURL.path
     }
 
     public func refineNotificationCopy(
@@ -43,7 +54,7 @@ public final class OnDevicePolishService: ObservableObject {
         context: String,
         voiceRules: String? = nil
     ) async -> (title: String, body: String, usedSidecar: Bool) {
-        guard isReady else { return (fallbackTitle, fallbackBody, false) }
+        guard let modelPath = modelPathIfReady else { return (fallbackTitle, fallbackBody, false) }
         let name = profileName.isEmpty ? "Hey" : profileName
         let voice = voiceRules ?? defaultVoice
         let prompt = """
@@ -62,8 +73,7 @@ public final class OnDevicePolishService: ObservableObject {
             BODY: ...
             """
         do {
-            try ensureLoaded()
-            let raw = try engine.complete(prompt: prompt, maxTokens: 120)
+            let raw = try await worker.complete(modelPath: modelPath, prompt: prompt, maxTokens: 120)
             let parsed = OnDevicePolishParsers.parseTitleBody(
                 raw,
                 fallbackTitle: fallbackTitle,
@@ -82,7 +92,7 @@ public final class OnDevicePolishService: ObservableObject {
         extraContext: String = "",
         voiceRules: String? = nil
     ) async -> (shouldNotify: Bool, reason: String, usedSidecar: Bool) {
-        guard isReady else {
+        guard let modelPath = modelPathIfReady else {
             return (true, "On-device polish unavailable; algorithmic trigger stands.", false)
         }
         let name = profileName.isEmpty ? "Hey" : profileName
@@ -102,8 +112,7 @@ public final class OnDevicePolishService: ObservableObject {
             REASON: ...
             """
         do {
-            try ensureLoaded()
-            let raw = try engine.complete(prompt: prompt, maxTokens: 80)
+            let raw = try await worker.complete(modelPath: modelPath, prompt: prompt, maxTokens: 80)
             let parsed = OnDevicePolishParsers.parseNotify(raw)
             return (parsed.shouldNotify, parsed.reason, true)
         } catch {
@@ -116,7 +125,7 @@ public final class OnDevicePolishService: ObservableObject {
         digestBlock: String,
         voiceRules: String? = nil
     ) async -> String? {
-        guard isReady else { return nil }
+        guard let modelPath = modelPathIfReady else { return nil }
         let digest = digestBlock.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !digest.isEmpty else { return nil }
         let name = profileName.isEmpty ? "Hey" : profileName
@@ -130,8 +139,7 @@ public final class OnDevicePolishService: ObservableObject {
             \(digest)
             """
         do {
-            try ensureLoaded()
-            let raw = try engine.complete(prompt: prompt, maxTokens: 180)
+            let raw = try await worker.complete(modelPath: modelPath, prompt: prompt, maxTokens: 180)
             let clean = OnDevicePolishParsers.sanitize(raw)
             return clean.isEmpty ? nil : clean
         } catch {
@@ -143,7 +151,7 @@ public final class OnDevicePolishService: ObservableObject {
         from userText: String,
         voiceRules: String? = nil
     ) async -> [String] {
-        guard isReady else { return [] }
+        guard let modelPath = modelPathIfReady else { return [] }
         let trimmed = userText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 12 else { return [] }
         let voice = voiceRules ?? defaultVoice
@@ -157,8 +165,7 @@ public final class OnDevicePolishService: ObservableObject {
             Reply as a bullet list, one fact per line starting with "- ". Empty if none.
             """
         do {
-            try ensureLoaded()
-            let raw = try engine.complete(prompt: prompt, maxTokens: 120)
+            let raw = try await worker.complete(modelPath: modelPath, prompt: prompt, maxTokens: 120)
             return raw
                 .split(separator: "\n")
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }

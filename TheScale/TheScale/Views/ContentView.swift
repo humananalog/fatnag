@@ -4,17 +4,23 @@ import UserNotifications
 /// Diffused haze behind the weekly-goal hero. Ambient drift + Core Motion tilt spring.
 struct WeeklyGoalHazeBackground: View {
     let atmosphere: WeeklyGoalAtmosphere
+    /// When false, pause TimelineView + release tilt (e.g. tab not selected).
+    var isActivelyShown: Bool = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var tilt = HazeTiltMotion.shared
     @State private var motionHeld = false
 
+    private var hazePaused: Bool {
+        reduceMotion || !isActivelyShown || scenePhase != .active
+    }
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: reduceMotion)) { context in
+        // 10 fps is enough for soft drift; 24 fps + live blur was cooking A16.
+        TimelineView(.animation(minimumInterval: 1.0 / 10.0, paused: hazePaused)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
-            // Was /18; modestly faster ambient drift (still calm).
-            let slow = reduceMotion ? 0 : t / 13.5
+            let slow = hazePaused ? 0 : t / 13.5
             let x1 = CGFloat(sin(slow) * 0.12)
             let y1 = CGFloat(cos(slow * 0.7) * 0.10)
             let x2 = CGFloat(cos(slow * 0.55) * 0.14)
@@ -22,8 +28,8 @@ struct WeeklyGoalHazeBackground: View {
             let x3 = CGFloat(sin(slow * 0.4 + 1.2) * 0.10)
             let y3 = CGFloat(cos(slow * 0.65 + 0.8) * 0.13)
 
-            let tx = reduceMotion ? 0 : tilt.offset.width
-            let ty = reduceMotion ? 0 : tilt.offset.height
+            let tx = hazePaused ? 0 : tilt.offset.width
+            let ty = hazePaused ? 0 : tilt.offset.height
 
             ZStack {
                 LinearGradient(
@@ -35,21 +41,22 @@ struct WeeklyGoalHazeBackground: View {
                 Ellipse()
                     .fill(atmosphere.hazeA)
                     .frame(width: 340, height: 280)
-                    .blur(radius: 52)
+                    .blur(radius: 36)
                     .offset(x: -80 + x1 * 160 + tx * 0.85, y: -120 + y1 * 140 + ty * 0.85)
 
                 Ellipse()
                     .fill(atmosphere.hazeB)
                     .frame(width: 380, height: 300)
-                    .blur(radius: 60)
+                    .blur(radius: 40)
                     .offset(x: 90 + x2 * 150 + tx * 1.15, y: 40 + y2 * 160 + ty * 1.10)
 
                 Ellipse()
                     .fill(atmosphere.hazeA.opacity(0.65))
                     .frame(width: 260, height: 220)
-                    .blur(radius: 44)
+                    .blur(radius: 28)
                     .offset(x: 20 + x3 * 120 + tx * 0.55, y: 180 + y3 * 100 + ty * 0.60)
             }
+            .compositingGroup()
             .ignoresSafeArea()
         }
         .onAppear { syncTiltMotion() }
@@ -61,10 +68,11 @@ struct WeeklyGoalHazeBackground: View {
         }
         .onChange(of: reduceMotion) { _, _ in syncTiltMotion() }
         .onChange(of: scenePhase) { _, _ in syncTiltMotion() }
+        .onChange(of: isActivelyShown) { _, _ in syncTiltMotion() }
     }
 
     private func syncTiltMotion() {
-        let want = !reduceMotion && scenePhase == .active
+        let want = !hazePaused
         if want, !motionHeld {
             HazeTiltMotion.shared.retain()
             motionHeld = true
@@ -262,7 +270,10 @@ struct ContentView: View {
             .background {
                 ZStack {
                     atmosphereBaseFill
-                    WeeklyGoalHazeBackground(atmosphere: atmosphere)
+                    WeeklyGoalHazeBackground(
+                        atmosphere: atmosphere,
+                        isActivelyShown: session.homeTab == .weigh
+                    )
                 }
                 .ignoresSafeArea()
                 .animation(.easeInOut(duration: 0.55), value: session.profile.sex)

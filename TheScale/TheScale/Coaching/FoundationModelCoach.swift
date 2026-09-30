@@ -91,9 +91,12 @@ enum FoundationModelCoach {
 
     /// True when the UI is foreground-active. HealthKit observer wakes often resume the
     /// process before `.active`; skip Metal sidecar polish there (template copy is enough).
-    private static var prefersSidecarMetal: Bool {
+    /// Must hop to the main actor — `UIApplication.applicationState` is main-thread only.
+    private static func prefersSidecarMetal() async -> Bool {
         #if canImport(UIKit)
-        UIApplication.shared.applicationState == .active
+        await MainActor.run {
+            UIApplication.shared.applicationState == .active
+        }
         #else
         true
         #endif
@@ -115,7 +118,7 @@ enum FoundationModelCoach {
                 + cultureSuffix(cultureContext)
         )
         guard FoundationModelAvailability.isAvailable else {
-            guard prefersSidecarMetal else {
+            guard await prefersSidecarMetal() else {
                 return (fallbackTitle, fallbackBody, false)
             }
             let sidecar = await OnDevicePolishService.shared.refineNotificationCopy(
@@ -157,7 +160,7 @@ enum FoundationModelCoach {
             return (safeTitle, safeBody, true)
         } catch {
             FoundationModelAvailability.noteRuntimeFailure(error)
-            guard prefersSidecarMetal else {
+            guard await prefersSidecarMetal() else {
                 return (fallbackTitle, fallbackBody, false)
             }
             let sidecar = await OnDevicePolishService.shared.refineNotificationCopy(
@@ -187,7 +190,7 @@ enum FoundationModelCoach {
                 + cultureSuffix(cultureContext)
         )
         guard FoundationModelAvailability.isAvailable else {
-            guard prefersSidecarMetal else {
+            guard await prefersSidecarMetal() else {
                 return (true, "Background wake; algorithmic trigger stands.", false)
             }
             let sidecar = await OnDevicePolishService.shared.shouldSendPing(
@@ -227,7 +230,7 @@ enum FoundationModelCoach {
             )
         } catch {
             FoundationModelAvailability.noteRuntimeFailure(error)
-            guard prefersSidecarMetal else {
+            guard await prefersSidecarMetal() else {
                 return (true, "FM judgment failed; algorithmic trigger stands.", false)
             }
             let sidecar = await OnDevicePolishService.shared.shouldSendPing(

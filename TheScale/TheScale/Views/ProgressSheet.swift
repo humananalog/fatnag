@@ -157,7 +157,10 @@ struct ProgressSheet: View {
             .background {
                 ZStack {
                     atmosphereBaseFill
-                    WeeklyGoalHazeBackground(atmosphere: atmosphere)
+                    WeeklyGoalHazeBackground(
+                        atmosphere: atmosphere,
+                        isActivelyShown: session.homeTab == .progress
+                    )
                 }
                 .ignoresSafeArea()
                 .animation(.easeInOut(duration: 0.55), value: session.profile.sex)

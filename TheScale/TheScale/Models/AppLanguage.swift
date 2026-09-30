@@ -267,6 +267,7 @@ enum AppLanguageStore {
         }
         set {
             guard let lang = AppLanguage.validated(newValue.rawValue) else { return }
+            StringCatalogLookup.invalidateCache()
             syncBundleLanguages(lang)
             UserDefaults.standard.set(lang.rawValue, forKey: key)
             NotificationCenter.default.post(name: .appLanguageDidChange, object: nil)
@@ -284,12 +285,12 @@ enum AppLanguageStore {
     /// Point Bundle / `String(localized:)` at the in-app language. SwiftUI `.locale` alone is not enough.
     static func syncBundleLanguages(_ language: AppLanguage = current) {
         AppLanguageBundleInstaller.installIfNeeded()
+        StringCatalogLookup.invalidateCache()
         if language == .system {
             UserDefaults.standard.removeObject(forKey: "AppleLanguages")
         } else {
             UserDefaults.standard.set([language.resolved.catalogLanguageCode], forKey: "AppleLanguages")
         }
-        UserDefaults.standard.synchronize()
     }
 
     /// Splash / cold-open tagline.
@@ -328,9 +329,31 @@ enum AppLanguageStore {
 /// Resolves strings from compiled `*.lproj/Localizable.strings` for the in-app language.
 /// SwiftUI `.environment(\.locale)` does not affect `String(localized:)`; this does.
 enum StringCatalogLookup {
+    private static let lock = NSLock()
+    /// language → (key → value). Cleared on language change.
+    private static var cache: [String: [String: String]] = [:]
+    private static var bundleCache: [String: Bundle] = [:]
+
+    static func invalidateCache() {
+        lock.lock()
+        defer { lock.unlock() }
+        cache.removeAll(keepingCapacity: true)
+        bundleCache.removeAll(keepingCapacity: true)
+    }
+
     static func string(key: String, language: String) -> String? {
+        lock.lock()
+        if let hit = cache[language]?[key] {
+            lock.unlock()
+            return hit
+        }
+        lock.unlock()
+
         for code in languageCandidates(language) {
             if let value = lookup(key: key, inLproj: code) {
+                lock.lock()
+                cache[language, default: [:]][key] = value
+                lock.unlock()
                 return value
             }
         }
@@ -350,8 +373,16 @@ enum StringCatalogLookup {
     }
 
     private static func lookup(key: String, inLproj code: String) -> String? {
-        let lprojURL = Bundle.main.bundleURL.appendingPathComponent("\(code).lproj", isDirectory: true)
-        guard let bundle = Bundle(url: lprojURL) else { return nil }
+        let bundle: Bundle? = {
+            lock.lock()
+            defer { lock.unlock() }
+            if let cached = bundleCache[code] { return cached }
+            let lprojURL = Bundle.main.bundleURL.appendingPathComponent("\(code).lproj", isDirectory: true)
+            guard let b = Bundle(url: lprojURL) else { return nil }
+            bundleCache[code] = b
+            return b
+        }()
+        guard let bundle else { return nil }
         // Sentinel: missing keys come back as the key or the value argument.
         let sentinel = "\u{FFFF}"
         let value = bundle.localizedString(forKey: key, value: sentinel, table: nil)

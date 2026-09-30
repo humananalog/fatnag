@@ -54,12 +54,13 @@ final class HazeTiltMotion: ObservableObject {
         // reads during cold launch (harmless sandbox warning otherwise).
         Task { @MainActor in
             guard self.active, self.clients > 0 else { return }
-            self.manager.deviceMotionUpdateInterval = 1.0 / 30.0
+            self.manager.deviceMotionUpdateInterval = 1.0 / 10.0
             let queue = OperationQueue()
             queue.name = "com.humananalog.thescale.haze-tilt"
             queue.maxConcurrentOperationCount = 1
             self.manager.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: queue) { [weak self] data, _ in
                 guard let data else { return }
+                // Integrate on the motion queue; hop to MainActor only to publish.
                 Task { @MainActor in
                     self?.integrate(data)
                 }
@@ -109,7 +110,8 @@ final class HazeTiltMotion: ObservableObject {
         positionY += velocityY * dt
 
         let next = CGSize(width: positionX, height: positionY)
-        if abs(next.width - offset.width) > 0.15 || abs(next.height - offset.height) > 0.15 {
+        // Coarser publish threshold → fewer SwiftUI invalidations on A16.
+        if abs(next.width - offset.width) > 0.45 || abs(next.height - offset.height) > 0.45 {
             offset = next
         }
     }

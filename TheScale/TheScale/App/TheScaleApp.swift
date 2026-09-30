@@ -162,7 +162,8 @@ struct TheScaleApp: App {
                 guard phase == .active, session.hasCompletedOnboarding else { return }
                 appLanguage = AppLanguageStore.current
                 Task {
-                    await session.refreshHomeGauges(force: false)
+                    // Home gauges / weigh reconcile run from ContentView.onChange(.active).
+                    // Keep coach/Health background work here so TabView remounts do not double it.
                     _ = await session.runFitnessMonitorCheck(force: false)
                     await session.armHealthKitBackgroundDelivery()
                     await session.refreshTrendNotifications()
