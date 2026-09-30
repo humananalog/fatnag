@@ -14,6 +14,36 @@ final class ScaleCalibrationTests: XCTestCase {
         XCTAssertFalse(AnalogScaleMarks.isMajor(display: 157, majorStep: 5))
     }
 
+    func testLayoutUsesOnlySelectedUnitGrid() {
+        let boundsKg: ClosedRange<Double> = 60...90
+        let metric = AnalogScaleLayout.make(boundsKg: boundsKg, system: .metric)
+        XCTAssertEqual(metric.minorStep, 0.5)
+        XCTAssertEqual(metric.system, .metric)
+        let metricMajors = metric.majorLabels()
+        XCTAssertFalse(metricMajors.isEmpty)
+        for value in metricMajors {
+            XCTAssertEqual(value.truncatingRemainder(dividingBy: 5), 0, accuracy: 0.05)
+            // Metric majors stay in a plausible kg band for these bounds — not lb hundreds.
+            XCTAssertLessThan(value, 120)
+        }
+
+        let imperial = AnalogScaleLayout.make(boundsKg: boundsKg, system: .imperial)
+        XCTAssertEqual(imperial.minorStep, 1.0)
+        XCTAssertEqual(imperial.system, .imperial)
+        let imperialMajors = imperial.majorLabels()
+        XCTAssertFalse(imperialMajors.isEmpty)
+        for value in imperialMajors {
+            XCTAssertEqual(value.truncatingRemainder(dividingBy: 5), 0, accuracy: 0.05)
+            // Imperial majors are lb — well above typical kg dream-band numbers.
+            XCTAssertGreaterThan(value, 120)
+        }
+
+        // The two grids must not share the same major set (would mean dual-unit marks).
+        let metricSet = Set(metricMajors.map { Int($0.rounded()) })
+        let imperialSet = Set(imperialMajors.map { Int($0.rounded()) })
+        XCTAssertTrue(metricSet.isDisjoint(with: imperialSet))
+    }
+
     func testIdentityByDefault() {
         let cal = ScaleCalibration.default
         XCTAssertEqual(cal.apply(toRawKg: 80.0), 80.0, accuracy: 0.0001)

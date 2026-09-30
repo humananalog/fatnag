@@ -585,7 +585,7 @@ struct SettingsView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(ink)
                     Text(
-                        AppLanguageStore.text("settings.dream_weight.help", default: "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Markers follow metric or imperial Units.")
+                        AppLanguageStore.text("settings.dream_weight.help", default: "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Marks use only the Units setting (kg or lb — not both).")
                     )
                     .font(.caption2)
                     .foregroundStyle(steel)
