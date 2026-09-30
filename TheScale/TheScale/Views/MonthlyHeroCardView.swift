@@ -1,13 +1,16 @@
 import SwiftUI
 
-/// Full-screen first-of-month hero. Gender palette, season atmosphere, one action.
-/// Plus/Pro may replace the insight with Keel. Free stays on the rule line.
+/// Spotify-style first-of-month story. Two viewport pages, auto-scrolled.
+/// Page 1: DOWN with the delta on its right, then a hard emoji zoom.
+/// Page 2: the line with start and end weights, then a big insight streamed word by word.
 struct MonthlyHeroCardView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @State private var playID = 0
     @State private var revealed = false
     @State private var drawGraph = false
     @State private var countStart = Date()
+    @State private var emojiPhase = 0
+    @State private var shownWords = 0
 
     private var universe: ScalePaletteUniverse {
         ScalePaletteUniverse.resolve(sex: session.profile.sex)
@@ -21,21 +24,32 @@ struct MonthlyHeroCardView: View {
     }
 
     var body: some View {
-        ZStack {
-            atmosphere.ignoresSafeArea()
-            VStack(spacing: 0) {
-                topBar
+        GeometryReader { geo in
+            let page = geo.size.height
+            ZStack(alignment: .top) {
+                atmosphere.ignoresSafeArea()
                 if let card = session.monthlyHero {
-                    hero(card)
+                    ScrollViewReader { proxy in
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(spacing: 0) {
+                                firstPage(card, height: page)
+                                    .id("monthlyHero.page1")
+                                secondPage(card, height: page)
+                                    .id("monthlyHero.page2")
+                            }
+                        }
+                        .scrollBounceBehavior(.basedOnSize)
+                        .task(id: playID) {
+                            await runStory(proxy)
+                        }
+                    }
                 } else {
                     ProgressView()
                         .tint(ink)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                topBar
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
-            .padding(.bottom, 18)
         }
         .preferredColorScheme(.dark)
         .onAppear { play() }
@@ -70,170 +84,222 @@ struct MonthlyHeroCardView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("monthlyHero.replay")
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
         .padding(.bottom, 6)
     }
 
-    private func hero(_ card: MonthlyHeroPayload) -> some View {
+    private func firstPage(_ card: MonthlyHeroPayload, height: CGFloat) -> some View {
         let facts = card.facts
         let accent = accentColor(facts)
-        return ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("\(facts.monthName.uppercased())  \(facts.festivalEmoji)")
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .tracking(2.4)
-                    .foregroundStyle(accent)
-                    .opacity(revealed ? 1 : 0)
-                    .offset(y: revealed ? 0 : 10)
-                    .accessibilityIdentifier("monthlyHero.festival")
-
-                Text(facts.festivalTitle)
-                    .font(.system(size: 20, weight: .semibold, design: .serif))
-                    .foregroundStyle(ink.opacity(0.78))
-                    .padding(.top, 8)
-                    .opacity(revealed ? 1 : 0)
-
-                Text(facts.bigWord)
-                    .font(.system(size: facts.visual == .graph ? 42 : 64, weight: .black, design: .rounded))
-                    .foregroundStyle(ink)
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
-                    .padding(.top, 18)
-                    .scaleEffect(revealed ? 1 : 0.86)
-                    .opacity(revealed ? 1 : 0)
-                    .accessibilityIdentifier("monthlyHero.word")
-
-                heroNumber(facts, accent: accent)
-                    .padding(.top, 4)
-
-                if let unit = facts.unit {
-                    unitRow(unit)
-                        .padding(.top, 10)
-                }
-
-                emojiBurst(facts)
-                    .padding(.top, 16)
-
-                if facts.visual == .graph, facts.sparkline.count >= 2 {
-                    sparkline(facts, accent: accent)
-                        .padding(.top, 18)
-                        .accessibilityIdentifier("monthlyHero.graph")
-                }
-
-                Text(displayInsight(card))
-                    .font(.system(size: facts.visual == .bigType ? 26 : 22, weight: .bold, design: .serif))
-                    .foregroundStyle(ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 22)
-                    .opacity(revealed ? 1 : 0)
-                    .offset(y: revealed ? 0 : 12)
-                    .accessibilityIdentifier("monthlyHero.insight")
-
-                if session.isMonthlyHeroLoading, facts.canAskKeel, MonthlyHeroEngine.allowsLiveInsight(plan: ScaleSubscriptionStore.shared.plan) {
-                    Text(AppLanguageStore.text("monthly.keel_thinking", default: "Keel is sharpening the line…"))
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(mist)
-                        .padding(.top, 8)
-                }
-
-                actionBlock(facts, accent: accent)
-                    .padding(.top, 22)
-
-                Text(sourceLabel(card))
-                    .font(.system(size: 11, weight: .heavy, design: .rounded))
-                    .tracking(1.4)
-                    .foregroundStyle(mist.opacity(0.85))
-                    .padding(.top, 14)
-                    .accessibilityIdentifier("monthlyHero.source")
-
-                Button {
-                    session.dismissMonthlyHero()
-                } label: {
-                    Text(AppLanguageStore.text("monthly.lock", default: "On it"))
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .foregroundStyle(universe == .bloomCopper
-                            ? Color(red: 0.16, green: 0.08, blue: 0.08)
-                            : Color(red: 0.05, green: 0.08, blue: 0.10))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(accent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 22)
+        return VStack(alignment: .leading, spacing: 0) {
+            Text("\(facts.monthName.uppercased())  \(facts.festivalEmoji)")
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .tracking(2.6)
+                .foregroundStyle(accent)
                 .opacity(revealed ? 1 : 0)
-                .accessibilityIdentifier("monthlyHero.cta")
+                .offset(y: revealed ? 0 : 16)
+                .accessibilityIdentifier("monthlyHero.festival")
+
+            Text(facts.festivalTitle)
+                .font(.system(size: 22, weight: .semibold, design: .serif))
+                .foregroundStyle(ink.opacity(0.78))
+                .padding(.top, 8)
+                .opacity(revealed ? 1 : 0)
+
+            headlineRow(facts, accent: accent)
+                .padding(.top, 28)
+
+            Spacer(minLength: 12)
+
+            emojiStage(facts, accent: accent)
+
+            if let unit = facts.unit {
+                Text(unit.phrase)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(ink)
+                    .padding(.top, 18)
+                    .scaleEffect(emojiPhase > 0 ? 1 : 0.6)
+                    .opacity(emojiPhase > 0 ? 1 : 0)
+                    .accessibilityIdentifier("monthlyHero.unit")
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 12)
+
+            Spacer(minLength: 28)
         }
+        .padding(.horizontal, 24)
+        .padding(.top, 64)
+        .frame(maxWidth: .infinity, minHeight: height, alignment: .topLeading)
     }
 
-    private func heroNumber(_ facts: MonthlyHeroFacts, accent: Color) -> some View {
+    private func headlineRow(_ facts: MonthlyHeroFacts, accent: Color) -> some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { context in
-            let progress = countProgress(at: context.date)
-            let parts = formattedNumber(facts, progress: progress)
-            return HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(parts.number)
-                    .font(.system(size: facts.visual == .graph ? 64 : 76, weight: .bold, design: .rounded))
+            let parts = formattedNumber(facts, progress: countProgress(at: context.date))
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(facts.bigWord)
+                    .font(.system(size: 52, weight: .black, design: .rounded))
+                    .foregroundStyle(ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.45)
+                    .accessibilityIdentifier("monthlyHero.word")
+                Text(gluedDelta(parts))
+                    .font(.system(size: 46, weight: .black, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(accent)
-                    .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                    .contentTransition(.numericText())
-                Text(parts.suffix)
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
-                    .foregroundStyle(mist)
-                Spacer(minLength: 0)
+                    .minimumScaleFactor(0.4)
+                    .scaleEffect(emojiPhase == 1 ? 1.08 : 1)
+                    .accessibilityIdentifier("monthlyHero.delta")
             }
             .opacity(revealed ? 1 : 0)
-            .accessibilityIdentifier("monthlyHero.delta")
+            .offset(x: revealed ? 0 : -28)
         }
     }
 
-    private func unitRow(_ unit: MonthlyRelatableUnit) -> some View {
-        HStack(spacing: 8) {
-            Text(String(repeating: unit.emoji, count: min(unit.burstCount, 6)))
-                .font(.system(size: 22))
-                .scaleEffect(revealed ? 1 : 0.4)
-                .opacity(revealed ? 1 : 0)
-            Text(unit.phrase)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundStyle(ink.opacity(0.9))
+    private func emojiStage(_ facts: MonthlyHeroFacts, accent: Color) -> some View {
+        let hero = facts.unit?.emoji ?? facts.burst.first ?? facts.festivalEmoji
+        let extras = Array(facts.burst.prefix(4))
+        return ZStack {
+            Circle()
+                .fill(accent.opacity(emojiPhase == 1 ? 0.45 : 0.12))
+                .frame(width: emojiPhase == 1 ? 300 : 80, height: emojiPhase == 1 ? 300 : 80)
+                .blur(radius: emojiPhase == 1 ? 18 : 30)
+                .animation(.spring(response: 0.38, dampingFraction: 0.45), value: emojiPhase)
+            Text(hero)
+                .font(.system(size: 120))
+                .scaleEffect(emojiScale)
+                .rotationEffect(.degrees(emojiPhase == 0 ? -22 : (emojiPhase == 1 ? 8 : 0)))
+                .animation(.spring(response: 0.42, dampingFraction: 0.42), value: emojiPhase)
+                .accessibilityIdentifier("monthlyHero.emojis")
         }
-        .accessibilityIdentifier("monthlyHero.unit")
-    }
-
-    private func emojiBurst(_ facts: MonthlyHeroFacts) -> some View {
-        HStack(spacing: 10) {
-            ForEach(Array(facts.burst.prefix(5).enumerated()), id: \.offset) { index, emoji in
-                Text(emoji)
-                    .font(.system(size: facts.visual == .bigType ? 36 : 28))
-                    .scaleEffect(revealed ? 1 : 0.2)
-                    .opacity(revealed ? 1 : 0)
-                    .animation(
-                        .spring(response: 0.55, dampingFraction: 0.62).delay(0.12 + Double(index) * 0.07),
-                        value: revealed
-                    )
+        .frame(maxWidth: .infinity)
+        .frame(height: 220)
+        .overlay(alignment: .bottom) {
+            HStack(spacing: 14) {
+                ForEach(Array(extras.enumerated()), id: \.offset) { index, emoji in
+                    Text(emoji)
+                        .font(.system(size: 36))
+                        .scaleEffect(emojiPhase > 0 ? 1 : 0.05)
+                        .opacity(emojiPhase > 0 ? 1 : 0)
+                        .animation(
+                            .spring(response: 0.4, dampingFraction: 0.5).delay(0.08 + Double(index) * 0.06),
+                            value: emojiPhase
+                        )
+                }
             }
+            .offset(y: 28)
         }
-        .accessibilityIdentifier("monthlyHero.emojis")
+    }
+
+    private var emojiScale: CGFloat {
+        switch emojiPhase {
+        case 1: return 1.62
+        case 2: return 1
+        default: return 0.06
+        }
+    }
+
+    private func secondPage(_ card: MonthlyHeroPayload, height: CGFloat) -> some View {
+        let facts = card.facts
+        let accent = accentColor(facts)
+        let words = insightWords(card)
+        return VStack(alignment: .leading, spacing: 0) {
+            if facts.sparkline.count >= 2 {
+                sparkline(facts, accent: accent)
+                    .padding(.top, 8)
+            }
+
+            MonthlyWordFlow(spacing: 8, lineSpacing: 8) {
+                ForEach(Array(words.enumerated()), id: \.offset) { index, word in
+                    Text(word)
+                        .font(.system(size: 36, weight: .heavy, design: .serif))
+                        .foregroundStyle(index + 1 == shownWords ? accent : ink)
+                        .opacity(index < shownWords ? 1 : 0)
+                        .scaleEffect(index + 1 == shownWords ? 1.14 : (index < shownWords ? 1 : 0.72))
+                        .animation(.spring(response: 0.28, dampingFraction: 0.62), value: shownWords)
+                        .id("monthlyHero.word.\(index)")
+                }
+            }
+            .padding(.top, 28)
+            .accessibilityIdentifier("monthlyHero.insight")
+
+            if session.isMonthlyHeroLoading, facts.canAskKeel, MonthlyHeroEngine.allowsLiveInsight(plan: ScaleSubscriptionStore.shared.plan) {
+                Text(AppLanguageStore.text("monthly.keel_thinking", default: "Keel is sharpening the line…"))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(mist)
+                    .padding(.top, 10)
+            }
+
+            Spacer(minLength: 24)
+
+            actionBlock(facts, accent: accent)
+                .opacity(shownWords > 0 ? 1 : 0)
+
+            Text(sourceLabel(card))
+                .font(.system(size: 11, weight: .heavy, design: .rounded))
+                .tracking(1.6)
+                .foregroundStyle(mist.opacity(0.85))
+                .padding(.top, 16)
+                .accessibilityIdentifier("monthlyHero.source")
+
+            Button {
+                session.dismissMonthlyHero()
+            } label: {
+                Text(AppLanguageStore.text("monthly.lock", default: "On it"))
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(universe == .bloomCopper
+                        ? Color(red: 0.16, green: 0.08, blue: 0.08)
+                        : Color(red: 0.05, green: 0.08, blue: 0.10))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(accent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 18)
+            .opacity(shownWords > 0 ? 1 : 0)
+            .accessibilityIdentifier("monthlyHero.cta")
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 72)
+        .padding(.bottom, 28)
+        .frame(maxWidth: .infinity, minHeight: height, alignment: .topLeading)
     }
 
     private func sparkline(_ facts: MonthlyHeroFacts, accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let start = facts.sparkline.first.map { endpointMass($0) } ?? ""
+        let end = facts.sparkline.last.map { endpointMass($0) } ?? ""
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(start)
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(mist)
+                    .accessibilityIdentifier("monthlyHero.graphStart")
+                Spacer(minLength: 8)
+                Text(end)
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(accent)
+                    .accessibilityIdentifier("monthlyHero.graphEnd")
+            }
+            .opacity(drawGraph ? 1 : 0)
+
             MonthlySparkline(values: facts.sparkline)
                 .trim(from: 0, to: drawGraph ? 1 : 0)
-                .stroke(accent, style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
-                .frame(height: 120)
+                .stroke(accent, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                .frame(height: 150)
                 .background(alignment: .bottom) {
                     Capsule()
-                        .fill(accent.opacity(0.18))
+                        .fill(accent.opacity(0.22))
                         .frame(height: 2)
                 }
+                .animation(.easeInOut(duration: 1.15), value: drawGraph)
+
             Text(graphCaption(facts))
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(mist)
+                .opacity(drawGraph ? 1 : 0)
         }
-        .animation(.easeInOut(duration: 1.25), value: drawGraph)
+        .accessibilityIdentifier("monthlyHero.graph")
     }
 
     private func actionBlock(_ facts: MonthlyHeroFacts, accent: Color) -> some View {
@@ -259,58 +325,77 @@ struct MonthlyHeroCardView: View {
                     .accessibilityIdentifier("monthlyHero.medical")
             }
         }
-        .opacity(revealed ? 1 : 0)
-        .offset(y: revealed ? 0 : 16)
     }
 
-    private var atmosphere: some View {
-        let month = session.monthlyHero?.facts.month ?? Calendar.current.component(.month, from: Date())
-        let wash = seasonWash(month: month)
-        return TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            let slow = t / 14.0
-            ZStack {
-                LinearGradient(
-                    colors: [wash.voidTop, wash.voidMid, wash.voidBottom],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                Circle()
-                    .fill(wash.primary.opacity(0.55))
-                    .frame(width: 320, height: 320)
-                    .blur(radius: 50)
-                    .offset(x: -80 + CGFloat(sin(slow)) * 28, y: -180 + CGFloat(cos(slow * 0.8)) * 20)
-                Circle()
-                    .fill(wash.secondary.opacity(0.42))
-                    .frame(width: 280, height: 280)
-                    .blur(radius: 60)
-                    .offset(x: 110 + CGFloat(cos(slow * 0.6)) * 24, y: 160)
-                if month == 12 || month == 1 {
-                    ForEach(0..<8, id: \.self) { index in
-                        Circle()
-                            .fill(Color.white.opacity(0.35))
-                            .frame(width: 3, height: 3)
-                            .offset(
-                                x: CGFloat(index * 46 - 160) + CGFloat(sin(slow + Double(index))) * 8,
-                                y: CGFloat((index * 90) % 520) - 200 + CGFloat(cos(slow * 1.4 + Double(index))) * 30
-                            )
-                    }
+    private func runStory(_ proxy: ScrollViewProxy) async {
+        var jump = Transaction()
+        jump.disablesAnimations = true
+        withTransaction(jump) {
+            proxy.scrollTo("monthlyHero.page1", anchor: .top)
+        }
+        guard await beat(0.12) else { return }
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.78)) {
+            revealed = true
+        }
+        // Hold the headline so the count can land beside DOWN.
+        guard await beat(1.15) else { return }
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.42)) {
+            emojiPhase = 1
+        }
+        guard await beat(0.55) else { return }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.72)) {
+            emojiPhase = 2
+        }
+        // Pause on the zoomed emoji before the scroll.
+        guard await beat(0.85) else { return }
+        withAnimation(.easeInOut(duration: 1.35)) {
+            proxy.scrollTo("monthlyHero.page2", anchor: .top)
+        }
+        guard await beat(0.55) else { return }
+        withAnimation(.easeInOut(duration: 1.15)) {
+            drawGraph = true
+        }
+        guard await beat(0.45) else { return }
+        let words = insightWords(session.monthlyHero)
+        for index in words.indices {
+            shownWords = index + 1
+            let token = words[index]
+            let sentence = token.contains(".") || token.contains("!") || token.contains("?")
+            if sentence {
+                withAnimation(.easeInOut(duration: 0.45)) {
+                    proxy.scrollTo("monthlyHero.word.\(index)", anchor: .center)
                 }
             }
+            guard await beat(sentence ? 0.42 : 0.09) else { return }
+        }
+        guard await beat(0.35) else { return }
+        withAnimation(.easeInOut(duration: 0.8)) {
+            proxy.scrollTo("monthlyHero.cta", anchor: .bottom)
         }
     }
 
     private func play() {
         revealed = false
         drawGraph = false
-        playID += 1
+        emojiPhase = 0
+        shownWords = 0
         countStart = Date()
-        withAnimation(.spring(response: 0.7, dampingFraction: 0.78)) {
-            revealed = true
+        playID += 1
+    }
+
+    private func beat(_ seconds: Double) async -> Bool {
+        do {
+            try await Task.sleep(for: .seconds(seconds))
+            return !Task.isCancelled
+        } catch {
+            return false
         }
-        withAnimation(.easeInOut(duration: 1.25).delay(0.25)) {
-            drawGraph = true
-        }
+    }
+
+    private func insightWords(_ card: MonthlyHeroPayload?) -> [String] {
+        guard let card else { return [] }
+        let raw = displayInsight(card)
+        return raw.split(whereSeparator: \.isWhitespace).map(String.init)
     }
 
     private func countProgress(at date: Date) -> Double {
@@ -340,6 +425,19 @@ struct MonthlyHeroCardView: View {
         }
         let value = UnitFormat.mass(fromKg: shown, system: system)
         return (String(format: "%.1f", value), system.massLabel)
+    }
+
+    /// Grams and ounces sit tight (`−400g`). Kilograms and pounds keep a space.
+    private func gluedDelta(_ parts: (number: String, suffix: String)) -> String {
+        if parts.suffix == "g" || parts.suffix == "oz" {
+            return parts.number + parts.suffix
+        }
+        if parts.suffix.isEmpty { return parts.number }
+        return parts.number + " " + parts.suffix
+    }
+
+    private func endpointMass(_ kg: Double) -> String {
+        UnitFormat.massString(kg, system: session.preferredUnits, fractionDigits: 1)
     }
 
     private func displayInsight(_ card: MonthlyHeroPayload) -> String {
@@ -378,6 +476,32 @@ struct MonthlyHeroCardView: View {
             case .loss: return Color(red: 0.98, green: 0.78, blue: 0.55)
             case .gain: return Color(red: 0.96, green: 0.48, blue: 0.52)
             case .stable, .unknown: return Color(red: 0.98, green: 0.82, blue: 0.74)
+            }
+        }
+    }
+
+    private var atmosphere: some View {
+        let month = session.monthlyHero?.facts.month ?? Calendar.current.component(.month, from: Date())
+        let wash = seasonWash(month: month)
+        return TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            let slow = t / 14.0
+            ZStack {
+                LinearGradient(
+                    colors: [wash.voidTop, wash.voidMid, wash.voidBottom],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                Circle()
+                    .fill(wash.primary.opacity(0.55))
+                    .frame(width: 340, height: 340)
+                    .blur(radius: 48)
+                    .offset(x: -80 + CGFloat(sin(slow)) * 28, y: -200 + CGFloat(cos(slow * 0.8)) * 20)
+                Circle()
+                    .fill(wash.secondary.opacity(0.4))
+                    .frame(width: 280, height: 280)
+                    .blur(radius: 56)
+                    .offset(x: 120 + CGFloat(cos(slow * 0.6)) * 24, y: 220)
             }
         }
     }
@@ -458,6 +582,65 @@ struct MonthlyHeroCardView: View {
     }
 }
 
+/// Wrapping row of insight words. Unrevealed words keep their slot so the page does not jump.
+private struct MonthlyWordFlow: Layout {
+    var spacing: CGFloat = 8
+    var lineSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 320
+        let rows = rows(subviews, maxWidth: width)
+        let height = rows.reduce(CGFloat(0)) { $0 + $1.height } + lineSpacing * CGFloat(max(rows.count - 1, 0))
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let rows = rows(subviews, maxWidth: bounds.width)
+        var y = bounds.minY
+        var index = 0
+        for row in rows {
+            var x = bounds.minX
+            for item in row.items {
+                subviews[index].place(
+                    at: CGPoint(x: x, y: y + (row.height - item.height)),
+                    proposal: ProposedViewSize(width: item.width, height: item.height)
+                )
+                x += item.width + spacing
+                index += 1
+            }
+            y += row.height + lineSpacing
+        }
+    }
+
+    private struct Row {
+        var items: [CGSize]
+        var height: CGFloat
+    }
+
+    private func rows(_ subviews: Subviews, maxWidth: CGFloat) -> [Row] {
+        var result: [Row] = []
+        var current: [CGSize] = []
+        var x: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        for sub in subviews {
+            let size = sub.sizeThatFits(.unspecified)
+            if !current.isEmpty, x + size.width > maxWidth {
+                result.append(Row(items: current, height: rowHeight))
+                current = []
+                x = 0
+                rowHeight = 0
+            }
+            current.append(size)
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
+        if !current.isEmpty {
+            result.append(Row(items: current, height: rowHeight))
+        }
+        return result
+    }
+}
+
 /// Weight line, lower mass toward the bottom so a loss visibly drops.
 private struct MonthlySparkline: Shape {
     var values: [Double]
@@ -471,7 +654,7 @@ private struct MonthlySparkline: Shape {
         let low = minV - pad
         let high = maxV + pad
         func point(_ index: Int) -> CGPoint {
-            let x = rect.minX + rect.width * CGFloat(index) / CGFloat(values.count - 1)
+            let x = rect.minX + rect.width * CGFloat(index) / CGFloat(max(values.count - 1, 1))
             let t = (values[index] - low) / (high - low)
             let y = rect.maxY - rect.height * CGFloat(t)
             return CGPoint(x: x, y: y)
