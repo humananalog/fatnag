@@ -174,6 +174,9 @@ enum GrokFitnessMonitor {
         _ triggers: [FitnessTrigger],
         prefs: inout FitnessMonitorPreferences,
         profileName: String,
+        sex: UserBodyProfile.Sex = .male,
+        ageYears: Double = 30,
+        cultureContext: String = "",
         now: Date = Date()
     ) async {
         guard prefs.notifyOnTriggers, !triggers.isEmpty else { return }
@@ -187,7 +190,10 @@ enum GrokFitnessMonitor {
                 profileName: name,
                 kind: trigger.kind.rawValue,
                 algorithmicReason: trigger.message,
-                extraContext: "severity=\(trigger.severity)"
+                extraContext: "severity=\(trigger.severity)",
+                sex: sex,
+                ageYears: ageYears,
+                cultureContext: cultureContext
             )
             guard judgment.shouldNotify else { continue }
 
@@ -232,7 +238,10 @@ enum GrokFitnessMonitor {
                 kind: trigger.kind.rawValue,
                 fallbackTitle: moment.glanceTitle,
                 fallbackBody: moment.phoneBody,
-                context: trigger.message
+                context: trigger.message,
+                sex: sex,
+                ageYears: ageYears,
+                cultureContext: cultureContext
             )
             var fired = moment
             if polished.usedFoundationModel {

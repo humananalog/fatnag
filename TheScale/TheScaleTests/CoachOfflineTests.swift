@@ -239,8 +239,9 @@ final class CoachOfflineTests: XCTestCase {
         XCTAssertTrue(AppLanguage.french.modelDirective.contains("French"))
         XCTAssertTrue(AppLanguage.french.modelDirective.contains("ZERO"))
         XCTAssertTrue(AppLanguage.french.languageLockFooter.contains("français") || AppLanguage.french.languageLockFooter.contains("FINAL CHECK"))
-        XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male).contains("Language lock"))
-        XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male).contains("FINAL CHECK"))
+        XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male, ageYears: 42).contains("Language lock"))
+        XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male, ageYears: 42).contains("FINAL CHECK"))
+        XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male, ageYears: 42).contains("AGE / GENERATION") || CoachAgentRole.orchestrator.systemPrompt(sex: .male, ageYears: 42).contains("millennial"))
         XCTAssertTrue(AppLanguageStore.locked("Hello").contains("French"))
         XCTAssertTrue(AppLanguageStore.locked("Hello").contains("FINAL CHECK"))
         XCTAssertEqual(

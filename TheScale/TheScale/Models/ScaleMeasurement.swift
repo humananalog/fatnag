@@ -117,6 +117,9 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
     /// Compact persona lines for Grok system prompts (skips blanks).
     var coachPersonaBlock: String {
         var lines: [String] = []
+        let ageInt = max(18, Int(ageYears.rounded()))
+        let band = CoachAgeBand.from(ageYears: ageYears)
+        lines.append("Age: \(ageInt) (\(band.promptLabel)) — match humour and references to this age.")
         let loc = location.trimmingCharacters(in: .whitespacesAndNewlines)
         let eth = ethnicity.trimmingCharacters(in: .whitespacesAndNewlines)
         let lang = AppLanguageStore.current.resolved.profileLanguageName
@@ -155,6 +158,14 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         if let start = startingWeightKg {
             lines.append(String(format: "Onboarding starting weight: %.1f kg", start))
         }
+        lines.append(
+            CoachVoice.cultureInsightPayload(
+                ageYears: ageYears,
+                location: location,
+                ethnicity: ethnicity,
+                culturalVibe: culturalVibe
+            )
+        )
         guard !lines.isEmpty else { return "" }
         return """
         Persona (match tone and examples to this; do not stereotype or exoticize):

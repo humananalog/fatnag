@@ -106,9 +106,14 @@ enum FoundationModelCoach {
         fallbackTitle: String,
         fallbackBody: String,
         context: String,
-        sex: UserBodyProfile.Sex = .male
+        sex: UserBodyProfile.Sex = .male,
+        ageYears: Double = 30,
+        cultureContext: String = ""
     ) async -> (title: String, body: String, usedFoundationModel: Bool) {
-        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex))
+        let voice = AppLanguageStore.locked(
+            CoachVoice.bannerRules(sex: sex, ageYears: ageYears)
+                + cultureSuffix(cultureContext)
+        )
         guard FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else {
                 return (fallbackTitle, fallbackBody, false)
@@ -173,9 +178,14 @@ enum FoundationModelCoach {
         kind: String,
         algorithmicReason: String,
         extraContext: String = "",
-        sex: UserBodyProfile.Sex = .male
+        sex: UserBodyProfile.Sex = .male,
+        ageYears: Double = 30,
+        cultureContext: String = ""
     ) async -> (shouldNotify: Bool, reason: String, usedFoundationModel: Bool) {
-        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex))
+        let voice = AppLanguageStore.locked(
+            CoachVoice.bannerRules(sex: sex, ageYears: ageYears)
+                + cultureSuffix(cultureContext)
+        )
         guard FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else {
                 return (true, "Background wake; algorithmic trigger stands.", false)
@@ -240,9 +250,14 @@ enum FoundationModelCoach {
     static func summarizeFitnessDigest(
         profileName: String,
         digestBlock: String,
-        sex: UserBodyProfile.Sex = .male
+        sex: UserBodyProfile.Sex = .male,
+        ageYears: Double = 30,
+        cultureContext: String = ""
     ) async -> String? {
-        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex))
+        let voice = AppLanguageStore.locked(
+            CoachVoice.bannerRules(sex: sex, ageYears: ageYears)
+                + cultureSuffix(cultureContext)
+        )
         guard FoundationModelAvailability.isAvailable else {
             return await OnDevicePolishService.shared.summarizeFitnessDigest(
                 profileName: profileName,
@@ -279,9 +294,10 @@ enum FoundationModelCoach {
     /// Optional FM / sidecar pass to pull sticky facts; merges with heuristic extractor upstream.
     static func extractMemoryFacts(
         from userText: String,
-        sex: UserBodyProfile.Sex = .male
+        sex: UserBodyProfile.Sex = .male,
+        ageYears: Double = 30
     ) async -> [CoachMemoryFact] {
-        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex))
+        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex, ageYears: ageYears))
         guard FoundationModelAvailability.isAvailable else {
             return await OnDevicePolishService.shared.extractMemoryFacts(
                 from: userText,
@@ -342,6 +358,8 @@ enum FoundationModelCoach {
         fasting: FastingWindow,
         memoryBlock: String,
         sex: UserBodyProfile.Sex = .male,
+        ageYears: Double = 30,
+        cultureContext: String = "",
         now: Date = Date()
     ) async -> [MealPlanMeal]? {
         guard FoundationModelAvailability.isAvailable else { return nil }
@@ -366,10 +384,12 @@ enum FoundationModelCoach {
         do {
             let session = LanguageModelSession(instructions: AppLanguageStore.locked("""
                 You write practical meal menus for FATNAG on-device.
-                \(CoachVoice.bannerRules(sex: sex))
+                \(CoachVoice.bannerRules(sex: sex, ageYears: ageYears))
+                \(CoachVoice.ageVoiceRules(ageYears: ageYears))
+                \(cultureSuffix(cultureContext))
                 Fitness coaching only. Never diagnose. No em dashes.
                 Every ingredient needs a metric portion (g or ml). Real dishes, not fluff.
-                Honour diet preference and fasting windows.
+                Honour diet preference and fasting windows. Prefer local staples when culture context is set.
                 """))
             let prompt = """
                 Build exactly \(plateCount) upcoming meal\(plateCount == 1 ? "" : "s") for \(who) from local now \(localTime).
@@ -504,9 +524,15 @@ enum FoundationModelCoach {
 
     // MARK: Helpers
 
+    private static func cultureSuffix(_ cultureContext: String) -> String {
+        let trimmed = cultureContext.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        return "\nCulture / origin cues (use for jokes and food examples; never stereotype):\n\(trimmed)\n"
+    }
+
     private static func clamp(_ text: String, max: Int) -> String {
         guard text.count > max else { return text }
         let idx = text.index(text.startIndex, offsetBy: max - 1)
-            return String(text[..<idx]).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
-        }
+        return String(text[..<idx]).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
+    }
 }

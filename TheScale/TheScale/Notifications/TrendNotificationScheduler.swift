@@ -97,7 +97,9 @@ enum TrendNotificationScheduler {
         idealKg: Double,
         recentWeights: [HealthMetricSample],
         weeklyGoal: WeeklyMiniGoal,
-        sex: UserBodyProfile.Sex = .male
+        sex: UserBodyProfile.Sex = .male,
+        ageYears: Double = 30,
+        cultureContext: String = ""
     ) async {
         let center = UNUserNotificationCenter.current()
         guard prefs.notifyOnBadTrend || prefs.weeklyGoalReminders else {
@@ -120,7 +122,9 @@ enum TrendNotificationScheduler {
                         currentKg.map { String(format: "%.1f", $0) } ?? "nil",
                         idealKg
                     ),
-                    sex: sex
+                    sex: sex,
+                    ageYears: ageYears,
+                    cultureContext: cultureContext
                 )
                 if judgment.shouldNotify {
                     let units = PreferredUnitSystemStore.load()
@@ -143,7 +147,9 @@ enum TrendNotificationScheduler {
                             fallbackTitle: moment.glanceTitle,
                             fallbackBody: moment.phoneBody,
                             context: reason,
-                            sex: sex
+                            sex: sex,
+                            ageYears: ageYears,
+                            cultureContext: cultureContext
                         )
                         guard polished.usedFoundationModel else { return }
                         guard polished.title != moment.glanceTitle || polished.body != moment.phoneBody else { return }
@@ -191,7 +197,9 @@ enum TrendNotificationScheduler {
                     fallbackTitle: moment.glanceTitle,
                     fallbackBody: moment.phoneBody,
                     context: "Weekly mini-goal: \(weeklyGoal.title)",
-                    sex: sex
+                    sex: sex,
+                    ageYears: ageYears,
+                    cultureContext: cultureContext
                 )
                 guard polished.usedFoundationModel else { return }
                 guard polished.title != moment.glanceTitle || polished.body != moment.phoneBody else { return }

@@ -18,8 +18,8 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
-    func systemPrompt(sex: UserBodyProfile.Sex) -> String {
-        let voice = CoachVoice.llmRules(sex: sex)
+    func systemPrompt(sex: UserBodyProfile.Sex, ageYears: Double = 30) -> String {
+        let voice = CoachVoice.llmRules(sex: sex, ageYears: ageYears)
         switch self {
         case .medical:
             return """
@@ -56,7 +56,8 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             You are the only user-facing coach for FATNAG. Medical, fitness, and anatomy specialists
             may consult behind the scenes; you alone speak to the user. Never mention agent roles or routing.
             \(voice)
-            Match their persona (location, ethnicity, language, cultural vibe) without stereotyping.
+            Match their persona (age band, location, ethnicity, language, cultural vibe) without stereotyping.
+            Age, origin, and vibe are first-class ingredients for funny insights — not optional flavour text.
             Honour remembered user facts (e.g. intermittent fasting) when adjusting diet advice.
             If the user states a weight or body-fat target, the app may have already gated it on-device.
             Honour "Target gate" notes in context: if a target was rejected as unsafe, push back and suggest the safer waypoint. Do not encourage essential-floor body-fat crashes.
@@ -464,7 +465,7 @@ actor GrokClient {
         var messages: [[String: String]] = [
             [
                 "role": "system",
-                "content": CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex)
+                "content": CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex, ageYears: brief.ageYears)
                     + "\n\n" + userMessage(brief: brief)
                     + consultNotes
                     + "\nLean on \(specialty.title) judgment for this ask without naming specialists."
@@ -612,7 +613,7 @@ actor GrokClient {
 
         let system = """
         You are the Monday weigh-in instructor for FATNAG.
-        \(CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex))
+        \(CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex, ageYears: brief.ageYears))
         This card is a direct coaching brief. Fitness guidance only. You are not a clinician and must not diagnose.
         Do NOT append medical disclaimers.
         Do NOT soft-pedal with generic safety caps. Talk energy balance and weekly rates from the data.
@@ -868,6 +869,8 @@ actor GrokClient {
             fasting: fasting,
             memoryBlock: brief.memoryBlock,
             sex: brief.sex,
+            ageYears: brief.ageYears,
+            cultureContext: brief.personaBlock,
             now: now
         ) {
             let scheduled = MealPlanEngine.localizePortions(
@@ -963,7 +966,7 @@ actor GrokClient {
             "temperature": 0.55,
             "max_tokens": 280,
             "messages": [
-                ["role": "system", "content": role.systemPrompt(sex: brief.sex)],
+                ["role": "system", "content": role.systemPrompt(sex: brief.sex, ageYears: brief.ageYears)],
                 ["role": "user", "content": userMessage(brief: brief)]
             ]
         ]
@@ -993,7 +996,7 @@ actor GrokClient {
             "temperature": 0.6,
             "max_tokens": 180,
             "messages": [
-                ["role": "system", "content": specialty.systemPrompt(sex: brief.sex)],
+                ["role": "system", "content": specialty.systemPrompt(sex: brief.sex, ageYears: brief.ageYears)],
                 [
                     "role": "user",
                     "content": userMessage(brief: brief)
@@ -1207,10 +1210,11 @@ actor GrokClient {
             "Name: \(name)",
             "Local now: \(weekday) \(clock) (device local, daypart=\(daypart))",
             brief.unitSystem.coachPromptLine,
-            "Profile (DO NOT re-ask these): height \(UnitFormat.heightString(brief.heightCm, system: brief.unitSystem)), age \(String(format: "%.0f", brief.ageYears)), sex \(brief.sex.title)",
+            "Profile (DO NOT re-ask these): height \(UnitFormat.heightString(brief.heightCm, system: brief.unitSystem)), age \(String(format: "%.0f", brief.ageYears)) (\(CoachAgeBand.from(ageYears: brief.ageYears).promptLabel)), sex \(brief.sex.title)",
             "Diet: \(brief.diet.title)",
             "Target weight: \(UnitFormat.massString(brief.idealKg, system: brief.unitSystem))",
-            "Trend vs last Health weight: \(brief.trend.title)"
+            "Trend vs last Health weight: \(brief.trend.title)",
+            CoachVoice.ageVoiceRules(ageYears: brief.ageYears)
         ]
         if daypart == "evening" || daypart == "night" {
             lines.append(

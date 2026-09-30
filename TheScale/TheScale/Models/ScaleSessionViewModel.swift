@@ -1574,7 +1574,14 @@ final class ScaleSessionViewModel: ObservableObject {
         if let polished = await FoundationModelCoach.summarizeFitnessDigest(
             profileName: profile.greetingName,
             digestBlock: prompt + "\n\n" + digestBlock,
-            sex: profile.sex
+            sex: profile.sex,
+            ageYears: profile.ageYears,
+            cultureContext: CoachVoice.cultureInsightPayload(
+                ageYears: profile.ageYears,
+                location: profile.location,
+                ethnicity: profile.ethnicity,
+                culturalVibe: profile.culturalVibe
+            )
         ) {
             let cleaned = CoachCopySanitize.clean(polished)
             guard !cleaned.isEmpty, cleaned.count < 280 else { return }
@@ -2068,7 +2075,10 @@ final class ScaleSessionViewModel: ObservableObject {
                     await GrokFitnessMonitor.notifyTriggers(
                         triggers,
                         prefs: &prefs,
-                        profileName: profile.greetingName
+                        profileName: profile.greetingName,
+                        sex: profile.sex,
+                        ageYears: profile.ageYears,
+                        cultureContext: profile.coachPersonaBlock
                     )
 
                     let intervalDue = FitnessTriggerMonitor.isAutomatedCheckDue(prefs: prefs)
@@ -2093,7 +2103,9 @@ final class ScaleSessionViewModel: ObservableObject {
                                     digestBlock: digest.promptBlock(
                                         preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes
                                     ) + "\nTriggers: \(triggerSummary)\nNote: \(reply.text)",
-                                    sex: profile.sex
+                                    sex: profile.sex,
+                                    ageYears: profile.ageYears,
+                                    cultureContext: profile.coachPersonaBlock
                                 ) {
                                     lastFitnessCoachReply = fmSummary
                                     GrokFitnessMonitor.storeLastReply(fmSummary)
@@ -2112,7 +2124,9 @@ final class ScaleSessionViewModel: ObservableObject {
                             digestBlock: digest.promptBlock(
                                 preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes
                             ) + "\nTriggers: \(triggerSummary)",
-                            sex: profile.sex
+                            sex: profile.sex,
+                            ageYears: profile.ageYears,
+                            cultureContext: profile.coachPersonaBlock
                         ) {
                             lastFitnessCoachReply = fmSummary
                             GrokFitnessMonitor.storeLastReply(fmSummary)
@@ -2179,7 +2193,14 @@ final class ScaleSessionViewModel: ObservableObject {
                 ? historyWeights
                 : historyTrendWindowWeights,
             weeklyGoal: weeklyGoal,
-            sex: profile.sex
+            sex: profile.sex,
+            ageYears: profile.ageYears,
+            cultureContext: CoachVoice.cultureInsightPayload(
+                ageYears: profile.ageYears,
+                location: profile.location,
+                ethnicity: profile.ethnicity,
+                culturalVibe: profile.culturalVibe
+            )
         )
         await considerMorningWeighDrill()
     }

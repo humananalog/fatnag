@@ -397,6 +397,8 @@ private struct PopCultureLens: Equatable {
         .lowercased()
 
         var tags: [String] = []
+        let band = CoachAgeBand.from(ageYears: profile.ageYears)
+        tags.append("age:\(band.rawValue)")
         if blob.contains("filip") || blob.contains("manila") || blob.contains("tagalog") {
             tags.append("ph")
         }
@@ -421,7 +423,7 @@ private struct PopCultureLens: Equatable {
         if blob.contains("vegan") || blob.contains("vegetarian") {
             tags.append("plant")
         }
-        if tags.isEmpty { tags = ["default"] }
+        if tags.filter({ !$0.hasPrefix("age:") }).isEmpty { tags.append("default") }
         return PopCultureLens(tags: tags)
     }
 
