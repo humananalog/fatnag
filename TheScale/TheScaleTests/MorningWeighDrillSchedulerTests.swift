@@ -372,6 +372,14 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
         XCTAssertTrue(content.body.contains("💩"))
         XCTAssertTrue(content.body.lowercased().contains("scale"))
     }
+
+    func testAllRequestIdsIncludeFallbackForAutoDelete() {
+        let ids = MorningWeighDrillScheduler.allRequestIds
+        XCTAssertTrue(ids.contains(MorningWeighDrillScheduler.requestId))
+        XCTAssertTrue(ids.contains(MorningWeighDrillScheduler.fallbackRequestId))
+        XCTAssertTrue(ids.contains(MorningWeighDrillScheduler.testRequestId))
+        XCTAssertEqual(ids.count, 3)
+    }
 }
 
 final class ProfileNumericBoundsTests: XCTestCase {

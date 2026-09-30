@@ -1698,6 +1698,7 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Weigh Now CTA stays hidden even if a later Health read fails.
     @discardableResult
     func refreshAlreadyWeighedToday(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        let previous = alreadyWeighedToday
         let next = hasValidWeighInToday(now: now, calendar: calendar)
         if next {
             let stamp = Self.localDayStamp(now, calendar: calendar)
@@ -1706,6 +1707,10 @@ final class ScaleSessionViewModel: ObservableObject {
             }
         }
         alreadyWeighedToday = next
+        // Health (or stamp) just flipped to weighed today → wipe weigh banners immediately.
+        if next, !previous {
+            MorningWeighDrillScheduler.markSatisfied(now: now, calendar: calendar)
+        }
         return next
     }
 
@@ -1756,8 +1761,12 @@ final class ScaleSessionViewModel: ObservableObject {
         // Prefer the Health sample date when it is still local-today; else stamp with now.
         let injectAt = calendar.isDate(date, inSameDayAs: now) ? date : now
         injectOptimisticWeighSample(kg: kg, at: injectAt, calendar: calendar)
+        let wasWeighed = alreadyWeighedToday
         alreadyWeighedToday = true
         weighNowGateResolved = true
+        if !wasWeighed {
+            MorningWeighDrillScheduler.markSatisfied(now: now, calendar: calendar)
+        }
     }
 
     /// Pull body-mass samples for local calendar today into in-memory series for the gate.
