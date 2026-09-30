@@ -143,35 +143,79 @@ enum HealthChartMath {
         return out
     }
 
+    /// Y-axis floor for History charts. Tap the Y-axis to rotate.
+    /// - `target`: floor at the Target/Ideal line (still expands down to include any data below it).
+    /// - `visibleData`: floor at the minimum sample in the currently visible X window.
+    enum ChartYFloorMode: String, CaseIterable, Sendable {
+        case target
+        case visibleData
+
+        mutating func rotate() {
+            self = self == .target ? .visibleData : .target
+        }
+    }
+
+    /// Samples whose dates fall in the visible scroll window (or the full X domain).
+    static func valuesInVisibleXWindow(
+        samples: [HealthMetricSample],
+        visibleStart: Date,
+        visibleLength: TimeInterval?,
+        xDomain: ClosedRange<Date>
+    ) -> [Double] {
+        let length: TimeInterval
+        if let visibleLength, visibleLength.isFinite, visibleLength > 0 {
+            length = visibleLength
+        } else {
+            length = max(xDomain.upperBound.timeIntervalSince(xDomain.lowerBound), 1)
+        }
+        let end = visibleStart.addingTimeInterval(length)
+        let start = min(visibleStart, end)
+        let stop = max(visibleStart, end)
+        let inWindow = samples.compactMap { sample -> Double? in
+            guard sample.date >= start, sample.date <= stop else { return nil }
+            return finiteOrNil(sample.value)
+        }
+        if !inWindow.isEmpty { return inWindow }
+        return samples.compactMap { finiteOrNil($0.value) }
+    }
+
     /// Y-axis / domain for the weight chart.
     ///
-    /// Ideal weight from Settings draws as the Ideal reference line. The plot
-    /// domain always includes **all Health samples** (`min(dataMin, ideal)` floor)
-    /// so History never clips real HealthKit points below the goal. Upper bound
-    /// is `max(dataMax, ideal, projectionMax) + padding`.
+    /// Ideal weight from Settings draws as the Ideal reference line. Upper bound
+    /// is `max(dataMax, ideal, projectionMax) + padding`. Floor follows `floorMode`.
     static func weightDomain(
         values: [Double],
         idealKg: Double,
         paddingFraction: Double = 0.08,
-        extraValues: [Double] = []
+        extraValues: [Double] = [],
+        floorMode: ChartYFloorMode = .target
     ) -> ClosedRange<Double> {
         let ideal = max(finiteOrNil(idealKg) ?? 1, 1)
         let combined = (values + extraValues).compactMap(finiteOrNil)
         guard let dataMin = combined.min(), let dataMax = combined.max() else {
             return sanitizeDomain(ideal...(ideal + 5))
         }
-        let floor = min(dataMin, ideal)
+        let floor: Double
+        switch floorMode {
+        case .target:
+            // Target line as minimum; never clip real Health points below the goal.
+            floor = min(dataMin, ideal)
+        case .visibleData:
+            // Zoom to visible sample min (target may sit at/below the plot floor).
+            floor = dataMin
+        }
         let top = max(dataMax, ideal)
         let span = max(top - floor, 0.5)
         let pad = max(span * paddingFraction, 0.15)
         return sanitizeDomain((floor - pad * 0.25)...(top + pad))
     }
 
-    /// Y-axis for body fat %. Prefer ideal as soft floor when set; always include data.
+    /// Y-axis for body fat %. Floor follows `floorMode` when ideal is set.
     static func bodyFatDomain(
         values: [Double],
         idealPercent: Double?,
-        paddingFraction: Double = 0.12
+        paddingFraction: Double = 0.12,
+        floorMode: ChartYFloorMode = .target
     ) -> ClosedRange<Double> {
         let finiteValues = values.compactMap(finiteOrNil)
         guard let dataMin = finiteValues.min(), let dataMax = finiteValues.max() else {
@@ -182,7 +226,13 @@ enum HealthChartMath {
             return 10...30
         }
         if let ideal = idealPercent.flatMap(finiteOrNil) {
-            let floor = max(min(ideal, dataMin), 0)
+            let floor: Double
+            switch floorMode {
+            case .target:
+                floor = max(min(ideal, dataMin), 0)
+            case .visibleData:
+                floor = max(dataMin, 0)
+            }
             let top = max(dataMax, ideal)
             let span = max(top - floor, 1)
             let pad = max(span * paddingFraction, 0.4)

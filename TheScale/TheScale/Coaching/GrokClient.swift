@@ -28,6 +28,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             \(voice)
             Prefer trends over single weigh-ins. Be honest when data is thin.
             You are not a clinician and must not diagnose. Fitness guidance only.
+            \(AppLanguageStore.current.resolved.languageLockFooter)
             """
         case .fitness:
             return """
@@ -38,6 +39,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             Match advice to Local now: morning can be training; night is wind-down, not a PR attempt.
             Use only the Fitness digest for last workout / activity / steps / energy / distance / HR / HRV / sleep / recovery band. If a metric says missing, say so. Never invent sleep stages, HRV, SpO2, VO2, or workouts. Never claim you can read AllTrails directly.
             No crash diets. Respect their diet preference and remembered facts.
+            \(AppLanguageStore.current.resolved.languageLockFooter)
             """
         case .anatomy:
             return """
@@ -46,6 +48,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             \(voice)
             Explain fat %, lean %, impedance limits, and why day-to-day noise is normal.
             Never invent lab precision the scale cannot deliver.
+            \(AppLanguageStore.current.resolved.languageLockFooter)
             """
         case .orchestrator:
             return """
@@ -65,6 +68,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             CRITICAL: The Fitness digest block is the only source for workouts, last activity, steps, energy, distance, HR, HRV, respiratory rate, SpO2, VO2, wrist temperature, sleep (stages when present), and the recovery heuristic (HealthKit only). If Recent workouts lists sessions, discuss them (distance km included). If workouts are empty but walking/running distance spiked, say Health shows km without a Workout sample and suggest enabling Health sync in the tracking app (AllTrails etc.). If truly empty, say so and mention Allow Health / third-party write-to-Health. Never invent missing metrics. Never claim direct AllTrails access.
             Ask clarifying questions only when a needed fact is missing from the profile block. Never re-ask height/age/sex/targets already listed.
             End with one concrete next action that fits the current local time of day. Produce ONE coherent answer. No multi-agent dump.
+            \(AppLanguageStore.current.resolved.languageLockFooter)
             """
         }
     }

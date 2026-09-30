@@ -237,8 +237,12 @@ final class CoachOfflineTests: XCTestCase {
         XCTAssertEqual(AppLanguageStore.splashTagline, AppLanguage.system.resolved.splashTagline)
         XCTAssertEqual(AppLanguageStore.apply(.french), .french)
         XCTAssertTrue(AppLanguage.french.modelDirective.contains("French"))
+        XCTAssertTrue(AppLanguage.french.modelDirective.contains("ZERO"))
+        XCTAssertTrue(AppLanguage.french.languageLockFooter.contains("français") || AppLanguage.french.languageLockFooter.contains("FINAL CHECK"))
         XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male).contains("Language lock"))
+        XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male).contains("FINAL CHECK"))
         XCTAssertTrue(AppLanguageStore.locked("Hello").contains("French"))
+        XCTAssertTrue(AppLanguageStore.locked("Hello").contains("FINAL CHECK"))
         XCTAssertEqual(
             UserDefaults.standard.stringArray(forKey: "AppleLanguages")?.first,
             "fr"

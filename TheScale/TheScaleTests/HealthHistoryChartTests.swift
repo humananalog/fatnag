@@ -35,6 +35,67 @@ final class HealthHistoryChartTests: XCTestCase {
         XCTAssertGreaterThan(domain.upperBound, 91)
     }
 
+    func testWeightDomainVisibleDataFloorZoomsAboveTarget() {
+        let targetFloor = HealthChartMath.weightDomain(
+            values: [90, 91],
+            idealKg: 75,
+            floorMode: .target
+        )
+        let dataFloor = HealthChartMath.weightDomain(
+            values: [90, 91],
+            idealKg: 75,
+            floorMode: .visibleData
+        )
+        XCTAssertLessThan(targetFloor.lowerBound, dataFloor.lowerBound)
+        XCTAssertGreaterThan(dataFloor.lowerBound, 75)
+        XCTAssertEqual(dataFloor.lowerBound, 90, accuracy: 1.0)
+    }
+
+    func testBodyFatDomainVisibleDataFloorIgnoresIdealBelowData() {
+        let targetFloor = HealthChartMath.bodyFatDomain(
+            values: [18, 20, 19],
+            idealPercent: 12,
+            floorMode: .target
+        )
+        let dataFloor = HealthChartMath.bodyFatDomain(
+            values: [18, 20, 19],
+            idealPercent: 12,
+            floorMode: .visibleData
+        )
+        XCTAssertEqual(targetFloor.lowerBound, 12, accuracy: 0.001)
+        XCTAssertGreaterThan(dataFloor.lowerBound, 12)
+        XCTAssertEqual(dataFloor.lowerBound, 18, accuracy: 0.5)
+    }
+
+    func testYFloorModeRotates() {
+        var mode = HealthChartMath.ChartYFloorMode.target
+        mode.rotate()
+        XCTAssertEqual(mode, .visibleData)
+        mode.rotate()
+        XCTAssertEqual(mode, .target)
+    }
+
+    func testValuesInVisibleXWindowFiltersByScroll() {
+        let cal = Calendar(identifier: .gregorian)
+        let day0 = cal.date(from: DateComponents(year: 2024, month: 1, day: 1))!
+        let samples = (0..<10).map { i in
+            HealthMetricSample(
+                value: Double(80 + i),
+                date: cal.date(byAdding: .day, value: i, to: day0)!
+            )
+        }
+        let xDomain = day0...cal.date(byAdding: .day, value: 9, to: day0)!
+        let visibleStart = cal.date(byAdding: .day, value: 5, to: day0)!
+        let values = HealthChartMath.valuesInVisibleXWindow(
+            samples: samples,
+            visibleStart: visibleStart,
+            visibleLength: 3 * 86_400,
+            xDomain: xDomain
+        )
+        XCTAssertFalse(values.isEmpty)
+        XCTAssertEqual(values.min()!, 85, accuracy: 0.001)
+    }
+
     func testBodyFatDomainUsesIdealWhenPresent() {
         let domain = HealthChartMath.bodyFatDomain(values: [18, 20, 19], idealPercent: 15)
         XCTAssertEqual(domain.lowerBound, 15, accuracy: 0.001)

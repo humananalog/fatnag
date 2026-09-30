@@ -212,7 +212,25 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     /// Hard instruction for Keel, on-device models, and meal copy.
     var modelDirective: String {
         let lang = resolved
-        return "Language lock: write every sentence the user will read in \(lang.profileLanguageName) (\(lang.nativeLabel)). Meals, jokes, greetings, and notifications included. Keep numbers and the name fatnag as written."
+        if lang.isEnglishFamily {
+            return "Language lock: write every sentence the user will read in English. Meals, jokes, greetings, and notifications included. Keep numbers and the name fatnag as written."
+        }
+        return """
+        Language lock (HARD — ZERO exceptions): write 100% of every user-facing sentence in \(lang.profileLanguageName) (\(lang.nativeLabel)) only. Do not mix languages. Do not code-switch. Do not paste English Health labels (walking, active energy, deep sleep, recovery, high protein, veggies, Charts) — translate those facts into \(lang.nativeLabel). Vulgarity and humour stay in \(lang.nativeLabel) only. Proper nouns OK: fatnag, Keel, Hong Kong, Apple Health. Units OK: kg, g, kcal, km, bpm, h, %. If any English slips in, rewrite the whole sentence in \(lang.nativeLabel) before you send.
+        """
+    }
+
+    /// End-of-prompt reminder (models attend to the last lines).
+    var languageLockFooter: String {
+        let lang = resolved
+        if lang.isEnglishFamily { return "" }
+        return "FINAL CHECK: the entire reply is in \(lang.nativeLabel) only. No English mix. Translate Health digest labels into \(lang.nativeLabel)."
+    }
+
+    /// English or system resolving to English.
+    var isEnglishFamily: Bool {
+        let code = resolved.catalogLanguageCode
+        return code == "en" || code.hasPrefix("en-")
     }
 
     static func validated(_ raw: String) -> AppLanguage? {
@@ -290,11 +308,15 @@ enum AppLanguageStore {
         return defaultValue
     }
 
-    /// Pins model prompts to the validated language.
+    /// Pins model prompts to the validated language (directive + end footer).
     static func locked(_ prompt: String) -> String {
         let line = current.resolved.modelDirective
-        if prompt.contains(line) { return prompt }
-        return prompt + "\n" + line
+        let footer = current.resolved.languageLockFooter
+        var out = prompt.contains(line) ? prompt : (line + "\n" + prompt)
+        if !footer.isEmpty, !out.contains(footer) {
+            out += "\n" + footer
+        }
+        return out
     }
 
     /// Effective locale for SwiftUI environment.

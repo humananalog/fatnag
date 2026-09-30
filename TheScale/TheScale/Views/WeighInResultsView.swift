@@ -1,5 +1,6 @@
 import Charts
 import SwiftUI
+import UIKit
 
 /// History: Apple Health weight + body fat charts, optional Trend projection, Manual entry.
 ///
@@ -16,6 +17,8 @@ struct WeighInResultsView: View {
     /// Leading edge of the scrollable visible window (pinned to recent data on 3M/1Y).
     @State private var weightScrollX: Date = Date()
     @State private var fatScrollX: Date = Date()
+    @State private var weightYFloorMode: HealthChartMath.ChartYFloorMode = .target
+    @State private var fatYFloorMode: HealthChartMath.ChartYFloorMode = .target
     @State private var commentDraft = ""
     @State private var showCommentEditor = false
     @State private var commentMetric: ChartCommentMetric = .weight
@@ -354,6 +357,8 @@ struct WeighInResultsView: View {
         .animation(.spring(response: 0.7, dampingFraction: 0.86), value: chartReveal)
         .animation(.spring(response: 0.75, dampingFraction: 0.84), value: showTrend)
         .animation(.spring(response: 0.65, dampingFraction: 0.88), value: session.historyWeights.count)
+        .animation(.spring(response: 0.45, dampingFraction: 0.86), value: weightYFloorMode)
+        .animation(.spring(response: 0.45, dampingFraction: 0.86), value: fatYFloorMode)
     }
 
     private func weightChartCard(
@@ -363,16 +368,23 @@ struct WeighInResultsView: View {
     ) -> some View {
         let samples = HealthChartMath.chartSeries(session.historyWeights)
         let extrema = HealthChartMath.extrema(in: samples)
-        let domain = HealthChartMath.weightDomain(
-            values: samples.map(\.value),
-            idealKg: session.profile.idealWeightKg,
-            extraValues: projectedValues
-        )
         let xDomain = historyXDomain(
             projection: projection,
             scientific: scientific
         )
         let scrollLength = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: xDomain)
+        let visibleValues = HealthChartMath.valuesInVisibleXWindow(
+            samples: samples,
+            visibleStart: weightScrollX,
+            visibleLength: scrollLength,
+            xDomain: xDomain
+        )
+        let domain = HealthChartMath.weightDomain(
+            values: visibleValues.isEmpty ? samples.map(\.value) : visibleValues,
+            idealKg: session.profile.idealWeightKg,
+            extraValues: projectedValues,
+            floorMode: weightYFloorMode
+        )
         let selected = selectedWeightDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
@@ -551,7 +563,10 @@ struct WeighInResultsView: View {
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
             .chartXSelection(value: $selectedWeightDate)
-            .chartTapXSelection()
+            .chartTapXSelection {
+                weightYFloorMode.rotate()
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
             .historyChartAxes(accent: atmosphere.accent)
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
@@ -563,12 +578,19 @@ struct WeighInResultsView: View {
     private var bodyFatChartCard: some View {
         let samples = HealthChartMath.chartSeries(session.historyBodyFatPercents)
         let extrema = HealthChartMath.extrema(in: samples)
-        let domain = HealthChartMath.bodyFatDomain(
-            values: samples.map(\.value),
-            idealPercent: session.profile.idealBodyFatPercent
-        )
         let xDomain = HealthChartMath.historyXDomain(range: range)
         let scrollLength = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: xDomain)
+        let visibleValues = HealthChartMath.valuesInVisibleXWindow(
+            samples: samples,
+            visibleStart: fatScrollX,
+            visibleLength: scrollLength,
+            xDomain: xDomain
+        )
+        let domain = HealthChartMath.bodyFatDomain(
+            values: visibleValues.isEmpty ? samples.map(\.value) : visibleValues,
+            idealPercent: session.profile.idealBodyFatPercent,
+            floorMode: fatYFloorMode
+        )
         let selected = selectedFatDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
@@ -663,7 +685,10 @@ struct WeighInResultsView: View {
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
             .chartXSelection(value: $selectedFatDate)
-            .chartTapXSelection()
+            .chartTapXSelection {
+                fatYFloorMode.rotate()
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
             .historyChartAxes(accent: atmosphere.accent)
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
@@ -877,10 +902,15 @@ private extension View {
 
     /// Tap/select activates the comment point immediately (default chartXSelection waits on long press).
     /// SpatialTap keeps horizontal chart scroll free for 3M/1Y pans.
-    func chartTapXSelection() -> some View {
+    /// Taps on the leading Y-axis strip (~44pt) rotate the Y floor (target ↔ visible min).
+    func chartTapXSelection(onYAxisTap: (() -> Void)? = nil) -> some View {
         chartGesture { proxy in
             SpatialTapGesture()
                 .onEnded { value in
+                    if let onYAxisTap, value.location.x < 44 {
+                        onYAxisTap()
+                        return
+                    }
                     proxy.selectXValue(at: value.location.x)
                 }
         }
