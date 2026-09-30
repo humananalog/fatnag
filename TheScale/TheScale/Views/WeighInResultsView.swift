@@ -12,11 +12,11 @@ struct WeighInResultsView: View {
     @State private var showTrend = false
     @State private var chartReveal = false
     @State private var loadError: String?
-    @State private var selectedWeightDate: Date?
-    @State private var selectedFatDate: Date?
+    /// Shared across weight + body-fat charts so an X tap highlights both at once.
+    @State private var selectedDate: Date?
     /// Leading edge of the scrollable visible window (pinned to recent data on 3M/1Y).
-    @State private var weightScrollX: Date = Date()
-    @State private var fatScrollX: Date = Date()
+    /// Shared so weight + body-fat charts pan together.
+    @State private var chartScrollX: Date = Date()
     @State private var weightYFloorMode: HealthChartMath.ChartYFloorMode = .target
     @State private var fatYFloorMode: HealthChartMath.ChartYFloorMode = .target
     @State private var commentDraft = ""
@@ -144,13 +144,13 @@ struct WeighInResultsView: View {
     }
 
     private var selectedWeightSample: HealthMetricSample? {
-        selectedWeightDate.flatMap {
+        selectedDate.flatMap {
             HealthChartMath.nearestSample(in: HealthChartMath.chartSeries(session.historyWeights), to: $0)
         }
     }
 
     private var selectedFatSample: HealthMetricSample? {
-        selectedFatDate.flatMap {
+        selectedDate.flatMap {
             HealthChartMath.nearestSample(in: HealthChartMath.chartSeries(session.historyBodyFatPercents), to: $0)
         }
     }
@@ -172,7 +172,8 @@ struct WeighInResultsView: View {
                         .foregroundStyle(atmosphere.accent.opacity(0.75))
                         .lineLimit(2)
                 }
-            } else if let fat {
+            }
+            if let fat {
                 let existing = ChartCommentStore.comment(on: fat.date, metric: .bodyFat)?.text
                 Text(String(format: "%.1f%% · %@", fat.value, fat.date.formatted(date: .abbreviated, time: .omitted)))
                     .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -293,8 +294,7 @@ struct WeighInResultsView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .onChange(of: range) { _, _ in
-                selectedWeightDate = nil
-                selectedFatDate = nil
+                selectedDate = nil
                 chartReveal = false
                 withAnimation(.spring(response: 0.65, dampingFraction: 0.88)) {
                     chartReveal = true
@@ -311,8 +311,7 @@ struct WeighInResultsView: View {
                 .labelsHidden()
                 .accessibilityLabel(AppLanguageStore.text("history.projection.a11y", default: "Show target projection lines"))
                 .onChange(of: showTrend) { _, _ in
-                    selectedWeightDate = nil
-                    selectedFatDate = nil
+                    selectedDate = nil
                 }
 
                 Text(AppLanguageStore.text("history.projection", default: "Projection"))
@@ -387,7 +386,7 @@ struct WeighInResultsView: View {
         let scrollLength = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: xDomain)
         let visibleValues = HealthChartMath.valuesInVisibleXWindow(
             samples: samples,
-            visibleStart: weightScrollX,
+            visibleStart: chartScrollX,
             visibleLength: scrollLength,
             xDomain: xDomain
         )
@@ -397,7 +396,7 @@ struct WeighInResultsView: View {
             extraValues: projectedValues,
             floorMode: weightYFloorMode
         )
-        let selected = selectedWeightDate.flatMap {
+        let selected = selectedDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
         let floorY = domain.lowerBound
@@ -547,10 +546,13 @@ struct WeighInResultsView: View {
                     }
                 }
 
-                if let selected {
-                    RuleMark(x: .value("Selected", selected.date))
+                if let selectedDate {
+                    RuleMark(x: .value("Selected", selectedDate))
                         .lineStyle(StrokeStyle(lineWidth: 1))
                         .foregroundStyle(atmosphere.accent.opacity(0.35))
+                }
+
+                if let selected {
                     PointMark(
                         x: .value("Date", selected.date),
                         y: .value("Weight", selected.value)
@@ -574,15 +576,16 @@ struct WeighInResultsView: View {
             }
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
-            .chartXSelection(value: $selectedWeightDate)
+            .chartXSelection(value: $selectedDate)
             .chartTapXSelection {
                 weightYFloorMode.rotate()
+                fatYFloorMode = weightYFloorMode
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
             .historyChartAxes(accent: atmosphere.accent)
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
-                scrollPosition: $weightScrollX
+                scrollPosition: $chartScrollX
             )
         }
     }
@@ -594,7 +597,7 @@ struct WeighInResultsView: View {
         let scrollLength = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: xDomain)
         let visibleValues = HealthChartMath.valuesInVisibleXWindow(
             samples: samples,
-            visibleStart: fatScrollX,
+            visibleStart: chartScrollX,
             visibleLength: scrollLength,
             xDomain: xDomain
         )
@@ -603,7 +606,7 @@ struct WeighInResultsView: View {
             idealPercent: session.profile.idealBodyFatPercent,
             floorMode: fatYFloorMode
         )
-        let selected = selectedFatDate.flatMap {
+        let selected = selectedDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
         let floorY = domain.lowerBound
@@ -669,10 +672,13 @@ struct WeighInResultsView: View {
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
                 }
 
-                if let selected {
-                    RuleMark(x: .value("Selected", selected.date))
+                if let selectedDate {
+                    RuleMark(x: .value("Selected", selectedDate))
                         .lineStyle(StrokeStyle(lineWidth: 1))
                         .foregroundStyle(atmosphere.accent.opacity(0.35))
+                }
+
+                if let selected {
                     PointMark(
                         x: .value("Date", selected.date),
                         y: .value("Body fat", selected.value)
@@ -696,15 +702,16 @@ struct WeighInResultsView: View {
             }
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
-            .chartXSelection(value: $selectedFatDate)
+            .chartXSelection(value: $selectedDate)
             .chartTapXSelection {
                 fatYFloorMode.rotate()
+                weightYFloorMode = fatYFloorMode
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
             .historyChartAxes(accent: atmosphere.accent)
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
-                scrollPosition: $fatScrollX
+                scrollPosition: $chartScrollX
             )
         }
     }
@@ -763,11 +770,13 @@ struct WeighInResultsView: View {
                 // Chart in ConditionalContent → empty-chart fallback on 3M/1Y.
                 chart()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
             }
         }
         .padding(panelInnerPad)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .scaleGlassPanel(cornerRadius: 18)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel(title: title, unit: unit, samples: samples, extrema: extrema))
     }
@@ -882,13 +891,14 @@ struct WeighInResultsView: View {
                 weightExtras.append(contentsOf: scientific.observedPath.map(\.date))
             }
         }
+        // Prefer the weight domain (may extend past `now` when Projection is on) so both
+        // charts share one leading edge; fat falls back when weight scroll is disabled.
         let weightDomain = HealthChartMath.historyXDomain(range: range, extraDates: weightExtras)
         let fatDomain = HealthChartMath.historyXDomain(range: range)
         if let length = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: weightDomain) {
-            weightScrollX = HealthChartMath.scrollLeadingDate(xDomain: weightDomain, visibleLength: length)
-        }
-        if let length = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: fatDomain) {
-            fatScrollX = HealthChartMath.scrollLeadingDate(xDomain: fatDomain, visibleLength: length)
+            chartScrollX = HealthChartMath.scrollLeadingDate(xDomain: weightDomain, visibleLength: length)
+        } else if let length = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: fatDomain) {
+            chartScrollX = HealthChartMath.scrollLeadingDate(xDomain: fatDomain, visibleLength: length)
         }
     }
 }
@@ -897,6 +907,10 @@ private extension View {
     /// Axes + legend applied directly on a Chart (before any scroll ConditionalContent).
     func historyChartAxes(accent: Color) -> some View {
         self
+            .chartPlotStyle { plotArea in
+                // Dense series can paint past the plot into the Y-axis / card padding.
+                plotArea.clipped()
+            }
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 3)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
