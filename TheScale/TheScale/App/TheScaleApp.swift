@@ -1,6 +1,27 @@
 import SwiftUI
 import UserNotifications
 
+/// Scene-phase mirror for background-safe reads.
+/// Never touch `UIApplication.applicationState` from Fitness / notification tasks —
+/// Main Thread Checker pauses (and freezes) Debug launches when that happens.
+enum AppSceneActivity: Sendable {
+    private static let lock = NSLock()
+    private static var _isActive = true
+
+    static var isActive: Bool {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return _isActive
+        }
+        set {
+            lock.lock()
+            _isActive = newValue
+            lock.unlock()
+        }
+    }
+}
+
 @main
 struct TheScaleApp: App {
     @StateObject private var session = ScaleSessionViewModel()
@@ -149,6 +170,7 @@ struct TheScaleApp: App {
                 schedulePostOnboardingWork()
             }
             .task(id: scenePhase) {
+                AppSceneActivity.isActive = (scenePhase == .active)
                 guard scenePhase == .active, session.hasCompletedOnboarding else { return }
                 #if DEBUG
                 if PromoCaptureMode.isActive { return }
@@ -159,11 +181,13 @@ struct TheScaleApp: App {
                 }
             }
             .onChange(of: scenePhase) { _, phase in
+                AppSceneActivity.isActive = (phase == .active)
                 guard phase == .active, session.hasCompletedOnboarding else { return }
                 appLanguage = AppLanguageStore.current
                 Task {
-                    // Home gauges / weigh reconcile run from ContentView.onChange(.active).
-                    // Keep coach/Health background work here so TabView remounts do not double it.
+                    // Let splash / first home frame paint before Health + Metal work.
+                    try? await Task.sleep(nanoseconds: 900_000_000)
+                    guard AppSceneActivity.isActive else { return }
                     _ = await session.runFitnessMonitorCheck(force: false)
                     await session.armHealthKitBackgroundDelivery()
                     await session.refreshTrendNotifications()
@@ -182,13 +206,14 @@ struct TheScaleApp: App {
         GrokFitnessMonitor.scheduleBackgroundProcessing(prefs: session.fitnessMonitorPreferences)
         Task {
             await ScaleSubscriptionStore.shared.refresh()
-            // Compatible phones (no Apple Intelligence) auto-install 0.5B Metal polish.
-            // AI-capable iPhones skip the download entirely.
-            await OnDevicePolishBootstrap.configureAndInstallIfNeeded()
             await session.armHealthKitBackgroundDelivery()
             // Arm weekly + morning fallback even if the user never opens Settings.
             _ = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
             await session.refreshTrendNotifications()
+        }
+        // Metal polish download must not block first paint / splash handoff.
+        Task(priority: .utility) {
+            await OnDevicePolishBootstrap.configureAndInstallIfNeeded()
         }
     }
 }
