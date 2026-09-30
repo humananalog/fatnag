@@ -30,6 +30,11 @@ enum HomeGlassDestination: String, CaseIterable, Identifiable, Hashable, Sendabl
         }
     }
 
+    /// Settings keeps horizontal drags for the dream dial and form controls.
+    var allowsMenuPageSwipe: Bool {
+        self != .settings
+    }
+
     /// Left/right neighbors for edge swipe between menu pages.
     var previousPage: HomeGlassDestination? {
         let all = Self.allCases
@@ -80,8 +85,10 @@ private struct HomeMenuPageSwipeModifier: ViewModifier {
     @State private var didCommit = false
 
     func body(content: Content) -> some View {
-        // Meal cards own horizontal drags. Page changes there start at the screen edge only.
-        if selection == .meals {
+        if !selection.allowsMenuPageSwipe {
+            content
+        } else if selection == .meals {
+            // Meal cards own horizontal drags. Page changes there start at the screen edge only.
             content
                 .overlay(alignment: .leading) {
                     Color.clear

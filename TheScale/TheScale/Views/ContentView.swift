@@ -145,7 +145,6 @@ struct ContentView: View {
                     SettingsView()
                         .environmentObject(session)
                 }
-                .homeMenuPageSwipe(selection: .settings) { session.selectHomeTab($0) }
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)

@@ -66,3 +66,12 @@ final class ProgressBoundsTests: XCTestCase {
         #endif
     }
 }
+
+final class HomeMenuPageSwipeTests: XCTestCase {
+    func testSettingsDisablesMenuPageSwipe() {
+        XCTAssertFalse(HomeGlassDestination.settings.allowsMenuPageSwipe)
+        for page in HomeGlassDestination.allCases where page != .settings {
+            XCTAssertTrue(page.allowsMenuPageSwipe)
+        }
+    }
+}
