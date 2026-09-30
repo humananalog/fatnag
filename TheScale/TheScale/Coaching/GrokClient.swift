@@ -657,6 +657,75 @@ actor GrokClient {
         }
     }
 
+    /// Plus/Pro first-of-month toast. One or two sentences. Falls back to the rule line.
+    func monthlyHeroInsight(
+        brief: CoachBrief,
+        facts: MonthlyHeroFacts
+    ) async -> (text: String, usedNetwork: Bool) {
+        let fallback = facts.ruleInsight
+        let plan = await MainActor.run { ScaleSubscriptionStore.shared.plan }
+        guard MonthlyHeroEngine.allowsLiveInsight(plan: plan), facts.canAskKeel else {
+            return (fallback, false)
+        }
+        guard GrokPrivacyConsent.isAccepted else { return (fallback, false) }
+        if GrokSharedConfig.configurationIssue != nil || resolveTransport() == nil {
+            return (fallback, false)
+        }
+        guard let transport = resolveTransport() else { return (fallback, false) }
+        if await consumeQuota(.monthlyCard) != nil {
+            return (fallback, false)
+        }
+
+        let delta = facts.deltaKg.map { String(format: "%+.2f kg", $0) } ?? "unknown"
+        let unit = facts.unit?.phrase ?? "no food-sized unit"
+        let pace = facts.medicalNote ?? "Pace is inside a calm monthly band."
+        let prompt = """
+        Write ONE or TWO short sentences for a first-of-month weight card. Funny, warm, specific.
+        Use only these facts. Do not invent kilos, dates, workouts, sleep, or meals.
+        Festival mood: \(facts.festivalTitle). Month: \(facts.monthName).
+        Direction: \(facts.direction.rawValue). Delta: \(delta). Visual unit: \(unit).
+        Pace: \(pace)
+        Do NOT repeat or paraphrase this action (it is already printed on the card): \(facts.monthlyAction)
+        No emoji. No diagnosis. No disclaimer. No bullets. No headers. Under 180 characters.
+        If the drop was fast, be kind. Do not cheer a sprint.
+        """
+        let system = """
+        You write the monthly weigh-in toast for FATNAG.
+        \(CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex, ageYears: brief.ageYears))
+        Fitness coaching only. You are not a clinician and must not diagnose.
+        Do NOT append a medical disclaimer. Never invent a weight change.
+        """
+        let body: [String: Any] = [
+            "model": Self.liveModel,
+            "temperature": 0.7,
+            "max_tokens": 160,
+            "stream": false,
+            "messages": [
+                ["role": "system", "content": system + "\n\n" + userMessage(brief: brief)],
+                ["role": "user", "content": prompt]
+            ]
+        ]
+        do {
+            let data = try await postChat(body: body, transport: transport, timeout: 18, burnsCredit: true)
+            var cleaned = CoachCopySanitize.clean(Self.parseContent(from: data) ?? "")
+            if let cut = cleaned.range(of: "This month:") {
+                cleaned = String(cleaned[..<cut.lowerBound])
+            }
+            cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard cleaned.count >= 12, cleaned.count <= 220 else { return (fallback, false) }
+            if facts.pace == .fastLoss {
+                let lower = cleaned.lowercased()
+                let cheers = ["brilliant", "solid work", "keep the pace", "crushing", "amazing", "congrats", "well done", "nice work", "great job"]
+                if cheers.contains(where: { lower.contains($0) }) {
+                    return (fallback, false)
+                }
+            }
+            return (cleaned, true)
+        } catch {
+            return (fallback, false)
+        }
+    }
+
     /// Next-24h meal plan for home carousel. Compact JSON only. Token-efficient.
     /// Caller should check cache first; this always hits network when live (burns 1 credit).
     func mealPlan(

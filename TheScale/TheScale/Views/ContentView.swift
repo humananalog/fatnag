@@ -205,6 +205,13 @@ struct ContentView: View {
                 .environmentObject(session)
         }
         .fullScreenCover(isPresented: Binding(
+            get: { session.isMonthlyHeroPresented },
+            set: { if !$0 { session.dismissMonthlyHero() } }
+        )) {
+            MonthlyHeroCardView()
+                .environmentObject(session)
+        }
+        .fullScreenCover(isPresented: Binding(
             get: { session.isSpikeRedCardPresented },
             set: { if !$0 { session.dismissSpikeRedCard() } }
         )) {
@@ -264,6 +271,9 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-debugMonthlyHero") { return }
+            #endif
             Task {
                 await session.reconcileAlreadyWeighedTodayFromHealth()
                 await session.refreshHomeGauges(force: false)
@@ -430,6 +440,13 @@ struct ContentView: View {
     }
 
     private func bootstrapHome() async {
+        #if DEBUG
+        // Show the monthly hero before Health / notification sheets can cover it.
+        if ProcessInfo.processInfo.arguments.contains("-debugMonthlyHero") {
+            session.forcePresentMonthlyHero()
+            return
+        }
+        #endif
         session.refreshAlreadyWeighedToday()
         session.startPassiveListening()
         // Warm Progress (history → baseline → Monday reconcile) in parallel with gauges

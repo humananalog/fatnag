@@ -157,6 +157,10 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var pendingProfileGap: ProfileGapKind?
     /// Offer Monday card after the hero moment dismisses.
     private var pendingMondayAfterHero = false
+    /// Offer the first-of-month hero after the weigh-in hero (and after Monday, if both).
+    private var pendingMonthlyAfterHero = false
+    private var pendingMonthlyAfterMonday = false
+    private var pendingMonthlyWeighKg: Double?
     /// Soft feedback ask after a clearly good hero moment (encourage / winner).
     private var pendingFeedbackSoftAskAfterHero = false
     private var pendingMondayWeighKg: Double?
@@ -172,6 +176,11 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var weighNowGateResolved = false
     /// Monday morning post-weigh weekly goal card.
     @Published private(set) var isMondayCardPresented = false
+    /// First-of-month full-screen hero (after the weigh-in hero, and after Monday when both fire).
+    @Published private(set) var isMonthlyHeroPresented = false
+    @Published private(set) var monthlyHero: MonthlyHeroPayload?
+    @Published private(set) var isMonthlyHeroLoading = false
+    @Published private(set) var monthlyHeroStreamInsight = ""
     /// Full-screen red card after a confirmed short-term weight spike.
     @Published private(set) var isSpikeRedCardPresented = false
     @Published private(set) var pendingSpikeRecoveryPlan: WeightRecoveryPlan?
@@ -511,28 +520,37 @@ final class ScaleSessionViewModel: ObservableObject {
             return
         }
         isResultsPresented = true
-        let offerMonday = pendingMondayAfterHero
-        let kg = pendingMondayWeighKg
-        pendingMondayAfterHero = false
-        pendingMondayWeighKg = nil
-        if offerMonday, let kg {
-            Task {
-                await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
-            }
-        }
+        releasePostHeroCards()
     }
 
     func dismissSpikeRedCard() {
         isSpikeRedCardPresented = false
         pendingSpikeRecoveryPlan = nil
         isResultsPresented = true
+        releasePostHeroCards()
+    }
+
+    /// Monday first when both are due, then the monthly hero. Otherwise the monthly hero alone.
+    private func releasePostHeroCards() {
         let offerMonday = pendingMondayAfterHero
-        let kg = pendingMondayWeighKg
+        let offerMonthly = pendingMonthlyAfterHero
+        let mondayKg = pendingMondayWeighKg
+        let monthlyKg = pendingMonthlyWeighKg
         pendingMondayAfterHero = false
+        pendingMonthlyAfterHero = false
         pendingMondayWeighKg = nil
-        if offerMonday, let kg {
+        if offerMonday, let mondayKg {
+            pendingMonthlyAfterMonday = offerMonthly
+            if !offerMonthly { pendingMonthlyWeighKg = nil }
             Task {
-                await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
+                await presentMondayCardIfNeeded(weighInKg: mondayKg, force: false, regenerate: false)
+            }
+        } else {
+            pendingMonthlyWeighKg = nil
+            if offerMonthly, let monthlyKg {
+                Task {
+                    await presentMonthlyHeroIfNeeded(weighInKg: monthlyKg, force: false)
+                }
             }
         }
     }
@@ -617,6 +635,7 @@ final class ScaleSessionViewModel: ObservableObject {
         guard pendingProfileGap == nil else { return }
         guard !isCoachPresented,
               !isMondayCardPresented,
+              !isMonthlyHeroPresented,
               !isSettingsPresented,
               !isWeighInPresented,
               !isWeighInHeroPresented,
@@ -839,6 +858,7 @@ final class ScaleSessionViewModel: ObservableObject {
         isWeighInHeroPresented = false
         isResultsPresented = false
         isMondayCardPresented = false
+        isMonthlyHeroPresented = false
         isSpikeRedCardPresented = false
         isAppReviewPromptPresented = false
         isFeedbackPresented = false
@@ -970,6 +990,7 @@ final class ScaleSessionViewModel: ObservableObject {
         // Avoid stacking over Coach / Monday / settings / feedback.
         guard !isCoachPresented,
               !isMondayCardPresented,
+              !isMonthlyHeroPresented,
               !isSettingsPresented,
               !isWeighInPresented,
               !isWeighInHeroPresented,
@@ -987,6 +1008,7 @@ final class ScaleSessionViewModel: ObservableObject {
         guard ScaleFeedbackPrompt.shouldOfferSoftAsk() else { return }
         guard !isCoachPresented,
               !isMondayCardPresented,
+              !isMonthlyHeroPresented,
               !isSettingsPresented,
               !isWeighInPresented,
               !isWeighInHeroPresented,
@@ -1152,9 +1174,40 @@ final class ScaleSessionViewModel: ObservableObject {
     func dismissMondayCard() {
         isMondayCardPresented = false
         isMondayCardLoading = false
+        let offerMonthly = pendingMonthlyAfterMonday
+        let kg = pendingMonthlyWeighKg
+        pendingMonthlyAfterMonday = false
+        pendingMonthlyWeighKg = nil
+        if offerMonthly, let kg {
+            Task {
+                await presentMonthlyHeroIfNeeded(weighInKg: kg, force: false)
+            }
+        }
+    }
+
+    func dismissMonthlyHero() {
+        isMonthlyHeroPresented = false
+        isMonthlyHeroLoading = false
     }
 
     #if DEBUG
+    /// Settings / `-debugMonthlyHero`. Ephemeral: does not mark the month as already shown.
+    func forcePresentMonthlyHero() {
+        Task {
+            let args = ProcessInfo.processInfo.arguments
+            let waitingOnDemo = args.contains("-demoFemale") || args.contains("-demoMale")
+            if waitingOnDemo {
+                for _ in 0..<10 where !isDemoPersonaActive && historyWeights.isEmpty {
+                    try? await Task.sleep(nanoseconds: 120_000_000)
+                }
+            } else {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+            }
+            let kg = healthBaselineKg ?? displayWeightKg ?? historyWeights.last?.value
+            await presentMonthlyHeroIfNeeded(weighInKg: kg, force: true)
+        }
+    }
+
     /// Test-only: force-show the Monday card (optionally regenerate past cache).
     /// Preview is ephemeral — never rewrites live weekly progress or MondayCardStore.
     func forcePresentMondayCard(regenerate: Bool = true) {
@@ -1295,6 +1348,81 @@ final class ScaleSessionViewModel: ObservableObject {
             MondayCardStore.save(draft)
         }
         isMondayCardLoading = false
+    }
+
+    /// After the weigh-in hero (or a manual save) on the 1st. One auto-show per month.
+    /// `force` is the DEBUG preview and does not write the cache.
+    func presentMonthlyHeroIfNeeded(
+        weighInKg: Double?,
+        force: Bool,
+        now: Date = Date()
+    ) async {
+        guard force || MonthlyHeroEngine.shouldOfferAfterWeighIn(now: now) else { return }
+        let month = MonthlyHeroEngine.monthKey(for: now)
+        if !force, let cached = MonthlyHeroStore.load(), cached.monthKey == month, cached.isComplete {
+            return
+        }
+
+        var samples: [MonthlyWeighSample] = []
+        #if DEBUG
+        if isDemoPersonaActive, historyWeights.count >= 4 {
+            samples = historyWeights.map { MonthlyWeighSample(kg: $0.value, date: $0.date) }
+        }
+        #endif
+        if samples.isEmpty {
+            let start = Calendar.current.date(byAdding: .day, value: -75, to: now) ?? now.addingTimeInterval(-75 * 86_400)
+            if healthKitAvailable {
+                if let fetched = try? await healthStore.fetchWeights(from: start, to: now), !fetched.isEmpty {
+                    samples = fetched.map { MonthlyWeighSample(kg: $0.value, date: $0.date) }
+                }
+            }
+            if samples.isEmpty {
+                samples = historyWeights.map { MonthlyWeighSample(kg: $0.value, date: $0.date) }
+            }
+        }
+
+        let facts = MonthlyHeroEngine.compose(
+            samples: samples,
+            weighInKg: weighInKg,
+            idealKg: profile.idealWeightKg,
+            name: profile.greetingName,
+            units: preferredUnits,
+            now: now
+        )
+        let plan = ScaleSubscriptionStore.shared.plan
+        let signatureKg = weighInKg ?? facts.currentKg ?? 0
+        var draft = MonthlyHeroPayload(
+            monthKey: month,
+            weighInSignature: MonthlyHeroEngine.weighInSignature(kg: signatureKg, at: now),
+            facts: facts,
+            insight: facts.ruleInsight,
+            usedNetwork: false,
+            planRaw: plan.rawValue,
+            generatedAt: now
+        )
+        monthlyHero = draft
+        monthlyHeroStreamInsight = facts.ruleInsight
+        isMonthlyHeroPresented = true
+        isMonthlyHeroLoading = false
+
+        guard facts.canAskKeel, MonthlyHeroEngine.allowsLiveInsight(plan: plan) else {
+            if !force { MonthlyHeroStore.save(draft) }
+            return
+        }
+
+        isMonthlyHeroLoading = true
+        let brief = makeCoachBrief()
+        KeelIslandActivityController.begin(label: "Month")
+        let result = await GrokClient.shared.monthlyHeroInsight(brief: brief, facts: facts)
+        KeelIslandActivityController.end()
+        let insight = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        draft.insight = insight.isEmpty ? facts.ruleInsight : insight
+        draft.usedNetwork = result.usedNetwork
+        draft.generatedAt = Date()
+        monthlyHero = draft
+        monthlyHeroStreamInsight = draft.insight
+        isMonthlyHeroLoading = false
+        if !force { MonthlyHeroStore.save(draft) }
     }
 
     private func applyMondayCardCache(_ cached: MondayCardPayload) {
@@ -2322,8 +2450,14 @@ final class ScaleSessionViewModel: ObservableObject {
         isWeighInPresented = false
         WeighInLiveActivityController.end()
         isResultsPresented = true
-        if MondayCardEngine.shouldOfferAfterWeighIn() {
+        let offerMonday = MondayCardEngine.shouldOfferAfterWeighIn()
+        let offerMonthly = MonthlyHeroEngine.shouldOfferAfterWeighIn()
+        if offerMonday {
+            pendingMonthlyAfterMonday = offerMonthly
+            pendingMonthlyWeighKg = offerMonthly ? kg : nil
             await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
+        } else if offerMonthly {
+            await presentMonthlyHeroIfNeeded(weighInKg: kg, force: false)
         }
     }
 
@@ -2608,8 +2742,11 @@ final class ScaleSessionViewModel: ObservableObject {
             }
             pendingSpikeVerdict = nil
             let offerMonday = MondayCardEngine.shouldOfferAfterWeighIn()
+            let offerMonthly = MonthlyHeroEngine.shouldOfferAfterWeighIn()
             pendingMondayAfterHero = offerMonday
             pendingMondayWeighKg = offerMonday ? weighKg : nil
+            pendingMonthlyAfterHero = offerMonthly
+            pendingMonthlyWeighKg = offerMonthly ? weighKg : nil
             isWeighInHeroPresented = true
         } catch {
             phase = .healthKitFailed(error.localizedDescription)

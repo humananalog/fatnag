@@ -132,7 +132,7 @@ final class HealthKitWriter: HealthWriting {
     func requestAuthorizationIfNeeded() async throws {
         guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
         #if DEBUG
-        if PromoCaptureMode.isActive {
+        if PromoCaptureMode.isActive || ProcessInfo.processInfo.arguments.contains("-debugMonthlyHero") {
             markAuthorizationRequested()
             return
         }

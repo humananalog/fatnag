@@ -26,6 +26,7 @@ enum ScaleDataRights {
         "thescale.coachWeeklyQuota.week",
         "thescale.mondayCard.payload",
         "thescale.mondayCard.priorSundayTargetKg",
+        "thescale.monthlyHero.payload",
         "thescale.review.successfulWeighIns",
         "thescale.review.lastPromptAt",
         "thescale.review.lastSoftDismissAt",

@@ -64,6 +64,11 @@ struct TheScaleApp: App {
     }
 
     #if DEBUG
+    /// Monthly-hero debug launch should not raise Health or notification sheets over the card.
+    private static var suppressesPermissionPrompts: Bool {
+        ProcessInfo.processInfo.arguments.contains("-debugMonthlyHero")
+    }
+
     /// `-promoShot=home|weigh|charts|alerts|progress|keel|paywall|paywall-plus-annual|…` (also accepts bare `-promoShot` + next argv).
     private static func promoShotArgument(
         _ args: [String] = ProcessInfo.processInfo.arguments
@@ -159,14 +164,14 @@ struct TheScaleApp: App {
                 // Do not prompt Health / BG tasks until onboarding finishes.
                 guard session.hasCompletedOnboarding else { return }
                 #if DEBUG
-                if PromoCaptureMode.isActive { return }
+                if PromoCaptureMode.isActive || Self.suppressesPermissionPrompts { return }
                 #endif
                 schedulePostOnboardingWork()
             }
             .onChange(of: session.hasCompletedOnboarding) { _, completed in
                 guard completed else { return }
                 #if DEBUG
-                if PromoCaptureMode.isActive { return }
+                if PromoCaptureMode.isActive || Self.suppressesPermissionPrompts { return }
                 #endif
                 schedulePostOnboardingWork()
             }
@@ -174,7 +179,7 @@ struct TheScaleApp: App {
                 AppSceneActivity.isActive = (scenePhase == .active)
                 guard scenePhase == .active, session.hasCompletedOnboarding else { return }
                 #if DEBUG
-                if PromoCaptureMode.isActive { return }
+                if PromoCaptureMode.isActive || Self.suppressesPermissionPrompts { return }
                 #endif
                 while !Task.isCancelled {
                     await session.runActivityPulse()
@@ -184,6 +189,9 @@ struct TheScaleApp: App {
             .onChange(of: scenePhase) { _, phase in
                 AppSceneActivity.isActive = (phase == .active)
                 guard phase == .active, session.hasCompletedOnboarding else { return }
+                #if DEBUG
+                if Self.suppressesPermissionPrompts { return }
+                #endif
                 appLanguage = AppLanguageStore.current
                 Task {
                     // Let splash / first home frame paint before Health + Metal work.

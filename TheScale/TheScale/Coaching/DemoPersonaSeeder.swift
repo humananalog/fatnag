@@ -124,6 +124,12 @@ enum DemoPersonaSeeder {
 
         _ = ScaleSubscriptionStore.shared.applyDevPlan(.plus)
 
+        // `-debugMonthlyHero` wants the in-memory series on screen immediately.
+        // Seeding HealthKit here raises the system share sheet over the card.
+        if ProcessInfo.processInfo.arguments.contains("-debugMonthlyHero") {
+            return
+        }
+
         // Real HealthKit injection (Simulator / device). Runs after UI paints;
         // first run shows the Health share sheet — capture script taps Allow.
         Task { @MainActor in

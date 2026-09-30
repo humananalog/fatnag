@@ -352,7 +352,7 @@ struct SettingsView: View {
                 Label(AppLanguageStore.text("settings.ai.usage", default: "Online AI usage"), systemImage: "chart.bar.fill")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text(AppLanguageStore.text("settings.ai.usage.help", default: "Live Keel for chat, Monday card, fitness checks, and meal plans. On-device Coach stays unlimited. Resets Monday."))
+                Text(AppLanguageStore.text("settings.ai.usage.help", default: "Live Keel for chat, Monday card, the monthly hero (Plus and Pro), fitness checks, and meal plans. Free monthly hero stays on house rules. On-device Coach stays unlimited. Resets Monday."))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -1697,6 +1697,16 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("settings.demoFemale")
+
+                Button {
+                    session.dismissSettings()
+                    session.forcePresentMonthlyHero()
+                } label: {
+                    Label("Preview monthly hero", systemImage: "sparkles")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("settings.debugMonthlyHero")
                 #endif
 
                 if let dataRightsNote {

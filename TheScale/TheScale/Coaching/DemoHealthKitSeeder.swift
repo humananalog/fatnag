@@ -59,7 +59,7 @@ enum DemoHealthKitSeeder {
 
         // Promo / ASC screenshot launches must never present the Health share sheet.
         // In-memory demo digest + weights already drive the UI for captures.
-        if PromoCaptureMode.isActive {
+        if PromoCaptureMode.isActive || ProcessInfo.processInfo.arguments.contains("-debugMonthlyHero") {
             return
         }
 

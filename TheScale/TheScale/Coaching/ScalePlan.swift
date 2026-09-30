@@ -179,6 +179,7 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
 enum CoachQuotaKind: String, Sendable {
     case chat
     case mondayCard
+    case monthlyCard
     case fitnessCheck
     case mealPlan
 
@@ -186,6 +187,7 @@ enum CoachQuotaKind: String, Sendable {
         switch self {
         case .chat: return "Coach chat"
         case .mondayCard: return "Monday card"
+        case .monthlyCard: return "Monthly card"
         case .fitnessCheck: return "Fitness check"
         case .mealPlan: return "Meal plan"
         }

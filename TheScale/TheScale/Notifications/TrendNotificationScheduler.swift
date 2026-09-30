@@ -33,6 +33,7 @@ enum TrendNotificationScheduler {
     static func requestAuthorizationIfNeeded() async -> Bool {
         #if DEBUG
         if PromoCaptureMode.isActive { return true }
+        if ProcessInfo.processInfo.arguments.contains("-debugMonthlyHero") { return false }
         #endif
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
