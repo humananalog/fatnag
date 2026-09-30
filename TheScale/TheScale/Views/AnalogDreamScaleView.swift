@@ -3,7 +3,8 @@ import UIKit
 
 /// Real bathroom-scale UX: fixed marker at 12 o'clock; dial disc rotates under it.
 /// Tick spacing and major/minor marks follow **only** the selected unit system
-/// (kg **or** lb — never both rings at once).
+/// (kg **or** lb — never both rings at once). The minimum and maximum marks of
+/// that unit's range sit on a 350° arc.
 struct AnalogDreamScaleView: View {
     @Binding var weightKg: Double
     var boundsKg: ClosedRange<Double>
@@ -57,7 +58,8 @@ struct AnalogDreamScaleView: View {
     }
 
     private var discRotation: Angle {
-        .degrees(-(displayValue - layout.alignedLower) * layout.degreesPerUnit)
+        // 0° puts the minimum mark under the needle; the maximum sits 350° around the disc.
+        .degrees(-(displayValue - layout.boundsDisplay.lowerBound) * layout.degreesPerUnit)
     }
 
     private var discWindowOffsetY: CGFloat {
@@ -212,7 +214,7 @@ struct AnalogDreamScaleView: View {
                 let inBand = display >= lo - 0.01 && display <= hi + 0.01
                 guard inBand else { continue }
 
-                let degFromZero = Double(i) * step * degreesPer
+                let degFromZero = (display - lo) * degreesPer
                 // 0° = +x (3 o'clock), -90° = 12 o'clock.
                 let deg = -90 + degFromZero
                 let rad = deg * .pi / 180
@@ -316,6 +318,10 @@ struct AnalogDreamScaleView: View {
 
 /// Single-unit dial geometry. Built only for metric **or** imperial — never both.
 struct AnalogScaleLayout: Equatable, Sendable {
+    /// Min mark at 0° and max mark at this angle. The remaining 10° is the gap
+    /// so the two ends do not sit on top of each other.
+    static let dialArcDegrees: Double = 350
+
     var system: PreferredUnitSystem
     var minorStep: Double
     var majorStep: Double
@@ -331,10 +337,13 @@ struct AnalogScaleLayout: Equatable, Sendable {
     ) -> AnalogScaleLayout {
         let minor: Double = system == .metric ? 0.5 : 1.0
         let major: Double = 5.0
-        let degrees: Double = system == .metric ? 5 : 2.5
         let lo = UnitFormat.mass(fromKg: boundsKg.lowerBound, system: system)
         let hi = UnitFormat.mass(fromKg: boundsKg.upperBound, system: system)
         let bounds = min(lo, hi)...max(lo, hi)
+        let span = max(bounds.upperBound - bounds.lowerBound, minor)
+        // Same 350° arc for every unit system; kg and lb just change how many
+        // marks share that arc.
+        let degrees = dialArcDegrees / span
         let alignedLo = (bounds.lowerBound / minor).rounded(.down) * minor
         let alignedHi = (bounds.upperBound / minor).rounded(.up) * minor
         let count = max(Int(((alignedHi - alignedLo) / minor).rounded()), 1)

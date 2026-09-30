@@ -44,6 +44,32 @@ final class ScaleCalibrationTests: XCTestCase {
         XCTAssertTrue(metricSet.isDisjoint(with: imperialSet))
     }
 
+    func testMinAndMaxMarksSpan350DegreesPerUnitSystem() {
+        let boundsKg: ClosedRange<Double> = 60...90
+        let wideKg: ClosedRange<Double> = 40...180
+        for system in [PreferredUnitSystem.metric, PreferredUnitSystem.imperial] {
+            for bounds in [boundsKg, wideKg] {
+                let layout = AnalogScaleLayout.make(boundsKg: bounds, system: system)
+                let span = layout.boundsDisplay.upperBound - layout.boundsDisplay.lowerBound
+                XCTAssertGreaterThan(span, 0)
+                XCTAssertEqual(span * layout.degreesPerUnit, AnalogScaleLayout.dialArcDegrees, accuracy: 0.001)
+                XCTAssertEqual(AnalogScaleLayout.dialArcDegrees, 350, accuracy: 0.001)
+                // In-band marks stay on the arc and never lap a second time around the disc.
+                let marks = layout.displayTicks()
+                XCTAssertGreaterThanOrEqual(marks.count, 2)
+                let first = (marks[0] - layout.boundsDisplay.lowerBound) * layout.degreesPerUnit
+                let last = (marks[marks.count - 1] - layout.boundsDisplay.lowerBound) * layout.degreesPerUnit
+                XCTAssertGreaterThanOrEqual(first, -0.001)
+                XCTAssertLessThanOrEqual(last, AnalogScaleLayout.dialArcDegrees + 0.001)
+            }
+        }
+
+        let metric = AnalogScaleLayout.make(boundsKg: boundsKg, system: .metric)
+        let imperial = AnalogScaleLayout.make(boundsKg: boundsKg, system: .imperial)
+        XCTAssertNotEqual(metric.degreesPerUnit, imperial.degreesPerUnit)
+        XCTAssertGreaterThan(metric.degreesPerUnit, imperial.degreesPerUnit)
+    }
+
     func testIdentityByDefault() {
         let cal = ScaleCalibration.default
         XCTAssertEqual(cal.apply(toRawKg: 80.0), 80.0, accuracy: 0.0001)
