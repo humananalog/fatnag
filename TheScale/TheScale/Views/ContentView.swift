@@ -290,13 +290,11 @@ struct ContentView: View {
                         }
                     } label: {
                         Label(AppLanguageStore.text("home.weigh_now", default: "Weigh now"), systemImage: "scalemass.fill")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color(red: 0.12, green: 0.42, blue: 0.30))
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                    .buttonStyle(ScalePrimaryButtonStyle(accent: atmosphere.accent))
+                    .padding(.horizontal, ScaleLayout.pageInset)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
                     .accessibilityIdentifier("home.weighNow")
                     .accessibilityLabel(AppLanguageStore.text("home.weigh_now", default: "Weigh now"))
                 }
@@ -317,9 +315,9 @@ struct ContentView: View {
             let compact = height > 0 && height < 720
             ScrollView(.vertical, showsIndicators: false) {
                 homeColumn(compact: compact)
-                    .padding(.horizontal, 22)
+                    .padding(.horizontal, ScaleLayout.pageInset)
                     .padding(.top, 8)
-                    .padding(.bottom, 20)
+                    .padding(.bottom, ScaleLayout.tabBarClearance)
                     .frame(maxWidth: .infinity, minHeight: height, alignment: .top)
             }
             .refreshable {
@@ -385,10 +383,10 @@ struct ContentView: View {
 
     private func adviceBlock(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(AppLanguageStore.text("home.insight", default: "INSIGHT"))
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .tracking(1.0)
-                .foregroundStyle(atmosphere.ink.opacity(0.55))
+            ScaleEyebrow(
+                title: AppLanguageStore.text("home.insight", default: "Insight"),
+                color: atmosphere.ink.opacity(0.55)
+            )
 
             Text(surface.todayAdvice)
                 .font(.system(size: compact ? 18 : 21, weight: .bold, design: .serif))

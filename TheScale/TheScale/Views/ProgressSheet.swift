@@ -149,8 +149,8 @@ struct ProgressSheet: View {
                         .padding(.top, 12)
                         .progressButtonRise(revealed: roastButtonIn, reduceMotion: reduceMotion)
                 }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 36)
+                .padding(.horizontal, ScaleLayout.pageInset)
+                .padding(.bottom, ScaleLayout.tabBarClearance)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .scrollIndicators(.hidden)
@@ -205,10 +205,7 @@ struct ProgressSheet: View {
     }
 
     private var statusBlock: some View {
-        Text(surface.statusHeadline.uppercased())
-            .font(.system(size: 14, weight: .heavy, design: .rounded))
-            .tracking(2.2)
-            .foregroundStyle(atmosphere.accent)
+        ScaleEyebrow(title: surface.statusHeadline, color: atmosphere.accent, loud: true)
             .accessibilityIdentifier("progress.status")
     }
 

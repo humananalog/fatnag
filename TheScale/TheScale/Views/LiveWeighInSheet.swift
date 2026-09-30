@@ -1123,40 +1123,6 @@ struct TrendAtmosphereBackground: View {
     }
 }
 
-struct ScalePrimaryButtonStyle: ButtonStyle {
-    let accent: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 16, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white)
-            .padding(.vertical, 14)
-            .background(
-                accent.opacity(configuration.isPressed ? 0.75 : 1.0),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
-
-struct ScaleSecondaryButtonStyle: ButtonStyle {
-    let accent: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 16, weight: .semibold, design: .rounded))
-            .foregroundStyle(accent)
-            .padding(.vertical, 14)
-            .background(
-                .white.opacity(configuration.isPressed ? 0.35 : 0.55),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
-
 #Preview("Weigh-in") {
     LiveWeighInSheet()
         .environmentObject(ScaleSessionViewModel())

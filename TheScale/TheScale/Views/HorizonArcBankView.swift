@@ -33,10 +33,10 @@ struct HorizonArcBankView: View {
 
     private var sundayHero: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(AppLanguageStore.text("horizon.sunday_target", default: "SUNDAY TARGET"))
-                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                .tracking(1.2)
-                .foregroundStyle(ink.opacity(0.55))
+            ScaleEyebrow(
+                title: AppLanguageStore.text("horizon.sunday_target", default: "Sunday target"),
+                color: ink.opacity(0.55)
+            )
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if let kg = sundayTargetKg {
@@ -123,10 +123,10 @@ struct HorizonArcBankView: View {
 
     private var activityGauges: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(AppLanguageStore.text("horizon.today", default: "TODAY"))
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .tracking(1.0)
-                .foregroundStyle(ink.opacity(0.55))
+            ScaleEyebrow(
+                title: AppLanguageStore.text("horizon.today", default: "Today"),
+                color: ink.opacity(0.55)
+            )
 
             HStack(alignment: .top, spacing: 16) {
                 ForEach(metrics, id: \.kind) { row in

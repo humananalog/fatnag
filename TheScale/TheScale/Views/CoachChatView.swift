@@ -34,7 +34,7 @@ struct CoachChatView: View {
                             bubble(turn).id(turn.id)
                         }
                     }
-                    .padding(20)
+                    .padding(ScaleLayout.pageInset)
                 }
                 .onChange(of: chat.turns.count) { _, _ in
                     scrollToLatest(proxy)
@@ -124,25 +124,28 @@ struct CoachChatView: View {
     }
 
     private var header: some View {
-        HStack {
-            Button { session.dismissCoach() } label: {
-                Image(systemName: "xmark")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .frame(width: 36, height: 36)
-                    .scaleGlassCircle()
-            }
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(AppLanguageStore.text("coach.title", default: "Coach"))
                     .font(.system(size: 26, weight: .semibold, design: .serif))
                     .foregroundStyle(.white)
                 Text(statusLine)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(signal.opacity(0.85))
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.42))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            Spacer()
+            Spacer(minLength: 8)
+            Button { session.dismissCoach() } label: {
+                Image(systemName: "chevron.down")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .frame(width: 36, height: 36)
+                    .scaleGlassCircle()
+            }
+            .accessibilityLabel(AppLanguageStore.text("common.dismiss", default: "Dismiss"))
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, ScaleLayout.pageInset)
         .padding(.top, 12)
         .padding(.bottom, 8)
     }
@@ -152,17 +155,13 @@ struct CoachChatView: View {
             return "Proxy URL broken"
         }
         if chat.isSending {
-            return "Streaming…"
+            return AppLanguageStore.text("coach.streaming", default: "Streaming…")
         }
         let snap = subscription.quotaSnapshot
-        let quota = "\(snap.remaining)/\(snap.limit) wk"
-        let fm = OnDevicePolishBootstrap.combinedOnDeviceLabel
         if GrokSharedConfig.isLiveConfigured {
-            let mem = chat.rememberedCount
-            let base = CoachPersona.liveBadge(memoryCount: mem)
-            return "\(base) · \(quota) · \(fm)"
+            return "\(snap.remaining)/\(snap.limit) this week"
         }
-        return "Mock / offline · \(quota) · \(fm)"
+        return AppLanguageStore.text("coach.offline", default: "Offline")
     }
 
     private var privacyLine: some View {
@@ -176,7 +175,7 @@ struct CoachChatView: View {
         )
         .font(.system(size: 12, weight: .medium, design: .rounded))
         .foregroundStyle(.white.opacity(0.5))
-        .padding(.horizontal, 20)
+        .padding(.horizontal, ScaleLayout.pageInset)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, 8)
     }
@@ -328,8 +327,8 @@ struct CoachChatView: View {
                 : AppLanguageStore.text("coach.send", default: "Send"))
             .disabled(chat.isSending || chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, ScaleLayout.pageInset)
+        .padding(.vertical, ScaleLayout.chromeInset)
     }
 }
 

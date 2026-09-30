@@ -746,10 +746,17 @@ struct WeighInResultsView: View {
             }
 
             if samples.isEmpty {
-                Text(emptyCopy)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.7))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                VStack(spacing: 10) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(atmosphere.accent.opacity(0.45))
+                    Text(emptyCopy)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(atmosphere.accent.opacity(0.72))
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .padding(.vertical, 28)
             } else {
                 // Chart chrome (axes/legend/scroll) must stay on the Chart itself.
                 // Applying chart* modifiers here after a ViewBuilder if/else wraps the

@@ -131,8 +131,9 @@ struct SettingsView: View {
                 sectionLabel(AppLanguageStore.text("settings.section.app", default: "App"))
                 aboutCard
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, ScaleLayout.pageInset)
+            .padding(.top, 16)
+            .padding(.bottom, ScaleLayout.tabBarClearance)
         }
         .task {
             syncBodyFatTextFromProfile()
@@ -327,12 +328,8 @@ struct SettingsView: View {
     }
 
     private func sectionLabel(_ title: String) -> some View {
-        Text(title.uppercased())
-            .font(.system(size: 12, weight: .bold, design: .rounded))
-            .foregroundStyle(steel)
-            .tracking(1.0)
+        ScaleEyebrow(title: title, color: steel)
             .padding(.bottom, -12)
-            .accessibilityAddTraits(.isHeader)
     }
 
     private func settingsPanel<Content: View>(@ViewBuilder content: () -> Content) -> some View {

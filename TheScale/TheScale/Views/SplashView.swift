@@ -246,8 +246,9 @@ struct FirstLaunchLandingView: View {
                     }
                 }
             }
-            .padding(.horizontal, 22)
-            .padding(.bottom, 18)
+            .padding(.horizontal, ScaleLayout.pageInset)
+            .safeAreaPadding(.top, 8)
+            .safeAreaPadding(.bottom, 18)
         }
         .preferredColorScheme(.dark)
         .statusBarHidden(true)

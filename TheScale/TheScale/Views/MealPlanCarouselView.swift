@@ -77,7 +77,8 @@ struct MealPlanCarouselView: View {
                     }
                 }
                 .padding(.vertical, 20)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, ScaleLayout.pageInset)
+                .padding(.bottom, ScaleLayout.tabBarClearance)
             }
             .navigationTitle(AppLanguageStore.text("meal.title", default: "Meal plan"))
             .navigationBarTitleDisplayMode(.inline)
@@ -136,21 +137,29 @@ struct MealPlanCarouselView: View {
     }
 
     private var emptyPlan: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Spacer(minLength: 12)
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(ink.opacity(0.2), lineWidth: 1.5)
-                .frame(maxWidth: .infinity)
-                .frame(height: 180)
+        VStack(alignment: .leading, spacing: 14) {
+            Spacer(minLength: 20)
+            Image(systemName: "fork.knife")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(accents.first ?? ink)
+                .frame(width: 56, height: 56)
+                .background((accents.first ?? ink).opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             Text(session.isMealPlanLoading
                  ? AppLanguageStore.text("meal.writing", default: "Keel is writing meals. You can keep moving.")
                  : AppLanguageStore.text("meal.empty", default: "No meal plan yet."))
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundStyle(ink)
                 .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 12)
+            if !session.isMealPlanLoading {
+                Text(AppLanguageStore.text("meal.empty.hint", default: "Pull refresh, or weigh in — Keel fills the plate from your deficit."))
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 20)
         }
-        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
     }
 
     private func mealCard(_ meal: MealPlanMeal, accent: Color) -> some View {
