@@ -6,6 +6,7 @@ enum LlamaMetalEngineError: Error, LocalizedError {
     case couldNotCreateContext
     case decodeFailed
     case emptyPrompt
+    case batchOverflow
 
     var errorDescription: String? {
         switch self {
@@ -13,6 +14,7 @@ enum LlamaMetalEngineError: Error, LocalizedError {
         case .couldNotCreateContext: return "Could not create Metal context."
         case .decodeFailed: return "On-device polish decode failed."
         case .emptyPrompt: return "Empty polish prompt."
+        case .batchOverflow: return "On-device polish prompt too long for batch."
         }
     }
 }
@@ -25,7 +27,13 @@ final class LlamaMetalEngine: @unchecked Sendable {
     private var vocab: OpaquePointer?
     private var sampling: UnsafeMutablePointer<llama_sampler>?
     private var batch: llama_batch?
+    private var batchCapacity: Int32 = 0
     private var backendReady = false
+
+    /// Keep generation headroom inside the batch / context window.
+    private static let batchCapacity: Int32 = 1024
+    private static let contextSize: UInt32 = 1024
+    private static let generationReserve: Int = 96
 
     deinit {
         unloadLocked()
@@ -61,7 +69,7 @@ final class LlamaMetalEngine: @unchecked Sendable {
 
         let nThreads = max(1, min(6, ProcessInfo.processInfo.processorCount - 1))
         var ctxParams = llama_context_default_params()
-        ctxParams.n_ctx = 1024
+        ctxParams.n_ctx = Self.contextSize
         ctxParams.n_threads = Int32(nThreads)
         ctxParams.n_threads_batch = Int32(nThreads)
 
@@ -72,7 +80,8 @@ final class LlamaMetalEngine: @unchecked Sendable {
             throw LlamaMetalEngineError.couldNotCreateContext
         }
         context = ctx
-        batch = llama_batch_init(512, 0, 1)
+        batchCapacity = Self.batchCapacity
+        batch = llama_batch_init(batchCapacity, 0, 1)
 
         let sparams = llama_sampler_chain_default_params()
         let chain = llama_sampler_chain_init(sparams)
@@ -96,17 +105,32 @@ final class LlamaMetalEngine: @unchecked Sendable {
         guard let context, let vocab, let sampling, var batch else {
             throw LlamaMetalEngineError.couldNotCreateContext
         }
+        let capacity = Int(batchCapacity)
+        guard capacity > Self.generationReserve else {
+            throw LlamaMetalEngineError.couldNotCreateContext
+        }
 
         llama_kv_self_clear(context)
 
-        let tokens = tokenize(text: trimmed, vocab: vocab, addBOS: true)
+        var tokens = tokenize(text: trimmed, vocab: vocab, addBOS: true)
         guard !tokens.isEmpty else { throw LlamaMetalEngineError.emptyPrompt }
+
+        // Culture / language-lock prompts can exceed the old 512 batch and crash on
+        // force-unwrapped seq_id. Keep a generation reserve inside capacity.
+        let maxPromptTokens = max(32, capacity - Self.generationReserve)
+        if tokens.count > maxPromptTokens {
+            tokens = Array(tokens.suffix(maxPromptTokens))
+        }
 
         llama_batch_clear(&batch)
         for (i, token) in tokens.enumerated() {
-            llama_batch_add(&batch, token, Int32(i), [0], false)
+            try llama_batch_add(&batch, token, Int32(i), [0], false, capacity: capacity)
         }
-        batch.logits[Int(batch.n_tokens) - 1] = 1
+        let last = Int(batch.n_tokens) - 1
+        guard last >= 0, batch.logits != nil else {
+            throw LlamaMetalEngineError.batchOverflow
+        }
+        batch.logits[last] = 1
         if llama_decode(context, batch) != 0 {
             throw LlamaMetalEngineError.decodeFailed
         }
@@ -130,7 +154,7 @@ final class LlamaMetalEngine: @unchecked Sendable {
             }
 
             llama_batch_clear(&batch)
-            llama_batch_add(&batch, tokenID, nCur, [0], true)
+            try llama_batch_add(&batch, tokenID, nCur, [0], true, capacity: capacity)
             nCur += 1
             if llama_decode(context, batch) != 0 {
                 throw LlamaMetalEngineError.decodeFailed
@@ -150,6 +174,7 @@ final class LlamaMetalEngine: @unchecked Sendable {
         sampling = nil
         if let batch { llama_batch_free(batch) }
         batch = nil
+        batchCapacity = 0
         if let context { llama_free(context) }
         context = nil
         if let model { llama_model_free(model) }
@@ -211,15 +236,28 @@ private func llama_batch_add(
     _ id: llama_token,
     _ pos: llama_pos,
     _ seqIDs: [llama_seq_id],
-    _ logits: Bool
-) {
+    _ logits: Bool,
+    capacity: Int
+) throws {
     let i = Int(batch.n_tokens)
-    batch.token[i] = id
-    batch.pos[i] = pos
-    batch.n_seq_id[i] = Int32(seqIDs.count)
-    for (j, seq) in seqIDs.enumerated() {
-        batch.seq_id[i]![j] = seq
+    guard i >= 0, i < capacity else {
+        throw LlamaMetalEngineError.batchOverflow
     }
-    batch.logits[i] = logits ? 1 : 0
+    guard let tokenPtr = batch.token,
+          let posPtr = batch.pos,
+          let nSeqPtr = batch.n_seq_id,
+          let seqIdRoot = batch.seq_id,
+          let seqIdRow = seqIdRoot[i],
+          let logitsPtr = batch.logits
+    else {
+        throw LlamaMetalEngineError.batchOverflow
+    }
+    tokenPtr[i] = id
+    posPtr[i] = pos
+    nSeqPtr[i] = Int32(seqIDs.count)
+    for (j, seq) in seqIDs.enumerated() {
+        seqIdRow[j] = seq
+    }
+    logitsPtr[i] = logits ? 1 : 0
     batch.n_tokens += 1
 }

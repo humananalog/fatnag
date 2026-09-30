@@ -46,6 +46,12 @@ public final class OnDevicePolishService: ObservableObject {
         return OnDevicePolishInstaller.shared.modelFileURL.path
     }
 
+    private func polishPrompt(voice: String, body: String) -> String {
+        // Keep prompts inside the Metal batch window; long culture/language locks used to crash.
+        let trimmedVoice = voice.count > 900 ? String(voice.prefix(900)) : voice
+        return trimmedVoice + "\n\n" + body
+    }
+
     public func refineNotificationCopy(
         profileName: String,
         kind: String,
@@ -57,12 +63,12 @@ public final class OnDevicePolishService: ObservableObject {
         guard let modelPath = modelPathIfReady else { return (fallbackTitle, fallbackBody, false) }
         let name = profileName.isEmpty ? "Hey" : profileName
         let voice = voiceRules ?? defaultVoice
-        let prompt = """
-            \(voice)
-
+        let prompt = polishPrompt(
+            voice: voice,
+            body: """
             Draft a local notification for \(name).
             Kind: \(kind)
-            Context: \(context)
+            Context: \(String(context.prefix(280)))
             Fallback title: \(fallbackTitle)
             Fallback body: \(fallbackBody)
             Prefer a sharper rewrite of the fallback; keep the same facts.
@@ -72,6 +78,7 @@ public final class OnDevicePolishService: ObservableObject {
             TITLE: ...
             BODY: ...
             """
+        )
         do {
             let raw = try await worker.complete(modelPath: modelPath, prompt: prompt, maxTokens: 120)
             let parsed = OnDevicePolishParsers.parseTitleBody(
@@ -97,13 +104,13 @@ public final class OnDevicePolishService: ObservableObject {
         }
         let name = profileName.isEmpty ? "Hey" : profileName
         let voice = voiceRules ?? defaultVoice
-        let prompt = """
-            \(voice)
-
+        let prompt = polishPrompt(
+            voice: voice,
+            body: """
             Decide if \(name) should get a local notification now.
             Kind: \(kind)
-            Algorithmic reason: \(algorithmicReason)
-            Extra: \(extraContext.isEmpty ? "none" : extraContext)
+            Algorithmic reason: \(String(algorithmicReason.prefix(220)))
+            Extra: \(extraContext.isEmpty ? "none" : String(extraContext.prefix(160)))
             Rules: allow necessary bad-trend, Watch-wear, and pre-sleep HR missing/elevated pings.
             Suppress only if the signal is clearly noise.
             When unsure, allow the ping.
@@ -111,6 +118,7 @@ public final class OnDevicePolishService: ObservableObject {
             NOTIFY: yes|no
             REASON: ...
             """
+        )
         do {
             let raw = try await worker.complete(modelPath: modelPath, prompt: prompt, maxTokens: 80)
             let parsed = OnDevicePolishParsers.parseNotify(raw)
@@ -130,14 +138,15 @@ public final class OnDevicePolishService: ObservableObject {
         guard !digest.isEmpty else { return nil }
         let name = profileName.isEmpty ? "Hey" : profileName
         let voice = voiceRules ?? defaultVoice
-        let prompt = """
-            \(voice)
-
+        let prompt = polishPrompt(
+            voice: voice,
+            body: """
             \(name) asked for a quick private read of this Apple Health digest.
             Stay on-device. Under 90 words. One next action if obvious.
             Digest:
-            \(digest)
+            \(String(digest.prefix(1200)))
             """
+        )
         do {
             let raw = try await worker.complete(modelPath: modelPath, prompt: prompt, maxTokens: 180)
             let clean = OnDevicePolishParsers.sanitize(raw)
@@ -155,15 +164,16 @@ public final class OnDevicePolishService: ObservableObject {
         let trimmed = userText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 12 else { return [] }
         let voice = voiceRules ?? defaultVoice
-        let prompt = """
-            \(voice)
-
+        let prompt = polishPrompt(
+            voice: voice,
+            body: """
             Extract durable personal facts worth remembering for a fitness coach.
             Only keep diet, training, lifestyle constraints the user stated about themselves.
             Skip one-off questions and reminder scheduling.
-            User said: \(trimmed)
+            User said: \(String(trimmed.prefix(600)))
             Reply as a bullet list, one fact per line starting with "- ". Empty if none.
             """
+        )
         do {
             let raw = try await worker.complete(modelPath: modelPath, prompt: prompt, maxTokens: 120)
             return raw
