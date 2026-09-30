@@ -6,7 +6,8 @@ import UserNotifications
 /// Main Thread Checker pauses (and freezes) Debug launches when that happens.
 enum AppSceneActivity: Sendable {
     private static let lock = NSLock()
-    private static var _isActive = true
+    /// Guarded by `lock`; annotated for Swift 6 shared-mutable diagnostics.
+    private nonisolated(unsafe) static var _isActive = true
 
     static var isActive: Bool {
         get {

@@ -190,7 +190,6 @@ enum WeeklyGoalSurfaceEngine {
             && abs(movedDelta ?? 0) < 0.08
         // Missing baseline stays nil so Monday does not paint "on track" at 0%.
         let fractionForBand: Double? = earlyWeekQuiet ? rawFraction.map { min($0, 0.12) } : rawFraction
-        let fraction = fractionForBand ?? 0
         let percent = Int((min(max(earlyWeekQuiet ? 0 : (rawFraction ?? 0), 0), 1.2) * 100).rounded())
 
         var band = trackBand(

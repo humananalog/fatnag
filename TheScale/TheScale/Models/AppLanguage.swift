@@ -330,9 +330,9 @@ enum AppLanguageStore {
 /// SwiftUI `.environment(\.locale)` does not affect `String(localized:)`; this does.
 enum StringCatalogLookup {
     private static let lock = NSLock()
-    /// language → (key → value). Cleared on language change.
-    private static var cache: [String: [String: String]] = [:]
-    private static var bundleCache: [String: Bundle] = [:]
+    /// language → (key → value). Cleared on language change. Guarded by `lock`.
+    private nonisolated(unsafe) static var cache: [String: [String: String]] = [:]
+    private nonisolated(unsafe) static var bundleCache: [String: Bundle] = [:]
 
     static func invalidateCache() {
         lock.lock()
@@ -393,7 +393,8 @@ enum StringCatalogLookup {
 
 enum AppLanguageBundleInstaller {
     private static let lock = NSLock()
-    private static var _didInstall = false
+    /// Guarded by `lock`.
+    private nonisolated(unsafe) static var _didInstall = false
 
     static func installIfNeeded() {
         lock.lock()

@@ -14,7 +14,7 @@ enum TrendNotificationScheduler {
     /// Min calendar days between bad-trend schedules.
     nonisolated static let badTrendMinDaysBetweenFires = 3
 
-    private static let lastBadTrendDayKey = "thescale.badTrend.lastFireDay"
+    private nonisolated static let lastBadTrendDayKey = "thescale.badTrend.lastFireDay"
 
     /// Fires once when the goal date is biologically unrealistic and commando meals start.
     static func scheduleGoalRevision(proposed: Date) async {

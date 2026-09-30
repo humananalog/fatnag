@@ -11,9 +11,9 @@ import UserNotifications
 /// - Sleep-wake ASAP when Health has wake (before 08:00); calendar fallback otherwise.
 @MainActor
 enum MorningWeighDrillScheduler {
-    static let requestId = "thescale.morning-weigh-drill"
-    static let fallbackRequestId = "thescale.morning-weigh-fallback"
-    static let testRequestId = "thescale.morning-weigh-test"
+    nonisolated static let requestId = "thescale.morning-weigh-drill"
+    nonisolated static let fallbackRequestId = "thescale.morning-weigh-fallback"
+    nonisolated static let testRequestId = "thescale.morning-weigh-test"
     private static let lastFiredDayKey = "thescale.morningWeighDrill.lastFiredDay"
     /// Match window when comparing pending vs intended fire (calendar trigger rebuild noise).
     nonisolated static let fireDateMatchTolerance: TimeInterval = 60

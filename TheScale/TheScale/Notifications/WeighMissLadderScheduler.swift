@@ -8,32 +8,32 @@ import UserNotifications
 /// Shares morning drill pref for evening/streak; weekly pref for Mon/Sun.
 @MainActor
 enum WeighMissLadderScheduler {
-    static let eveningId = "thescale.weigh-miss.evening"
-    static let streakId = "thescale.weigh-miss.streak"
-    static let mondaySkipId = "thescale.weigh-miss.monday-skip"
-    static let sundayWrapId = "thescale.weigh-miss.sunday-wrap"
+    nonisolated static let eveningId = "thescale.weigh-miss.evening"
+    nonisolated static let streakId = "thescale.weigh-miss.streak"
+    nonisolated static let mondaySkipId = "thescale.weigh-miss.monday-skip"
+    nonisolated static let sundayWrapId = "thescale.weigh-miss.sunday-wrap"
 
     static let maxMissPerDay = 1
     static let maxMissPerWeek = 3
     /// Soft evening slot (local).
-    static let eveningHour = 18
-    static let eveningMinute = 30
+    nonisolated static let eveningHour = 18
+    nonisolated static let eveningMinute = 30
     /// Latest hour to still deliver evening same-day.
-    static let eveningWindowEndHour = 21
+    nonisolated static let eveningWindowEndHour = 21
     /// Mid-afternoon window for multi-day streak nudges.
-    static let streakHour = 15
-    static let streakMinute = 0
-    static let streakWindowEndHour = 20
+    nonisolated static let streakHour = 15
+    nonisolated static let streakMinute = 0
+    nonisolated static let streakWindowEndHour = 20
     /// Monday Progress soft ping if still no Mon weigh.
-    static let mondaySkipHour = 12
+    nonisolated static let mondaySkipHour = 12
     /// Sunday wrap (gentle, not a siren).
     static let sundayWrapHour = 18
     static let sundayWrapMinute = 0
 
-    private static let lastMissDayKey = "thescale.weighMiss.lastDay"
-    private static let missWeekDaysKey = "thescale.weighMiss.weekDays"
-    private static let mondaySkipWeekKey = "thescale.weighMiss.mondaySkipWeek"
-    private static let sundayWrapWeekKey = "thescale.weighMiss.sundayWrapWeek"
+    private nonisolated static let lastMissDayKey = "thescale.weighMiss.lastDay"
+    private nonisolated static let missWeekDaysKey = "thescale.weighMiss.weekDays"
+    private nonisolated static let mondaySkipWeekKey = "thescale.weighMiss.mondaySkipWeek"
+    private nonisolated static let sundayWrapWeekKey = "thescale.weighMiss.sundayWrapWeek"
 
     nonisolated static var missLadderIds: [String] {
         [eveningId, streakId]
