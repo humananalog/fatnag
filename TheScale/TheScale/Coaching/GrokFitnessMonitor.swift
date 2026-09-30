@@ -134,6 +134,7 @@ enum GrokFitnessMonitor {
         }
         let allowed = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
         guard allowed else { return }
+        guard NotificationDailyBudget.canSpend(.nag) else { return }
         let content = ScaleNotificationContentFactory.make(
             ScaleNotificationCopy.activityPulse(pulse, profileName: profileName)
         )
@@ -146,6 +147,7 @@ enum GrokFitnessMonitor {
             try await UNUserNotificationCenter.current().add(request)
             UserDefaults.standard.set(pulse.id, forKey: lastPulseIdKey)
             UserDefaults.standard.set(now, forKey: lastPulseAtKey)
+            NotificationDailyBudget.record(.nag)
         } catch {
             // Soft-fail: the next analyzer pass can try again.
         }
@@ -250,12 +252,14 @@ enum GrokFitnessMonitor {
             }
             let content = ScaleNotificationContentFactory.make(fired)
             let id = triggerNotifyPrefix + trigger.kind.rawValue
+            guard NotificationDailyBudget.canSpend(.fitness) else { continue }
             let request = UNNotificationRequest(
                 identifier: id,
                 content: content,
                 trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
             )
             try? await center.add(request)
+            NotificationDailyBudget.record(.fitness)
         }
     }
 
@@ -283,6 +287,7 @@ enum GrokFitnessMonitor {
         }
         let allowed = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
         guard allowed else { return }
+        guard NotificationDailyBudget.canSpend(.other) else { return }
 
         let content = ScaleNotificationContentFactory.make(
             ScaleNotificationCopy.keyCoachMoment(profileName: profileName, summary: trimmed)
@@ -296,6 +301,7 @@ enum GrokFitnessMonitor {
             try await UNUserNotificationCenter.current().add(request)
             UserDefaults.standard.set(hash, forKey: lastKeyMomentHashKey)
             UserDefaults.standard.set(now, forKey: lastKeyMomentAtKey)
+            NotificationDailyBudget.record(.other)
         } catch {
             // Soft-fail: analysis stays stored for Coach UI.
         }

@@ -129,6 +129,9 @@
 		A1B2C3D4E5F60718293A00HZ1 /* HazeTiltMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10HZ1 /* HazeTiltMotion.swift */; };
 		A1B2C3D4E5F60718293A00NC1 /* NotificationCenterSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10NC1 /* NotificationCenterSheet.swift */; };
 		A1B2C3D4E5F60718293A00MW1 /* MorningWeighDrillScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10MW1 /* MorningWeighDrillScheduler.swift */; };
+		A1B2C3D4E5F60718293A00ML1 /* NotificationDailyBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10ML1 /* NotificationDailyBudget.swift */; };
+		A1B2C3D4E5F60718293A00ML2 /* WeighMissLadderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10ML2 /* WeighMissLadderScheduler.swift */; };
+		A1B2C3D4E5F60718293A00ML3 /* WeighMissLadderSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10ML3 /* WeighMissLadderSchedulerTests.swift */; };
 		A1B2C3D4E5F60718293A00LA1 /* WeighInActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10LA1 /* WeighInActivityAttributes.swift */; };
 		A1B2C3D4E5F60718293A00WA1 /* WeighInActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10LA1 /* WeighInActivityAttributes.swift */; };
 		A1B2C3D4E5F60718293A00WW1 /* WeighInLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10WW1 /* WeighInLiveActivityWidget.swift */; };
@@ -295,6 +298,9 @@
 		A1B2C3D4E5F60718293A10HZ1 /* HazeTiltMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HazeTiltMotion.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10NC1 /* NotificationCenterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationCenterSheet.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10MW1 /* MorningWeighDrillScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorningWeighDrillScheduler.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10ML1 /* NotificationDailyBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDailyBudget.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10ML2 /* WeighMissLadderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeighMissLadderScheduler.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10ML3 /* WeighMissLadderSchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeighMissLadderSchedulerTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10LA1 /* WeighInActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeighInActivityAttributes.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10WW1 /* WeighInLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TheScaleWidgets/WeighInLiveActivityWidget.swift; sourceTree = SOURCE_ROOT; };
 		A1B2C3D4E5F60718293A10WI1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = TheScaleWidgets/Info.plist; sourceTree = SOURCE_ROOT; };
@@ -514,6 +520,8 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D4E5F60718293A10MW1 /* MorningWeighDrillScheduler.swift */,
+				A1B2C3D4E5F60718293A10ML1 /* NotificationDailyBudget.swift */,
+				A1B2C3D4E5F60718293A10ML2 /* WeighMissLadderScheduler.swift */,
 				A1B2C3D4E5F60718293A100F /* TrendNotificationScheduler.swift */,
 				A1B2C3D4E5F60718293A101F /* CoachReminderScheduler.swift */,
 				A1B2C3D4E5F60718293A1025 /* ScaleNotificationDelegate.swift */,
@@ -538,6 +546,7 @@
 				A1B2C3D4E5F60718293A101E /* TargetFeasibilityTests.swift */,
 				A1B2C3D4E5F60718293A1020 /* CoachReminderTests.swift */,
 				A1B2C3D4E5F60718293A10MW2 /* MorningWeighDrillSchedulerTests.swift */,
+				A1B2C3D4E5F60718293A10ML3 /* WeighMissLadderSchedulerTests.swift */,
 				A1B2C3D4E5F60718293A1023 /* FoundationModelCoachTests.swift */,
 				A1B2C3D4E5F60718293A1024 /* FitnessDigestCoachTests.swift */,
 				A1B2C3D4E5F60718293A1027 /* HealthScienceMathTests.swift */,
@@ -782,6 +791,7 @@
 				A1B2C3D4E5F60718293A001E /* TargetFeasibilityTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0020 /* CoachReminderTests.swift in Sources */,
 				A1B2C3D4E5F60718293A00MW2 /* MorningWeighDrillSchedulerTests.swift in Sources */,
+				A1B2C3D4E5F60718293A00ML3 /* WeighMissLadderSchedulerTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0023 /* FoundationModelCoachTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0024 /* FitnessDigestCoachTests.swift in Sources */,
 				A1B2C3D4E5F60718293A0027 /* HealthScienceMathTests.swift in Sources */,
@@ -898,6 +908,8 @@
 				A1B2C3D4E5F60718293A00HZ1 /* HazeTiltMotion.swift in Sources */,
 				A1B2C3D4E5F60718293A00NC1 /* NotificationCenterSheet.swift in Sources */,
 				A1B2C3D4E5F60718293A00MW1 /* MorningWeighDrillScheduler.swift in Sources */,
+				A1B2C3D4E5F60718293A00ML1 /* NotificationDailyBudget.swift in Sources */,
+				A1B2C3D4E5F60718293A00ML2 /* WeighMissLadderScheduler.swift in Sources */,
 				A1B2C3D4E5F60718293A00LA1 /* WeighInActivityAttributes.swift in Sources */,
 				A1B2C3D4E5F60718293A00SP1 /* SplashView.swift in Sources */,
 				A1B2C3D4E5F60718293A003C /* ScaleAppReviewPrompt.swift in Sources */,
@@ -934,7 +946,7 @@
 				CURRENT_PROJECT_VERSION = 147;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0.44;
+				MARKETING_VERSION = 1.0.45;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1014,7 +1026,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.44;
+				MARKETING_VERSION = 1.0.45;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1036,7 +1048,7 @@
 				CURRENT_PROJECT_VERSION = 147;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0.44;
+				MARKETING_VERSION = 1.0.45;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1066,7 +1078,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.44;
+				MARKETING_VERSION = 1.0.45;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1144,7 +1156,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.44;
+				MARKETING_VERSION = 1.0.45;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1171,7 +1183,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.44;
+				MARKETING_VERSION = 1.0.45;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

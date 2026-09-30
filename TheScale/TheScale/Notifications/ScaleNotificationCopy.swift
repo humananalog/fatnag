@@ -137,18 +137,104 @@ enum ScaleNotificationCopy {
     static func weeklyGoal(
         profileName: String,
         weeklyGoal: WeeklyMiniGoal,
+        system: PreferredUnitSystem = PreferredUnitSystemStore.load(),
+        alreadyWeighedToday: Bool = false
+    ) -> Moment {
+        let who = greet(profileName, anonymous: "Hey")
+        let delta = UnitFormat.massDeltaString(weeklyGoal.targetDeltaKg, system: system)
+        if alreadyWeighedToday {
+            return Moment(
+                kind: .weeklyGoal,
+                glanceTitle: "Goal \(delta)",
+                glanceLine: "Week locked",
+                phoneBody: "\(who). Morning mass is in. This week's plan is \(delta). Open Progress when you want the card.",
+                visualHeadline: delta,
+                visualDetail: "Monday mini-goal",
+                relevanceScore: 0.45
+            )
+        }
+        return Moment(
+            kind: .weeklyGoal,
+            glanceTitle: "Goal \(delta)",
+            glanceLine: "Weigh · lock week",
+            phoneBody: "\(who). Step on the scale, then open Progress. This week's plan is \(delta).",
+            visualHeadline: delta,
+            visualDetail: "Monday mini-goal",
+            relevanceScore: 0.55
+        )
+    }
+
+    /// Soft miss ladder — never Time Sensitive / never sergeant.
+    static func weighMiss(
+        profileName: String,
+        rung: WeighMissLadderScheduler.Rung
+    ) -> Moment {
+        let who = greet(profileName, anonymous: "Hey")
+        switch rung {
+        case .eveningSameDay:
+            return Moment(
+                kind: .weighMiss,
+                glanceTitle: "Still empty",
+                glanceLine: "Quick weigh helps",
+                phoneBody: "\(who). No morning mass yet. A quick weigh tonight still helps Progress. Open fatnag when you can.",
+                visualHeadline: "Still empty",
+                visualDetail: "Evening nudge",
+                relevanceScore: 0.68
+            )
+        case .day2:
+            return Moment(
+                kind: .weighMiss,
+                glanceTitle: "Baseline drift",
+                glanceLine: "Two days quiet",
+                phoneBody: "\(who). Two quiet days on the scale. One weigh resets the week baseline. Open when ready.",
+                visualHeadline: "Baseline drift",
+                visualDetail: "Day 2 miss",
+                relevanceScore: 0.72
+            )
+        case .day3Plus:
+            return Moment(
+                kind: .weighMiss,
+                glanceTitle: "Scale gap",
+                glanceLine: "Week needs a read",
+                phoneBody: "\(who). A few days without a weigh. Progress can't coach what it can't see. Open fatnag for a quick read.",
+                visualHeadline: "Scale gap",
+                visualDetail: "Day 3+ miss",
+                relevanceScore: 0.75
+            )
+        }
+    }
+
+    static func mondaySkip(profileName: String) -> Moment {
+        let who = greet(profileName, anonymous: "Hey")
+        return Moment(
+            kind: .mondaySkip,
+            glanceTitle: "Monday mass",
+            glanceLine: "Still open",
+            phoneBody: "\(who). Monday weigh is still open. Open Progress when you step on — the week card waits on morning mass.",
+            visualHeadline: "Monday mass",
+            visualDetail: "Noon skip",
+            relevanceScore: 0.6
+        )
+    }
+
+    static func sundayWrap(
+        profileName: String,
+        weeklyGoal: WeeklyMiniGoal,
+        band: WeeklyTrackBand?,
+        weighCount: Int,
         system: PreferredUnitSystem = PreferredUnitSystemStore.load()
     ) -> Moment {
         let who = greet(profileName, anonymous: "Hey")
         let delta = UnitFormat.massDeltaString(weeklyGoal.targetDeltaKg, system: system)
+        let bandLine = band?.statusLabel ?? "Week wrap"
         return Moment(
-            kind: .weeklyGoal,
-            glanceTitle: "Goal \(delta)",
-            glanceLine: "Monday plan",
-            phoneBody: "\(who). This week's plan is \(delta). Open Progress and lock the week.",
-            visualHeadline: delta,
-            visualDetail: "Monday mini-goal",
-            relevanceScore: 0.55
+            kind: .sundayWrap,
+            glanceTitle: bandLine,
+            glanceLine: "\(weighCount)× weigh · \(delta)",
+            phoneBody: "\(who). Sunday wrap: \(bandLine.lowercased()), \(weighCount) weigh-in\(weighCount == 1 ? "" : "s"), plan \(delta). Open Progress for the full read.",
+            visualHeadline: bandLine,
+            visualDetail: "Sunday wrap",
+            relevanceScore: 0.5
         )
     }
 

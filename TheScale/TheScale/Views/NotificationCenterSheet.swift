@@ -555,6 +555,10 @@ struct NotificationCenterSheet: View {
         case MorningWeighDrillScheduler.testRequestId: return "Test drill"
         case TrendNotificationScheduler.weeklyGoalId: return "Weekly goal"
         case TrendNotificationScheduler.badTrendId: return "Trend check"
+        case WeighMissLadderScheduler.eveningId: return "Evening miss"
+        case WeighMissLadderScheduler.streakId: return "Miss streak"
+        case WeighMissLadderScheduler.mondaySkipId: return "Monday skip"
+        case WeighMissLadderScheduler.sundayWrapId: return "Sunday wrap"
         case "thescale.key-coach-moment": return "Key moment"
         case GrokFitnessMonitor.intervalNotifyId, GrokFitnessMonitor.activityPulseId: return "Nag"
         default:

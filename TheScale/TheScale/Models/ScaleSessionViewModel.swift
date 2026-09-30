@@ -1662,7 +1662,7 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
 
-    /// After digest refresh / scene active: reconcile Weigh Now gate, then morning drill.
+    /// After digest refresh / scene active: reconcile Weigh Now gate, then morning drill + miss ladder.
     func considerMorningWeighDrill(digest: FitnessDigest? = nil) async {
         await reconcileAlreadyWeighedTodayFromHealth()
         let weighedToday = alreadyWeighedToday
@@ -1672,6 +1672,16 @@ final class ScaleSessionViewModel: ObservableObject {
             profileName: profile.greetingName,
             sleepWake: snap?.sleepWake,
             alreadyWeighedToday: weighedToday
+        )
+        await WeighMissLadderScheduler.consider(
+            prefs: notificationPreferences,
+            profileName: profile.greetingName,
+            alreadyWeighedToday: weighedToday,
+            recentWeights: historyTrendWindowWeights.isEmpty
+                ? historyWeights
+                : historyTrendWindowWeights,
+            weeklyGoal: weeklyGoal,
+            weekBand: weeklyGoalSurface.band
         )
     }
 
@@ -2058,7 +2068,7 @@ final class ScaleSessionViewModel: ObservableObject {
         let wantTrend =
             notificationPreferences.notifyOnBadTrend || notificationPreferences.weeklyGoalReminders
         let wantMorning = notificationPreferences.morningWeighDrill
-        // Morning drill alone must still wake: sleep digest + calendar fallback.
+        // Morning drill / miss ladder alone must still wake: sleep digest + calendar fallback.
         guard monitoringOn || wantTrend || wantMorning else { return false }
 
         do {
@@ -2193,6 +2203,7 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func refreshTrendNotifications() async {
+        await reconcileAlreadyWeighedTodayFromHealth()
         await TrendNotificationScheduler.refresh(
             prefs: notificationPreferences,
             profileName: profile.greetingName,
@@ -2202,6 +2213,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 ? historyWeights
                 : historyTrendWindowWeights,
             weeklyGoal: weeklyGoal,
+            alreadyWeighedToday: alreadyWeighedToday,
             sex: profile.sex,
             ageYears: profile.ageYears,
             cultureContext: CoachVoice.cultureInsightPayload(

@@ -183,6 +183,7 @@ enum MorningWeighDrillScheduler {
     static func markSatisfied(now: Date = Date(), calendar: Calendar = .current) {
         UserDefaults.standard.set(dayStamp(now, calendar: calendar), forKey: lastFiredDayKey)
         clearDeliveredAndTodayPending()
+        WeighMissLadderScheduler.markSatisfied()
         // Fallback re-armed for tomorrow on next consider().
     }
 

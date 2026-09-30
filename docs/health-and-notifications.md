@@ -78,6 +78,9 @@ All local (`UNUserNotificationCenter`). Toggles live in Settings. **2.9.0+** shi
 | Morning weigh drill | Keel · 💩 drill · **06:30** local fallback (or ASAP after Health wake); window closes **08:00**; skips if already weighed today | Open Coach / Weigh | `thescale.coach` | **Time Sensitive** |
 | Bad trend | Name + scale check · kg · reason | Open History, Progress, Snooze | `thescale.trend` | Active |
 | Monday mini-goal | Name + weekly · goal title · nudge | Open Progress, Coach | `thescale.trend` | Passive |
+| Weigh miss ladder | Soft evening / day 2–3 | Open Weigh, Snooze | `thescale.trend` | Active |
+| Monday skip | Mon noon if still empty | Open Progress | `thescale.trend` | Passive |
+| Sunday wrap | Soft week wrap (≥1 weigh) | Open Progress | `thescale.trend` | Passive |
 | Fitness interval | Name + check · interval · open hint | Open Coach | `thescale.fitness` | Passive |
 | Watch / pre-sleep HR | Name + signal · kind · message | Open Coach, Snooze | `thescale.fitness` | Active |
 | Dev sample | Name + sample · kg · QA line | Open Coach, Progress | `thescale.sample` | Active |
@@ -86,11 +89,15 @@ Also: Communication-style Coach avatar when appropriate (`INSendMessageIntent` /
 
 | Trigger | Gate | Copy |
 |---------|------|------|
-| Bad trend (above ideal + rising, or sharp weekly gain) | Algorithmic | FM polish after schedule (optional suppress) |
-| Monday mini-goal | Pref | Schedule first, FM polish optional |
+| Bad trend (above ideal + rising, or sharp weekly gain) | Algorithmic + ≥3 distinct weigh days/7d + ≥3d between fires + daily budget | FM polish after schedule (optional suppress) |
+| Monday mini-goal | Pref + Mon weigh still missing before noon (one-shot 08:15, not repeating) | Schedule first, FM polish optional |
 | Morning weigh drill (2.50.0+) | Pref on + auth; **before 08:00 local**; skip if already weighed today; **idempotent** fallback (no re-add spam) | Default **06:30** local (migrates legacy 07:30); sleep-wake ASAP when Health has wake; max once/day; vulgar 💩 Keel copy |
+| Weigh miss ladder (1.0.45+) | Pref morning drill; evening same-day after 08:00 empty; day 2–3 soft drift; ≤1/day ≤3/week; daily budget | Gentle, never Time Sensitive |
+| Monday skip (1.0.45+) | Pref weekly; Mon ≥12:00 still empty; once/ISO week | Soft Progress |
+| Sunday wrap (1.0.45+) | Pref weekly; Sun ≥18:00; ≥1 weigh this week; once/ISO week | Soft Progress |
+| Global daily budget (1.0.45+) | ≤2 non-morning banners/day (morning / Coach wake / spike exempt) | — |
 | Coach-scheduled wake / reminder | Coach parse → **schedule first** | FM polish optional (never blocks) |
-| Fitness (Watch wear / pre-sleep HR) | Algorithm + cooldown | FM judgment + polish |
+| Fitness (Watch wear / pre-sleep HR) | Algorithm + cooldown + daily budget | FM judgment + polish |
 | Fitness interval nudge | Monitor interval | FM polish |
 
 **Rule:** algorithms decide *whether work exists* and schedule local notifications; Foundation Models may refine wording afterward and may drop weak *trend/fitness* pings. Coach wake/timed reminders and morning weigh always schedule with algorithmic copy first. If Apple Intelligence is off or ineligible, algorithmic strings still fire (no silent drop regression).
