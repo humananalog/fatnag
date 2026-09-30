@@ -26,10 +26,13 @@ Client `CoachWeeklyQuota` (UserDefaults) is UX only. The Cloudflare Worker (`the
 
 ## StoreKit
 
-- Plus: `app.thescale.ios.plus.monthly`
-- Pro: `app.thescale.ios.pro.monthly`
+- Plus monthly: `app.thescale.ios.plus.monthly` ($2)
+- Plus annual: `app.thescale.ios.plus.annual` ($20 — ~2 months free vs monthly)
+- Pro monthly: `app.thescale.ios.pro.monthly` ($8)
+- Pro annual: `app.thescale.ios.pro.annual` ($80 — ~2 months free vs monthly)
+- Paywall defaults to **Annual**; Monthly is a top selector.
 - Local DEBUG: scheme uses `TheScale/Config/Products.storekit`
-- App Store Connect: create the same product IDs in one subscription group before shipping.
+- App Store Connect: create all four product IDs in one subscription group before shipping.
 
 ## Margin note
 

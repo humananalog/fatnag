@@ -9,6 +9,7 @@ private struct PaywallScrollOffsetKey: PreferenceKey {
 }
 
 /// Luxury paywall sheet. Hero kisses the top edge; Close floats over it. Width-safe.
+/// Default cadence is **Annual** (cheaper for the user, cash up front). Monthly is one tap away.
 struct PaywallView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @ObservedObject private var store = ScaleSubscriptionStore.shared
@@ -21,6 +22,9 @@ struct PaywallView: View {
     @State private var scrollY: CGFloat = 0
     @State private var appeared = false
     @State private var legalDocument: ScaleLegal.Document?
+    /// Annual first — better deal + better cashflow.
+    @State private var billingPeriod: ScaleBillingPeriod = .annual
+
 
     private var universe: ScalePaletteUniverse {
         .resolve(sex: session.profile.sex)
@@ -199,6 +203,10 @@ struct PaywallView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 18)
 
+            billingPeriodSelector
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
+
             if store.isLoading && store.products.isEmpty {
                 catalogLoading
                     .padding(.horizontal, 24)
@@ -211,7 +219,7 @@ struct PaywallView: View {
 
             tierStack
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
+                .padding(.top, 16)
 
             footer
                 .padding(.horizontal, 24)
@@ -290,6 +298,28 @@ struct PaywallView: View {
             )
     }
 
+    private var billingPeriodSelector: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker(
+                AppLanguageStore.text("paywall.billing", default: "Billing"),
+                selection: $billingPeriod
+            ) {
+                ForEach(ScaleBillingPeriod.allCases) { period in
+                    Text(period.title).tag(period)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("paywall.billingPeriod")
+
+            if billingPeriod == .annual {
+                Text(AppLanguageStore.text("paywall.annual.hint", default: "Annual locks the year in — two months free vs paying monthly."))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(gold.opacity(0.9))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
     private var usageStrip: some View {
         let snap = store.quotaSnapshot
         return VStack(alignment: .leading, spacing: 10) {
@@ -333,6 +363,8 @@ struct PaywallView: View {
         let isCurrent = plan == store.plan
         let isPro = plan == .pro
         let isStep = plan == highlighted && !isCurrent && !isPro
+        let liveProduct = store.product(for: plan, period: billingPeriod)
+        let priceText = store.priceLabel(for: plan, period: billingPeriod)
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -356,8 +388,16 @@ struct PaywallView: View {
                         .padding(.vertical, 3)
                         .background(ivory.opacity(0.14), in: Capsule())
                 }
+                if billingPeriod == .annual, let save = plan.annualSavingsLabel, !isCurrent, plan != .free {
+                    Text(save)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(red: 0.55, green: 0.78, blue: 0.62))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color(red: 0.55, green: 0.78, blue: 0.62).opacity(0.16), in: Capsule())
+                }
                 Spacer(minLength: 8)
-                Text(store.priceLabel(for: plan))
+                Text(priceText)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(isPro ? gold : mist)
                     .lineLimit(1)
@@ -378,7 +418,7 @@ struct PaywallView: View {
             if !isCurrent, plan != .free {
                 Button {
                     Task {
-                        let ok = await store.purchase(plan)
+                        let ok = await store.purchase(plan, period: billingPeriod)
                         if ok { dismiss() }
                     }
                 } label: {
@@ -401,8 +441,8 @@ struct PaywallView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(isPro ? ink : ivory)
-                .disabled(store.isBusy || store.product(for: plan) == nil)
-                .opacity(store.product(for: plan) == nil ? 0.45 : 1)
+                .disabled(store.isBusy || liveProduct == nil)
+                .opacity(liveProduct == nil ? 0.45 : 1)
                 .background {
                     if isPro {
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -435,6 +475,7 @@ struct PaywallView: View {
                 )
         )
         .shadow(color: isPro ? gold.opacity(0.18) : .clear, radius: 18, y: 8)
+        .animation(.easeInOut(duration: 0.2), value: billingPeriod)
     }
 
     private var footer: some View {
@@ -473,7 +514,17 @@ struct PaywallView: View {
             .foregroundStyle(mist)
             .disabled(store.isBusy)
             .accessibilityIdentifier("paywall.restore")
-            Text(AppLanguageStore.text("paywall.cancel_note", default: "Cancel anytime in App Store subscriptions. Auto-renews monthly until you cancel at least 24 hours before the period ends."))
+            Text(
+                billingPeriod == .annual
+                    ? AppLanguageStore.text(
+                        "paywall.cancel_note.annual",
+                        default: "Cancel anytime in App Store subscriptions. Auto-renews yearly until you cancel at least 24 hours before the period ends."
+                    )
+                    : AppLanguageStore.text(
+                        "paywall.cancel_note",
+                        default: "Cancel anytime in App Store subscriptions. Auto-renews monthly until you cancel at least 24 hours before the period ends."
+                    )
+            )
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundStyle(mist.opacity(0.75))
                 .multilineTextAlignment(.center)

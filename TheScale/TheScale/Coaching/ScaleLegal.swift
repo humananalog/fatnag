@@ -213,7 +213,7 @@ enum ScaleLegal {
 
     PLANS
     • Free: limited weekly live Keel credits; core weighing and local features.
-    • Plus / Pro: auto-renewable monthly subscriptions unlocking higher weekly Keel credits. Product IDs: app.thescale.ios.plus.monthly and app.thescale.ios.pro.monthly.
+    • Plus / Pro: auto-renewable subscriptions (monthly or annual) unlocking higher weekly Keel credits. Product IDs: app.thescale.ios.plus.monthly, app.thescale.ios.plus.annual, app.thescale.ios.pro.monthly, app.thescale.ios.pro.annual.
 
     APPLE BILLING
     Payment is charged to your Apple ID. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period in your Apple ID subscription settings. Manage or cancel in iOS Settings → Apple ID → Subscriptions. Refunds are handled by Apple under Apple’s policies.

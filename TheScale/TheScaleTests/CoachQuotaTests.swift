@@ -18,8 +18,12 @@ final class CoachQuotaTests: XCTestCase {
         XCTAssertEqual(ScalePlan.free.monthlyPriceUSD, 0)
         XCTAssertEqual(ScalePlan.plus.monthlyPriceUSD, 2)
         XCTAssertEqual(ScalePlan.pro.monthlyPriceUSD, 8)
+        XCTAssertEqual(ScalePlan.plus.annualPriceUSD, 20)
+        XCTAssertEqual(ScalePlan.pro.annualPriceUSD, 80)
         XCTAssertEqual(ScalePlan.plus.storeProductID, "app.thescale.ios.plus.monthly")
         XCTAssertEqual(ScalePlan.pro.storeProductID, "app.thescale.ios.pro.monthly")
+        XCTAssertEqual(ScalePlan.plus.storeProductID(period: .annual), "app.thescale.ios.plus.annual")
+        XCTAssertEqual(ScalePlan.pro.storeProductID(period: .annual), "app.thescale.ios.pro.annual")
     }
 
     func testUpgradeTargets() {

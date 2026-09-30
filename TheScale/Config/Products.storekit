@@ -36,9 +36,37 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "2.00",
+          "displayPrice" : "20.00",
           "familyShareable" : false,
           "groupNumber" : 1,
+          "internalID" : "A1B2C3D4E5F60718293APLUSA",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "28 live Grok credits per week. Annual — two months free vs monthly.",
+              "displayName" : "Plus Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "app.thescale.ios.plus.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Plus Annual",
+          "subscriptionGroupID" : "A1B2C3D4E5F60718293AGROUP",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.00",
+          "familyShareable" : false,
+          "groupNumber" : 2,
           "internalID" : "A1B2C3D4E5F60718293APLUS",
           "introductoryOffer" : null,
           "localizations" : [
@@ -64,9 +92,37 @@
           "codeOffers" : [
 
           ],
+          "displayPrice" : "80.00",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "A1B2C3D4E5F60718293APROA",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "120 live Grok credits per week. Annual — two months free vs monthly.",
+              "displayName" : "Pro Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "app.thescale.ios.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro Annual",
+          "subscriptionGroupID" : "A1B2C3D4E5F60718293AGROUP",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
           "displayPrice" : "8.00",
           "familyShareable" : false,
-          "groupNumber" : 2,
+          "groupNumber" : 4,
           "internalID" : "A1B2C3D4E5F60718293APROX",
           "introductoryOffer" : null,
           "localizations" : [
