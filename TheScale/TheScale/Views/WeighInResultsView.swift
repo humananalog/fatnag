@@ -100,12 +100,18 @@ struct WeighInResultsView: View {
         .sheet(isPresented: $showCommentEditor) {
             NavigationStack {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(commentMetric == .weight ? "Weight comment" : "Body fat comment")
+                    Text(commentMetric == .weight
+                         ? AppLanguageStore.text("history.comment.weight", default: "Weight comment")
+                         : AppLanguageStore.text("history.comment.body_fat", default: "Body fat comment"))
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                     Text(commentSampleDay, format: .dateTime.month().day().year())
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(.secondary)
-                    TextField("What happened that day?", text: $commentDraft, axis: .vertical)
+                    TextField(
+                        AppLanguageStore.text("history.comment.placeholder", default: "What happened that day?"),
+                        text: $commentDraft,
+                        axis: .vertical
+                    )
                         .lineLimit(3...5)
                         .textFieldStyle(.roundedBorder)
                     Text("\(commentDraft.count)/\(ChartCommentStore.maxLength)")
@@ -114,14 +120,14 @@ struct WeighInResultsView: View {
                     Spacer()
                 }
                 .padding(20)
-                .navigationTitle("Add comments")
+                .navigationTitle(AppLanguageStore.text("history.add_comments", default: "Add comments"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showCommentEditor = false }
+                        Button(AppLanguageStore.text("common.cancel", default: "Cancel")) { showCommentEditor = false }
                     }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
+                        Button(AppLanguageStore.text("common.save", default: "Save")) {
                             ChartCommentStore.upsert(
                                 sampleDay: commentSampleDay,
                                 metric: commentMetric,
@@ -192,7 +198,7 @@ struct WeighInResultsView: View {
                 }
                 showCommentEditor = true
             } label: {
-                Text("Add comments")
+                Text(AppLanguageStore.text("history.add_comments", default: "Add comments"))
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
@@ -206,7 +212,13 @@ struct WeighInResultsView: View {
 
     private var historyTitle: String {
         let name = session.profile.greetingName
-        return name.isEmpty ? "History" : "\(name)'s History"
+        if name.isEmpty {
+            return AppLanguageStore.text("history.title", default: "History")
+        }
+        return String(
+            format: AppLanguageStore.text("history.title.named", default: "%@'s History"),
+            name
+        )
     }
 
     private var topBar: some View {
@@ -220,7 +232,7 @@ struct WeighInResultsView: View {
                     .frame(width: 40, height: 40)
                     .scaleGlassCircle()
             }
-            .accessibilityLabel("Close history")
+            .accessibilityLabel(AppLanguageStore.text("history.close", default: "Close history"))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(historyTitle)
@@ -232,7 +244,7 @@ struct WeighInResultsView: View {
                     if let deltaText = analysis.deltaDisplay(system: session.preferredUnits),
                        analysis.isWinnerLoss
                     {
-                        Text("\(deltaText) · winner")
+                        Text("\(deltaText) · \(AppLanguageStore.text("history.winner", default: "winner"))")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundStyle(atmosphere.accent.opacity(0.9))
                             .lineLimit(1)
@@ -244,7 +256,7 @@ struct WeighInResultsView: View {
                             .lineLimit(1)
                     }
                 } else {
-                    Text("Apple Health")
+                    Text(AppLanguageStore.text("history.source.health", default: "Apple Health"))
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(atmosphere.accent.opacity(0.75))
                         .lineLimit(1)
@@ -256,14 +268,14 @@ struct WeighInResultsView: View {
             Button {
                 session.presentManualEntry()
             } label: {
-                Text("Manual")
+                Text(AppLanguageStore.text("history.source.manual", default: "Manual"))
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(atmosphere.accent)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
                     .scaleGlassCapsule()
             }
-            .accessibilityLabel("Manual weight entry")
+            .accessibilityLabel(AppLanguageStore.text("history.manual.a11y", default: "Manual weight entry"))
         }
         .frame(maxWidth: .infinity)
         .frame(minHeight: 44)
@@ -291,19 +303,19 @@ struct WeighInResultsView: View {
 
             HStack(spacing: 10) {
                 Toggle(isOn: $showTrend.animation(.spring(response: 0.7, dampingFraction: 0.84))) {
-                    Text("Projection")
+                    Text(AppLanguageStore.text("history.projection", default: "Projection"))
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(atmosphere.accent.opacity(0.85))
                 }
                 .toggleStyle(.switch)
                 .labelsHidden()
-                .accessibilityLabel("Show target projection lines")
+                .accessibilityLabel(AppLanguageStore.text("history.projection.a11y", default: "Show target projection lines"))
                 .onChange(of: showTrend) { _, _ in
                     selectedWeightDate = nil
                     selectedFatDate = nil
                 }
 
-                Text("Projection")
+                Text(AppLanguageStore.text("history.projection", default: "Projection"))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
 
@@ -393,14 +405,14 @@ struct WeighInResultsView: View {
         let lineInterpolation: InterpolationMethod = samples.count >= 2 ? .monotone : .linear
 
         return metricScaffold(
-            title: "Weight",
+            title: AppLanguageStore.text("live.weight", default: "Weight"),
             unit: session.preferredUnits.massLabel,
             samples: samples,
             extrema: extrema,
             formatValue: {
                 String(format: "%.1f", UnitFormat.mass(fromKg: $0, system: session.preferredUnits))
             },
-            emptyCopy: "No weight samples in this range."
+            emptyCopy: AppLanguageStore.text("history.empty.weight", default: "No weight samples in this range.")
         ) {
             Chart {
                 RuleMark(y: .value("Target", targetKg))
@@ -408,7 +420,7 @@ struct WeighInResultsView: View {
                     .foregroundStyle(atmosphere.accent.opacity(0.55))
                     .annotation(position: .top, alignment: .trailing) {
                         Text(
-                            "Target \(String(format: "%.1f", UnitFormat.mass(fromKg: targetKg, system: session.preferredUnits)))"
+                            "\(AppLanguageStore.text("history.target", default: "Target")) \(String(format: "%.1f", UnitFormat.mass(fromKg: targetKg, system: session.preferredUnits)))"
                         )
                             .font(.system(size: 9, weight: .semibold, design: .rounded))
                             .foregroundStyle(atmosphere.accent.opacity(0.65))
@@ -478,7 +490,7 @@ struct WeighInResultsView: View {
                         .foregroundStyle(atmosphere.accent)
                         .annotation(position: .top, spacing: 6) {
                             VStack(spacing: 2) {
-                                Text("Projected")
+                                Text(AppLanguageStore.text("history.projected", default: "Projected"))
                                 Text(crossing.date, format: .dateTime.month(.abbreviated).day().year())
                                 Text(UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1))
                             }
@@ -598,12 +610,12 @@ struct WeighInResultsView: View {
         let lineInterpolation: InterpolationMethod = samples.count >= 2 ? .monotone : .linear
 
         return metricScaffold(
-            title: "Body fat",
+            title: AppLanguageStore.text("live.body_fat", default: "Body fat"),
             unit: "%",
             samples: samples,
             extrema: extrema,
             formatValue: { String(format: "%.1f", $0) },
-            emptyCopy: "No body fat samples in this range."
+            emptyCopy: AppLanguageStore.text("history.empty.body_fat", default: "No body fat samples in this range.")
         ) {
             Chart {
                 if let ideal = session.profile.idealBodyFatPercent {
@@ -611,7 +623,7 @@ struct WeighInResultsView: View {
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                         .foregroundStyle(atmosphere.accent.opacity(0.45))
                         .annotation(position: .top, alignment: .trailing) {
-                            Text("Target")
+                            Text(AppLanguageStore.text("history.target", default: "Target"))
                                 .font(.system(size: 9, weight: .semibold, design: .rounded))
                                 .foregroundStyle(atmosphere.accent.opacity(0.55))
                                 .padding(.trailing, 2)
