@@ -6,6 +6,7 @@ final class ScaleCalibrationTests: XCTestCase {
         XCTAssertTrue(AnalogScaleMarks.isMajor(display: 80))
         XCTAssertTrue(AnalogScaleMarks.isMajor(display: 75))
         XCTAssertTrue(AnalogScaleMarks.isMajor(display: 70))
+        XCTAssertTrue(AnalogScaleMarks.isMajor(display: 70.02))
         XCTAssertFalse(AnalogScaleMarks.isMajor(display: 77))
         XCTAssertFalse(AnalogScaleMarks.isMajor(display: 82))
         XCTAssertFalse(AnalogScaleMarks.isMajor(display: 78.5))
