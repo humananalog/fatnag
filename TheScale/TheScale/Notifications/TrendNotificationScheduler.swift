@@ -10,9 +10,9 @@ enum TrendNotificationScheduler {
     static let goalRevisionId = "thescale.goal-revision"
 
     /// Min distinct local days with a weigh in the last 7d before bad-trend can fire.
-    static let badTrendMinDistinctDays = 3
+    nonisolated static let badTrendMinDistinctDays = 3
     /// Min calendar days between bad-trend schedules.
-    static let badTrendMinDaysBetweenFires = 3
+    nonisolated static let badTrendMinDaysBetweenFires = 3
 
     private static let lastBadTrendDayKey = "thescale.badTrend.lastFireDay"
 
