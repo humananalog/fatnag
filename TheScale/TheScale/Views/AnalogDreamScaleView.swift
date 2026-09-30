@@ -20,6 +20,12 @@ struct AnalogDreamScaleView: View {
     @State private var lastMinorTick: Int = .min
     @State private var lastMajorTick: Int = .min
     @State private var dragStartDisplay: Double?
+    @State private var lastLightHapticAt: Date = .distantPast
+    @State private var lightHaptic = UIImpactFeedbackGenerator(style: .light)
+    @State private var mediumHaptic = UIImpactFeedbackGenerator(style: .medium)
+
+    /// Core Haptics rejects bursts above ~32 Hz — keep light ticks under that.
+    private static let minLightHapticInterval: TimeInterval = 0.055
 
     /// Layout for the active unit only (never mixes kg + lb grids).
     private var layout: AnalogScaleLayout {
@@ -258,6 +264,8 @@ struct AnalogDreamScaleView: View {
                 }
                 if dragStartDisplay == nil {
                     dragStartDisplay = displayValue
+                    lightHaptic.prepare()
+                    mediumHaptic.prepare()
                 }
                 guard let start = dragStartDisplay else { return }
                 let delta = -Double(value.translation.width) / layout.degreesPerUnit
@@ -282,12 +290,16 @@ struct AnalogDreamScaleView: View {
         let minorIndex = Int((snapped / layout.minorStep).rounded())
         if minorIndex != lastMinorTick {
             lastMinorTick = minorIndex
-            UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
+            let now = Date()
+            if now.timeIntervalSince(lastLightHapticAt) >= Self.minLightHapticInterval {
+                lastLightHapticAt = now
+                lightHaptic.impactOccurred(intensity: 0.45)
+            }
             if AnalogScaleMarks.isMajor(display: snapped, majorStep: layout.majorStep) {
                 let majorIndex = Int((snapped / layout.majorStep).rounded())
                 if majorIndex != lastMajorTick {
                     lastMajorTick = majorIndex
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.85)
+                    mediumHaptic.impactOccurred(intensity: 0.8)
                 }
             }
         }
