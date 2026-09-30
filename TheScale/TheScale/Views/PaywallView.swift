@@ -18,6 +18,8 @@ struct PaywallView: View {
     var lockMessage: String?
     /// Soft nudge for the next step up. Pro stays visually primary either way.
     var highlighted: ScalePlan = .pro
+    /// Shorter hero so Annual/Monthly + Free/Plus/Pro fit one ASC Review Information frame.
+    var reviewCaptureLayout: Bool = false
 
     @State private var scrollY: CGFloat = 0
     @State private var appeared = false
@@ -51,7 +53,9 @@ struct PaywallView: View {
     var body: some View {
         GeometryReader { geo in
             let width = geo.size.width
-            let heroHeight = min(max(geo.size.height * 0.50, 300), 460)
+            let heroHeight = reviewCaptureLayout
+                ? min(max(geo.size.height * 0.22, 140), 200)
+                : min(max(geo.size.height * 0.50, 300), 460)
 
             ZStack(alignment: .top) {
                 ink.ignoresSafeArea()
@@ -207,11 +211,11 @@ struct PaywallView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 18)
 
-            if store.isLoading && store.products.isEmpty {
+            if store.isLoading && store.products.isEmpty && !reviewCaptureLayout {
                 catalogLoading
                     .padding(.horizontal, 24)
                     .padding(.top, 18)
-            } else if store.hasEmptyCatalog {
+            } else if store.hasEmptyCatalog && !reviewCaptureLayout {
                 catalogEmpty
                     .padding(.horizontal, 24)
                     .padding(.top, 18)

@@ -139,6 +139,10 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var isMealPlanPresented = false
     /// Alerts / Notification Center sheet (also driven by `-promoShot=alerts`).
     @Published var isNotificationCenterPresented = false
+    /// Unlock Coach paywall (Settings / quota lock / `-promoShot=paywall` ASC capture).
+    @Published var isPaywallPresented = false
+    /// Compact paywall layout for ASC Review Information screenshot (`-promoShot=paywall`).
+    @Published var paywallUsesReviewCaptureLayout = false
     @Published private(set) var mealPlan: MealPlanPayload?
     @Published private(set) var isMealPlanLoading = false
     /// Hero coach card after a successful weigh-in (sergeant / encourage / skeptical).
@@ -836,6 +840,8 @@ final class ScaleSessionViewModel: ObservableObject {
         isFeedbackPresented = false
         isManualEntryPresented = false
         isNotificationCenterPresented = false
+        isPaywallPresented = false
+        paywallUsesReviewCaptureLayout = false
         pendingProfileGap = nil
 
         switch key {
@@ -857,6 +863,19 @@ final class ScaleSessionViewModel: ObservableObject {
             selectHomeTab(.keel)
         case "meals", "05":
             selectHomeTab(.meals)
+        case "paywall", "unlock", "asc", "subscription", "iap":
+            // ASC subscription Review Information — Annual selected, tiers + prices on screen.
+            // Stay on Weigh tab so ContentView sheet host stays mounted; present after a beat.
+            selectHomeTab(.weigh)
+            paywallUsesReviewCaptureLayout = true
+            #if DEBUG
+            // Free + marketing prices (no StoreKit config when launched via simctl).
+            _ = ScaleSubscriptionStore.shared.applyDevPlan(.free)
+            #endif
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 450_000_000)
+                self.isPaywallPresented = true
+            }
         default:
             selectHomeTab(.weigh)
         }

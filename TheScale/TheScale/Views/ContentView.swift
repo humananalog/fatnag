@@ -240,6 +240,21 @@ struct ContentView: View {
             ProfileGapPromptView()
                 .environmentObject(session)
         }
+        .sheet(isPresented: Binding(
+            get: { session.isPaywallPresented },
+            set: {
+                session.isPaywallPresented = $0
+                if !$0 { session.paywallUsesReviewCaptureLayout = false }
+            }
+        )) {
+            PaywallView(
+                lockMessage: nil,
+                highlighted: .pro,
+                reviewCaptureLayout: session.paywallUsesReviewCaptureLayout
+            )
+            .environmentObject(session)
+            .presentationDetents([.large])
+        }
         .task {
             await bootstrapHome()
         }
