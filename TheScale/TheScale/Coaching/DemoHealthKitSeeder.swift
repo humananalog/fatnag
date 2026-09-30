@@ -57,6 +57,12 @@ enum DemoHealthKitSeeder {
             throw HealthKitWriterError.unavailable
         }
 
+        // Promo / ASC screenshot launches must never present the Health share sheet.
+        // In-memory demo digest + weights already drive the UI for captures.
+        if PromoCaptureMode.isActive {
+            return
+        }
+
         try await store.requestAuthorization(toShare: shareTypes, read: readTypes)
 
         // Drop prior demo samples from this app so re-seeds stay clean.
