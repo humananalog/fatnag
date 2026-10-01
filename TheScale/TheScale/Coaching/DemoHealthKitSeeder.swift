@@ -427,82 +427,118 @@ enum DemoHealthKitSeeder {
         config.locationType = persona == .female ? .outdoor : .indoor
 
         let builder = HKWorkoutBuilder(healthStore: store, configuration: config, device: nil)
-        let metadata = meta(persona)
+        // Build samples on this actor (not inside HK @Sendable callbacks) so metadata
+        // `[String: Any]` never crosses a Sendable boundary.
+        var samples: [HKSample] = []
+        if let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) {
+            samples.append(
+                HKQuantitySample(
+                    type: energyType,
+                    quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal),
+                    start: start,
+                    end: end,
+                    metadata: meta(persona)
+                )
+            )
+        }
+        if persona == .female,
+           let distType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) {
+            samples.append(
+                HKQuantitySample(
+                    type: distType,
+                    quantity: HKQuantity(unit: .meterUnit(with: .kilo), doubleValue: 5.2),
+                    start: start,
+                    end: end,
+                    metadata: meta(persona)
+                )
+            )
+        }
 
+        try await workoutBeginCollection(builder, start: start)
+        if !samples.isEmpty {
+            try await workoutAddSamples(builder, samples)
+        }
+        try await workoutAddMetadata(builder, persona: persona)
+        try await workoutEndCollection(builder, end: end)
+        try await workoutFinish(builder)
+    }
+
+    private static func workoutBeginCollection(_ builder: HKWorkoutBuilder, start: Date) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             builder.beginCollection(withStart: start) { success, error in
-                guard success else {
+                if success {
+                    continuation.resume()
+                } else {
                     continuation.resume(
                         throwing: HealthKitWriterError.saveFailed(
                             error?.localizedDescription ?? "Workout beginCollection failed."
                         )
                     )
-                    return
                 }
+            }
+        }
+    }
 
-                var samples: [HKSample] = []
-                if let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) {
-                    samples.append(
-                        HKQuantitySample(
-                            type: energyType,
-                            quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal),
-                            start: start,
-                            end: end,
-                            metadata: metadata
+    private static func workoutAddSamples(_ builder: HKWorkoutBuilder, _ samples: [HKSample]) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            builder.add(samples) { success, error in
+                if success {
+                    continuation.resume()
+                } else {
+                    continuation.resume(
+                        throwing: HealthKitWriterError.saveFailed(
+                            error?.localizedDescription ?? "Workout add samples failed."
                         )
                     )
                 }
-                if persona == .female,
-                   let distType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) {
-                    samples.append(
-                        HKQuantitySample(
-                            type: distType,
-                            quantity: HKQuantity(unit: .meterUnit(with: .kilo), doubleValue: 5.2),
-                            start: start,
-                            end: end,
-                            metadata: metadata
+            }
+        }
+    }
+
+    private static func workoutAddMetadata(
+        _ builder: HKWorkoutBuilder,
+        persona: DemoPersonaSeeder.Persona
+    ) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            // Build metadata inside the Sendable closure (persona is Sendable).
+            builder.addMetadata(meta(persona)) { success, error in
+                // Metadata is best-effort for demo fixtures; still proceed on soft failure.
+                if let error, !success {
+                    continuation.resume(
+                        throwing: HealthKitWriterError.saveFailed(error.localizedDescription)
+                    )
+                } else {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    private static func workoutEndCollection(_ builder: HKWorkoutBuilder, end: Date) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            builder.endCollection(withEnd: end) { success, error in
+                if success {
+                    continuation.resume()
+                } else {
+                    continuation.resume(
+                        throwing: HealthKitWriterError.saveFailed(
+                            error?.localizedDescription ?? "Workout endCollection failed."
                         )
                     )
                 }
+            }
+        }
+    }
 
-                let finishCollection = {
-                    builder.addMetadata(metadata) { _, _ in
-                        builder.endCollection(withEnd: end) { success, error in
-                            guard success else {
-                                continuation.resume(
-                                    throwing: HealthKitWriterError.saveFailed(
-                                        error?.localizedDescription ?? "Workout endCollection failed."
-                                    )
-                                )
-                                return
-                            }
-                            builder.finishWorkout { _, error in
-                                if let error {
-                                    continuation.resume(
-                                        throwing: HealthKitWriterError.saveFailed(error.localizedDescription)
-                                    )
-                                } else {
-                                    continuation.resume()
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if samples.isEmpty {
-                    finishCollection()
-                    return
-                }
-                builder.add(samples) { success, error in
-                    guard success else {
-                        continuation.resume(
-                            throwing: HealthKitWriterError.saveFailed(
-                                error?.localizedDescription ?? "Workout add samples failed."
-                            )
-                        )
-                        return
-                    }
-                    finishCollection()
+    private static func workoutFinish(_ builder: HKWorkoutBuilder) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            builder.finishWorkout { _, error in
+                if let error {
+                    continuation.resume(
+                        throwing: HealthKitWriterError.saveFailed(error.localizedDescription)
+                    )
+                } else {
+                    continuation.resume()
                 }
             }
         }
