@@ -18,38 +18,46 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
         }
     }
 
-    func systemPrompt(sex: UserBodyProfile.Sex) -> String {
-        let voice = CoachVoice.llmRules(sex: sex)
+    func systemPrompt(sex: UserBodyProfile.Sex, ageYears: Double = 30) -> String {
+        let voice = CoachVoice.llmRules(sex: sex, ageYears: ageYears)
         switch self {
         case .medical:
             return """
+            \(AppLanguageStore.current.resolved.modelDirective)
             You are the health-context specialist for FATNAG, a privacy-first Mi Scale → Apple Health app.
             \(voice)
             Prefer trends over single weigh-ins. Be honest when data is thin.
             You are not a clinician and must not diagnose. Fitness guidance only.
+            \(AppLanguageStore.current.resolved.languageLockFooter)
             """
         case .fitness:
             return """
+            \(AppLanguageStore.current.resolved.modelDirective)
             You are the fitness specialist for FATNAG.
             \(voice)
             Give practical training / recovery / habit nudges tied to weight, fat %, sleep stages, HRV, RHR, and activity.
             Match advice to Local now: morning can be training; night is wind-down, not a PR attempt.
             Use only the Fitness digest for last workout / activity / steps / energy / distance / HR / HRV / sleep / recovery band. If a metric says missing, say so. Never invent sleep stages, HRV, SpO2, VO2, or workouts. Never claim you can read AllTrails directly.
             No crash diets. Respect their diet preference and remembered facts.
+            \(AppLanguageStore.current.resolved.languageLockFooter)
             """
         case .anatomy:
             return """
+            \(AppLanguageStore.current.resolved.modelDirective)
             You are the anatomy / body-composition specialist for FATNAG.
             \(voice)
             Explain fat %, lean %, impedance limits, and why day-to-day noise is normal.
             Never invent lab precision the scale cannot deliver.
+            \(AppLanguageStore.current.resolved.languageLockFooter)
             """
         case .orchestrator:
             return """
+            \(AppLanguageStore.current.resolved.modelDirective)
             You are the only user-facing coach for FATNAG. Medical, fitness, and anatomy specialists
             may consult behind the scenes; you alone speak to the user. Never mention agent roles or routing.
             \(voice)
-            Match their persona (location, ethnicity, language, cultural vibe) without stereotyping.
+            Match their persona (age band, location, ethnicity, language, cultural vibe) without stereotyping.
+            Age, origin, and vibe are first-class ingredients for funny insights — not optional flavour text.
             Honour LANGUAGE / LOCAL HUMOUR rules in the voice block: reply in the target language; subtle vulgar local jokes OK; never racist.
             Honour remembered user facts (e.g. intermittent fasting) when adjusting diet advice.
             If the user states a weight or body-fat target, the app may have already gated it on-device.
@@ -62,6 +70,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
             CRITICAL: The Fitness digest block is the only source for workouts, last activity, steps, energy, distance, HR, HRV, respiratory rate, SpO2, VO2, wrist temperature, sleep (stages when present), and the recovery heuristic (HealthKit only). If Recent workouts lists sessions, discuss them (distance km included). If workouts are empty but walking/running distance spiked, say Health shows km without a Workout sample and suggest enabling Health sync in the tracking app (AllTrails etc.). If truly empty, say so and mention Allow Health / third-party write-to-Health. Never invent missing metrics. Never claim direct AllTrails access.
             Ask clarifying questions only when a needed fact is missing from the profile block. Never re-ask height/age/sex/targets already listed.
             End with one concrete next action that fits the current local time of day. Produce ONE coherent answer. No multi-agent dump.
+            \(AppLanguageStore.current.resolved.languageLockFooter)
             """
         }
     }
@@ -457,7 +466,7 @@ actor GrokClient {
         var messages: [[String: String]] = [
             [
                 "role": "system",
-                "content": CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex)
+                "content": CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex, ageYears: brief.ageYears)
                     + "\n\n" + userMessage(brief: brief)
                     + consultNotes
                     + "\nLean on \(specialty.title) judgment for this ask without naming specialists."
@@ -605,7 +614,7 @@ actor GrokClient {
 
         let system = """
         You are the Monday weigh-in instructor for FATNAG.
-        \(CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex))
+        \(CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex, ageYears: brief.ageYears))
         This card is a direct coaching brief. Fitness guidance only. You are not a clinician and must not diagnose.
         Do NOT append medical disclaimers.
         Do NOT soft-pedal with generic safety caps. Talk energy balance and weekly rates from the data.
@@ -646,6 +655,75 @@ actor GrokClient {
         } catch {
             await onUpdate(offline.encouragement, offline.meals, offline.diagnostic, "")
             return (offline.encouragement, offline.meals, offline.diagnostic, false)
+        }
+    }
+
+    /// Plus/Pro first-of-month toast. One or two sentences. Falls back to the rule line.
+    func monthlyHeroInsight(
+        brief: CoachBrief,
+        facts: MonthlyHeroFacts
+    ) async -> (text: String, usedNetwork: Bool) {
+        let fallback = facts.ruleInsight
+        let plan = await MainActor.run { ScaleSubscriptionStore.shared.plan }
+        guard MonthlyHeroEngine.allowsLiveInsight(plan: plan), facts.canAskKeel else {
+            return (fallback, false)
+        }
+        guard GrokPrivacyConsent.isAccepted else { return (fallback, false) }
+        if GrokSharedConfig.configurationIssue != nil || resolveTransport() == nil {
+            return (fallback, false)
+        }
+        guard let transport = resolveTransport() else { return (fallback, false) }
+        if await consumeQuota(.monthlyCard) != nil {
+            return (fallback, false)
+        }
+
+        let delta = facts.deltaKg.map { String(format: "%+.2f kg", $0) } ?? "unknown"
+        let unit = facts.unit?.phrase ?? "no food-sized unit"
+        let pace = facts.medicalNote ?? "Pace is inside a calm monthly band."
+        let prompt = """
+        Write ONE or TWO short sentences for a first-of-month weight card. Funny, warm, specific.
+        Use only these facts. Do not invent kilos, dates, workouts, sleep, or meals.
+        Festival mood: \(facts.festivalTitle). Month: \(facts.monthName).
+        Direction: \(facts.direction.rawValue). Delta: \(delta). Visual unit: \(unit).
+        Pace: \(pace)
+        Do NOT repeat or paraphrase this action (it is already printed on the card): \(facts.monthlyAction)
+        No emoji. No diagnosis. No disclaimer. No bullets. No headers. Under 180 characters.
+        If the drop was fast, be kind. Do not cheer a sprint.
+        """
+        let system = """
+        You write the monthly weigh-in toast for FATNAG.
+        \(CoachAgentRole.orchestrator.systemPrompt(sex: brief.sex, ageYears: brief.ageYears))
+        Fitness coaching only. You are not a clinician and must not diagnose.
+        Do NOT append a medical disclaimer. Never invent a weight change.
+        """
+        let body: [String: Any] = [
+            "model": Self.liveModel,
+            "temperature": 0.7,
+            "max_tokens": 160,
+            "stream": false,
+            "messages": [
+                ["role": "system", "content": system + "\n\n" + userMessage(brief: brief)],
+                ["role": "user", "content": prompt]
+            ]
+        ]
+        do {
+            let data = try await postChat(body: body, transport: transport, timeout: 18, burnsCredit: true)
+            var cleaned = CoachCopySanitize.clean(Self.parseContent(from: data) ?? "")
+            if let cut = cleaned.range(of: "This month:") {
+                cleaned = String(cleaned[..<cut.lowerBound])
+            }
+            cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard cleaned.count >= 12, cleaned.count <= 220 else { return (fallback, false) }
+            if facts.pace == .fastLoss {
+                let lower = cleaned.lowercased()
+                let cheers = ["brilliant", "solid work", "keep the pace", "crushing", "amazing", "congrats", "well done", "nice work", "great job"]
+                if cheers.contains(where: { lower.contains($0) }) {
+                    return (fallback, false)
+                }
+            }
+            return (cleaned, true)
+        } catch {
+            return (fallback, false)
         }
     }
 
@@ -861,6 +939,8 @@ actor GrokClient {
             fasting: fasting,
             memoryBlock: brief.memoryBlock,
             sex: brief.sex,
+            ageYears: brief.ageYears,
+            cultureContext: brief.personaBlock,
             now: now
         ) {
             let scheduled = MealPlanEngine.localizePortions(
@@ -956,7 +1036,7 @@ actor GrokClient {
             "temperature": 0.55,
             "max_tokens": 280,
             "messages": [
-                ["role": "system", "content": role.systemPrompt(sex: brief.sex)],
+                ["role": "system", "content": role.systemPrompt(sex: brief.sex, ageYears: brief.ageYears)],
                 ["role": "user", "content": userMessage(brief: brief)]
             ]
         ]
@@ -986,7 +1066,7 @@ actor GrokClient {
             "temperature": 0.6,
             "max_tokens": 180,
             "messages": [
-                ["role": "system", "content": specialty.systemPrompt(sex: brief.sex)],
+                ["role": "system", "content": specialty.systemPrompt(sex: brief.sex, ageYears: brief.ageYears)],
                 [
                     "role": "user",
                     "content": userMessage(brief: brief)
@@ -1200,10 +1280,11 @@ actor GrokClient {
             "Name: \(name)",
             "Local now: \(weekday) \(clock) (device local, daypart=\(daypart))",
             brief.unitSystem.coachPromptLine,
-            "Profile (DO NOT re-ask these): height \(UnitFormat.heightString(brief.heightCm, system: brief.unitSystem)), age \(String(format: "%.0f", brief.ageYears)), sex \(brief.sex.title)",
+            "Profile (DO NOT re-ask these): height \(UnitFormat.heightString(brief.heightCm, system: brief.unitSystem)), age \(String(format: "%.0f", brief.ageYears)) (\(CoachAgeBand.from(ageYears: brief.ageYears).promptLabel)), sex \(brief.sex.title)",
             "Diet: \(brief.diet.title)",
             "Target weight: \(UnitFormat.massString(brief.idealKg, system: brief.unitSystem))",
-            "Trend vs last Health weight: \(brief.trend.title)"
+            "Trend vs last Health weight: \(brief.trend.title)",
+            CoachVoice.ageVoiceRules(ageYears: brief.ageYears)
         ]
         if daypart == "evening" || daypart == "night" {
             lines.append(

@@ -108,6 +108,8 @@ enum ScaleNotificationVisuals {
             return (UIColor(red: 0.05, green: 0.07, blue: 0.12, alpha: 1), black)
         case .pulse, .coach, .sample:
             return (UIColor(red: 0.05, green: 0.06, blue: 0.08, alpha: 1), black)
+        case .nag:
+            return (UIColor(red: 0.16, green: 0.08, blue: 0.02, alpha: 1), black)
         }
     }
 
@@ -124,6 +126,7 @@ enum ScaleNotificationVisuals {
             case .watch: return "applewatch"
             case .heart: return "heart.fill"
             case .pulse: return "waveform.path.ecg"
+            case .nag: return "megaphone.fill"
             }
         }()
         let config = UIImage.SymbolConfiguration(pointSize: 28, weight: .semibold)

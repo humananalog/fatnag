@@ -12,11 +12,11 @@ enum HomeGlassDestination: String, CaseIterable, Identifiable, Hashable, Sendabl
 
     var title: String {
         switch self {
-        case .weigh: return String(localized: "tab.weigh", defaultValue: "Weigh")
-        case .progress: return String(localized: "tab.progress", defaultValue: "Progress")
-        case .keel: return String(localized: "tab.keel", defaultValue: "Keel")
-        case .meals: return String(localized: "tab.meals", defaultValue: "Meals")
-        case .settings: return String(localized: "tab.settings", defaultValue: "Settings")
+        case .weigh: return AppLanguageStore.text("tab.weigh", default: "Weigh")
+        case .progress: return AppLanguageStore.text("tab.progress", default: "Progress")
+        case .keel: return AppLanguageStore.text("tab.keel", default: "Keel")
+        case .meals: return AppLanguageStore.text("tab.meals", default: "Meals")
+        case .settings: return AppLanguageStore.text("tab.settings", default: "Settings")
         }
     }
 
@@ -28,6 +28,11 @@ enum HomeGlassDestination: String, CaseIterable, Identifiable, Hashable, Sendabl
         case .meals: return "fork.knife"
         case .settings: return "gearshape.fill"
         }
+    }
+
+    /// Settings keeps horizontal drags for the dream dial and form controls.
+    var allowsMenuPageSwipe: Bool {
+        self != .settings
     }
 
     /// Left/right neighbors for edge swipe between menu pages.
@@ -80,24 +85,46 @@ private struct HomeMenuPageSwipeModifier: ViewModifier {
     @State private var didCommit = false
 
     func body(content: Content) -> some View {
-        content
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 56, coordinateSpace: .local)
-                    .onChanged { value in
-                        guard !didCommit else { return }
-                        guard shouldCommit(value) else { return }
-                        if let page = targetPage(for: value) {
-                            didCommit = true
-                            withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
-                                onSelect(page)
-                            }
-                        }
+        if !selection.allowsMenuPageSwipe {
+            content
+        } else if selection == .meals {
+            // Meal cards own horizontal drags. Page changes there start at the screen edge only.
+            content
+                .overlay(alignment: .leading) {
+                    Color.clear
+                        .frame(width: 22)
+                        .contentShape(Rectangle())
+                        .highPriorityGesture(pageDrag)
+                }
+                .overlay(alignment: .trailing) {
+                    Color.clear
+                        .frame(width: 22)
+                        .contentShape(Rectangle())
+                        .highPriorityGesture(pageDrag)
+                }
+                .sensoryFeedback(.selection, trigger: selection)
+        } else {
+            content
+                .simultaneousGesture(pageDrag)
+                .sensoryFeedback(.selection, trigger: selection)
+        }
+    }
+
+    private var pageDrag: some Gesture {
+        DragGesture(minimumDistance: 56, coordinateSpace: .local)
+            .onChanged { value in
+                guard !didCommit else { return }
+                guard shouldCommit(value) else { return }
+                if let page = targetPage(for: value) {
+                    didCommit = true
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                        onSelect(page)
                     }
-                    .onEnded { _ in
-                        didCommit = false
-                    }
-            )
-            .sensoryFeedback(.selection, trigger: selection)
+                }
+            }
+            .onEnded { _ in
+                didCommit = false
+            }
     }
 
     private func shouldCommit(_ value: DragGesture.Value) -> Bool {

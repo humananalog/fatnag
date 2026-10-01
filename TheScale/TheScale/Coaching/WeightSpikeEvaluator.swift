@@ -147,19 +147,19 @@ enum WeightSpikeEvaluator {
             weeklyDeltaKg: weekly.rounded(toPlaces: 2),
             sundayTargetKg: sundayTarget,
             dailyTargetKg: daily,
-            kickHeadline: String(localized: "spike.red.headline", defaultValue: "Red card. Put it together."),
+            kickHeadline: AppLanguageStore.text("spike.red.headline", default: "Red card. Put it together."),
             kickBody: "\(who). \(up) just blew the week. We are not rewriting Sunday upward. Target \(sunLabel) and move \(dailyLabel)/day. Reality check, then execute.",
             actionLines: [
-                String(localized: "spike.red.action1", defaultValue: "Weigh every morning, empty bladder, same scale."),
-                String(localized: "spike.red.action2", defaultValue: "Hit the calorie and protein caps on the home board. No make-up-later."),
+                AppLanguageStore.text("spike.red.action1", default: "Weigh every morning, empty bladder, same scale."),
+                AppLanguageStore.text("spike.red.action2", default: "Hit the calorie and protein caps on the home board. No make-up-later."),
                 String(
-                    format: String(localized: "spike.red.action3", defaultValue: "Next %d days: sleep on time, walk the step target, no celebration eats."),
+                    format: AppLanguageStore.text("spike.red.action3", default: "Next %d days: sleep on time, walk the step target, no celebration eats."),
                     daysLeft
                 ),
-                String(localized: "spike.red.action4", defaultValue: "If this was not you on the scale, discard the sample and re-weigh."),
+                AppLanguageStore.text("spike.red.action4", default: "If this was not you on the scale, discard the sample and re-weigh."),
             ],
             pacingLine: String(
-                format: String(localized: "spike.red.pacing", defaultValue: "Recovery: %@ / week toward %@ by Sunday (safe metabolism cap)."),
+                format: AppLanguageStore.text("spike.red.pacing", default: "Recovery: %@ / week toward %@ by Sunday (safe metabolism cap)."),
                 UnitFormat.massDeltaString(weekly, system: system),
                 sunLabel
             )

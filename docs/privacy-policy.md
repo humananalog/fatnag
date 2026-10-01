@@ -4,7 +4,7 @@
 **App:** FATNAG (iOS)  
 **Effective:** for App Store builds 2.51.0+
 
-Host this page at the URL set in `ScaleLegal.privacyPolicyURL` (default `https://humananalog.github.io/the-scale/privacy`) and paste that URL into App Store Connect → App Privacy / App Information.
+Host this page at the URL set in `ScaleLegal.privacyPolicyURL` (default `https://humananalog.github.io/fatnag/privacy`) and paste that URL into App Store Connect → App Privacy / App Information.
 
 ## What stays on your iPhone
 
@@ -29,7 +29,7 @@ Host this page at the URL set in `ScaleLegal.privacyPolicyURL` (default `https:/
 
 - Human Analog Limited: **privacy@humananalog.ai**
 - Hosting the public policy: `TheScale/docs/operations/legal-url-hosting.md`
-- Target URL: `https://humananalog.github.io/the-scale/privacy` (`ScaleLegal.privacyPolicyURL`)
+- Target URL: `https://humananalog.github.io/fatnag/privacy` (`ScaleLegal.privacyPolicyURL`)
 
 ## Medical
 

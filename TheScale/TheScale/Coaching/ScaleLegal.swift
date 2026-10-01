@@ -4,13 +4,13 @@ import Foundation
 /// Keep medical disclaimer out of notifications and Coach chat bodies.
 enum ScaleLegal {
     /// Public privacy policy for App Store Connect. Keep this URL live.
-    static let privacyPolicyURL = URL(string: "https://humananalog.github.io/the-scale/privacy")!
+    static let privacyPolicyURL = URL(string: "https://humananalog.github.io/fatnag/privacy")!
 
     /// Public terms URL (mirror of in-app Terms).
-    static let termsOfUseURL = URL(string: "https://humananalog.github.io/the-scale/terms")!
+    static let termsOfUseURL = URL(string: "https://humananalog.github.io/fatnag/terms")!
 
     /// Public support page for App Store Connect Support URL.
-    static let supportURL = URL(string: "https://humananalog.github.io/the-scale/support")!
+    static let supportURL = URL(string: "https://humananalog.github.io/fatnag/support")!
 
     /// Controller / seller of record.
     static let controllerName = "Human Analog Limited"
@@ -146,7 +146,7 @@ enum ScaleLegal {
     Live Coach is optional, capped by your plan’s weekly credits, and requires privacy consent. Outputs are AI-generated suggestions, not professional advice. We may suspend Coach for abuse, security, or cost control.
 
     6. HealthKit and Bluetooth scales
-    Health access is optional and managed in iOS Settings. Third-party scales (e.g. Mi Body Composition Scale 2) communicate over Bluetooth LE; we do not operate those manufacturers’ clouds for pairing in this app.
+    Health access is optional and managed in iOS Settings. Bluetooth-compatible scales communicate over Bluetooth LE; we do not operate manufacturer clouds for pairing in this app.
 
     7. Acceptable use
     No unlawful, harassing, or infringing use. No attempt to extract model weights, bypass quotas, or overload our Worker.
@@ -213,7 +213,7 @@ enum ScaleLegal {
 
     PLANS
     • Free: limited weekly live Keel credits; core weighing and local features.
-    • Plus / Pro: auto-renewable monthly subscriptions unlocking higher weekly Keel credits. Product IDs: app.thescale.ios.plus.monthly and app.thescale.ios.pro.monthly.
+    • Plus / Pro: auto-renewable subscriptions (monthly or annual) unlocking higher weekly Keel credits. Product IDs: app.thescale.ios.plus.monthly, app.thescale.ios.plus.annual, app.thescale.ios.pro.monthly, app.thescale.ios.pro.annual.
 
     APPLE BILLING
     Payment is charged to your Apple ID. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period in your Apple ID subscription settings. Manage or cancel in iOS Settings → Apple ID → Subscriptions. Refunds are handled by Apple under Apple’s policies.
@@ -289,7 +289,7 @@ enum ScaleLegal {
     FATNAG: App Review notes
     ASC app id: 6816630442 · bundle app.thescale.ios
 
-    Hardware: Xiaomi Mi Body Composition Scale 2 via Bluetooth LE advertisements (no pairing cloud).
+    Hardware: Bluetooth-compatible scales via auto-detect (no pairing cloud).
     HealthKit: write mass/BMI/fat%/lean on Confirm; read only types used for charts + fitness coaching digests.
     Background: healthkit observers + enableBackgroundDelivery for workouts/sleep/weight/steps/HR; BGAppRefresh + BGProcessing as backups for fitness checks. iOS may throttle.
     Network: optional Keel Coach via HTTPS Worker after explicit consent. Store builds should leave GROK_API_KEY empty (Worker holds XAI_API_KEY). App sends GROK_APP_SECRET (shared Worker secret via Secrets.xcconfig), never the xAI master key.

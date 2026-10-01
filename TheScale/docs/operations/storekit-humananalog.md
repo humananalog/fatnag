@@ -6,12 +6,14 @@ Wire the real paywall against **Human Analog Limited** (team `XHVW66YM39`, bundl
 
 | Plan | Product ID | Price (marketing) | Credits / week |
 |------|------------|-------------------|----------------|
-| Plus | `app.thescale.ios.plus.monthly` | $2 / month | 28 |
-| Pro  | `app.thescale.ios.pro.monthly`  | $8 / month | 120 |
+| Plus Monthly | `app.thescale.ios.plus.monthly` | $1.99 / month | 28 |
+| Plus Annual | `app.thescale.ios.plus.annual` | $19.99 / year (~2 mo free) | 28 |
+| Pro Monthly | `app.thescale.ios.pro.monthly` | $7.99 / month | 120 |
+| Pro Annual | `app.thescale.ios.pro.annual` | $79.99 / year (~2 mo free) | 120 |
 
-Subscription group name: **Coach** (see `Config/Products.storekit`).
+Subscription group name: **Coach** (see `Config/Products.storekit`). Paywall defaults to **Annual**. USD uses App Store **X.99** price points.
 
-Code: `ScalePlan.storeProductID`, `ScaleStorefront`, `ScaleSubscriptionStore`.
+Code: `ScalePlan.storeProductID(period:)`, `ScaleBillingPeriod`, `ScaleStorefront`, `ScaleSubscriptionStore`.
 
 ## Lane 1: Local StoreKit config (default Debug)
 
@@ -35,11 +37,13 @@ Use this before TestFlight / App Review.
 1. Sign in to [App Store Connect](https://appstoreconnect.apple.com) as Human Analog (`XHVW66YM39`).
 2. Apps → **FATNAG** (bundle `app.thescale.ios`). Create the app record if missing.
 3. Monetization → Subscriptions → create group **Coach** if needed.
-4. Add auto-renewable subscriptions:
-   - Reference: Plus Monthly → Product ID `app.thescale.ios.plus.monthly` → 1 month → $2.00 (or local equivalent).
-   - Reference: Pro Monthly → Product ID `app.thescale.ios.pro.monthly` → 1 month → $8.00.
+4. Add auto-renewable subscriptions (same **Coach** group):
+   - Plus Monthly → `app.thescale.ios.plus.monthly` → 1 month → **$1.99**
+   - Plus Annual → `app.thescale.ios.plus.annual` → 1 year → **$19.99**
+   - Pro Monthly → `app.thescale.ios.pro.monthly` → 1 month → **$7.99**
+   - Pro Annual → `app.thescale.ios.pro.annual` → 1 year → **$79.99**
 5. Localization + review screenshot / notes as ASC requires.
-6. Privacy Policy URL: `https://humananalog.github.io/the-scale/privacy` (`ScaleLegal.privacyPolicyURL`).
+6. Privacy Policy URL: `https://humananalog.github.io/fatnag/privacy` (`ScaleLegal.privacyPolicyURL`).
 7. Agreements, Tax, and Banking must be Active for the Human Analog legal entity or products stay empty.
 
 ### Sandbox Apple ID

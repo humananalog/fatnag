@@ -1,5 +1,28 @@
 import Foundation
 
+/// Paywall cadence. Annual is the default (cheaper for the user, cash up front for us).
+enum ScaleBillingPeriod: String, CaseIterable, Identifiable, Sendable {
+    case annual
+    case monthly
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .annual: return AppLanguageStore.text("plan.period.annual", default: "Annual")
+        case .monthly: return AppLanguageStore.text("plan.period.monthly", default: "Monthly")
+        }
+    }
+
+    /// Short suffix for price rows ("/ year", "/ month").
+    var priceSuffix: String {
+        switch self {
+        case .annual: return AppLanguageStore.text("plan.period.per_year", default: "/ year")
+        case .monthly: return AppLanguageStore.text("plan.period.per_month", default: "/ month")
+        }
+    }
+}
+
 /// Consumer plans. Industry-standard Free / Plus / Pro naming (ChatGPT, Notion, Apple+ adjacent).
 enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
     case free
@@ -10,26 +33,61 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var displayName: String {
         switch self {
-        case .free: return String(localized: "plan.free", defaultValue: "Free")
-        case .plus: return String(localized: "plan.plus", defaultValue: "Plus")
-        case .pro: return String(localized: "plan.pro", defaultValue: "Pro")
+        case .free: return AppLanguageStore.text("plan.free", default: "Free")
+        case .plus: return AppLanguageStore.text("plan.plus", default: "Plus")
+        case .pro: return AppLanguageStore.text("plan.pro", default: "Pro")
         }
     }
 
-    /// Marketing list price (USD / month). Annual can come later.
+    /// Marketing list price (USD / month). App Store X.99 tiers.
     var monthlyPriceUSD: Decimal {
         switch self {
         case .free: return 0
-        case .plus: return 2
-        case .pro: return 8
+        case .plus: return Decimal(string: "1.99")!
+        case .pro: return Decimal(string: "7.99")!
+        }
+    }
+
+    /// Marketing list price (USD / year). ~2 months free vs 12× monthly → cash up front.
+    var annualPriceUSD: Decimal {
+        switch self {
+        case .free: return 0
+        case .plus: return Decimal(string: "19.99")! // vs $23.88 if paid monthly
+        case .pro: return Decimal(string: "79.99")! // vs $95.88 if paid monthly
         }
     }
 
     var priceLabel: String {
+        priceLabel(period: .monthly)
+    }
+
+    func priceLabel(period: ScaleBillingPeriod) -> String {
         switch self {
-        case .free: return String(localized: "plan.free", defaultValue: "Free")
-        case .plus: return String(localized: "plan.plus.price", defaultValue: "$2 / month")
-        case .pro: return String(localized: "plan.pro.price", defaultValue: "$8 / month")
+        case .free:
+            return AppLanguageStore.text("plan.free", default: "Free")
+        case .plus:
+            switch period {
+            case .monthly:
+                return AppLanguageStore.text("plan.plus.price", default: "$1.99 / month")
+            case .annual:
+                return AppLanguageStore.text("plan.plus.price.annual", default: "$19.99 / year")
+            }
+        case .pro:
+            switch period {
+            case .monthly:
+                return AppLanguageStore.text("plan.pro.price", default: "$7.99 / month")
+            case .annual:
+                return AppLanguageStore.text("plan.pro.price.annual", default: "$79.99 / year")
+            }
+        }
+    }
+
+    /// Shown under annual tiers — honest vs paying monthly all year.
+    var annualSavingsLabel: String? {
+        switch self {
+        case .free: return nil
+        case .plus, .pro:
+            return AppLanguageStore.text("plan.annual.save", default: "2 months free")
         }
     }
 
@@ -47,17 +105,17 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .free:
             return String(
-                format: String(localized: "plan.free.blurb", defaultValue: "Scale, Health, charts. %d live Keel asks a week."),
+                format: AppLanguageStore.text("plan.free.blurb", default: "Scale, Health, charts. %d live Keel asks a week."),
                 weeklyGrokCredits
             )
         case .plus:
             return String(
-                format: String(localized: "plan.plus.blurb", defaultValue: "Daily heat. %d live Keel credits a week."),
+                format: AppLanguageStore.text("plan.plus.blurb", default: "Daily heat. %d live Keel credits a week."),
                 weeklyGrokCredits
             )
         case .pro:
             return String(
-                format: String(localized: "plan.pro.blurb", defaultValue: "No soft ceiling. %d live Keel credits a week."),
+                format: AppLanguageStore.text("plan.pro.blurb", default: "No soft ceiling. %d live Keel credits a week."),
                 weeklyGrokCredits
             )
         }
@@ -67,19 +125,38 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
     var paywallArgument: String {
         switch self {
         case .free:
-            return String(localized: "plan.free.arg", defaultValue: "Taste the tone.")
+            return AppLanguageStore.text("plan.free.arg", default: "Taste the tone.")
         case .plus:
-            return String(localized: "plan.plus.arg", defaultValue: "A sharp ask a day.")
+            return AppLanguageStore.text("plan.plus.arg", default: "A sharp ask a day.")
         case .pro:
-            return String(localized: "plan.pro.arg", defaultValue: "Never ration pressure.")
+            return AppLanguageStore.text("plan.pro.arg", default: "Never ration pressure.")
         }
     }
 
+    /// Monthly product ID (legacy alias). Prefer `storeProductID(period:)`.
     var storeProductID: String? {
-        switch self {
-        case .free: return nil
-        case .plus: return "app.thescale.ios.plus.monthly"
-        case .pro: return "app.thescale.ios.pro.monthly"
+        storeProductID(period: .monthly)
+    }
+
+    func storeProductID(period: ScaleBillingPeriod) -> String? {
+        switch (self, period) {
+        case (.free, _): return nil
+        case (.plus, .monthly): return "app.thescale.ios.plus.monthly"
+        case (.plus, .annual): return "app.thescale.ios.plus.annual"
+        case (.pro, .monthly): return "app.thescale.ios.pro.monthly"
+        case (.pro, .annual): return "app.thescale.ios.pro.annual"
+        }
+    }
+
+    /// Map any paid product ID back to Free/Plus/Pro entitlement.
+    static func plan(forProductID id: String) -> ScalePlan? {
+        switch id {
+        case "app.thescale.ios.plus.monthly", "app.thescale.ios.plus.annual":
+            return .plus
+        case "app.thescale.ios.pro.monthly", "app.thescale.ios.pro.annual":
+            return .pro
+        default:
+            return nil
         }
     }
 
@@ -102,6 +179,7 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
 enum CoachQuotaKind: String, Sendable {
     case chat
     case mondayCard
+    case monthlyCard
     case fitnessCheck
     case mealPlan
 
@@ -109,6 +187,7 @@ enum CoachQuotaKind: String, Sendable {
         switch self {
         case .chat: return "Coach chat"
         case .mondayCard: return "Monday card"
+        case .monthlyCard: return "Monthly card"
         case .fitnessCheck: return "Fitness check"
         case .mealPlan: return "Meal plan"
         }

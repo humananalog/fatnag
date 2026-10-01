@@ -2,7 +2,7 @@ import XCTest
 @testable import TheScale
 
 final class AggressiveWeeklyTargetTests: XCTestCase {
-    func testAggressiveUsesSafeCapNotSofterCalendar() {
+    func testFeasibleGoalFollowsCalendarNotSafeCap() {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(secondsFromGMT: 0)!
         let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 21, hour: 8))!
@@ -17,10 +17,11 @@ final class AggressiveWeeklyTargetTests: XCTestCase {
             now: now,
             calendar: cal
         )
-        let safe = TargetFeasibility.maxSafeLossKgPerWeek(currentKg: 84)
-        let expected = (safe * 100).rounded() / 100
-        XCTAssertEqual(hit.weeklyDeltaKg, -expected, accuracy: 0.02)
+        // 84 days = 12 weeks, −4 kg → −0.33/wk. Safe cap is higher and must not steal the date.
+        XCTAssertEqual(hit.weeklyDeltaKg, -0.33, accuracy: 0.02)
         XCTAssertEqual(hit.mode, .aggressive)
+        let safe = TargetFeasibility.maxSafeLossKgPerWeek(currentKg: 84)
+        XCTAssertGreaterThan(hit.weeklyDeltaKg, -safe + 0.05)
         XCTAssertFalse(hit.pacingLine.contains("—"))
     }
 
@@ -62,9 +63,10 @@ final class AggressiveWeeklyTargetTests: XCTestCase {
             calendar: cal
         )
         XCTAssertEqual(hit.mode, .accelerate)
+        // Ahead of last Sunday still stays on the goal-date pace (−5 kg / 12 wk).
+        XCTAssertEqual(hit.weeklyDeltaKg, -0.42, accuracy: 0.02)
         let safe = TargetFeasibility.maxSafeLossKgPerWeek(currentKg: 83)
-        let expected = (safe * 100).rounded() / 100
-        XCTAssertEqual(hit.weeklyDeltaKg, -expected, accuracy: 0.02)
+        XCTAssertGreaterThan(hit.weeklyDeltaKg, -safe + 0.05)
         XCTAssertTrue(hit.pacingLine.lowercased().contains("accelerate") || hit.pacingLine.lowercased().contains("coast"))
     }
 
@@ -87,6 +89,7 @@ final class AggressiveWeeklyTargetTests: XCTestCase {
         let expected = (safe * 100).rounded() / 100
         XCTAssertEqual(abs(hit.weeklyDeltaKg), expected, accuracy: 0.02)
         XCTAssertGreaterThan(hit.weeklyDeltaKg, -1.0)
+        XCTAssertEqual(hit.mode, .commando)
     }
 
     func testCoachPersonaNameIsKeel() {

@@ -115,14 +115,18 @@ final class ScaleSessionViewModel: ObservableObject {
         profile: .default,
         digest: nil
     )
-    /// Last computed weekly target mode (catch-up / accelerate / aggressive).
+    /// Last computed weekly target mode (catch-up / accelerate / aggressive / commando).
     @Published private(set) var weeklyTargetMode: WeeklyTargetMode = .aggressive
+    /// Quick sheet when the goal date cannot be hit safely. Date is pre-selected.
+    @Published var goalRevisionOffer: GoalRevisionOffer?
     /// True after history + baseline have warmed Progress / week-start math.
     @Published private(set) var progressSurfaceWarmed = false
     private var lastProgressWarmAt: Date?
     @Published var hasCompletedOnboarding: Bool {
         didSet { OnboardingStore.hasCompleted = hasCompletedOnboarding }
     }
+    /// Settings → redo onboarding. Profile stays; the flow opens with those answers filled in.
+    @Published var isOnboardingReplay = false
     /// Soft star-rating sheet (non-invasive; only after real weigh-in success).
     @Published var isAppReviewPromptPresented = false
     /// Consumer feedback sheet (Settings entry or optional post–happy-moment soft ask).
@@ -135,6 +139,16 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var isCoachPresented = false
     @Published var isSettingsPresented = false
     @Published var isMealPlanPresented = false
+    /// Alerts / Notification Center sheet (also driven by `-promoShot=alerts`).
+    @Published var isNotificationCenterPresented = false
+    /// Unlock Coach paywall (Settings / quota lock / `-promoShot=paywall` ASC capture).
+    @Published var isPaywallPresented = false
+    /// Compact paywall layout for ASC Review Information screenshot (`-promoShot=paywall…`).
+    @Published var paywallUsesReviewCaptureLayout = false
+    /// Billing period forced for ASC paywall captures.
+    @Published var paywallCaptureBillingPeriod: ScaleBillingPeriod = .annual
+    /// Tier highlight for ASC paywall captures (Plus vs Pro).
+    @Published var paywallCaptureHighlight: ScalePlan = .pro
     @Published private(set) var mealPlan: MealPlanPayload?
     @Published private(set) var isMealPlanLoading = false
     /// Hero coach card after a successful weigh-in (sergeant / encourage / skeptical).
@@ -145,6 +159,10 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var pendingProfileGap: ProfileGapKind?
     /// Offer Monday card after the hero moment dismisses.
     private var pendingMondayAfterHero = false
+    /// Offer the first-of-month hero after the weigh-in hero (and after Monday, if both).
+    private var pendingMonthlyAfterHero = false
+    private var pendingMonthlyAfterMonday = false
+    private var pendingMonthlyWeighKg: Double?
     /// Soft feedback ask after a clearly good hero moment (encourage / winner).
     private var pendingFeedbackSoftAskAfterHero = false
     private var pendingMondayWeighKg: Double?
@@ -160,6 +178,11 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var weighNowGateResolved = false
     /// Monday morning post-weigh weekly goal card.
     @Published private(set) var isMondayCardPresented = false
+    /// First-of-month full-screen hero (after the weigh-in hero, and after Monday when both fire).
+    @Published private(set) var isMonthlyHeroPresented = false
+    @Published private(set) var monthlyHero: MonthlyHeroPayload?
+    @Published private(set) var isMonthlyHeroLoading = false
+    @Published private(set) var monthlyHeroStreamInsight = ""
     /// Full-screen red card after a confirmed short-term weight spike.
     @Published private(set) var isSpikeRedCardPresented = false
     @Published private(set) var pendingSpikeRecoveryPlan: WeightRecoveryPlan?
@@ -499,28 +522,37 @@ final class ScaleSessionViewModel: ObservableObject {
             return
         }
         isResultsPresented = true
-        let offerMonday = pendingMondayAfterHero
-        let kg = pendingMondayWeighKg
-        pendingMondayAfterHero = false
-        pendingMondayWeighKg = nil
-        if offerMonday, let kg {
-            Task {
-                await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
-            }
-        }
+        releasePostHeroCards()
     }
 
     func dismissSpikeRedCard() {
         isSpikeRedCardPresented = false
         pendingSpikeRecoveryPlan = nil
         isResultsPresented = true
+        releasePostHeroCards()
+    }
+
+    /// Monday first when both are due, then the monthly hero. Otherwise the monthly hero alone.
+    private func releasePostHeroCards() {
         let offerMonday = pendingMondayAfterHero
-        let kg = pendingMondayWeighKg
+        let offerMonthly = pendingMonthlyAfterHero
+        let mondayKg = pendingMondayWeighKg
+        let monthlyKg = pendingMonthlyWeighKg
         pendingMondayAfterHero = false
+        pendingMonthlyAfterHero = false
         pendingMondayWeighKg = nil
-        if offerMonday, let kg {
+        if offerMonday, let mondayKg {
+            pendingMonthlyAfterMonday = offerMonthly
+            if !offerMonthly { pendingMonthlyWeighKg = nil }
             Task {
-                await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
+                await presentMondayCardIfNeeded(weighInKg: mondayKg, force: false, regenerate: false)
+            }
+        } else {
+            pendingMonthlyWeighKg = nil
+            if offerMonthly, let monthlyKg {
+                Task {
+                    await presentMonthlyHeroIfNeeded(weighInKg: monthlyKg, force: false)
+                }
             }
         }
     }
@@ -605,6 +637,7 @@ final class ScaleSessionViewModel: ObservableObject {
         guard pendingProfileGap == nil else { return }
         guard !isCoachPresented,
               !isMondayCardPresented,
+              !isMonthlyHeroPresented,
               !isSettingsPresented,
               !isWeighInPresented,
               !isWeighInHeroPresented,
@@ -659,10 +692,307 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     #if DEBUG
+    /// When true, HealthKit refreshes must not wipe seeded promo history / gauges.
+    private(set) var isDemoPersonaActive = false
+
     /// Preview / debug injection for hero moment UI.
     func previewInjectWeighInHero(_ card: WeighInAnalysisCard) {
         lastWeighInAnalysis = card
         isWeighInHeroPresented = true
+    }
+
+    /// Load male/female demo persona for Simulator promo recordings.
+    func applyDemoPersona(_ sex: UserBodyProfile.Sex) {
+        let persona: DemoPersonaSeeder.Persona = sex == .female ? .female : .male
+        DemoPersonaSeeder.hydrate(persona, into: self)
+    }
+
+    /// After DemoHealthKitSeeder writes into HealthKit, pull real steps/energy/diet back.
+    func refreshAfterDemoHealthKitSeed() async {
+        #if DEBUG
+        guard isDemoPersonaActive else { return }
+        do {
+            // Bypass PromoCaptureMode skip — seed already requested share auth.
+            let digest = try await healthStore.fetchFitnessDigest(
+                preSleepWindowMinutes: fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes,
+                now: Date()
+            )
+            if (digest.stepsToday ?? 0) > 100 || (digest.activeEnergyKcalToday ?? 0) > 50 {
+                lastFitnessDigest = digest
+            } else if let existing = lastFitnessDigest {
+                // Auth may still be pending; keep seeded in-memory digest.
+                var merged = digest
+                if (merged.stepsToday ?? 0) < 1 { merged.stepsToday = existing.stepsToday }
+                if (merged.activeEnergyKcalToday ?? 0) < 1 {
+                    merged.activeEnergyKcalToday = existing.activeEnergyKcalToday
+                }
+                if merged.dietaryEnergyKcalToday == nil {
+                    merged.dietaryEnergyKcalToday = existing.dietaryEnergyKcalToday
+                }
+                if merged.dietaryProteinGramsToday == nil {
+                    merged.dietaryProteinGramsToday = existing.dietaryProteinGramsToday
+                }
+                lastFitnessDigest = merged
+            }
+            let end = Date()
+            let start = Calendar.current.date(byAdding: .day, value: -32, to: end) ?? end
+            let weights = try await healthStore.fetchWeights(from: start, to: end)
+            if weights.count >= 5 {
+                historyWeights = weights
+                historyTrendWindowWeights = Array(weights.suffix(14))
+                recentHealthWeights = weights.suffix(8).reversed().map {
+                    HealthWeightSample(weightKg: $0.value, date: $0.date)
+                }
+                if let latest = weights.last?.value {
+                    healthBaselineKg = latest
+                }
+            }
+            let fats = try await healthStore.fetchBodyFatPercents(from: start, to: end)
+            if fats.count >= 3 {
+                historyBodyFatPercents = fats
+            }
+            if let kg = healthBaselineKg {
+                lockDemoWeeklyProgress(currentKg: kg)
+            }
+            rebuildWeeklyGoalSurface()
+        } catch {
+            ScaleDebugLog.throttled(
+                "demo.hk.refresh",
+                "Demo HealthKit refresh soft-fail: \(error.localizedDescription)"
+            )
+        }
+        #endif
+    }
+
+    /// Apply full demo payload (stores already persisted by seeder).
+    func applyDemoPersonaPayload(
+        profile: UserBodyProfile,
+        weeklyGoal: WeeklyMiniGoal,
+        mealPlan: MealPlanPayload?,
+        mondayCard: MondayCardPayload?,
+        weights: [HealthMetricSample],
+        bodyFat: [HealthMetricSample],
+        currentKg: Double,
+        digest: FitnessDigest
+    ) {
+        self.profile = profile
+        self.weeklyGoal = weeklyGoal
+        self.mealPlan = mealPlan
+        self.mondayCard = mondayCard
+        hasCompletedOnboarding = true
+        preferredUnits = .metric
+        applyDemoHealthSurface(
+            weights: weights,
+            bodyFat: bodyFat,
+            currentKg: currentKg,
+            digest: digest
+        )
+    }
+
+    /// Inject chart + gauge surfaces used by demo personas (DEBUG only).
+    func applyDemoHealthSurface(
+        weights: [HealthMetricSample],
+        bodyFat: [HealthMetricSample],
+        currentKg: Double,
+        digest: FitnessDigest
+    ) {
+        historyWeights = weights
+        historyBodyFatPercents = bodyFat
+        historyTrendWindowWeights = Array(weights.suffix(14))
+        historyRange = .lastMonth
+        recentHealthWeights = weights.suffix(8).reversed().map {
+            HealthWeightSample(weightKg: $0.value, date: $0.date)
+        }
+        healthBaselineKg = currentKg
+        lastFitnessDigest = digest
+        lastHomeGaugeRefreshAt = Date()
+        progressSurfaceWarmed = true
+        lastProgressWarmAt = Date()
+        isDemoPersonaActive = true
+        refreshAlreadyWeighedToday()
+        // Do not run ensureWeeklyGoalBaseline — Monday history reconcile + mondayFresh
+        // quiet mode wipe demo progress to 0% (especially when capturing on a Monday).
+        lockDemoWeeklyProgress(currentKg: currentKg)
+        rebuildWeeklyGoalSurface()
+    }
+
+    /// Mid-week Progress chrome: ~70% toward −0.5 kg with a real Monday→today decline.
+    private func lockDemoWeeklyProgress(currentKg: Double) {
+        let cal = Calendar.current
+        let monday = MondayCardEngine.startOfWeekMonday(now: Date(), calendar: cal)
+        let weekStartKg = (currentKg * 100 + 38).rounded() / 100 // ~380g already lost
+        let sundayKg = (weekStartKg * 100 - 50).rounded() / 100
+        weeklyGoal = WeeklyMiniGoal(
+            targetDeltaKg: -0.5,
+            weekStartKg: weekStartKg,
+            weekStartDate: monday,
+            title: UnitFormat.sundayTitle(kg: sundayKg, system: preferredUnits)
+        )
+        WeeklyMiniGoalStore.save(weeklyGoal)
+        weeklyTargetMode = .aggressive
+
+        // Pin this week's Mon→today samples so charts show clear losses.
+        historyWeights = historyWeights.map { sample in
+            let day = cal.startOfDay(for: sample.date)
+            let mon = cal.startOfDay(for: monday)
+            guard day >= mon else { return sample }
+            let daysSince = cal.dateComponents([.day], from: mon, to: day).day ?? 0
+            let t = min(max(Double(daysSince) / 6.0, 0), 1)
+            let kg = (weekStartKg + (currentKg - weekStartKg) * t) * 100
+            return HealthMetricSample(value: kg.rounded() / 100, date: sample.date)
+        }
+        historyTrendWindowWeights = Array(historyWeights.suffix(14))
+        recentHealthWeights = historyWeights.suffix(8).reversed().map {
+            HealthWeightSample(weightKg: $0.value, date: $0.date)
+        }
+    }
+
+    func clearDemoPersonaLock() {
+        isDemoPersonaActive = false
+        isNotificationCenterPresented = false
+    }
+
+    /// Put the profile, coach stores, and Health charts back to whoever was here before Bob or Alice.
+    func restoreRealUserAfterDemo() async -> Bool {
+        guard DemoRealUserSnapshot.canRestore else { return false }
+        guard DemoRealUserSnapshot.restore() else { return false }
+
+        let meals = MealPlanStore.load()
+        profile = UserProfileStore.load()
+        if let meals {
+            MealPlanStore.save(meals)
+            mealPlan = meals
+        } else {
+            mealPlan = nil
+        }
+        calibration = ScaleCalibrationStore.load()
+        notificationPreferences = NotificationPreferencesStore.load()
+        fitnessMonitorPreferences = FitnessMonitorPreferencesStore.load()
+        weeklyGoal = WeeklyMiniGoalStore.load()
+        preferredUnits = PreferredUnitSystemStore.load()
+        hasCompletedOnboarding = OnboardingStore.hasCompleted
+        mondayCard = MondayCardStore.load()
+        let language = AppLanguageStore.current
+        AppLanguageStore.current = language
+
+        historyWeights = []
+        historyBodyFatPercents = []
+        historyTrendWindowWeights = []
+        recentHealthWeights = []
+        healthBaselineKg = nil
+        lastFitnessDigest = nil
+        historyRange = .default
+        progressSurfaceWarmed = false
+        clearDemoPersonaLock()
+
+        await DemoHealthKitSeeder.deleteAllDemoSamples()
+        try? await loadHistory(for: historyRange)
+        _ = await refreshHomeGauges(force: true)
+        rebuildWeeklyGoalSurface()
+        return true
+    }
+
+    /// Present a camera-ready surface for marketing captures (`-promoShot=`).
+    func applyPromoShot(_ shot: String) {
+        let key = shot.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // Clear competing sheets first.
+        isWeighInPresented = false
+        isWeighInHeroPresented = false
+        isResultsPresented = false
+        isMondayCardPresented = false
+        isMonthlyHeroPresented = false
+        isSpikeRedCardPresented = false
+        isAppReviewPromptPresented = false
+        isFeedbackPresented = false
+        isManualEntryPresented = false
+        isNotificationCenterPresented = false
+        isPaywallPresented = false
+        paywallUsesReviewCaptureLayout = false
+        paywallCaptureBillingPeriod = .annual
+        paywallCaptureHighlight = .pro
+        pendingProfileGap = nil
+
+        switch key {
+        case "home", "weigh-home", "01", "01-home":
+            selectHomeTab(.weigh)
+        case "weigh", "live", "02", "02-weigh":
+            presentPromoSettledWeighSheet()
+        case "progress", "03", "03-progress":
+            // Progress tab with mid-week % (demo lock already applied).
+            selectHomeTab(.progress)
+        case "charts", "results", "03-charts":
+            selectHomeTab(.weigh)
+            reopenResults()
+        case "alerts", "notifications", "notif", "04", "04-keel", "04-alerts":
+            // Roast / vulgar Coach alerts (promo seed rows).
+            selectHomeTab(.weigh)
+            isNotificationCenterPresented = true
+        case "keel", "coach":
+            selectHomeTab(.keel)
+        case "meals", "05":
+            selectHomeTab(.meals)
+        case "paywall", "unlock", "asc", "subscription", "iap",
+             "paywall-annual", "paywall-pro-annual", "asc-pro-annual":
+            presentASCPaywallCapture(period: .annual, highlight: .pro)
+        case "paywall-monthly", "paywall-pro-monthly", "asc-pro-monthly":
+            presentASCPaywallCapture(period: .monthly, highlight: .pro)
+        case "paywall-plus-annual", "asc-plus-annual":
+            presentASCPaywallCapture(period: .annual, highlight: .plus)
+        case "paywall-plus-monthly", "asc-plus-monthly":
+            presentASCPaywallCapture(period: .monthly, highlight: .plus)
+        default:
+            selectHomeTab(.weigh)
+        }
+    }
+
+    /// ASC Review Information — Annual/Monthly + Plus/Pro highlight, Free plan so Buy CTAs show.
+    private func presentASCPaywallCapture(period: ScaleBillingPeriod, highlight: ScalePlan) {
+        selectHomeTab(.weigh)
+        paywallUsesReviewCaptureLayout = true
+        paywallCaptureBillingPeriod = period
+        paywallCaptureHighlight = highlight
+        #if DEBUG
+        _ = ScaleSubscriptionStore.shared.applyDevPlan(.free)
+        #endif
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 450_000_000)
+            self.isPaywallPresented = true
+        }
+    }
+
+    /// Settled live weigh sheet with composition for `02-weigh` promo art.
+    private func presentPromoSettledWeighSheet() {
+        let kg = healthBaselineKg ?? profile.startingWeightKg ?? profile.idealWeightKg
+        let ohms = 520
+        let measurement = ScaleMeasurement(
+            weightKg: kg,
+            impedanceOhms: ohms,
+            scaleDate: Date(),
+            hasImpedance: true,
+            biaPending: false,
+            displayUnit: .kilogram,
+            receivedAt: Date(),
+            isStabilized: true
+        )
+        let comp = BodyCompositionCalculator.calculate(
+            weightKg: kg,
+            impedanceOhms: ohms,
+            profile: profile
+        )
+        latestMeasurement = measurement
+        composition = comp
+        draft = EditableMeasurementDraft.from(
+            measurement: measurement,
+            composition: comp,
+            profile: profile
+        )
+        liveWeightKg = kg
+        phase = .reviewing
+        liveHint = "Settled. Confirm to write Apple Health."
+        weighInPurpose = .normal
+        isEditingDraft = false
+        selectHomeTab(.weigh)
+        isWeighInPresented = true
     }
     #endif
 
@@ -702,6 +1032,7 @@ final class ScaleSessionViewModel: ObservableObject {
         // Avoid stacking over Coach / Monday / settings / feedback.
         guard !isCoachPresented,
               !isMondayCardPresented,
+              !isMonthlyHeroPresented,
               !isSettingsPresented,
               !isWeighInPresented,
               !isWeighInHeroPresented,
@@ -719,6 +1050,7 @@ final class ScaleSessionViewModel: ObservableObject {
         guard ScaleFeedbackPrompt.shouldOfferSoftAsk() else { return }
         guard !isCoachPresented,
               !isMondayCardPresented,
+              !isMonthlyHeroPresented,
               !isSettingsPresented,
               !isWeighInPresented,
               !isWeighInHeroPresented,
@@ -858,7 +1190,11 @@ final class ScaleSessionViewModel: ObservableObject {
         }
 
         isMealPlanLoading = true
-        defer { isMealPlanLoading = false }
+        KeelIslandActivityController.begin(label: "Meals")
+        defer {
+            isMealPlanLoading = false
+            KeelIslandActivityController.end()
+        }
 
         let brief = makeCoachBrief()
         let micro = "\(surface.targets.microName) \(surface.targets.microTargetLine)"
@@ -880,9 +1216,40 @@ final class ScaleSessionViewModel: ObservableObject {
     func dismissMondayCard() {
         isMondayCardPresented = false
         isMondayCardLoading = false
+        let offerMonthly = pendingMonthlyAfterMonday
+        let kg = pendingMonthlyWeighKg
+        pendingMonthlyAfterMonday = false
+        pendingMonthlyWeighKg = nil
+        if offerMonthly, let kg {
+            Task {
+                await presentMonthlyHeroIfNeeded(weighInKg: kg, force: false)
+            }
+        }
+    }
+
+    func dismissMonthlyHero() {
+        isMonthlyHeroPresented = false
+        isMonthlyHeroLoading = false
     }
 
     #if DEBUG
+    /// Settings / `-debugMonthlyHero`. Ephemeral: does not mark the month as already shown.
+    func forcePresentMonthlyHero() {
+        Task {
+            let args = ProcessInfo.processInfo.arguments
+            let waitingOnDemo = args.contains("-demoFemale") || args.contains("-demoMale")
+            if waitingOnDemo {
+                for _ in 0..<10 where !isDemoPersonaActive && historyWeights.isEmpty {
+                    try? await Task.sleep(nanoseconds: 120_000_000)
+                }
+            } else {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+            }
+            let kg = healthBaselineKg ?? displayWeightKg ?? historyWeights.last?.value
+            await presentMonthlyHeroIfNeeded(weighInKg: kg, force: true)
+        }
+    }
+
     /// Test-only: force-show the Monday card (optionally regenerate past cache).
     /// Preview is ephemeral — never rewrites live weekly progress or MondayCardStore.
     func forcePresentMondayCard(regenerate: Bool = true) {
@@ -990,6 +1357,7 @@ final class ScaleSessionViewModel: ObservableObject {
         mondayCard = draft
 
         let brief = makeCoachBrief(digest: digest)
+        KeelIslandActivityController.begin(label: "Monday")
         let result = await GrokClient.shared.mondayCardStreaming(
             brief: brief,
             progress: progress,
@@ -1007,6 +1375,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 self.mondayCard = live
             }
         }
+        KeelIslandActivityController.end()
 
         draft.encouragement = result.encouragement
         draft.meals = result.meals
@@ -1021,6 +1390,81 @@ final class ScaleSessionViewModel: ObservableObject {
             MondayCardStore.save(draft)
         }
         isMondayCardLoading = false
+    }
+
+    /// After the weigh-in hero (or a manual save) on the 1st. One auto-show per month.
+    /// `force` is the DEBUG preview and does not write the cache.
+    func presentMonthlyHeroIfNeeded(
+        weighInKg: Double?,
+        force: Bool,
+        now: Date = Date()
+    ) async {
+        guard force || MonthlyHeroEngine.shouldOfferAfterWeighIn(now: now) else { return }
+        let month = MonthlyHeroEngine.monthKey(for: now)
+        if !force, let cached = MonthlyHeroStore.load(), cached.monthKey == month, cached.isComplete {
+            return
+        }
+
+        var samples: [MonthlyWeighSample] = []
+        #if DEBUG
+        if isDemoPersonaActive, historyWeights.count >= 4 {
+            samples = historyWeights.map { MonthlyWeighSample(kg: $0.value, date: $0.date) }
+        }
+        #endif
+        if samples.isEmpty {
+            let start = Calendar.current.date(byAdding: .day, value: -75, to: now) ?? now.addingTimeInterval(-75 * 86_400)
+            if healthKitAvailable {
+                if let fetched = try? await healthStore.fetchWeights(from: start, to: now), !fetched.isEmpty {
+                    samples = fetched.map { MonthlyWeighSample(kg: $0.value, date: $0.date) }
+                }
+            }
+            if samples.isEmpty {
+                samples = historyWeights.map { MonthlyWeighSample(kg: $0.value, date: $0.date) }
+            }
+        }
+
+        let facts = MonthlyHeroEngine.compose(
+            samples: samples,
+            weighInKg: weighInKg,
+            idealKg: profile.idealWeightKg,
+            name: profile.greetingName,
+            units: preferredUnits,
+            now: now
+        )
+        let plan = ScaleSubscriptionStore.shared.plan
+        let signatureKg = weighInKg ?? facts.currentKg ?? 0
+        var draft = MonthlyHeroPayload(
+            monthKey: month,
+            weighInSignature: MonthlyHeroEngine.weighInSignature(kg: signatureKg, at: now),
+            facts: facts,
+            insight: facts.ruleInsight,
+            usedNetwork: false,
+            planRaw: plan.rawValue,
+            generatedAt: now
+        )
+        monthlyHero = draft
+        monthlyHeroStreamInsight = facts.ruleInsight
+        isMonthlyHeroPresented = true
+        isMonthlyHeroLoading = false
+
+        guard facts.canAskKeel, MonthlyHeroEngine.allowsLiveInsight(plan: plan) else {
+            if !force { MonthlyHeroStore.save(draft) }
+            return
+        }
+
+        isMonthlyHeroLoading = true
+        let brief = makeCoachBrief()
+        KeelIslandActivityController.begin(label: "Month")
+        let result = await GrokClient.shared.monthlyHeroInsight(brief: brief, facts: facts)
+        KeelIslandActivityController.end()
+        let insight = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        draft.insight = insight.isEmpty ? facts.ruleInsight : insight
+        draft.usedNetwork = result.usedNetwork
+        draft.generatedAt = Date()
+        monthlyHero = draft
+        monthlyHeroStreamInsight = draft.insight
+        isMonthlyHeroLoading = false
+        if !force { MonthlyHeroStore.save(draft) }
     }
 
     private func applyMondayCardCache(_ cached: MondayCardPayload) {
@@ -1043,6 +1487,14 @@ final class ScaleSessionViewModel: ObservableObject {
     /// this week's plan immediately (no first-tab Health stall / last-week ghost %).
     @discardableResult
     func warmProgressSurface(force: Bool = false) async -> WeeklyGoalSurface {
+        #if DEBUG
+        if isDemoPersonaActive {
+            rebuildWeeklyGoalSurface()
+            progressSurfaceWarmed = true
+            lastProgressWarmAt = Date()
+            return weeklyGoalSurface
+        }
+        #endif
         if !force,
            progressSurfaceWarmed,
            let last = lastProgressWarmAt,
@@ -1071,6 +1523,13 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Preview/test must not wipe this; bad stamps (today / dream / mid-week first weigh)
     /// re-anchor to Monday. Weekly Δ / Sunday target pace from that Monday kg — never "today".
     func ensureWeeklyGoalBaseline() {
+        #if DEBUG
+        if isDemoPersonaActive {
+            // Demo weeks are locked in `lockDemoWeeklyProgress` — do not re-anchor.
+            rebuildWeeklyGoalSurface()
+            return
+        }
+        #endif
         var next = weeklyGoal
         let cal = Calendar.current
         let history = mondayAnchorHistorySamples()
@@ -1138,6 +1597,51 @@ final class ScaleSessionViewModel: ObservableObject {
             next.title = UnitFormat.sundayTitle(kg: hit.sundayTargetKg, system: preferredUnits)
         }
         weeklyGoal = next
+        considerGoalDateRevision(currentKg: healthBaselineKg ?? mondayKg)
+    }
+
+    /// Unrealistic goal date → commando meals, one notification, and a pre-filled date sheet.
+    private func considerGoalDateRevision(currentKg: Double) {
+        #if DEBUG
+        if isDemoPersonaActive || PromoCaptureMode.isActive { return }
+        #endif
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
+        guard let goalDate = profile.goalDate else { return }
+        let verdict = GoalPaceGuard.evaluate(
+            currentKg: currentKg,
+            targetKg: profile.idealWeightKg,
+            goalDate: goalDate
+        )
+        guard verdict.status == .rejected, let proposed = verdict.earliestFeasibleDate else { return }
+        let stamp = GoalRevisionStore.stamp(goalDate: goalDate, idealKg: profile.idealWeightKg)
+        guard GoalRevisionStore.lastStamp != stamp else { return }
+        GoalRevisionStore.lastStamp = stamp
+        goalRevisionOffer = GoalRevisionOffer(
+            proposedDate: proposed,
+            note: verdict.keelNote,
+            stamp: stamp
+        )
+        let proposedDate = proposed
+        Task { @MainActor in
+            await TrendNotificationScheduler.scheduleGoalRevision(proposed: proposedDate)
+            clearMealPlanCache()
+            _ = await refreshMealPlan(force: true)
+        }
+    }
+
+    func acceptRevisedGoalDate(_ date: Date) {
+        profile.goalDate = date
+        UserProfileStore.save(profile)
+        GoalRevisionStore.lastStamp = GoalRevisionStore.stamp(goalDate: date, idealKg: profile.idealWeightKg)
+        goalRevisionOffer = nil
+        ensureWeeklyGoalBaseline()
+        rebuildWeeklyGoalSurface()
+        clearMealPlanCache()
+        Task { await refreshMealPlan(force: true) }
+    }
+
+    func keepUnrealisticGoalDate() {
+        goalRevisionOffer = nil
     }
 
     /// Weight series for Monday week-start reconcile (charts → trend window → recent baseline).
@@ -1155,6 +1659,12 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Prefer this for UI speed; full Coach digest stays on `refreshFitnessDigestForCoach`.
     @discardableResult
     func refreshHomeGauges(force: Bool = false) async -> WeeklyGoalSurface {
+        #if DEBUG
+        if isDemoPersonaActive {
+            rebuildWeeklyGoalSurface()
+            return weeklyGoalSurface
+        }
+        #endif
         if !force,
            let last = lastHomeGaugeRefreshAt,
            Date().timeIntervalSince(last) < 8,
@@ -1195,6 +1705,12 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Refresh Health digest + rebuild the home weekly-goal hero.
     @discardableResult
     func refreshWeeklyGoalSurface() async -> WeeklyGoalSurface {
+        #if DEBUG
+        if isDemoPersonaActive {
+            rebuildWeeklyGoalSurface()
+            return weeklyGoalSurface
+        }
+        #endif
         // Fast path first so Horizon Arc Bank fills without waiting on sleep/HRV/workouts.
         await refreshHomeGauges(force: true)
         _ = await refreshFitnessDigestForCoach()
@@ -1204,13 +1720,24 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func rebuildWeeklyGoalSurface() {
+        #if DEBUG
+        // Demo captures: treat "now" as Wednesday so mondayFresh quiet mode cannot force 0%.
+        let surfaceNow: Date = {
+            guard isDemoPersonaActive else { return Date() }
+            let monday = MondayCardEngine.startOfWeekMonday(now: Date())
+            return Calendar.current.date(byAdding: .day, value: 3, to: monday) ?? Date()
+        }()
+        #else
+        let surfaceNow = Date()
+        #endif
         weeklyGoalSurface = WeeklyGoalSurfaceEngine.build(
             weeklyGoal: weeklyGoal,
             currentKg: healthBaselineKg ?? displayWeightKg,
             profile: profile,
             digest: lastFitnessDigest,
             recentWeights: recentHealthWeights,
-            targetMode: weeklyTargetMode
+            targetMode: weeklyTargetMode,
+            now: surfaceNow
         )
     }
 
@@ -1254,7 +1781,13 @@ final class ScaleSessionViewModel: ObservableObject {
             profileName: profile.greetingName,
             digestBlock: prompt + "\n\n" + digestBlock,
             sex: profile.sex,
-            locale: CoachLocaleContext.resolve(profile: profile)
+            ageYears: profile.ageYears,
+            cultureContext: CoachVoice.cultureInsightPayload(
+                ageYears: profile.ageYears,
+                location: profile.location,
+                ethnicity: profile.ethnicity,
+                culturalVibe: profile.culturalVibe
+            )
         ) {
             let cleaned = CoachCopySanitize.clean(polished)
             guard !cleaned.isEmpty, cleaned.count < 280 else { return }
@@ -1310,6 +1843,11 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Fresh HealthKit snapshot for every Coach turn (not only background fitness jobs).
     @discardableResult
     func refreshFitnessDigestForCoach(reRequestAuth: Bool = false) async -> FitnessDigest {
+        #if DEBUG
+        if isDemoPersonaActive, let demo = lastFitnessDigest {
+            return demo
+        }
+        #endif
         guard healthKitAvailable else {
             let digest = FitnessDigest.unavailable()
             lastFitnessDigest = digest
@@ -1339,7 +1877,7 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
 
-    /// After digest refresh / scene active: reconcile Weigh Now gate, then morning drill.
+    /// After digest refresh / scene active: reconcile Weigh Now gate, then morning drill + miss ladder.
     func considerMorningWeighDrill(digest: FitnessDigest? = nil) async {
         await reconcileAlreadyWeighedTodayFromHealth()
         let weighedToday = alreadyWeighedToday
@@ -1349,6 +1887,16 @@ final class ScaleSessionViewModel: ObservableObject {
             profileName: profile.greetingName,
             sleepWake: snap?.sleepWake,
             alreadyWeighedToday: weighedToday
+        )
+        await WeighMissLadderScheduler.consider(
+            prefs: notificationPreferences,
+            profileName: profile.greetingName,
+            alreadyWeighedToday: weighedToday,
+            recentWeights: historyTrendWindowWeights.isEmpty
+                ? historyWeights
+                : historyTrendWindowWeights,
+            weeklyGoal: weeklyGoal,
+            weekBand: weeklyGoalSurface.band
         )
     }
 
@@ -1375,6 +1923,7 @@ final class ScaleSessionViewModel: ObservableObject {
     /// Weigh Now CTA stays hidden even if a later Health read fails.
     @discardableResult
     func refreshAlreadyWeighedToday(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        let previous = alreadyWeighedToday
         let next = hasValidWeighInToday(now: now, calendar: calendar)
         if next {
             let stamp = Self.localDayStamp(now, calendar: calendar)
@@ -1383,6 +1932,10 @@ final class ScaleSessionViewModel: ObservableObject {
             }
         }
         alreadyWeighedToday = next
+        // Health (or stamp) just flipped to weighed today → wipe weigh banners immediately.
+        if next, !previous {
+            MorningWeighDrillScheduler.markSatisfied(now: now, calendar: calendar)
+        }
         return next
     }
 
@@ -1433,8 +1986,12 @@ final class ScaleSessionViewModel: ObservableObject {
         // Prefer the Health sample date when it is still local-today; else stamp with now.
         let injectAt = calendar.isDate(date, inSameDayAs: now) ? date : now
         injectOptimisticWeighSample(kg: kg, at: injectAt, calendar: calendar)
+        let wasWeighed = alreadyWeighedToday
         alreadyWeighedToday = true
         weighNowGateResolved = true
+        if !wasWeighed {
+            MorningWeighDrillScheduler.markSatisfied(now: now, calendar: calendar)
+        }
     }
 
     /// Pull body-mass samples for local calendar today into in-memory series for the gate.
@@ -1591,6 +2148,8 @@ final class ScaleSessionViewModel: ObservableObject {
             } else {
                 presentManualEntry()
             }
+        case .meals:
+            presentMealPlan()
         }
     }
 
@@ -1661,7 +2220,45 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func requestOrchestratorCoach() async -> CoachReply {
-        await GrokClient.shared.orchestrate(brief: makeCoachBrief())
+        KeelIslandActivityController.begin(label: "Keel")
+        defer { KeelIslandActivityController.end() }
+        return await GrokClient.shared.orchestrate(brief: makeCoachBrief())
+    }
+
+    /// Local HealthKit pass every 10 minutes. No Grok call. Notifies only on a new beat.
+    func runActivityPulse() async {
+        let prefs = fitnessMonitorPreferences
+        guard prefs.enabled, prefs.interval != .manualOnly else { return }
+        #if DEBUG
+        if PromoCaptureMode.isActive { return }
+        #endif
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
+        do {
+            try await healthStore.requestAuthorizationIfNeeded()
+            let digest = try await healthStore.fetchFitnessDigest(
+                preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes,
+                now: Date()
+            )
+            lastFitnessDigest = digest
+            await deliverActivityPulse(digest: digest)
+            GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: prefs)
+        } catch {
+            // Next pass retries. Pages stay up.
+        }
+    }
+
+    private func deliverActivityPulse(digest: FitnessDigest) async {
+        guard let pulse = ActivityPulseAnalyzer.evaluate(
+            digest: digest,
+            profileName: profile.greetingName,
+            sex: profile.sex
+        ) else { return }
+        await GrokFitnessMonitor.notifyActivityPulse(pulse, profileName: profile.greetingName)
+        await GrokFitnessMonitor.scheduleIntervalNotification(
+            prefs: fitnessMonitorPreferences,
+            profileName: profile.greetingName,
+            pulse: pulse
+        )
     }
 
     /// Pull Health fitness signals, evaluate triggers, optionally call Grok.
@@ -1686,7 +2283,7 @@ final class ScaleSessionViewModel: ObservableObject {
         let wantTrend =
             notificationPreferences.notifyOnBadTrend || notificationPreferences.weeklyGoalReminders
         let wantMorning = notificationPreferences.morningWeighDrill
-        // Morning drill alone must still wake: sleep digest + calendar fallback.
+        // Morning drill / miss ladder alone must still wake: sleep digest + calendar fallback.
         guard monitoringOn || wantTrend || wantMorning else { return false }
 
         do {
@@ -1702,6 +2299,7 @@ final class ScaleSessionViewModel: ObservableObject {
                 healthAccessStatusLine = digest.settingsStatusLine
 
                 if monitoringOn {
+                    await deliverActivityPulse(digest: digest)
                     let triggers = FitnessTriggerMonitor.evaluate(
                         digest: digest,
                         thresholds: prefs.thresholds
@@ -1711,7 +2309,10 @@ final class ScaleSessionViewModel: ObservableObject {
                     await GrokFitnessMonitor.notifyTriggers(
                         triggers,
                         prefs: &prefs,
-                        profileName: profile.greetingName
+                        profileName: profile.greetingName,
+                        sex: profile.sex,
+                        ageYears: profile.ageYears,
+                        cultureContext: profile.coachPersonaBlock
                     )
 
                     let intervalDue = FitnessTriggerMonitor.isAutomatedCheckDue(prefs: prefs)
@@ -1736,7 +2337,9 @@ final class ScaleSessionViewModel: ObservableObject {
                                     digestBlock: digest.promptBlock(
                                         preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes
                                     ) + "\nTriggers: \(triggerSummary)\nNote: \(reply.text)",
-                                    sex: profile.sex
+                                    sex: profile.sex,
+                                    ageYears: profile.ageYears,
+                                    cultureContext: profile.coachPersonaBlock
                                 ) {
                                     lastFitnessCoachReply = fmSummary
                                     GrokFitnessMonitor.storeLastReply(fmSummary)
@@ -1755,7 +2358,9 @@ final class ScaleSessionViewModel: ObservableObject {
                             digestBlock: digest.promptBlock(
                                 preSleepWindowMinutes: prefs.thresholds.preSleepHRWindowMinutes
                             ) + "\nTriggers: \(triggerSummary)",
-                            sex: profile.sex
+                            sex: profile.sex,
+                            ageYears: profile.ageYears,
+                            cultureContext: profile.coachPersonaBlock
                         ) {
                             lastFitnessCoachReply = fmSummary
                             GrokFitnessMonitor.storeLastReply(fmSummary)
@@ -1777,10 +2382,6 @@ final class ScaleSessionViewModel: ObservableObject {
                     }
 
                     fitnessMonitorPreferences = prefs
-                    await GrokFitnessMonitor.scheduleIntervalNotification(
-                        prefs: prefs,
-                        profileName: profile.greetingName
-                    )
                     GrokFitnessMonitor.scheduleBackgroundRefresh(prefs: prefs)
                     GrokFitnessMonitor.scheduleBackgroundProcessing(prefs: prefs)
                 }
@@ -1817,6 +2418,7 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func refreshTrendNotifications() async {
+        await reconcileAlreadyWeighedTodayFromHealth()
         await TrendNotificationScheduler.refresh(
             prefs: notificationPreferences,
             profileName: profile.greetingName,
@@ -1826,15 +2428,51 @@ final class ScaleSessionViewModel: ObservableObject {
                 ? historyWeights
                 : historyTrendWindowWeights,
             weeklyGoal: weeklyGoal,
-            sex: profile.sex
+            alreadyWeighedToday: alreadyWeighedToday,
+            sex: profile.sex,
+            ageYears: profile.ageYears,
+            cultureContext: CoachVoice.cultureInsightPayload(
+                ageYears: profile.ageYears,
+                location: profile.location,
+                ethnicity: profile.ethnicity,
+                culturalVibe: profile.culturalVibe
+            )
         )
         await considerMorningWeighDrill()
+    }
+
+    /// Newest body-mass sample, if Health has one. Used to prefill onboarding weight.
+    func latestHealthBodyMass() async -> HealthMetricSample? {
+        #if DEBUG
+        if isDemoPersonaActive, let last = historyWeights.max(by: { $0.date < $1.date }) {
+            return last
+        }
+        #endif
+        if let cached = recentHealthWeights.max(by: { $0.date < $1.date }) {
+            return HealthMetricSample(value: cached.weightKg, date: cached.date)
+        }
+        guard healthKitAvailable else { return nil }
+        do {
+            try await healthStore.requestAuthorizationIfNeeded()
+            let end = Date()
+            let start = Calendar.current.date(byAdding: .year, value: -2, to: end) ?? end
+            let samples = try await healthStore.fetchWeights(from: start, to: end)
+            return samples.max(by: { $0.date < $1.date })
+        } catch {
+            return nil
+        }
     }
 
     /// Load Apple Health weight + body fat samples for the results charts.
     /// Always also loads the last 2 weeks for Trend projection (independent of picker range).
     func loadHistory(for range: HealthHistoryRange = .default) async throws {
         historyRange = range
+        #if DEBUG
+        if isDemoPersonaActive {
+            refreshAlreadyWeighedToday()
+            return
+        }
+        #endif
         guard healthKitAvailable else {
             historyWeights = []
             historyBodyFatPercents = []
@@ -1885,8 +2523,14 @@ final class ScaleSessionViewModel: ObservableObject {
         isWeighInPresented = false
         WeighInLiveActivityController.end()
         isResultsPresented = true
-        if MondayCardEngine.shouldOfferAfterWeighIn() {
+        let offerMonday = MondayCardEngine.shouldOfferAfterWeighIn()
+        let offerMonthly = MonthlyHeroEngine.shouldOfferAfterWeighIn()
+        if offerMonday {
+            pendingMonthlyAfterMonday = offerMonthly
+            pendingMonthlyWeighKg = offerMonthly ? kg : nil
             await presentMondayCardIfNeeded(weighInKg: kg, force: false, regenerate: false)
+        } else if offerMonthly {
+            await presentMonthlyHeroIfNeeded(weighInKg: kg, force: false)
         }
     }
 
@@ -2066,6 +2710,9 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func refreshHealthBaseline() async {
+        #if DEBUG
+        if isDemoPersonaActive { return }
+        #endif
         guard healthKitAvailable else {
             recentHealthWeights = []
             healthBaselineKg = nil
@@ -2168,8 +2815,11 @@ final class ScaleSessionViewModel: ObservableObject {
             }
             pendingSpikeVerdict = nil
             let offerMonday = MondayCardEngine.shouldOfferAfterWeighIn()
+            let offerMonthly = MonthlyHeroEngine.shouldOfferAfterWeighIn()
             pendingMondayAfterHero = offerMonday
             pendingMondayWeighKg = offerMonday ? weighKg : nil
+            pendingMonthlyAfterHero = offerMonthly
+            pendingMonthlyWeighKg = offerMonthly ? weighKg : nil
             isWeighInHeroPresented = true
         } catch {
             phase = .healthKitFailed(error.localizedDescription)
@@ -2493,6 +3143,28 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
         if shouldSurfaceTransientHints {
             liveHint = status
         }
+    }
+}
+
+struct GoalRevisionOffer: Identifiable, Equatable {
+    let id = UUID()
+    var proposedDate: Date
+    var note: String
+    var stamp: String
+}
+
+enum GoalRevisionStore {
+    private static let key = "thescale.goalRevision.stamp"
+
+    static var lastStamp: String? {
+        get { UserDefaults.standard.string(forKey: key) }
+        set { UserDefaults.standard.set(newValue, forKey: key) }
+    }
+
+    static func stamp(goalDate: Date, idealKg: Double) -> String {
+        let day = Calendar.current.startOfDay(for: goalDate).timeIntervalSince1970
+        let kg = (idealKg * 10).rounded() / 10
+        return "\(day)-\(kg)"
     }
 }
 

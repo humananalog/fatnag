@@ -9,6 +9,7 @@ private struct PaywallScrollOffsetKey: PreferenceKey {
 }
 
 /// Luxury paywall sheet. Hero kisses the top edge; Close floats over it. Width-safe.
+/// Default cadence is **Annual** (cheaper for the user, cash up front). Monthly is one tap away.
 struct PaywallView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @ObservedObject private var store = ScaleSubscriptionStore.shared
@@ -16,11 +17,27 @@ struct PaywallView: View {
 
     var lockMessage: String?
     /// Soft nudge for the next step up. Pro stays visually primary either way.
-    var highlighted: ScalePlan = .pro
+    var highlighted: ScalePlan
+    /// Shorter hero so Annual/Monthly + Free/Plus/Pro fit one ASC Review Information frame.
+    var reviewCaptureLayout: Bool
 
     @State private var scrollY: CGFloat = 0
     @State private var appeared = false
     @State private var legalDocument: ScaleLegal.Document?
+    /// Annual first — better deal + better cashflow (overridable for ASC captures).
+    @State private var billingPeriod: ScaleBillingPeriod
+
+    init(
+        lockMessage: String? = nil,
+        highlighted: ScalePlan = .pro,
+        reviewCaptureLayout: Bool = false,
+        initialBillingPeriod: ScaleBillingPeriod = .annual
+    ) {
+        self.lockMessage = lockMessage
+        self.highlighted = highlighted
+        self.reviewCaptureLayout = reviewCaptureLayout
+        _billingPeriod = State(initialValue: initialBillingPeriod)
+    }
 
     private var universe: ScalePaletteUniverse {
         .resolve(sex: session.profile.sex)
@@ -47,7 +64,9 @@ struct PaywallView: View {
     var body: some View {
         GeometryReader { geo in
             let width = geo.size.width
-            let heroHeight = min(max(geo.size.height * 0.50, 300), 460)
+            let heroHeight = reviewCaptureLayout
+                ? min(max(geo.size.height * 0.22, 140), 200)
+                : min(max(geo.size.height * 0.50, 300), 460)
 
             ZStack(alignment: .top) {
                 ink.ignoresSafeArea()
@@ -86,7 +105,7 @@ struct PaywallView: View {
                             .background(.ultraThinMaterial, in: Circle())
                             .overlay(Circle().strokeBorder(ivory.opacity(0.22), lineWidth: 1))
                     }
-                    .accessibilityLabel(String(localized: "common.close", defaultValue: "Close"))
+                    .accessibilityLabel(AppLanguageStore.text("common.close", default: "Close"))
                     .padding(.trailing, 16)
                     .padding(.top, gripperClearance)
                 }
@@ -109,7 +128,7 @@ struct PaywallView: View {
                 LegalDocumentView(document: document)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button(String(localized: "common.done", defaultValue: "Done")) { legalDocument = nil }
+                            Button(AppLanguageStore.text("common.done", default: "Done")) { legalDocument = nil }
                         }
                     }
             }
@@ -157,12 +176,12 @@ struct PaywallView: View {
             VStack(alignment: .leading, spacing: 10) {
                 FatnagWordmark(size: 14, color: gold.opacity(0.95))
 
-                Text(String(localized: "paywall.stay_sharp", defaultValue: "Stay sharp."))
+                Text(AppLanguageStore.text("paywall.stay_sharp", default: "Stay sharp."))
                     .font(.system(size: 36, weight: .semibold, design: .serif))
                     .foregroundStyle(ivory)
                     .shadow(color: .black.opacity(0.35), radius: 8, y: 2)
 
-                Text(String(localized: "paywall.credits_line", defaultValue: "Credits do not buy pleasure. Credits buy better outcomes."))
+                Text(AppLanguageStore.text("paywall.credits_line", default: "Credits do not buy pleasure. Credits buy better outcomes."))
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(gold.opacity(0.95))
                     .fixedSize(horizontal: false, vertical: true)
@@ -182,7 +201,7 @@ struct PaywallView: View {
 
     private var panelContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(String(localized: "paywall.subhead", defaultValue: "Live Keel when you go soft. Pro is the pressure path."))
+            Text(AppLanguageStore.text("paywall.subhead", default: "Live Keel when you go soft. Pro is the pressure path."))
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(mist)
                 .fixedSize(horizontal: false, vertical: true)
@@ -199,11 +218,15 @@ struct PaywallView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 18)
 
-            if store.isLoading && store.products.isEmpty {
+            billingPeriodSelector
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
+
+            if store.isLoading && store.products.isEmpty && !reviewCaptureLayout {
                 catalogLoading
                     .padding(.horizontal, 24)
                     .padding(.top, 18)
-            } else if store.hasEmptyCatalog {
+            } else if store.hasEmptyCatalog && !reviewCaptureLayout {
                 catalogEmpty
                     .padding(.horizontal, 24)
                     .padding(.top, 18)
@@ -211,7 +234,7 @@ struct PaywallView: View {
 
             tierStack
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
+                .padding(.top, 16)
 
             footer
                 .padding(.horizontal, 24)
@@ -227,7 +250,7 @@ struct PaywallView: View {
             ProgressView()
                 .controlSize(.small)
                 .tint(mist)
-            Text(String(localized: "paywall.loading_prices", defaultValue: "Loading App Store prices…"))
+            Text(AppLanguageStore.text("paywall.loading_prices", default: "Loading App Store prices…"))
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(mist)
             Spacer(minLength: 0)
@@ -240,17 +263,17 @@ struct PaywallView: View {
 
     private var catalogEmpty: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(String(localized: "paywall.catalog_unavailable", defaultValue: "Subscriptions unavailable"))
+            Text(AppLanguageStore.text("paywall.catalog_unavailable", default: "Subscriptions unavailable"))
                 .font(.system(size: 14, weight: .bold, design: .rounded))
                 .foregroundStyle(ivory)
             Text(
                 store.purchaseError
-                    ?? String(localized: "paywall.catalog_empty", defaultValue: "Plus and Pro aren’t in the App Store catalog yet. Try Restore, or check back after products go live under Human Analog.")
+                    ?? AppLanguageStore.text("paywall.catalog_empty", default: "Plus and Pro aren’t in the App Store catalog yet. Try Restore, or check back after products go live under Human Analog.")
             )
             .font(.system(size: 12, weight: .medium, design: .rounded))
             .foregroundStyle(mist)
             .fixedSize(horizontal: false, vertical: true)
-            Button(String(localized: "common.retry", defaultValue: "Retry")) {
+            Button(AppLanguageStore.text("common.retry", default: "Retry")) {
                 Task { await store.refresh() }
             }
             .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -288,6 +311,28 @@ struct PaywallView: View {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(gold.opacity(0.40), lineWidth: 1)
             )
+    }
+
+    private var billingPeriodSelector: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker(
+                AppLanguageStore.text("paywall.billing", default: "Billing"),
+                selection: $billingPeriod
+            ) {
+                ForEach(ScaleBillingPeriod.allCases) { period in
+                    Text(period.title).tag(period)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("paywall.billingPeriod")
+
+            if billingPeriod == .annual {
+                Text(AppLanguageStore.text("paywall.annual.hint", default: "Annual locks the year in — two months free vs paying monthly."))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(gold.opacity(0.9))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private var usageStrip: some View {
@@ -333,6 +378,8 @@ struct PaywallView: View {
         let isCurrent = plan == store.plan
         let isPro = plan == .pro
         let isStep = plan == highlighted && !isCurrent && !isPro
+        let liveProduct = store.product(for: plan, period: billingPeriod)
+        let priceText = store.priceLabel(for: plan, period: billingPeriod)
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -342,22 +389,30 @@ struct PaywallView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
                 if isPro && !isCurrent {
-                    Text(String(localized: "paywall.best", defaultValue: "Best"))
+                    Text(AppLanguageStore.text("paywall.best", default: "Best"))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(gold, in: Capsule())
                 } else if isStep {
-                    Text(String(localized: "paywall.next", defaultValue: "Next"))
+                    Text(AppLanguageStore.text("paywall.next", default: "Next"))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(ivory.opacity(0.9))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(ivory.opacity(0.14), in: Capsule())
                 }
+                if billingPeriod == .annual, let save = plan.annualSavingsLabel, !isCurrent, plan != .free {
+                    Text(save)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(red: 0.55, green: 0.78, blue: 0.62))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color(red: 0.55, green: 0.78, blue: 0.62).opacity(0.16), in: Capsule())
+                }
                 Spacer(minLength: 8)
-                Text(store.priceLabel(for: plan))
+                Text(priceText)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(isPro ? gold : mist)
                     .lineLimit(1)
@@ -370,7 +425,7 @@ struct PaywallView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if isCurrent {
-                Text(String(localized: "paywall.current_plan", defaultValue: "Current plan"))
+                Text(AppLanguageStore.text("paywall.current_plan", default: "Current plan"))
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(Color(red: 0.55, green: 0.78, blue: 0.62))
             }
@@ -378,7 +433,7 @@ struct PaywallView: View {
             if !isCurrent, plan != .free {
                 Button {
                     Task {
-                        let ok = await store.purchase(plan)
+                        let ok = await store.purchase(plan, period: billingPeriod)
                         if ok { dismiss() }
                     }
                 } label: {
@@ -389,9 +444,9 @@ struct PaywallView: View {
                                 .tint(isPro ? ink : ivory)
                         }
                         Text(isPro
-                              ? String(localized: "paywall.go_pro", defaultValue: "Go Pro")
+                              ? AppLanguageStore.text("paywall.go_pro", default: "Go Pro")
                               : String(
-                                    format: String(localized: "paywall.choose", defaultValue: "Choose %@"),
+                                    format: AppLanguageStore.text("paywall.choose", default: "Choose %@"),
                                     plan.displayName
                                 ))
                             .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -401,8 +456,8 @@ struct PaywallView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(isPro ? ink : ivory)
-                .disabled(store.isBusy || store.product(for: plan) == nil)
-                .opacity(store.product(for: plan) == nil ? 0.45 : 1)
+                .disabled(store.isBusy || liveProduct == nil)
+                .opacity(liveProduct == nil ? 0.45 : 1)
                 .background {
                     if isPro {
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -435,6 +490,7 @@ struct PaywallView: View {
                 )
         )
         .shadow(color: isPro ? gold.opacity(0.18) : .clear, radius: 18, y: 8)
+        .animation(.easeInOut(duration: 0.2), value: billingPeriod)
     }
 
     private var footer: some View {
@@ -465,22 +521,32 @@ struct PaywallView: View {
                             .tint(mist)
                     }
                     Text(store.isRestoring
-                          ? String(localized: "paywall.restoring", defaultValue: "Restoring…")
-                          : String(localized: "paywall.restore", defaultValue: "Restore purchases"))
+                          ? AppLanguageStore.text("paywall.restoring", default: "Restoring…")
+                          : AppLanguageStore.text("paywall.restore", default: "Restore purchases"))
                 }
             }
             .font(.system(size: 14, weight: .semibold, design: .rounded))
             .foregroundStyle(mist)
             .disabled(store.isBusy)
             .accessibilityIdentifier("paywall.restore")
-            Text(String(localized: "paywall.cancel_note", defaultValue: "Cancel anytime in App Store subscriptions. Auto-renews monthly until you cancel at least 24 hours before the period ends."))
+            Text(
+                billingPeriod == .annual
+                    ? AppLanguageStore.text(
+                        "paywall.cancel_note.annual",
+                        default: "Cancel anytime in App Store subscriptions. Auto-renews yearly until you cancel at least 24 hours before the period ends."
+                    )
+                    : AppLanguageStore.text(
+                        "paywall.cancel_note",
+                        default: "Cancel anytime in App Store subscriptions. Auto-renews monthly until you cancel at least 24 hours before the period ends."
+                    )
+            )
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundStyle(mist.opacity(0.75))
                 .multilineTextAlignment(.center)
             HStack(spacing: 18) {
-                Button(String(localized: "legal.privacy", defaultValue: "Privacy Policy")) { legalDocument = .privacyPolicy }
+                Button(AppLanguageStore.text("legal.privacy", default: "Privacy Policy")) { legalDocument = .privacyPolicy }
                     .accessibilityIdentifier("paywall.privacyPolicy")
-                Button(String(localized: "legal.terms", defaultValue: "Terms of Use")) { legalDocument = .termsOfUse }
+                Button(AppLanguageStore.text("legal.terms", default: "Terms of Use")) { legalDocument = .termsOfUse }
                     .accessibilityIdentifier("paywall.termsOfUse")
             }
             .font(.system(size: 12, weight: .semibold, design: .rounded))

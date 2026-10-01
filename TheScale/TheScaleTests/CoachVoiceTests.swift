@@ -151,4 +151,48 @@ final class CoachVoiceTests: XCTestCase {
         XCTAssertEqual(locale.replyLanguageName, AppLanguage.french.profileLanguageName)
         XCTAssertTrue(CoachVoice.llmRules(sex: .male, locale: locale).contains(locale.replyLanguageName))
     }
+
+    func testAgeBandsMapCorrectly() {
+        XCTAssertEqual(CoachAgeBand.from(ageYears: 22), .earlyAdult)
+        XCTAssertEqual(CoachAgeBand.from(ageYears: 29), .risingAdult)
+        XCTAssertEqual(CoachAgeBand.from(ageYears: 38), .midAdult)
+        XCTAssertEqual(CoachAgeBand.from(ageYears: 48), .established)
+        XCTAssertEqual(CoachAgeBand.from(ageYears: 60), .mature)
+        XCTAssertEqual(CoachAgeBand.from(ageYears: 72), .senior)
+    }
+
+    func testLLMRulesAreAgeSensitive() {
+        let young = CoachVoice.llmRules(sex: .male, ageYears: 22)
+        let senior = CoachVoice.llmRules(sex: .male, ageYears: 70)
+        XCTAssertTrue(young.contains("Gen Z") || young.contains("early adult"))
+        XCTAssertTrue(senior.contains("senior") || senior.lowercased().contains("infantilizing"))
+        XCTAssertNotEqual(young, senior)
+    }
+
+    func testCulturePayloadUsesLocationAndAge() {
+        let payload = CoachVoice.cultureInsightPayload(
+            ageYears: 42,
+            location: "Hong Kong",
+            ethnicity: "French",
+            culturalVibe: "American sitcom humour"
+        )
+        XCTAssertTrue(payload.contains("Hong Kong"))
+        XCTAssertTrue(payload.contains("French"))
+        XCTAssertTrue(payload.contains("42"))
+        XCTAssertTrue(payload.contains("millennial") || payload.contains("mid adult"))
+        XCTAssertTrue(payload.contains("American sitcom"))
+    }
+
+    func testPersonaBlockIncludesAgeAndCulturePayload() {
+        var profile = UserBodyProfile.default
+        profile.ageYears = 42
+        profile.location = "Hong Kong"
+        profile.ethnicity = "French"
+        profile.culturalVibe = "Cha chaan teng + dry humour"
+        let block = profile.coachPersonaBlock
+        XCTAssertTrue(block.contains("Age: 42"))
+        XCTAssertTrue(block.contains("Hong Kong"))
+        XCTAssertTrue(block.contains("CULTURE / ORIGIN PAYLOAD"))
+        XCTAssertTrue(block.contains("Cha chaan teng"))
+    }
 }

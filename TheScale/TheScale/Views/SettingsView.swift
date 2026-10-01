@@ -24,6 +24,9 @@ struct SettingsView: View {
     @State private var exportShareURL: URL?
     @State private var showEraseConfirm = false
     @State private var dataRightsNote: String?
+    @State private var languageValidationNote: String?
+    @State private var languageRejected = false
+    @State private var settingsQuery = ""
     /// Draft age on the wheel before Confirm.
     @State private var draftAgeYears: Int = 30
     @State private var pendingHeightCm: Double?
@@ -96,39 +99,32 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                brandHeader
-
-                sectionLabel(String(localized: "settings.section.you", defaultValue: "You"))
-                profileCard
-
-                sectionLabel(String(localized: "settings.section.weekly_ai", defaultValue: "Weekly AI"))
-                planCard
-
-                sectionLabel(String(localized: "settings.section.coach", defaultValue: "Coach"))
-                coachCard
-
-                sectionLabel(String(localized: "settings.section.alerts_health", defaultValue: "Alerts & Health"))
-                notificationsCard
-                fitnessMonitorCard
-
-                sectionLabel(String(localized: "settings.section.scale", defaultValue: "Scale"))
-                calibrationCard
-
-                sectionLabel(String(localized: "settings.section.privacy_legal", defaultValue: "Privacy & Legal"))
-                privacyCard
-                legalCard
-
-                sectionLabel(String(localized: "settings.section.help", defaultValue: "Help"))
-                feedbackCard
-
-                sectionLabel(String(localized: "settings.section.app", defaultValue: "App"))
-                aboutCard
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    if settingsSearchTrimmed.isEmpty {
+                        settingsBody
+                    } else {
+                        settingsSearchResults { hit in
+                            settingsQuery = ""
+                            DispatchQueue.main.async {
+                                withAnimation(.easeInOut(duration: 0.35)) {
+                                    proxy.scrollTo(hit.id, anchor: .top)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, ScaleLayout.pageInset)
+                .padding(.top, 16)
+                .padding(.bottom, ScaleLayout.tabBarClearance)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
         }
+        .searchable(
+            text: $settingsQuery,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: AppLanguageStore.text("settings.search", default: "Search")
+        )
         .task {
             syncBodyFatTextFromProfile()
             await refreshNotificationStatus()
@@ -150,12 +146,12 @@ struct SettingsView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(settingsBackground.ignoresSafeArea())
-        .navigationTitle(String(localized: "settings.title", defaultValue: "Settings"))
+        .navigationTitle(AppLanguageStore.text("settings.title", default: "Settings"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button(String(localized: "common.done", defaultValue: "Done")) { dismissKeyboard() }
+                Button(AppLanguageStore.text("common.done", default: "Done")) { dismissKeyboard() }
                     .fontWeight(.semibold)
             }
         }
@@ -248,6 +244,62 @@ struct SettingsView: View {
         )
     }
 
+    private var languageCard: some View {
+        settingsPanel {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(AppLanguageStore.text("settings.language", default: "App language"), systemImage: "globe")
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                Text(AppLanguageStore.text("settings.language.help", default: "Sets the app UI, the splash line, and Keel. On-device models use the same language."))
+                .font(.footnote)
+                .foregroundStyle(steel)
+                .fixedSize(horizontal: false, vertical: true)
+
+                Picker(
+                    AppLanguageStore.text("settings.language", default: "App language"),
+                    selection: Binding(
+                        get: { AppLanguageStore.current },
+                        set: { lang in
+                            guard let applied = AppLanguageStore.apply(lang) else {
+                                languageRejected = true
+                                languageValidationNote = AppLanguageStore.text("settings.language.invalid", default: "That language is not available.")
+                                return
+                            }
+                            languageRejected = false
+                            session.profile.preferredLanguage = applied.resolved.profileLanguageName
+                            languageValidationNote = String(
+                                format: AppLanguageStore.text(
+                                    "settings.language.applied",
+                                    default: "UI and Keel now use %@."
+                                ),
+                                applied.nativeLabel
+                            )
+                        }
+                    )
+                ) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.nativeLabel).tag(lang)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("settings.appLanguage")
+
+                Text(AppLanguageStore.splashTagline)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink)
+                    .accessibilityIdentifier("settings.language.tagline")
+
+                if let languageValidationNote {
+                    Text(languageValidationNote)
+                        .font(.caption)
+                        .foregroundStyle(languageRejected ? Color.orange : steel)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("settings.language.validation")
+                }
+            }
+        }
+    }
+
     private var brandHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             FatnagWordmark(size: 28, color: ink)
@@ -255,7 +307,7 @@ struct SettingsView: View {
             Text(FatnagBrand.tagline)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(copper)
-            Text("Profile, Coach, Health, and privacy — all on this iPhone.")
+            Text(AppLanguageStore.text("settings.brand.blurb", default: "Profile, Coach, Health, and privacy — all on this iPhone."))
                 .font(.footnote)
                 .foregroundStyle(steel)
                 .fixedSize(horizontal: false, vertical: true)
@@ -265,13 +317,99 @@ struct SettingsView: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var settingsSearchTrimmed: String {
+        settingsQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var settingsBody: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            brandHeader
+
+            sectionLabel(AppLanguageStore.text("settings.section.language", default: "Language"))
+            languageCard
+                .id("settings.language")
+
+            sectionLabel(AppLanguageStore.text("settings.section.you", default: "You"))
+            profileCard
+                .id("settings.profile")
+
+            sectionLabel(AppLanguageStore.text("settings.section.weekly_ai", default: "Weekly AI"))
+            planCard
+                .id("settings.plan")
+
+            sectionLabel(AppLanguageStore.text("settings.section.coach", default: "Coach"))
+            coachCard
+                .id("settings.coach")
+
+            sectionLabel(AppLanguageStore.text("settings.section.alerts_health", default: "Alerts & Health"))
+            notificationsCard
+                .id("settings.notifications")
+            fitnessMonitorCard
+                .id("settings.fitness")
+
+            sectionLabel(AppLanguageStore.text("settings.section.scale", default: "Scale"))
+            calibrationCard
+                .id("settings.scale")
+
+            sectionLabel(AppLanguageStore.text("settings.section.privacy_legal", default: "Privacy & Legal"))
+            privacyCard
+                .id("settings.privacy")
+            legalCard
+                .id("settings.legal")
+
+            sectionLabel(AppLanguageStore.text("settings.section.help", default: "Help"))
+            feedbackCard
+                .id("settings.feedback")
+
+            sectionLabel(AppLanguageStore.text("settings.section.app", default: "App"))
+            aboutCard
+                .id("settings.about")
+        }
+    }
+
+    private func settingsSearchResults(select: @escaping (SettingsSearchCatalog.Hit) -> Void) -> some View {
+        let hits = SettingsSearchCatalog.matches(settingsSearchTrimmed, in: SettingsSearchCatalog.hits)
+        return Group {
+            if hits.isEmpty {
+                Text(AppLanguageStore.text("settings.search.empty", default: "No Results"))
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(steel)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 48)
+                    .accessibilityIdentifier("settings.search.empty")
+            } else {
+                ForEach(hits) { hit in
+                    Button {
+                        select(hit)
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(hit.title)
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(ink)
+                                Text(hit.section)
+                                    .font(.caption)
+                                    .foregroundStyle(steel)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(steel)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(panelFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings.search.\(hit.id)")
+                }
+            }
+        }
+    }
+
     private func sectionLabel(_ title: String) -> some View {
-        Text(title.uppercased())
-            .font(.system(size: 12, weight: .bold, design: .rounded))
-            .foregroundStyle(steel)
-            .tracking(1.0)
+        ScaleEyebrow(title: title, color: steel)
             .padding(.bottom, -12)
-            .accessibilityAddTraits(.isHeader)
     }
 
     private func settingsPanel<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -291,10 +429,10 @@ struct SettingsView: View {
         let snap = subscription.quotaSnapshot
         return settingsPanel {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Online AI usage", systemImage: "chart.bar.fill")
+                Label(AppLanguageStore.text("settings.ai.usage", default: "Online AI usage"), systemImage: "chart.bar.fill")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Live Keel for chat, Monday card, fitness checks, and meal plans. On-device Coach stays unlimited. Resets Monday.")
+                Text(AppLanguageStore.text("settings.ai.usage.help", default: "Live Keel for chat, Monday card, the monthly hero (Plus and Pro), fitness checks, and meal plans. Free monthly hero stays on house rules. On-device Coach stays unlimited. Resets Monday."))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -372,8 +510,8 @@ struct SettingsView: View {
                 } label: {
                     Label {
                         Text(subscription.isRestoring
-                              ? String(localized: "paywall.restoring", defaultValue: "Restoring…")
-                              : String(localized: "paywall.restore", defaultValue: "Restore purchases"))
+                              ? AppLanguageStore.text("paywall.restoring", default: "Restoring…")
+                              : AppLanguageStore.text("paywall.restore", default: "Restore purchases"))
                     } icon: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -440,38 +578,59 @@ struct SettingsView: View {
     private var profileCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Profile")
+                Text(AppLanguageStore.text("settings.profile", default: "Profile"))
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("On-device for body fat estimates, greetings, and Coach tone.")
+                Text(AppLanguageStore.text("settings.profile.help", default: "On-device for body fat estimates, greetings, and Coach tone."))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
+                Button {
+                    session.isOnboardingReplay = true
+                } label: {
+                    Label(
+                        AppLanguageStore.text("settings.redo_onboarding", default: "Redo onboarding"),
+                        systemImage: "arrow.counterclockwise"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.redoOnboarding")
+                Text(AppLanguageStore.text(
+                    "settings.redo_onboarding.help",
+                    default: "Walk through setup again. Every saved answer is already filled in."
+                ))
+                .font(.caption2)
+                .foregroundStyle(steel)
+
                 labeledField(
                     title: "Name",
-                    help: "What Keel calls you in drills and chat."
+                    help: "What Keel calls you in drills and chat.",
+                    anchor: "settings.name"
                 ) {
                     TextField("Your first name", text: $session.profile.displayName)
                         .focused($focusedField, equals: .name)
                         .textContentType(.givenName)
                 }
 
-                Text("Units")
+                Text(AppLanguageStore.text("settings.units", default: "Units"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
-                Picker("Units", selection: $session.preferredUnits) {
+                    .id("settings.units")
+                Picker(AppLanguageStore.text("settings.units", default: "Units"), selection: $session.preferredUnits) {
                     ForEach(PreferredUnitSystem.allCases) { system in
                         Text(system.shortTitle).tag(system)
                     }
                 }
                 .pickerStyle(.segmented)
-                Text("Weight, height, portions, meal plan, and Coach use this. Health stays metric under the hood.")
+                Text(AppLanguageStore.text("settings.units.help", default: "Weight, height, portions, meal plan, and Coach use this. Health stays metric under the hood."))
                     .font(.caption2)
                     .foregroundStyle(steel)
 
                 labeledField(
                     title: "Height",
-                    help: "Used for BMI and body-fat math. Changing asks for confirmation. About 120-250 cm / 3'11\"-8'2\"."
+                    help: "Used for BMI and body-fat math. Changing asks for confirmation. About 120-250 cm / 3'11\"-8'2\".",
+                    anchor: "settings.height"
                 ) {
                     HStack(spacing: 6) {
                         TextField(
@@ -500,7 +659,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Age",
-                    help: "Adults only. Apple wheel selector. Changing asks for confirmation."
+                    help: "Adults only. Apple wheel selector. Changing asks for confirmation.",
+                    anchor: "settings.age"
                 ) {
                     VStack(spacing: 8) {
                         Picker("Age", selection: $draftAgeYears) {
@@ -523,11 +683,12 @@ struct SettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Dream / target weight")
+                    Text(AppLanguageStore.text("settings.dream_weight", default: "Dream / target weight"))
+                        .id("settings.dream")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(ink)
                     Text(
-                        "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Markers follow metric or imperial Units."
+                        AppLanguageStore.text("settings.dream_weight.help", default: "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Marks use only the Units setting (kg or lb — not both).")
                     )
                     .font(.caption2)
                     .foregroundStyle(steel)
@@ -546,7 +707,7 @@ struct SettingsView: View {
                         steel: steel,
                         accent: accent,
                         accessibilityId: "settings.targetWeight.analog",
-                        caption: "Haptic ticks · confirm to save",
+                        caption: AppLanguageStore.text("settings.dream_weight.caption", default: "Haptic ticks · confirm to save"),
                         onCommit: { kg in
                             pendingIdealKg = kg
                             if abs(kg - session.profile.idealWeightKg) > 0.05 {
@@ -578,7 +739,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Dream body fat % (optional)",
-                    help: "Most people leave this blank. FATNAG suggests a target from sex and age. Override only within physics limits (about 3-60%)."
+                    help: "Most people leave this blank. FATNAG suggests a target from sex and age. Override only within physics limits (about 3-60%).",
+                    anchor: "settings.fat"
                 ) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(
@@ -649,7 +811,8 @@ struct SettingsView: View {
                 )
                 .font(.footnote)
 
-                Text("Gender")
+                Text(AppLanguageStore.text("settings.gender", default: "Gender"))
+                    .id("settings.sex")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
                 Picker(
@@ -670,13 +833,14 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("settings.gender")
 
-                Text("Diet")
+                Text(AppLanguageStore.text("settings.diet", default: "Diet"))
+                    .id("settings.diet")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
-                Text("How you eat most days. Drives meal-plan tone.")
+                Text(AppLanguageStore.text("settings.diet.help", default: "How you eat most days. Drives meal-plan tone."))
                     .font(.caption2)
                     .foregroundStyle(steel)
-                Picker("Diet", selection: Binding(
+                Picker(AppLanguageStore.text("settings.diet", default: "Diet"), selection: Binding(
                     get: { session.profile.dietPreference },
                     set: {
                         session.profile.dietPreference = $0
@@ -804,6 +968,7 @@ struct SettingsView: View {
     private func labeledField<Content: View>(
         title: String,
         help: String,
+        anchor: String? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -819,6 +984,7 @@ struct SettingsView: View {
                 .padding(.vertical, 8)
                 .background(softPanelFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
+        .modifier(SettingsAnchor(id: anchor))
     }
 
     private func validationLine(_ text: String) -> some View {
@@ -871,16 +1037,17 @@ struct SettingsView: View {
     private var coachCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Persona & AI")
+                Text(AppLanguageStore.text("settings.persona", default: "Persona & AI"))
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Tone stays on-device until you consent to a live Keel ask.")
+                Text(AppLanguageStore.text("settings.persona.help", default: "Tone stays on-device until you consent to a live Keel ask."))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
                 labeledField(
                     title: "Location",
-                    help: "City or region (e.g. Hong Kong, Manila). Helps meal staples and nearby fitness when the toggle below is on."
+                    help: "City or region (e.g. Hong Kong, Manila). Helps meal staples and nearby fitness when the toggle below is on.",
+                    anchor: "settings.location"
                 ) {
                     TextField("City or region", text: $session.profile.location)
                         .focused($focusedField, equals: .location)
@@ -899,7 +1066,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Food avoidances / allergies",
-                    help: "Hard nos for meal plans (peanuts, shellfish, no dairy). Leave blank if none."
+                    help: "Hard nos for meal plans (peanuts, shellfish, no dairy). Leave blank if none.",
+                    anchor: "settings.avoidances"
                 ) {
                     TextField(
                         "e.g. peanuts, shellfish",
@@ -919,7 +1087,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Medical / habits (optional)",
-                    help: "Injuries, meds, alcohol, sleep quirks. On-device Coach context only; not a diagnosis."
+                    help: "Injuries, meds, alcohol, sleep quirks. On-device Coach context only; not a diagnosis.",
+                    anchor: "settings.medical"
                 ) {
                     TextField(
                         "e.g. knee tweak, weekend wine",
@@ -933,37 +1102,17 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Ethnicity / culture (optional)",
-                    help: "Only what you want Keel to respect in tone and food examples."
+                    help: "Only what you want Keel to respect in tone and food examples.",
+                    anchor: "settings.ethnicity"
                 ) {
                     TextField("Optional", text: $session.profile.ethnicity)
                         .focused($focusedField, equals: .ethnicity)
                 }
 
                 labeledField(
-                    title: String(localized: "settings.language", defaultValue: "App language"),
-                    help: String(localized: "settings.language.help", defaultValue: "Entire app UI. Also used for Coach replies when live Keel is on.")
-                ) {
-                    Picker(
-                        String(localized: "settings.language", defaultValue: "App language"),
-                        selection: Binding(
-                            get: { AppLanguageStore.current },
-                            set: { lang in
-                                AppLanguageStore.current = lang
-                                session.profile.preferredLanguage = lang.profileLanguageName
-                            }
-                        )
-                    ) {
-                        ForEach(AppLanguage.allCases) { lang in
-                            Text(lang.nativeLabel).tag(lang)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .accessibilityIdentifier("settings.appLanguage")
-                }
-
-                labeledField(
                     title: "Vibe / cultural style (optional)",
-                    help: "Short coach-facing note (e.g. direct, soft, Filipina in HK)."
+                    help: "Short coach-facing note (e.g. direct, soft, Filipina in HK).",
+                    anchor: "settings.vibe"
                 ) {
                     TextField(
                         "Short note for Keel",
@@ -1023,19 +1172,28 @@ struct SettingsView: View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 0) {
                 Label {
-                    Text(String(localized: "settings.notifications", defaultValue: "Notifications"))
+                    Text(AppLanguageStore.text("settings.notifications", default: "Notifications"))
                 } icon: {
                     Image(systemName: "bell.badge")
                 }
                     .font(.headline)
                     .foregroundStyle(ink)
 
-                Text("Local banners with actions. Focus and Do Not Disturb can still silence them.")
+                Text(AppLanguageStore.text("settings.alerts.help", default: "Local banners with actions. Focus and Do Not Disturb can still silence them."))
                     .font(.footnote)
                     .foregroundStyle(steel)
                     .padding(.top, 6)
 
-                notificationsSubsectionDivider(title: "Permission")
+                Text(AppLanguageStore.text(
+                    "settings.watch_mirror.help",
+                    default: "fatnag alerts mirror to Apple Watch when Mirror iPhone Alerts is on for fatnag in the Watch app."
+                ))
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+
+                notificationsSubsectionDivider(title: AppLanguageStore.text("notif.permission", default: "Permission"))
 
                 Text(notificationAuthLine)
                     .font(.caption)
@@ -1043,7 +1201,10 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 if notificationAuthDenied {
-                    Text("Coach cannot fire drills while denied. Tap System, then allow alerts for FATNAG.")
+                    Text(AppLanguageStore.text(
+                        "settings.alerts.denied",
+                        default: "Coach cannot fire drills while denied. Tap System, then allow alerts for FATNAG."
+                    ))
                         .font(.caption2)
                         .foregroundStyle(Color.orange)
                         .padding(.top, 4)
@@ -1057,7 +1218,7 @@ struct SettingsView: View {
                             await refreshNotificationStatus()
                         }
                     } label: {
-                        Label("Allow", systemImage: "bell")
+                        Label(AppLanguageStore.text("settings.alerts.allow", default: "Allow"), systemImage: "bell")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -1065,17 +1226,17 @@ struct SettingsView: View {
                     Button {
                         openNotificationSettings()
                     } label: {
-                        Label("System", systemImage: "gear")
+                        Label(AppLanguageStore.text("settings.alerts.system", default: "System"), systemImage: "gear")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                 }
                 .padding(.top, 10)
 
-                notificationsSubsectionDivider(title: "What you get")
+                notificationsSubsectionDivider(title: AppLanguageStore.text("settings.alerts.what", default: "What you get"))
 
                 Toggle(
-                    "Bad-trend alerts",
+                    AppLanguageStore.text("settings.alerts.bad_trend", default: "Bad-trend alerts"),
                     isOn: Binding(
                         get: { session.notificationPreferences.notifyOnBadTrend },
                         set: {
@@ -1087,7 +1248,7 @@ struct SettingsView: View {
                     )
                 )
                 Toggle(
-                    "Weekly mini-goal reminder",
+                    AppLanguageStore.text("settings.alerts.weekly", default: "Weekly mini-goal reminder"),
                     isOn: Binding(
                         get: { session.notificationPreferences.weeklyGoalReminders },
                         set: {
@@ -1099,10 +1260,10 @@ struct SettingsView: View {
                     )
                 )
 
-                notificationsSubsectionDivider(title: "Morning weigh")
+                notificationsSubsectionDivider(title: AppLanguageStore.text("settings.alerts.morning", default: "Morning weigh"))
 
                 Toggle(
-                    "Morning weigh drill",
+                    AppLanguageStore.text("settings.alerts.morning_drill", default: "Morning weigh drill"),
                     isOn: Binding(
                         get: { session.notificationPreferences.morningWeighDrill },
                         set: {
@@ -1116,14 +1277,20 @@ struct SettingsView: View {
                         }
                     )
                 )
-                Text("About 06:30 local, or soon after Health wake. Window closes at 08:00. Skips the day if you already weighed.")
+                Text(AppLanguageStore.text(
+                    "settings.alerts.morning_help",
+                    default: "About 06:30 local, or soon after Health wake. Window closes at 08:00. Skips the day if you already weighed."
+                ))
                     .font(.caption2)
                     .foregroundStyle(steel)
                     .padding(.top, 2)
 
                 if session.notificationPreferences.morningWeighDrill {
                     HStack {
-                        Text("Fallback clock (before 8:00)")
+                        Text(AppLanguageStore.text(
+                            "settings.alerts.fallback_clock",
+                            default: "Fallback clock (before 8:00)"
+                        ))
                             .font(.caption)
                             .foregroundStyle(steel)
                         Spacer()
@@ -1254,7 +1421,7 @@ struct SettingsView: View {
                         Task { await session.requestHealthAccessFromSettings() }
                     } label: {
                         Label {
-                            Text(String(localized: "settings.allow_health", defaultValue: "Allow Health"))
+                            Text(AppLanguageStore.text("settings.allow_health", default: "Allow Health"))
                         } icon: {
                             Image(systemName: "heart.text.square.fill")
                         }
@@ -1303,6 +1470,10 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                Text("Every 10 minutes the phone reads steps, workouts, and sleep. A new beat arrives as Nag: a greeting, a joke, a reward, or a hard nudge. Empty check-ins are not sent. iOS may delay background wakes.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Toggle(
                     "Notify on Watch / sleep-HR signals",
@@ -1399,10 +1570,10 @@ struct SettingsView: View {
     private var calibrationCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 14) {
-                Label("Weight calibration", systemImage: "slider.horizontal.3")
+                Label(AppLanguageStore.text("settings.calibration", default: "Weight calibration"), systemImage: "slider.horizontal.3")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Enter true mass, open the live sheet, weigh, then store.")
+                Text(AppLanguageStore.text("settings.calibration.help", default: "Enter true mass, open the live sheet, weigh, then store."))
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -1502,7 +1673,7 @@ struct SettingsView: View {
                     showFeedback = true
                 } label: {
                     Label {
-                        Text(String(localized: "settings.send_feedback", defaultValue: "Send feedback"))
+                        Text(AppLanguageStore.text("settings.send_feedback", default: "Send feedback"))
                     } icon: {
                         Image(systemName: "paperplane")
                     }
@@ -1581,7 +1752,7 @@ struct SettingsView: View {
                     exportLocalData()
                 } label: {
                     Label {
-                        Text(String(localized: "settings.export_data", defaultValue: "Export my data"))
+                        Text(AppLanguageStore.text("settings.export_data", default: "Export my data"))
                     } icon: {
                         Image(systemName: "square.and.arrow.up")
                     }
@@ -1594,7 +1765,7 @@ struct SettingsView: View {
                     showEraseConfirm = true
                 } label: {
                     Label {
-                        Text(String(localized: "settings.erase_data", defaultValue: "Erase my data"))
+                        Text(AppLanguageStore.text("settings.erase_data", default: "Erase my data"))
                     } icon: {
                         Image(systemName: "trash")
                     }
@@ -1606,6 +1777,70 @@ struct SettingsView: View {
                 Text("Erase clears FATNAG’s on-device profile, Coach history, and preferences, then returns you to onboarding. Apple Health samples are not deleted; manage those in the Health app.")
                     .font(.caption2)
                     .foregroundStyle(steel)
+
+                #if DEBUG
+                Divider().padding(.vertical, 2)
+
+                Text("Debug · Promo demos")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
+                    .id("settings.demo")
+
+                Text("Loads a full camera-ready persona (profile, 4 weeks of weighs, gauges, meals, Keel chat) and writes Steps / Energy / Diet / Sleep / Workouts into HealthKit. Tap Turn On All on the Health share sheet once. Your profile is kept so you can come back.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+
+                if DemoRealUserSnapshot.canRestore {
+                    Button {
+                        Task {
+                            let restored = await session.restoreRealUserAfterDemo()
+                            dataRightsNote = restored
+                                ? "Back on your profile."
+                                : "Could not restore your profile."
+                            if restored {
+                                session.dismissSettings()
+                            }
+                        }
+                    } label: {
+                        Label(demoReturnTitle, systemImage: "person.crop.circle.badge.checkmark")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("settings.demoRestore")
+                }
+
+                Button {
+                    session.applyDemoPersona(.male)
+                    dataRightsNote = "Demo male (Bob) loaded. Allow Health write to inject Steps + activity into the Simulator Health app."
+                    session.dismissSettings()
+                } label: {
+                    Label("Load demo · Male (Bob) + HealthKit", systemImage: "person.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.demoMale")
+
+                Button {
+                    session.applyDemoPersona(.female)
+                    dataRightsNote = "Demo female (Alice) loaded. Allow Health write to inject Steps + activity into the Simulator Health app."
+                    session.dismissSettings()
+                } label: {
+                    Label("Load demo · Female (Alice) + HealthKit", systemImage: "person.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.demoFemale")
+
+                Button {
+                    session.dismissSettings()
+                    session.forcePresentMonthlyHero()
+                } label: {
+                    Label("Preview monthly hero", systemImage: "sparkles")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("settings.debugMonthlyHero")
+                #endif
 
                 if let dataRightsNote {
                     Text(dataRightsNote)
@@ -1635,6 +1870,16 @@ struct SettingsView: View {
             ShareSheet(items: [item.url])
         }
     }
+
+    #if DEBUG
+    private var demoReturnTitle: String {
+        let name = DemoRealUserSnapshot.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty {
+            return "Return to my profile"
+        }
+        return "Return to \(name)"
+    }
+    #endif
 
     private var legalCard: some View {
         settingsPanel {
@@ -1693,6 +1938,67 @@ struct SettingsView: View {
             return "Offset: corrected = raw + (true - raw). Good for a small constant bias."
         case .factor:
             return "Factor: corrected = raw × (true / raw). Better when error grows with mass."
+        }
+    }
+}
+
+private struct SettingsAnchor: ViewModifier {
+    var id: String?
+
+    func body(content: Content) -> some View {
+        if let id {
+            content.id(id)
+        } else {
+            content
+        }
+    }
+}
+
+enum SettingsSearchCatalog {
+    struct Hit: Identifiable, Equatable {
+        var id: String
+        var title: String
+        var section: String
+        var keywords: String
+    }
+
+    static let hits: [Hit] = [
+        Hit(id: "settings.language", title: "Language", section: "Language", keywords: "language locale"),
+        Hit(id: "settings.name", title: "Name", section: "You", keywords: "name profile alex"),
+        Hit(id: "settings.units", title: "Units", section: "You", keywords: "units metric imperial kg lb"),
+        Hit(id: "settings.height", title: "Height", section: "You", keywords: "height cm inches"),
+        Hit(id: "settings.age", title: "Age", section: "You", keywords: "age years"),
+        Hit(id: "settings.sex", title: "Gender", section: "You", keywords: "sex gender male female"),
+        Hit(id: "settings.dream", title: "Dream weight", section: "You", keywords: "dream target goal weight"),
+        Hit(id: "settings.fat", title: "Body fat", section: "You", keywords: "body fat percent"),
+        Hit(id: "settings.diet", title: "Diet", section: "You", keywords: "diet omnivore vegan"),
+        Hit(id: "settings.profile", title: "Redo onboarding", section: "You", keywords: "onboarding restart setup prefilled"),
+        Hit(id: "settings.plan", title: "Weekly AI", section: "Weekly AI", keywords: "plus pro plan subscription"),
+        Hit(id: "settings.location", title: "Location", section: "Coach", keywords: "location city"),
+        Hit(id: "settings.avoidances", title: "Food avoidances", section: "Coach", keywords: "allergy peanuts shellfish"),
+        Hit(id: "settings.medical", title: "Medical and habits", section: "Coach", keywords: "medical health habits"),
+        Hit(id: "settings.ethnicity", title: "Ethnicity", section: "Coach", keywords: "ethnicity culture"),
+        Hit(id: "settings.vibe", title: "Vibe", section: "Coach", keywords: "vibe style tone"),
+        Hit(id: "settings.notifications", title: "Notifications", section: "Alerts & Health", keywords: "alerts notifications reminders"),
+        Hit(id: "settings.fitness", title: "Fitness monitor", section: "Alerts & Health", keywords: "fitness steps heart health"),
+        Hit(id: "settings.scale", title: "Weight calibration", section: "Scale", keywords: "scale calibration offset factor"),
+        Hit(id: "settings.privacy", title: "Export and erase", section: "Privacy & Legal", keywords: "export erase delete privacy data"),
+        Hit(id: "settings.legal", title: "Legal", section: "Privacy & Legal", keywords: "legal terms privacy policy"),
+        Hit(id: "settings.feedback", title: "Feedback", section: "Help", keywords: "feedback bug"),
+        Hit(id: "settings.about", title: "About", section: "App", keywords: "about version build"),
+        Hit(id: "settings.demo", title: "Demo personas", section: "Debug", keywords: "bob alice demo return profile")
+    ]
+
+    static func matches(_ query: String, in hits: [Hit]) -> [Hit] {
+        let tokens = query
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .split(separator: " ")
+            .map(String.init)
+        guard !tokens.isEmpty else { return [] }
+        return hits.filter { hit in
+            let hay = "\(hit.title) \(hit.section) \(hit.keywords)".lowercased()
+            return tokens.allSatisfy { hay.contains($0) }
         }
     }
 }

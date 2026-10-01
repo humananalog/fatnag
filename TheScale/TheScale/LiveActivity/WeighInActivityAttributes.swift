@@ -27,6 +27,8 @@ enum WeighInLiveActivityController {
         ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
+    static var isRunning: Bool { boxed != nil }
+
     static func start(scaleName: String, statusLine: String = "Listening…") {
         guard isSupported else { return }
         end()
@@ -82,6 +84,76 @@ enum WeighInLiveActivityController {
                 isSettled: true
             )
             await box.activity.end(.init(state: final, staleDate: nil), dismissalPolicy: .immediate)
+        }
+    }
+}
+
+/// Dynamic Island LED while Keel is loading or caching. Pages stay interactive.
+struct KeelIslandActivityAttributes: ActivityAttributes {
+    public struct ContentState: Codable, Hashable, Sendable {
+        var label: String
+    }
+
+    var startedAt: Date
+}
+
+private struct KeelIslandActivityBox: @unchecked Sendable {
+    let activity: Activity<KeelIslandActivityAttributes>
+}
+
+@MainActor
+enum KeelIslandActivityController {
+    private static var boxed: KeelIslandActivityBox?
+    private static var depth = 0
+    private static var pending: Task<Void, Never>?
+
+    /// Shows the island only if work is still going after a short beat, so fast cache hits stay quiet.
+    static func begin(label: String) {
+        depth += 1
+        pending?.cancel()
+        let captured = label
+        pending = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(280))
+            guard !Task.isCancelled, depth > 0 else { return }
+            guard !WeighInLiveActivityController.isRunning else { return }
+            present(label: captured)
+        }
+    }
+
+    static func end() {
+        depth = max(0, depth - 1)
+        guard depth == 0 else { return }
+        pending?.cancel()
+        pending = nil
+        guard let boxed else { return }
+        let box = boxed
+        Self.boxed = nil
+        Task {
+            let final = KeelIslandActivityAttributes.ContentState(label: "Ready")
+            await box.activity.end(.init(state: final, staleDate: nil), dismissalPolicy: .immediate)
+        }
+    }
+
+    private static func present(label: String) {
+        guard WeighInLiveActivityController.isSupported else { return }
+        let state = KeelIslandActivityAttributes.ContentState(label: label)
+        if let boxed {
+            let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(15 * 60))
+            Task { await boxed.activity.update(content) }
+            return
+        }
+        let attributes = KeelIslandActivityAttributes(startedAt: Date())
+        do {
+            let activity = try Activity.request(
+                attributes: attributes,
+                content: .init(state: state, staleDate: Date().addingTimeInterval(15 * 60)),
+                pushType: nil
+            )
+            boxed = KeelIslandActivityBox(activity: activity)
+        } catch {
+            #if DEBUG
+            print("[TheScale] Keel island start failed: \(error.localizedDescription)")
+            #endif
         }
     }
 }

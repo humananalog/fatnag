@@ -71,7 +71,7 @@ struct LiveWeighInSheet: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button(String(localized: "common.done", defaultValue: "Done")) {
+                Button(AppLanguageStore.text("common.done", default: "Done")) {
                     weightFieldFocused = false
                     bodyFatFieldFocused = false
                     leanFieldFocused = false
@@ -81,45 +81,45 @@ struct LiveWeighInSheet: View {
             }
         }
         .alert(
-            String(localized: "live.weight_only.title", defaultValue: "Save weight only?"),
+            AppLanguageStore.text("live.weight_only.title", default: "Save weight only?"),
             isPresented: $confirmWeightOnly
         ) {
-            Button(String(localized: "common.cancel", defaultValue: "Cancel"), role: .cancel) {}
-            Button(String(localized: "live.weight_only.save", defaultValue: "Save weight + BMI only")) {
+            Button(AppLanguageStore.text("common.cancel", default: "Cancel"), role: .cancel) {}
+            Button(AppLanguageStore.text("live.weight_only.save", default: "Save weight + BMI only")) {
                 Task { await beginConfirmSave() }
             }
         } message: {
-            Text(String(localized: "live.weight_only.body", defaultValue: "No body composition was captured, so body fat % will not be written. You can still edit weight before confirming."))
+            Text(AppLanguageStore.text("live.weight_only.body", default: "No body composition was captured, so body fat % will not be written. You can still edit weight before confirming."))
         }
         .alert(
             spikeGateTitle,
             isPresented: $showSpikeGate
         ) {
-            Button(String(localized: "live.discard", defaultValue: "Discard"), role: .destructive) {
+            Button(AppLanguageStore.text("live.discard", default: "Discard"), role: .destructive) {
                 session.pendingSpikeVerdict = nil
                 session.cancelAutoConfirm()
                 session.dismissWeighIn()
             }
             if spikeGateAllowsSaveAnyway {
-                Button(String(localized: "live.save_anyway", defaultValue: "It's me — save")) {
+                Button(AppLanguageStore.text("live.save_anyway", default: "It's me — save")) {
                     Task { await session.saveDraftToHealth() }
                 }
             }
-            Button(String(localized: "live.reweigh", defaultValue: "Re-weigh"), role: .cancel) {
+            Button(AppLanguageStore.text("live.reweigh", default: "Re-weigh"), role: .cancel) {
                 session.pendingSpikeVerdict = nil
             }
         } message: {
             Text(session.pendingSpikeVerdict?.reason
-                  ?? String(localized: "spike.gate.fallback", defaultValue: "This reading looks off."))
+                  ?? AppLanguageStore.text("spike.gate.fallback", default: "This reading looks off."))
         }
         .alert(
-            String(localized: "live.calibration_saved", defaultValue: "Calibration saved"),
+            AppLanguageStore.text("live.calibration_saved", default: "Calibration saved"),
             isPresented: Binding(
                 get: { calibrationStoredMessage != nil },
                 set: { if !$0 { calibrationStoredMessage = nil } }
             )
         ) {
-            Button(String(localized: "common.done", defaultValue: "Done")) {
+            Button(AppLanguageStore.text("common.done", default: "Done")) {
                 calibrationStoredMessage = nil
                 session.dismissWeighIn()
             }
@@ -130,15 +130,15 @@ struct LiveWeighInSheet: View {
 
     private var spikeGateTitle: String {
         guard let spike = session.pendingSpikeVerdict else {
-            return String(localized: "spike.gate.title", defaultValue: "Check this reading")
+            return AppLanguageStore.text("spike.gate.title", default: "Check this reading")
         }
         switch spike.kind {
         case .impossible:
-            return String(localized: "spike.gate.impossible", defaultValue: "Not physically possible")
+            return AppLanguageStore.text("spike.gate.impossible", default: "Not physically possible")
         case .notableGain:
-            return String(localized: "spike.gate.gain", defaultValue: "Sudden gain — confirm?")
+            return AppLanguageStore.text("spike.gate.gain", default: "Sudden gain — confirm?")
         case .notableLoss:
-            return String(localized: "spike.gate.loss", defaultValue: "Sudden loss — confirm?")
+            return AppLanguageStore.text("spike.gate.loss", default: "Sudden loss — confirm?")
         }
     }
 
@@ -211,16 +211,20 @@ struct LiveWeighInSheet: View {
                     .frame(width: 40, height: 40)
                     .background(.ultraThinMaterial, in: Circle())
             }
-            .accessibilityLabel(String(localized: "live.close_a11y", defaultValue: "Close weigh-in"))
+            .accessibilityLabel(AppLanguageStore.text("live.close_a11y", default: "Close weigh-in"))
 
-            Text(isCalibration
-                  ? String(localized: "live.calibrate", defaultValue: "Calibrate")
-                  : "FATNAG")
-                .font(.system(size: 20, weight: .semibold, design: .serif))
-                .foregroundStyle(atmosphere.accent)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .layoutPriority(0)
+            Group {
+                if isCalibration {
+                    Text(AppLanguageStore.text("live.calibrate", default: "Calibrate"))
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(atmosphere.accent)
+                } else {
+                    FatnagWordmark(size: 22, color: atmosphere.accent)
+                }
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .layoutPriority(0)
 
             Spacer(minLength: 8)
 
@@ -251,13 +255,13 @@ struct LiveWeighInSheet: View {
 
     private var calibrationHeader: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(String(localized: "live.cal.reference", defaultValue: "Reference mass on the scale"))
+            Text(AppLanguageStore.text("live.cal.reference", default: "Reference mass on the scale"))
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(atmosphere.accent.opacity(0.8))
 
             HStack(spacing: 10) {
                 TextField(
-                    String(localized: "live.cal.kg", defaultValue: "kg"),
+                    AppLanguageStore.text("live.cal.kg", default: "kg"),
                     value: Binding(
                         get: { session.calibration.referenceMassKg },
                         set: { session.updateCalibrationReferenceMass($0) }
@@ -272,13 +276,13 @@ struct LiveWeighInSheet: View {
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text(String(localized: "live.cal.kg", defaultValue: "kg"))
+                Text(AppLanguageStore.text("live.cal.kg", default: "kg"))
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.7))
             }
 
             Picker(
-                String(localized: "live.cal.mode", defaultValue: "Mode"),
+                AppLanguageStore.text("live.cal.mode", default: "Mode"),
                 selection: Binding(
                     get: { session.calibration.captureMode },
                     set: { session.setCalibrationCaptureMode($0) }
@@ -290,7 +294,7 @@ struct LiveWeighInSheet: View {
             }
             .pickerStyle(.segmented)
 
-            Text(String(localized: "live.cal.hint", defaultValue: "Place that mass barefoot-optional on the platform. Live kg below is raw from the scale. Store when it settles."))
+            Text(AppLanguageStore.text("live.cal.hint", default: "Place that mass barefoot-optional on the platform. Live kg below is raw from the scale. Store when it settles."))
                 .font(.system(size: 11, weight: .regular, design: .rounded))
                 .foregroundStyle(atmosphere.accent.opacity(0.75))
                 .lineLimit(2)
@@ -306,7 +310,7 @@ struct LiveWeighInSheet: View {
             if let raw = session.rawDisplayWeightKg {
                 Text(
                     String(
-                        format: String(localized: "live.cal.raw_reading", defaultValue: "Raw reading %.3f kg → target %.3f kg"),
+                        format: AppLanguageStore.text("live.cal.raw_reading", default: "Raw reading %.3f kg → target %.3f kg"),
                         raw,
                         session.calibration.referenceMassKg
                     )
@@ -318,7 +322,7 @@ struct LiveWeighInSheet: View {
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text(String(localized: "live.cal.waiting", defaultValue: "Waiting for a scale reading…"))
+                Text(AppLanguageStore.text("live.cal.waiting", default: "Waiting for a scale reading…"))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.8))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -331,7 +335,7 @@ struct LiveWeighInSheet: View {
                     let raw = session.calibration.lastCalibrationRawKg ?? 0
                     let ref = session.calibration.referenceMassKg
                     calibrationStoredMessage = String(
-                        format: String(localized: "live.cal.stored", defaultValue: "Stored %@ from raw %.3f kg → true %.3f kg. Live weighs will use this correction."),
+                        format: AppLanguageStore.text("live.cal.stored", default: "Stored %@ from raw %.3f kg → true %.3f kg. Live weighs will use this correction."),
                         session.calibration.captureMode.title.lowercased(),
                         raw,
                         ref
@@ -339,14 +343,14 @@ struct LiveWeighInSheet: View {
                 }
             } label: {
                 Text(canStoreCalibration
-                      ? String(localized: "live.cal.store", defaultValue: "Store calibration")
-                      : String(localized: "live.cal.wait_settled", defaultValue: "Wait for settled kg"))
+                      ? AppLanguageStore.text("live.cal.store", default: "Store calibration")
+                      : AppLanguageStore.text("live.cal.wait_settled", default: "Wait for settled kg"))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(ScalePrimaryButtonStyle(accent: atmosphere.accent))
             .disabled(!canStoreCalibration)
 
-            Text(String(localized: "live.cal.no_health", defaultValue: "Does not write to Apple Health. Body fat % is informational only during calibration."))
+            Text(AppLanguageStore.text("live.cal.no_health", default: "Does not write to Apple Health. Body fat % is informational only during calibration."))
                 .font(.system(size: 10, weight: .regular))
                 .foregroundStyle(atmosphere.accent.opacity(0.7))
                 .lineLimit(2)
@@ -381,7 +385,7 @@ struct LiveWeighInSheet: View {
             HStack(spacing: 8) {
                 Text(isCalibration
                       ? String(
-                            format: String(localized: "live.mass_raw", defaultValue: "%@ raw"),
+                            format: AppLanguageStore.text("live.mass_raw", default: "%@ raw"),
                             session.preferredUnits.massLabel
                         )
                       : session.preferredUnits.massLabel)
@@ -390,7 +394,7 @@ struct LiveWeighInSheet: View {
                 if !isCalibration, session.calibration.hasCorrection {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.seal.fill")
-                        Text(String(localized: "live.calibrated", defaultValue: "calibrated"))
+                        Text(AppLanguageStore.text("live.calibrated", default: "calibrated"))
                     }
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(atmosphere.accent.opacity(0.7))
@@ -407,7 +411,7 @@ struct LiveWeighInSheet: View {
                             .foregroundStyle(atmosphere.accent.opacity(0.85))
                             .symbolRenderingMode(.hierarchical)
                     }
-                    .accessibilityLabel(String(localized: "live.edit_weight_a11y", defaultValue: "Edit weight"))
+                    .accessibilityLabel(AppLanguageStore.text("live.edit_weight_a11y", default: "Edit weight"))
                 }
             }
 
@@ -425,7 +429,7 @@ struct LiveWeighInSheet: View {
         .accessibilityLabel(weightAccessibilityLabel)
         .accessibilityAddTraits(canBeginEdit && !isEditing ? .isButton : [])
         .accessibilityHint(canBeginEdit && !isEditing
-            ? String(localized: "live.edit_hint_a11y", defaultValue: "Double tap to edit before saving to Health")
+            ? AppLanguageStore.text("live.edit_hint_a11y", default: "Double tap to edit before saving to Health")
             : "")
         .onTapGesture {
             guard canBeginEdit, !isEditing else { return }
@@ -434,8 +438,9 @@ struct LiveWeighInSheet: View {
     }
 
     private var liveWeightHero: some View {
+        // Match home Sunday target: bold rounded (one weight face across the app).
         Text(weightText)
-            .font(.system(size: heroWeightSize, weight: .ultraLight, design: .rounded))
+            .font(.system(size: heroWeightSize, weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(atmosphere.accent)
             .minimumScaleFactor(0.35)
@@ -461,7 +466,7 @@ struct LiveWeighInSheet: View {
             }
 
             TextField(
-                String(localized: "live.weight", defaultValue: "Weight"),
+                AppLanguageStore.text("live.weight", default: "Weight"),
                 value: Binding(
                     get: {
                         UnitFormat.mass(fromKg: draft.weightKg, system: session.preferredUnits)
@@ -474,7 +479,7 @@ struct LiveWeighInSheet: View {
             )
             .keyboardType(.decimalPad)
             .focused($weightFieldFocused)
-            .font(.system(size: 64, weight: .ultraLight, design: .rounded))
+            .font(.system(size: 64, weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(atmosphere.accent)
             .multilineTextAlignment(.center)
@@ -536,12 +541,12 @@ struct LiveWeighInSheet: View {
             } else {
                 HStack(spacing: 12) {
                     compositionMetric(
-                        title: String(localized: "live.body_fat", defaultValue: "Body fat"),
+                        title: AppLanguageStore.text("live.body_fat", default: "Body fat"),
                         valueText: bodyFatValueText,
                         unit: "%"
                     )
                     compositionMetric(
-                        title: String(localized: "live.lean", defaultValue: "Lean"),
+                        title: AppLanguageStore.text("live.lean", default: "Lean"),
                         valueText: leanValueText,
                         unit: "%"
                     )
@@ -571,7 +576,7 @@ struct LiveWeighInSheet: View {
                 .lineLimit(1)
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(valueText)
-                    .font(.system(size: 40, weight: .medium, design: .rounded))
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(atmosphere.accent)
                     .minimumScaleFactor(0.5)
@@ -589,16 +594,16 @@ struct LiveWeighInSheet: View {
     private func editableComposition(_ draft: EditableMeasurementDraft) -> some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(String(localized: "live.body_fat_pct", defaultValue: "Body fat %"))
+                Text(AppLanguageStore.text("live.body_fat_pct", default: "Body fat %"))
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.72))
                 HStack(spacing: 8) {
-                    nudgeButton(systemName: "minus", accessibility: String(localized: "live.a11y.dec_fat", defaultValue: "Decrease body fat by 0.1 percent")) {
+                    nudgeButton(systemName: "minus", accessibility: AppLanguageStore.text("live.a11y.dec_fat", default: "Decrease body fat by 0.1 percent")) {
                         let next = max((draft.bodyFatPercent ?? 0) - 0.1, 0)
                         session.updateDraftBodyFat(next)
                     }
                     TextField(
-                        String(localized: "live.fat", defaultValue: "Fat"),
+                        AppLanguageStore.text("live.fat", default: "Fat"),
                         value: Binding(
                             get: { draft.bodyFatPercent ?? 0 },
                             set: { session.updateDraftBodyFat($0) }
@@ -612,7 +617,7 @@ struct LiveWeighInSheet: View {
                     .foregroundStyle(atmosphere.accent)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
-                    nudgeButton(systemName: "plus", accessibility: String(localized: "live.a11y.inc_fat", defaultValue: "Increase body fat by 0.1 percent")) {
+                    nudgeButton(systemName: "plus", accessibility: AppLanguageStore.text("live.a11y.inc_fat", default: "Increase body fat by 0.1 percent")) {
                         session.updateDraftBodyFat((draft.bodyFatPercent ?? 0) + 0.1)
                     }
                 }
@@ -620,16 +625,16 @@ struct LiveWeighInSheet: View {
             .frame(maxWidth: .infinity)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(String(localized: "live.lean_pct", defaultValue: "Lean %"))
+                Text(AppLanguageStore.text("live.lean_pct", default: "Lean %"))
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.72))
                 HStack(spacing: 8) {
-                    nudgeButton(systemName: "minus", accessibility: String(localized: "live.a11y.dec_lean", defaultValue: "Decrease lean by 0.1 percent")) {
+                    nudgeButton(systemName: "minus", accessibility: AppLanguageStore.text("live.a11y.dec_lean", default: "Decrease lean by 0.1 percent")) {
                         let next = max((draft.leanPercent ?? 0) - 0.1, 0)
                         session.updateDraftLeanPercent(next)
                     }
                     TextField(
-                        String(localized: "live.lean", defaultValue: "Lean"),
+                        AppLanguageStore.text("live.lean", default: "Lean"),
                         value: Binding(
                             get: { draft.leanPercent ?? 0 },
                             set: { session.updateDraftLeanPercent($0) }
@@ -643,7 +648,7 @@ struct LiveWeighInSheet: View {
                     .foregroundStyle(atmosphere.accent)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
-                    nudgeButton(systemName: "plus", accessibility: String(localized: "live.a11y.inc_lean", defaultValue: "Increase lean by 0.1 percent")) {
+                    nudgeButton(systemName: "plus", accessibility: AppLanguageStore.text("live.a11y.inc_lean", default: "Increase lean by 0.1 percent")) {
                         session.updateDraftLeanPercent((draft.leanPercent ?? 0) + 0.1)
                     }
                 }
@@ -672,18 +677,18 @@ struct LiveWeighInSheet: View {
                         .foregroundStyle(Color(red: 0.48, green: 0.12, blue: 0.12))
                         .multilineTextAlignment(.center)
                         .accessibilityIdentifier("live.weightRejection")
-                    Button(String(localized: "live.clear_reading", defaultValue: "Clear reading")) {
+                    Button(AppLanguageStore.text("live.clear_reading", default: "Clear reading")) {
                         session.clearRejectedWeighReading()
                     }
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundStyle(Color(red: 0.48, green: 0.12, blue: 0.12))
-                    .accessibilityLabel(String(localized: "live.clear_reading_a11y", defaultValue: "Clear rejected weight reading"))
+                    .accessibilityLabel(AppLanguageStore.text("live.clear_reading_a11y", default: "Clear rejected weight reading"))
                 }
             }
 
             if case .healthKitSuccess = session.phase, !isCalibration {
                 Label {
-                    Text(String(localized: "live.saved_health", defaultValue: "Saved to Apple Health"))
+                    Text(AppLanguageStore.text("live.saved_health", default: "Saved to Apple Health"))
                 } icon: {
                     Image(systemName: "checkmark.seal.fill")
                 }
@@ -715,7 +720,7 @@ struct LiveWeighInSheet: View {
 
             if session.autoConfirmArmed, !isEditing, !isCalibration {
                 Text(String(
-                    format: String(localized: "live.auto_confirm", defaultValue: "Auto-confirm in %ds"),
+                    format: AppLanguageStore.text("live.auto_confirm", default: "Auto-confirm in %ds"),
                     session.autoConfirmSecondsRemaining
                 ))
                     .font(.system(size: 14, weight: .bold, design: .rounded))
@@ -741,8 +746,8 @@ struct LiveWeighInSheet: View {
                 } label: {
                     Label {
                         Text(session.isEditingDraft
-                              ? String(localized: "common.done", defaultValue: "Done")
-                              : String(localized: "common.edit", defaultValue: "Edit"))
+                              ? AppLanguageStore.text("common.done", default: "Done")
+                              : AppLanguageStore.text("common.edit", default: "Edit"))
                     } icon: {
                         Image(systemName: session.isEditingDraft ? "checkmark" : "pencil")
                     }
@@ -755,7 +760,7 @@ struct LiveWeighInSheet: View {
                         session.cancelAutoConfirm()
                     } label: {
                         Label {
-                            Text(String(localized: "common.cancel", defaultValue: "Cancel"))
+                            Text(AppLanguageStore.text("common.cancel", default: "Cancel"))
                         } icon: {
                             Image(systemName: "hand.raised")
                         }
@@ -781,8 +786,8 @@ struct LiveWeighInSheet: View {
                 } label: {
                     Label {
                         Text(session.phase == .healthKitWriting
-                              ? String(localized: "live.saving", defaultValue: "Saving…")
-                              : String(localized: "live.confirm_health", defaultValue: "Confirm to Health"))
+                              ? AppLanguageStore.text("live.saving", default: "Saving…")
+                              : AppLanguageStore.text("live.confirm_health", default: "Confirm to Health"))
                     } icon: {
                         Image(systemName: session.phase == .healthKitWriting ? "ellipsis" : "heart.fill")
                     }
@@ -863,21 +868,21 @@ struct LiveWeighInSheet: View {
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
                     metricChip(
-                        title: String(localized: "live.bmi", defaultValue: "BMI"),
+                        title: AppLanguageStore.text("live.bmi", default: "BMI"),
                         value: draft.bmi.map { String(format: "%.1f", $0) } ?? "-"
                     )
                     metricChip(
-                        title: String(localized: "live.body_fat", defaultValue: "Body fat"),
+                        title: AppLanguageStore.text("live.body_fat", default: "Body fat"),
                         value: draft.bodyFatPercent.map { String(format: "%.1f%%", $0) } ?? "-"
                     )
                     metricChip(
-                        title: String(localized: "live.lean", defaultValue: "Lean"),
+                        title: AppLanguageStore.text("live.lean", default: "Lean"),
                         value: draft.leanPercent.map { String(format: "%.1f%%", $0) } ?? "-"
                     )
                 }
 
                 if draft.bodyFatPercent == nil {
-                    Text(String(localized: "live.comp.needs_scan", defaultValue: "Composition needs a barefoot scan. Edit weight freely; fat % stays off until it arrives."))
+                    Text(AppLanguageStore.text("live.comp.needs_scan", default: "Composition needs a barefoot scan. Edit weight freely; fat % stays off until it arrives."))
                         .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(atmosphere.accent.opacity(0.75))
                         .lineLimit(2)
@@ -910,17 +915,17 @@ struct LiveWeighInSheet: View {
             if draft.bodyFatPercent != nil || draft.sourceHasImpedance {
                 HStack(spacing: 8) {
                     compactEditField(
-                        title: String(localized: "live.body_fat_pct", defaultValue: "Body fat %"),
+                        title: AppLanguageStore.text("live.body_fat_pct", default: "Body fat %"),
                         value: draft.bodyFatPercent,
                         fractionLength: 1
                     ) { session.updateDraftBodyFat($0) }
                     compactEditField(
-                        title: String(localized: "live.bmi", defaultValue: "BMI"),
+                        title: AppLanguageStore.text("live.bmi", default: "BMI"),
                         value: draft.bmi,
                         fractionLength: 1
                     ) { session.updateDraftBMI($0) }
                     compactEditField(
-                        title: String(localized: "live.lean_pct", defaultValue: "Lean %"),
+                        title: AppLanguageStore.text("live.lean_pct", default: "Lean %"),
                         value: draft.leanPercent,
                         fractionLength: 1
                     ) { session.updateDraftLeanPercent($0) }
@@ -931,7 +936,7 @@ struct LiveWeighInSheet: View {
                     set: { session.setIncludeCompositionInHealth($0) }
                 )) {
                     Label {
-                        Text(String(localized: "live.write_fat", defaultValue: "Write fat % + lean to Health"))
+                        Text(AppLanguageStore.text("live.write_fat", default: "Write fat % + lean to Health"))
                     } icon: {
                         Image(systemName: "figure.arms.open")
                     }
@@ -940,13 +945,13 @@ struct LiveWeighInSheet: View {
                 .foregroundStyle(atmosphere.accent)
                 .tint(atmosphere.accent)
             } else {
-                Text(String(localized: "live.comp.weight_only", defaultValue: "Weight-only. Adjust kg above; body fat stays off until the barefoot scan finishes."))
+                Text(AppLanguageStore.text("live.comp.weight_only", default: "Weight-only. Adjust kg above; body fat stays off until the barefoot scan finishes."))
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.75))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Text(String(localized: "live.confirm_only_hint", defaultValue: "Only Confirm writes to Apple Health. Mistakes stay on this iPhone until then."))
+            Text(AppLanguageStore.text("live.confirm_only_hint", default: "Only Confirm writes to Apple Health. Mistakes stay on this iPhone until then."))
                 .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(atmosphere.accent.opacity(0.7))
                 .lineLimit(2)
@@ -1030,22 +1035,22 @@ struct LiveWeighInSheet: View {
 
     private var compositionStatusText: String {
         if isCalibration {
-            return String(localized: "live.comp.cal_only", defaultValue: "Calibration corrects weight kg only. Body fat stays informational.")
+            return AppLanguageStore.text("live.comp.cal_only", default: "Calibration corrects weight kg only. Body fat stays informational.")
         }
         if session.displayBodyFatPercent != nil {
-            return String(localized: "live.comp.locked", defaultValue: "Body composition locked from the barefoot scan.")
+            return AppLanguageStore.text("live.comp.locked", default: "Body composition locked from the barefoot scan.")
         }
         if session.isWeightOnlyReading,
            session.phase == .ready || session.phase == .reviewing {
-            return String(localized: "live.comp.no_fat", defaultValue: "No body fat this session (socks/shoes or stepped off early).")
+            return AppLanguageStore.text("live.comp.no_fat", default: "No body fat this session (socks/shoes or stepped off early).")
         }
         switch session.phase {
         case .awaitingImpedance:
-            return String(localized: "live.comp.awaiting", defaultValue: "Waiting for barefoot body composition. Stay on the electrodes.")
+            return AppLanguageStore.text("live.comp.awaiting", default: "Waiting for barefoot body composition. Stay on the electrodes.")
         case .measuring, .listening:
-            return String(localized: "live.comp.streaming", defaultValue: "Weight streaming. Body fat % appears after the scale finishes scanning.")
+            return AppLanguageStore.text("live.comp.streaming", default: "Weight streaming. Body fat % appears after the scale finishes scanning.")
         default:
-            return String(localized: "live.comp.pending", defaultValue: "Body fat % and lean % appear here once the scan finishes.")
+            return AppLanguageStore.text("live.comp.pending", default: "Body fat % and lean % appear here once the scan finishes.")
         }
     }
 
@@ -1115,40 +1120,6 @@ struct TrendAtmosphereBackground: View {
             .allowsHitTesting(false)
         }
         .clipped()
-    }
-}
-
-struct ScalePrimaryButtonStyle: ButtonStyle {
-    let accent: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 16, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white)
-            .padding(.vertical, 14)
-            .background(
-                accent.opacity(configuration.isPressed ? 0.75 : 1.0),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
-
-struct ScaleSecondaryButtonStyle: ButtonStyle {
-    let accent: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 16, weight: .semibold, design: .rounded))
-            .foregroundStyle(accent)
-            .padding(.vertical, 14)
-            .background(
-                .white.opacity(configuration.isPressed ? 0.35 : 0.55),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 

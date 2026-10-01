@@ -132,7 +132,9 @@ final class CoachOfflineTests: XCTestCase {
         XCTAssertEqual(profile.preferredLanguage, "English")
         XCTAssertEqual(profile.location, "")
         XCTAssertTrue(profile.coachPersonaBlock.contains("English"))
+        XCTAssertTrue(profile.coachPersonaBlock.contains("Language lock"))
         XCTAssertFalse(profile.coachPersonaBlock.contains("Manila"))
+        XCTAssertFalse(profile.coachPersonaBlock.contains("Location:"))
         var filled = profile
         filled.location = "Manila"
         filled.ethnicity = "Filipina"
@@ -205,6 +207,87 @@ final class CoachOfflineTests: XCTestCase {
                 || summary.contains("no shared")
                 || summary.contains("secret")
                 || summary.contains("grok_app_secret")
+        )
+    }
+
+    func testLanguageSettingValidatesAndLocksModels() {
+        let key = "thescale.appLanguage"
+        let prior = UserDefaults.standard.string(forKey: key)
+        let priorApple = UserDefaults.standard.stringArray(forKey: "AppleLanguages")
+        defer {
+            if let prior {
+                UserDefaults.standard.set(prior, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+            if let priorApple {
+                UserDefaults.standard.set(priorApple, forKey: "AppleLanguages")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            }
+            AppLanguageStore.syncBundleLanguages(AppLanguageStore.current)
+        }
+        XCTAssertNil(AppLanguage.validated("Tagalog"))
+        XCTAssertNil(AppLanguage.validated(" "))
+        XCTAssertNil(AppLanguage.validated("nope"))
+        XCTAssertEqual(AppLanguage.validated("fr"), .french)
+        XCTAssertEqual(AppLanguageStore.apply(.french), .french)
+        XCTAssertEqual(AppLanguageStore.current, .french)
+        XCTAssertEqual(FatnagBrand.tagline, "Nag jusqu'à ce que le gras plie.")
+        XCTAssertEqual(AppLanguageStore.splashTagline, "Nag jusqu'à ce que le gras plie.")
+        XCTAssertEqual(AppLanguage.french.splashTagline, "Nag jusqu'à ce que le gras plie.")
+        XCTAssertEqual(AppLanguage.english.splashTagline, "Nag until the fat folds.")
+        // First-launch path: clearing the key → System → device language tagline.
+        UserDefaults.standard.removeObject(forKey: key)
+        XCTAssertEqual(AppLanguageStore.current, .system)
+        XCTAssertEqual(AppLanguageStore.splashTagline, AppLanguage.system.resolved.splashTagline)
+        XCTAssertEqual(AppLanguageStore.apply(.french), .french)
+        XCTAssertTrue(AppLanguage.french.modelDirective.contains("French"))
+        XCTAssertTrue(AppLanguage.french.modelDirective.contains("ZERO"))
+        XCTAssertTrue(AppLanguage.french.languageLockFooter.contains("français") || AppLanguage.french.languageLockFooter.contains("FINAL CHECK"))
+        XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male, ageYears: 42).contains("Language lock"))
+        XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male, ageYears: 42).contains("FINAL CHECK"))
+        XCTAssertTrue(CoachAgentRole.orchestrator.systemPrompt(sex: .male, ageYears: 42).contains("AGE / GENERATION") || CoachAgentRole.orchestrator.systemPrompt(sex: .male, ageYears: 42).contains("millennial"))
+        XCTAssertTrue(AppLanguageStore.locked("Hello").contains("French"))
+        XCTAssertTrue(AppLanguageStore.locked("Hello").contains("FINAL CHECK"))
+        XCTAssertEqual(
+            UserDefaults.standard.stringArray(forKey: "AppleLanguages")?.first,
+            "fr"
+        )
+        AppLanguageBundleInstaller.installIfNeeded()
+        let frBundle = Bundle(url: Bundle.main.bundleURL.appendingPathComponent("fr.lproj", isDirectory: true))
+        XCTAssertNotNil(frBundle, "fr.lproj must be in the app after catalog compile")
+        XCTAssertEqual(
+            frBundle?.localizedString(forKey: "onboarding.cta.continue", value: "?", table: nil),
+            "Continuer"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("home.mass.reveal", default: "Show weight"),
+            "Afficher le poids"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("onboarding.cta.continue", default: "Continue"),
+            "Continuer"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("tab.weigh", default: "Weigh"),
+            "Peser"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("tab.settings", default: "Settings"),
+            "Réglages"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("settings.section.you", default: "You"),
+            "Toi"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("settings.notifications", default: "Notifications"),
+            "Notifications"
+        )
+        XCTAssertEqual(
+            Bundle.main.localizedString(forKey: "tab.weigh", value: "Weigh", table: nil),
+            "Peser"
         )
     }
 

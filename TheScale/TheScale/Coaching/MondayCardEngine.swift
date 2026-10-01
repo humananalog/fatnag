@@ -454,6 +454,8 @@ enum MondayCardEngine {
                 return "\(who), \(deltaBit) Hold near \(sundayMass). Steady wins."
             case .aggressive:
                 return "\(who), \(deltaBit) \(sundayMass). Physics does not care about your feelings. Hit the number."
+            case .commando:
+                return "\(who), \(deltaBit) Commando. \(sundayMass). Intake drops. The finish date has to move."
             }
         }()
 

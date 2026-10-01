@@ -121,6 +121,33 @@ struct TrendAtmosphere: Equatable {
     }
 }
 
+/// Ink for History chart fills/lines from the **selected period** OLS slope (not last weigh-in).
+enum HistoryChartTone: Equatable, Sendable {
+    case losing
+    case stable
+    case gaining
+    case unknown
+
+    /// kg/wk (or %/wk) threshold — below this counts as flat noise.
+    static let flatBandPerWeek: Double = 0.05
+
+    static func from(ratePerWeek: Double?) -> HistoryChartTone {
+        guard let rate = ratePerWeek, rate.isFinite else { return .unknown }
+        if rate <= -flatBandPerWeek { return .losing }
+        if rate >= flatBandPerWeek { return .gaining }
+        return .stable
+    }
+
+    var atmosphere: TrendAtmosphere {
+        switch self {
+        case .losing: return .forTrend(.loss(deltaKg: -1))
+        case .stable: return .forTrend(.stable(deltaKg: 0))
+        case .gaining: return .forTrend(.gain(deltaKg: 1))
+        case .unknown: return .forTrend(.unknown)
+        }
+    }
+}
+
 /// Recent HealthKit body-mass sample used as trend baseline.
 struct HealthWeightSample: Equatable, Identifiable, Sendable {
     let id: UUID

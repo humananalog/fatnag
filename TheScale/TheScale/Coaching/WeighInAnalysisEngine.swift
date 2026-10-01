@@ -397,6 +397,8 @@ private struct PopCultureLens: Equatable {
         .lowercased()
 
         var tags: [String] = []
+        let band = CoachAgeBand.from(ageYears: profile.ageYears)
+        tags.append("age:\(band.rawValue)")
         if blob.contains("filip") || blob.contains("manila") || blob.contains("tagalog") {
             tags.append("ph")
         }
@@ -421,7 +423,7 @@ private struct PopCultureLens: Equatable {
         if blob.contains("vegan") || blob.contains("vegetarian") {
             tags.append("plant")
         }
-        if tags.isEmpty { tags = ["default"] }
+        if tags.filter({ !$0.hasPrefix("age:") }).isEmpty { tags.append("default") }
         return PopCultureLens(tags: tags)
     }
 
@@ -585,6 +587,10 @@ struct MacroGoalETA: Equatable, Sendable {
     var plannedDate: Date?
     var remainingKg: Double
     var line: String
+    /// Goal date cannot be hit inside the safe weekly cap.
+    var needsDateRevision: Bool = false
+    /// Earliest date Keel will pre-select when the goal is unrealistic.
+    var proposedGoalDate: Date? = nil
 
     static func empty(sex: UserBodyProfile.Sex = .male) -> MacroGoalETA {
         MacroGoalETA(
@@ -620,8 +626,57 @@ struct MacroGoalETA: Equatable, Sendable {
                 line: CoachVoice.atGoalLine(sex: sex)
             )
         }
+        if let plannedDate {
+            let verdict = GoalPaceGuard.evaluate(
+                currentKg: current,
+                targetKg: idealKg,
+                goalDate: plannedDate,
+                now: now,
+                calendar: calendar
+            )
+            if verdict.status == .rejected {
+                let proposed = verdict.earliestFeasibleDate ?? plannedDate
+                return MacroGoalETA(
+                    paceKgPerWeek: verdict.requiredKgPerWeek,
+                    etaDate: proposed,
+                    plannedDate: plannedDate,
+                    remainingKg: remaining,
+                    line: CoachVoice.unrealisticDateLine(
+                        remainingAbsKg: abs(remaining),
+                        planText: Self.dateStamp(plannedDate),
+                        proposedText: Self.dateStamp(proposed),
+                        sex: sex,
+                        unitSystem: unitSystem
+                    ),
+                    needsDateRevision: true,
+                    proposedGoalDate: proposed
+                )
+            }
+            let weeks = max(
+                Double(calendar.dateComponents(
+                    [.day],
+                    from: calendar.startOfDay(for: now),
+                    to: calendar.startOfDay(for: plannedDate)
+                ).day ?? 0) / 7.0,
+                1.0 / 7.0
+            )
+            let planPace = remaining / weeks
+            return MacroGoalETA(
+                paceKgPerWeek: planPace,
+                etaDate: plannedDate,
+                plannedDate: plannedDate,
+                remainingKg: remaining,
+                line: CoachVoice.onPlanLine(
+                    remainingAbsKg: abs(remaining),
+                    paceKgPerWeek: planPace,
+                    planText: Self.dateStamp(plannedDate),
+                    sex: sex,
+                    unitSystem: unitSystem
+                )
+            )
+        }
 
-        // Prefer observed 7-14d pace; fall back to weekly mini-goal.
+        // No goal date: project from observed pace, else the weekly mini-goal.
         var pace: Double?
         let sorted = recentWeights.sorted { $0.date < $1.date }
         if sorted.count >= 2,
@@ -674,10 +729,10 @@ struct MacroGoalETA: Equatable, Sendable {
 
         let weeks = abs(remaining / paceKgPerWeek)
         let eta = calendar.date(byAdding: .day, value: Int((weeks * 7).rounded()), to: now)
-        let etaText = eta?.formatted(.dateTime.month(.abbreviated).day()) ?? "soon"
+        let etaText = eta.map(Self.dateStamp) ?? "soon"
         let plannedBit: String = {
             guard let planned = plannedDate else { return "" }
-            let planText = planned.formatted(.dateTime.month(.abbreviated).day())
+            let planText = Self.dateStamp(planned)
             if let eta, eta <= planned {
                 return sex == .female
                     ? " Ahead of your plan (\(planText))."
@@ -702,5 +757,9 @@ struct MacroGoalETA: Equatable, Sendable {
                 unitSystem: unitSystem
             )
         )
+    }
+
+    private static func dateStamp(_ date: Date) -> String {
+        date.formatted(.dateTime.month(.abbreviated).day().year())
     }
 }

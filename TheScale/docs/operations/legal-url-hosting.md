@@ -6,29 +6,29 @@ In-app copies always ship (Settings → Privacy & Legal). **App Store Connect st
 
 | Document | Constant | Expected public URL |
 |----------|----------|---------------------|
-| Privacy Policy | `ScaleLegal.privacyPolicyURL` | `https://humananalog.github.io/the-scale/privacy` |
-| Terms of Use | `ScaleLegal.termsOfUseURL` | `https://humananalog.github.io/the-scale/terms` |
-| Support | `ScaleLegal.supportURL` | `https://humananalog.github.io/the-scale/support` |
+| Privacy Policy | `ScaleLegal.privacyPolicyURL` | `https://humananalog.github.io/fatnag/privacy` |
+| Terms of Use | `ScaleLegal.termsOfUseURL` | `https://humananalog.github.io/fatnag/terms` |
+| Support | `ScaleLegal.supportURL` | `https://humananalog.github.io/fatnag/support` |
 
-**Live (Sep 2026):** public repo `humananalog/the-scale` on GitHub Pages (`main` / root). Settings web links and ASC fields should use these URLs. In-app documents remain the interactive copy.
+**Live (Sep 2026):** public repo `humananalog/fatnag` on GitHub Pages (`main` / root). Clean public paths are `/privacy`, `/terms`, `/support` at the repo root (mirrored from `docs/legal-site/`). Settings web links and ASC fields should use these URLs. In-app documents remain the interactive copy.
 
 ## Exact hosting steps (GitHub Pages)
 
-1. Open the public repo `humananalog/the-scale` (or any public Pages site you prefer; then update URLs in `ScaleLegal.swift` and rebuild).
+1. Open the public repo `humananalog/fatnag` (or any public Pages site you prefer; then update URLs in `ScaleLegal.swift` and rebuild).
 2. GitHub Pages → Deploy from branch `main` / folder `/` (root).
-3. Sync HTML from this monorepo into that Pages repo:
-   - `docs/legal-site/privacy/index.html`
-   - `docs/legal-site/terms/index.html`
-   - `docs/legal-site/support/index.html`
+3. Keep root Pages HTML in sync with the editable copies:
+   - Source: `docs/legal-site/{privacy,terms,support}/index.html`
+   - Published: `/{privacy,terms,support}/index.html` (repo root — required for `github.io/fatnag/{privacy,terms,support}`)
 4. When legal text changes, regenerate pages from:
    - `ScaleLegal.privacyPolicyBody`
    - `ScaleLegal.termsOfUseBody`
    and keep Markdown mirrors at `docs/privacy-policy.md` / `docs/terms-of-use.md` in sync.
-5. Commit + push. Wait for Pages deploy.
+   Then copy the three HTML files from `docs/legal-site/` to the matching root folders.
+5. Commit + push to `main`. Wait for Pages deploy.
 6. Verify in a private browser (expect HTTP 200):
-   - https://humananalog.github.io/the-scale/privacy
-   - https://humananalog.github.io/the-scale/terms
-   - https://humananalog.github.io/the-scale/support
+   - https://humananalog.github.io/fatnag/privacy
+   - https://humananalog.github.io/fatnag/terms
+   - https://humananalog.github.io/fatnag/support
 7. App Store Connect → App Information → **Privacy Policy URL** = the privacy URL above.
 8. App Store Connect → **Support URL** = the support URL above.
 9. Optional: Terms of Use URL field (if shown for subscriptions) = the terms URL.

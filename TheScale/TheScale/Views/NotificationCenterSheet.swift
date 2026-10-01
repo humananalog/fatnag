@@ -8,7 +8,8 @@ struct NotificationCenterSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @State private var pending: [PendingNotifRow] = []
-    @State private var delivered: [UNNotification] = []
+    @State private var delivered: [DeliveredNotifRow] = []
+    @State private var archived: [ArchivedAlert] = []
     @State private var isLoading = true
     @State private var authLine = ""
     @State private var authDenied = false
@@ -19,6 +20,17 @@ struct NotificationCenterSheet: View {
         let body: String
         let kindLabel: String
         let whenLabel: String
+    }
+
+    private struct DeliveredNotifRow: Identifiable {
+        let id: String
+        let requestId: String
+        let title: String
+        let body: String
+        let kindLabel: String
+        let whenLabel: String
+        let deliveredAt: Date
+        let destination: ScaleNotificationDestination
     }
 
     private var ink: Color {
@@ -37,7 +49,7 @@ struct NotificationCenterSheet: View {
         NavigationStack {
             Group {
                 if isLoading {
-                    ProgressView(String(localized: "notif.loading", defaultValue: "Loading alerts..."))
+                    ProgressView(AppLanguageStore.text("notif.loading", default: "Loading alerts..."))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
@@ -45,11 +57,11 @@ struct NotificationCenterSheet: View {
                             permissionCard
                         } header: {
                             sectionHeader(
-                                String(localized: "notif.permission", defaultValue: "Permission"),
+                                AppLanguageStore.text("notif.permission", default: "Permission"),
                                 systemImage: "lock.shield"
                             )
                         } footer: {
-                            Text(String(localized: "notif.focus_footer", defaultValue: "Focus and Do Not Disturb can still silence banners."))
+                            Text(AppLanguageStore.text("notif.focus_footer", default: "Focus and Do Not Disturb can still silence banners."))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(mist)
                         }
@@ -57,8 +69,8 @@ struct NotificationCenterSheet: View {
                         Section {
                             if pending.isEmpty {
                                 emptyRow(
-                                    title: String(localized: "notif.empty_queued", defaultValue: "Nothing queued"),
-                                    detail: String(localized: "notif.empty_queued_detail", defaultValue: "Turn on Morning weigh or weekly reminders in Settings, then pull to refresh.")
+                                    title: AppLanguageStore.text("notif.empty_queued", default: "Nothing queued"),
+                                    detail: AppLanguageStore.text("notif.empty_queued_detail", default: "Turn on Morning weigh or weekly reminders in Settings, then pull to refresh.")
                                 )
                             } else {
                                 ForEach(pending) { row in
@@ -68,18 +80,21 @@ struct NotificationCenterSheet: View {
                                         kindLabel: row.kindLabel,
                                         whenLabel: row.whenLabel
                                     )
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        deleteButton { Task { await deletePending(row) } }
+                                    }
                                 }
                             }
                         } header: {
                             sectionHeader(
-                                String(localized: "notif.coming_up", defaultValue: "Coming up"),
+                                AppLanguageStore.text("notif.coming_up", default: "Coming up"),
                                 systemImage: "calendar"
                             )
                         } footer: {
                             Text(pending.isEmpty
-                                  ? String(localized: "notif.scheduled_footer", defaultValue: "Scheduled alerts appear here before they fire.")
+                                  ? AppLanguageStore.text("notif.scheduled_footer", default: "Scheduled alerts appear here before they fire.")
                                   : String(
-                                        format: String(localized: "notif.scheduled_count", defaultValue: "%d scheduled"),
+                                        format: AppLanguageStore.text("notif.scheduled_count", default: "%d scheduled"),
                                         pending.count
                                     ))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
@@ -89,24 +104,73 @@ struct NotificationCenterSheet: View {
                         Section {
                             if delivered.isEmpty {
                                 emptyRow(
-                                    title: String(localized: "notif.empty_delivered", defaultValue: "No recent deliveries"),
-                                    detail: String(localized: "notif.empty_delivered_detail", defaultValue: "After Coach pings land, they show up here.")
+                                    title: AppLanguageStore.text("notif.empty_active", default: "Nothing active"),
+                                    detail: AppLanguageStore.text("notif.empty_active_detail", default: "Acknowledged alerts move to Archive.")
                                 )
                             } else {
-                                ForEach(delivered, id: \.request.identifier) { note in
-                                    notificationRow(
-                                        title: note.request.content.title,
-                                        body: note.request.content.body,
-                                        kindLabel: kindLabel(for: note.request.identifier),
-                                        whenLabel: note.date.formatted(date: .abbreviated, time: .shortened)
-                                    )
+                                ForEach(delivered) { row in
+                                    Button {
+                                        Task { await openAndAcknowledge(row) }
+                                    } label: {
+                                        notificationRow(
+                                            title: row.title,
+                                            body: row.body,
+                                            kindLabel: row.kindLabel,
+                                            whenLabel: row.whenLabel
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        deleteButton { Task { await deleteActive(row) } }
+                                        Button {
+                                            Task { await acknowledge(row) }
+                                        } label: {
+                                            Label(
+                                                AppLanguageStore.text("notif.acknowledge", default: "Acknowledge"),
+                                                systemImage: "archivebox"
+                                            )
+                                        }
+                                        .tint(Color(red: 0.18, green: 0.52, blue: 0.62))
+                                    }
                                 }
                             }
                         } header: {
                             sectionHeader(
-                                String(localized: "notif.recently_delivered", defaultValue: "Recently delivered"),
+                                AppLanguageStore.text("notif.active", default: "Active"),
                                 systemImage: "tray.full"
                             )
+                        } footer: {
+                            Text(AppLanguageStore.text("notif.active_footer", default: "Tap to open the related page. Swipe left to delete or archive."))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(mist)
+                        }
+
+                        if !archived.isEmpty {
+                            Section {
+                                ForEach(archived) { item in
+                                    notificationRow(
+                                        title: item.title,
+                                        body: item.body,
+                                        kindLabel: kindLabel(for: item.requestId),
+                                        whenLabel: item.acknowledgedAt.formatted(date: .abbreviated, time: .shortened)
+                                    )
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        deleteButton { deleteArchived(item) }
+                                    }
+                                }
+                            } header: {
+                                sectionHeader(
+                                    AppLanguageStore.text("notif.archive", default: "Archive"),
+                                    systemImage: "archivebox"
+                                )
+                            } footer: {
+                                Text(String(
+                                    format: AppLanguageStore.text("notif.archive_count", default: "%d acknowledged"),
+                                    archived.count
+                                ))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(mist)
+                            }
                         }
                     }
                     .listStyle(.insetGrouped)
@@ -114,11 +178,11 @@ struct NotificationCenterSheet: View {
                     .refreshable { await reload() }
                 }
             }
-            .navigationTitle(String(localized: "notif.title", defaultValue: "Alerts"))
+            .navigationTitle(AppLanguageStore.text("notif.title", default: "Alerts"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "common.done", defaultValue: "Done")) { dismiss() }
+                    Button(AppLanguageStore.text("common.done", default: "Done")) { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -126,7 +190,7 @@ struct NotificationCenterSheet: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
-                    .accessibilityLabel(String(localized: "common.refresh", defaultValue: "Refresh"))
+                    .accessibilityLabel(AppLanguageStore.text("common.refresh", default: "Refresh"))
                 }
             }
             .task {
@@ -152,8 +216,8 @@ struct NotificationCenterSheet: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(authDenied
-                          ? String(localized: "notif.blocked", defaultValue: "Alerts blocked")
-                          : String(localized: "notif.allowed", defaultValue: "Alerts allowed"))
+                          ? AppLanguageStore.text("notif.blocked", default: "Alerts blocked")
+                          : AppLanguageStore.text("notif.allowed", default: "Alerts allowed"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
                     Text(authLine)
@@ -169,7 +233,7 @@ struct NotificationCenterSheet: View {
                         UIApplication.shared.open(url)
                     }
                 } label: {
-                    Text(String(localized: "notif.open_settings", defaultValue: "Open System Settings"))
+                    Text(AppLanguageStore.text("notif.open_settings", default: "Open System Settings"))
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -187,6 +251,12 @@ struct NotificationCenterSheet: View {
             .font(.system(size: 13, weight: .bold, design: .rounded))
             .foregroundStyle(ink.opacity(0.72))
             .textCase(nil)
+    }
+
+    private func deleteButton(action: @escaping () -> Void) -> some View {
+        Button(role: .destructive, action: action) {
+            Label(AppLanguageStore.text("notif.delete", default: "Delete"), systemImage: "trash")
+        }
     }
 
     private func emptyRow(title: String, detail: String) -> some View {
@@ -242,11 +312,20 @@ struct NotificationCenterSheet: View {
 
     private func reload() async {
         isLoading = true
+        #if DEBUG
+        if session.isDemoPersonaActive || PromoCaptureMode.isActive {
+            applyDemoRoastRows()
+            isLoading = false
+            return
+        }
+        #endif
         let detail = await TrendNotificationScheduler.authorizationStatusDetail()
         authLine = detail.line
         authDenied = detail.isDenied
         let pendingReqs = await UNUserNotificationCenter.current().pendingNotificationRequests()
         let deliveredNotes = await UNUserNotificationCenter.current().deliveredNotifications()
+        let archive = NotificationArchiveStore.load()
+        archived = archive
         pending = pendingReqs.map { req in
             let parts = triggerParts(req)
             return PendingNotifRow(
@@ -258,8 +337,215 @@ struct NotificationCenterSheet: View {
             )
         }
         .sorted { $0.whenLabel < $1.whenLabel }
-        delivered = deliveredNotes.sorted { $0.date > $1.date }
+        delivered = deliveredNotes
+            .sorted { $0.date > $1.date }
+            .filter {
+                !NotificationArchiveStore.isAcknowledged(
+                    requestId: $0.request.identifier,
+                    deliveredAt: $0.date,
+                    in: archive
+                )
+            }
+            .map { note in
+                DeliveredNotifRow(
+                    id: "\(note.request.identifier)-\(note.date.timeIntervalSince1970)",
+                    requestId: note.request.identifier,
+                    title: note.request.content.title,
+                    body: note.request.content.body,
+                    kindLabel: kindLabel(for: note.request.identifier),
+                    whenLabel: note.date.formatted(date: .abbreviated, time: .shortened),
+                    deliveredAt: note.date,
+                    destination: destination(for: note.request.content, requestId: note.request.identifier)
+                )
+            }
         isLoading = false
+    }
+
+    private func openAndAcknowledge(_ row: DeliveredNotifRow) async {
+        await acknowledge(row)
+        dismiss()
+        session.handleNotificationDestination(row.destination)
+    }
+
+    private func acknowledge(_ row: DeliveredNotifRow) async {
+        #if DEBUG
+        if session.isDemoPersonaActive || PromoCaptureMode.isActive {
+            delivered.removeAll { $0.id == row.id }
+            return
+        }
+        #endif
+        NotificationArchiveStore.acknowledge(
+            requestId: row.requestId,
+            title: row.title,
+            body: row.body,
+            deliveredAt: row.deliveredAt
+        )
+        await reload()
+    }
+
+    private func deleteActive(_ row: DeliveredNotifRow) async {
+        #if DEBUG
+        if session.isDemoPersonaActive || PromoCaptureMode.isActive {
+            delivered.removeAll { $0.id == row.id }
+            return
+        }
+        #endif
+        delivered.removeAll { $0.id == row.id }
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [row.requestId])
+        NotificationCenter.default.post(name: .fatnagAlertsDidChange, object: nil)
+    }
+
+    private func deletePending(_ row: PendingNotifRow) async {
+        #if DEBUG
+        if session.isDemoPersonaActive || PromoCaptureMode.isActive {
+            pending.removeAll { $0.id == row.id }
+            return
+        }
+        #endif
+        pending.removeAll { $0.id == row.id }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [row.id])
+        NotificationCenter.default.post(name: .fatnagAlertsDidChange, object: nil)
+    }
+
+    private func deleteArchived(_ item: ArchivedAlert) {
+        archived.removeAll { $0.id == item.id }
+        NotificationArchiveStore.delete(id: item.id)
+    }
+
+    #if DEBUG
+    /// Marketing-ready roast / vulgar Coach alerts (sex-tuned).
+    private func applyDemoRoastRows() {
+        authLine = "Demo alerts (DEBUG). Real banners need permission on device."
+        authDenied = false
+        let name = session.profile.greetingName
+        let sex = session.profile.sex
+        let kg = session.healthBaselineKg.map {
+            UnitFormat.massString($0, system: session.preferredUnits, fractionDigits: 1)
+        } ?? "scale"
+        switch sex {
+        case .male:
+            pending = [
+                PendingNotifRow(
+                    id: "demo.pending.morning",
+                    title: "Step on it",
+                    body: "\(name). Morning weigh. No excuses, no second coffee first.",
+                    kindLabel: "Morning drill",
+                    whenLabel: "Tomorrow 7:05"
+                )
+            ]
+            delivered = [
+                DeliveredNotifRow(
+                    id: "demo.delivered.spike",
+                    requestId: "demo.delivered.spike",
+                    title: "Salt bomb",
+                    body: "\(name). That \(kg) bump is weekend bullshit, not new fat. Drink water, hit protein, weigh tomorrow.",
+                    kindLabel: "Red card",
+                    whenLabel: "Today 8:12",
+                    deliveredAt: Date(),
+                    destination: .progress
+                ),
+                DeliveredNotifRow(
+                    id: "demo.delivered.trend",
+                    requestId: "demo.delivered.trend",
+                    title: "−380g kept",
+                    body: "\(name). Week is working. Don't blow it with a victory pastry like an idiot.",
+                    kindLabel: "Trend check",
+                    whenLabel: "Yesterday 18:40",
+                    deliveredAt: Date(),
+                    destination: .history
+                ),
+                DeliveredNotifRow(
+                    id: "demo.delivered.watch",
+                    requestId: "demo.delivered.watch",
+                    title: "Watch off",
+                    body: "\(name). No HR all day. Strap the damn watch or stop pretending you're training.",
+                    kindLabel: "Watch signal",
+                    whenLabel: "Yesterday 21:05",
+                    deliveredAt: Date(),
+                    destination: .coach
+                ),
+            ]
+        case .female:
+            pending = [
+                PendingNotifRow(
+                    id: "demo.pending.morning",
+                    title: "Morning weigh",
+                    body: "\(name), gentle reminder: same-time weigh tomorrow. You've got this.",
+                    kindLabel: "Morning drill",
+                    whenLabel: "Tomorrow 7:05"
+                )
+            ]
+            delivered = [
+                DeliveredNotifRow(
+                    id: "demo.delivered.spike",
+                    requestId: "demo.delivered.spike",
+                    title: "Noise, not doom",
+                    body: "\(name), that \(kg) blip is salt and cycle - not a relapse. Hold the line. Proud of you showing up.",
+                    kindLabel: "Red card",
+                    whenLabel: "Today 8:12",
+                    deliveredAt: Date(),
+                    destination: .progress
+                ),
+                DeliveredNotifRow(
+                    id: "demo.delivered.trend",
+                    requestId: "demo.delivered.trend",
+                    title: "−380g kept",
+                    body: "\(name), the week slope is down. Keep the protein plates and the walk after lunch.",
+                    kindLabel: "Trend check",
+                    whenLabel: "Yesterday 18:40",
+                    deliveredAt: Date(),
+                    destination: .history
+                ),
+                DeliveredNotifRow(
+                    id: "demo.delivered.coach",
+                    requestId: "demo.delivered.coach",
+                    title: "Coach check",
+                    body: "\(name), you showed up. That's the hard part. Eat the plan, ignore the panic edit.",
+                    kindLabel: "Coach reminder",
+                    whenLabel: "Yesterday 12:20",
+                    deliveredAt: Date(),
+                    destination: .coach
+                ),
+            ]
+        }
+    }
+    #endif
+
+    private func destination(
+        for content: UNNotificationContent,
+        requestId: String
+    ) -> ScaleNotificationDestination {
+        if let raw = content.userInfo[ScaleNotificationUserInfoKey.destination] as? String,
+           let dest = ScaleNotificationDestination(rawValue: raw) {
+            return dest
+        }
+        if let target = content.targetContentIdentifier,
+           let dest = ScaleNotificationDestination(rawValue: target) {
+            return dest
+        }
+        if let kindRaw = content.userInfo[ScaleNotificationUserInfoKey.kind] as? String,
+           let kind = ScaleNotificationKind(rawValue: kindRaw) {
+            return kind.destination
+        }
+        return destinationFallback(forRequestId: requestId)
+    }
+
+    private func destinationFallback(forRequestId identifier: String) -> ScaleNotificationDestination {
+        switch identifier {
+        case MorningWeighDrillScheduler.fallbackRequestId,
+             MorningWeighDrillScheduler.requestId,
+             MorningWeighDrillScheduler.testRequestId:
+            return .weigh
+        case TrendNotificationScheduler.weeklyGoalId:
+            return .progress
+        case TrendNotificationScheduler.badTrendId:
+            return .history
+        default:
+            if identifier.hasPrefix("thescale.fitness-trigger.") {
+                return .coach
+            }
+            return .coach
+        }
     }
 
     private func kindLabel(for identifier: String) -> String {
@@ -269,7 +555,12 @@ struct NotificationCenterSheet: View {
         case MorningWeighDrillScheduler.testRequestId: return "Test drill"
         case TrendNotificationScheduler.weeklyGoalId: return "Weekly goal"
         case TrendNotificationScheduler.badTrendId: return "Trend check"
+        case WeighMissLadderScheduler.eveningId: return "Evening miss"
+        case WeighMissLadderScheduler.streakId: return "Miss streak"
+        case WeighMissLadderScheduler.mondaySkipId: return "Monday skip"
+        case WeighMissLadderScheduler.sundayWrapId: return "Sunday wrap"
         case "thescale.key-coach-moment": return "Key moment"
+        case GrokFitnessMonitor.intervalNotifyId, GrokFitnessMonitor.activityPulseId: return "Nag"
         default:
             if identifier.hasPrefix(CoachReminderScheduler.notificationIdPrefix)
                 || identifier == CoachReminderScheduler.wakeReminderId
@@ -303,18 +594,34 @@ struct NotificationCenterSheet: View {
 struct HomeNotificationBell: View {
     @Binding var isPresented: Bool
     var badgeCount: Int = 0
+    /// Day ink. Night draws solid white on top of the glass so the glyph stays bright.
+    var ink: Color = .primary
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var glyph: Color {
+        colorScheme == .dark ? .white : ink
+    }
 
     var body: some View {
         Button {
             isPresented = true
         } label: {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: badgeCount > 0 ? "bell.badge.fill" : "bell.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(ScaleChrome.ink.opacity(0.85))
-                    .frame(width: 36, height: 36)
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(colorScheme == .dark ? 0.22 : 0.01))
+                    .frame(width: 40, height: 40)
                     .scaleGlassCircle()
+                    .clipShape(Circle())
+                    .frame(width: 40, height: 40)
 
+                Image(systemName: "bell.fill")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(glyph)
+                    .frame(width: 40, height: 40)
+            }
+            .frame(width: 40, height: 40)
+            .overlay(alignment: .topTrailing) {
                 if badgeCount > 0 {
                     Text(badgeCount > 9 ? "9+" : "\(badgeCount)")
                         .font(.system(size: 9, weight: .heavy, design: .rounded))
@@ -322,11 +629,12 @@ struct HomeNotificationBell: View {
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .background(Color.orange.opacity(0.95), in: Capsule())
-                        .offset(x: 4, y: -2)
+                        .offset(x: 6, y: -4)
                 }
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(badgeCount > 0 ? "Alerts, \(badgeCount) pending" : "Alerts")
+        .fixedSize()
+        .accessibilityLabel(badgeCount > 0 ? "Alerts, \(badgeCount) unread" : "Alerts")
     }
 }

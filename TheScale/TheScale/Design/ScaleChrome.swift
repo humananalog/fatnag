@@ -1,5 +1,30 @@
 import SwiftUI
 
+/// Layout rhythm shared across Weigh / Progress / Keel / Meals / Settings / sheets.
+enum ScaleLayout {
+    /// Canonical content inset for haze + hero surfaces.
+    static let pageInset: CGFloat = 24
+    /// Extra bottom so last controls clear the liquid-glass tab bar.
+    static let tabBarClearance: CGFloat = 64
+    /// Tight inset for secondary chrome (composer padding, etc.).
+    static let chromeInset: CGFloat = 16
+}
+
+/// Shared section eyebrow (SUNDAY TARGET / TODAY / Settings sections).
+struct ScaleEyebrow: View {
+    let title: String
+    var color: Color = ScaleChrome.steel
+    var loud: Bool = false
+
+    var body: some View {
+        Text(title.uppercased())
+            .font(.system(size: loud ? 13 : 11, weight: .heavy, design: .rounded))
+            .tracking(loud ? 1.6 : 1.1)
+            .foregroundStyle(color)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
 /// Liquid Glass (iOS 26+) with material fallback. Built against the iOS 27 SDK.
 /// Accent chrome biases slightly by `ScalePaletteUniverse` when views pass sex.
 enum ScaleChrome {
@@ -146,5 +171,59 @@ struct ScaleBoundedProgress: View {
         }
         .frame(height: height)
         .accessibilityHidden(true)
+    }
+}
+
+struct ScalePrimaryButtonStyle: ButtonStyle {
+    let accent: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
+            .foregroundStyle(.white)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity)
+            .background(
+                accent.opacity(configuration.isPressed ? 0.75 : 1.0),
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+struct ScaleSecondaryButtonStyle: ButtonStyle {
+    let accent: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 16, weight: .semibold, design: .rounded))
+            .foregroundStyle(accent)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity)
+            .background(
+                .white.opacity(configuration.isPressed ? 0.35 : 0.55),
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+struct ScaleStrokeButtonStyle: ButtonStyle {
+    let accent: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 16, weight: .bold, design: .rounded))
+            .foregroundStyle(accent)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity)
+            .background {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(accent.opacity(configuration.isPressed ? 0.35 : 0.5), lineWidth: 1.5)
+            }
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }

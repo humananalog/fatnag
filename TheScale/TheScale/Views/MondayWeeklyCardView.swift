@@ -22,6 +22,7 @@ struct MondayWeeklyCardView: View {
         case .hardcoreCatchUp: return Color(red: 0.86, green: 0.32, blue: 0.24)
         case .accelerate: return Color(red: 0.72, green: 0.92, blue: 0.28)
         case .aggressive: return Color(red: 0.35, green: 0.78, blue: 0.92)
+        case .commando: return Color(red: 0.92, green: 0.28, blue: 0.22)
         case .hold: return gold
         }
     }
@@ -105,7 +106,7 @@ struct MondayWeeklyCardView: View {
                     .frame(width: 40, height: 40)
                     .background(.ultraThinMaterial, in: Circle())
             }
-            .accessibilityLabel(String(localized: "monday.close_a11y", defaultValue: "Close Monday card"))
+            .accessibilityLabel(AppLanguageStore.text("monday.close_a11y", default: "Close Monday card"))
 
             Spacer(minLength: 8)
 
@@ -123,7 +124,7 @@ struct MondayWeeklyCardView: View {
             Spacer()
             ProgressView()
                 .tint(ivory)
-            Text(String(localized: "monday.building", defaultValue: "Building this week's card…"))
+            Text(AppLanguageStore.text("monday.building", default: "Building this week's card…"))
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(mist)
             Spacer()
@@ -143,7 +144,7 @@ struct MondayWeeklyCardView: View {
                 .offset(y: appeared ? 0 : 12)
                 .accessibilityIdentifier("mondayHero.badge")
 
-            Text(String(localized: "monday.this_week", defaultValue: "This week"))
+            Text(AppLanguageStore.text("monday.this_week", default: "This week"))
                 .font(.system(size: 18, weight: .semibold, design: .serif))
                 .foregroundStyle(ivory.opacity(0.72))
                 .padding(.top, 14)
@@ -214,8 +215,8 @@ struct MondayWeeklyCardView: View {
                 }
             } label: {
                 Text(showDetail
-                      ? String(localized: "monday.hide_detail", defaultValue: "Hide detail")
-                      : String(localized: "monday.meals_physics", defaultValue: "Meals & physics"))
+                      ? AppLanguageStore.text("monday.hide_detail", default: "Hide detail")
+                      : AppLanguageStore.text("monday.meals_physics", default: "Meals & physics"))
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(mist)
                     .frame(maxWidth: .infinity)

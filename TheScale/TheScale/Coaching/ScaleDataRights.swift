@@ -26,6 +26,7 @@ enum ScaleDataRights {
         "thescale.coachWeeklyQuota.week",
         "thescale.mondayCard.payload",
         "thescale.mondayCard.priorSundayTargetKg",
+        "thescale.monthlyHero.payload",
         "thescale.review.successfulWeighIns",
         "thescale.review.lastPromptAt",
         "thescale.review.lastSoftDismissAt",
@@ -33,7 +34,8 @@ enum ScaleDataRights {
         "thescale.review.hasRequestedAppStoreReview",
         "thescale.anonymousUserId",
         "thescale.feedback.lastSoftAskAt",
-        "thescale.feedback.lastSubmitAt"
+        "thescale.feedback.lastSubmitAt",
+        NotificationArchiveStore.storageKey
     ]
 
     /// JSON export of local preferences / profile / coach memory (no HealthKit bulk dump).
@@ -93,6 +95,10 @@ enum ScaleDataRights {
         session.clearMealPlanCache()
         session.hasCompletedOnboarding = false
         LegalAcceptanceStore.clear()
+        #if DEBUG
+        session.clearDemoPersonaLock()
+        UserDefaults.standard.removeObject(forKey: DemoRealUserSnapshot.storageKey)
+        #endif
     }
 
     private static func encodeJSONObject<T: Encodable>(_ value: T) -> Any? {

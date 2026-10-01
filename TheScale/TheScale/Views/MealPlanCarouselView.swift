@@ -1,256 +1,400 @@
 import SwiftUI
 
-/// Card carousel for next-24h meals (interaction surface; OK to use cards here).
+/// Meals tab: kitchen plate board — next meal as the one composition, not a SaaS card stack.
 struct MealPlanCarouselView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.dismiss) private var dismiss
-    @State private var pageIndex = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var plateIn = false
 
-    private var ink: Color {
-        colorScheme == .dark
-            ? Color(red: 0.96, green: 0.95, blue: 0.92)
-            : Color(red: 0.06, green: 0.07, blue: 0.09)
+    private var universe: ScalePaletteUniverse {
+        .resolve(sex: session.profile.sex)
     }
 
-    private var steel: Color {
-        colorScheme == .dark
-            ? Color(red: 0.70, green: 0.72, blue: 0.76)
-            : Color(red: 0.28, green: 0.30, blue: 0.34)
+    private var atmosphere: WeeklyGoalAtmosphere {
+        WeeklyGoalAtmosphere.forBand(
+            session.weeklyGoalSurface.band,
+            colorScheme: colorScheme,
+            universe: universe
+        )
     }
 
-    private let peek: CGFloat = 28
-    private let cardGap: CGFloat = 12
-
-    private var sheetTop: Color {
+    private var ink: Color { atmosphere.ink }
+    private var steel: Color { atmosphere.muted }
+    private var accent: Color {
         colorScheme == .dark
-            ? Color(red: 0.07, green: 0.08, blue: 0.10)
-            : Color(red: 0.95, green: 0.97, blue: 0.99)
+            ? ScaleChrome.signal(for: universe)
+            : ScaleChrome.ember(for: universe)
     }
 
-    private var sheetBottom: Color {
-        colorScheme == .dark
-            ? Color(red: 0.04, green: 0.05, blue: 0.07)
-            : Color(red: 0.90, green: 0.93, blue: 0.96)
+    private var baseFill: Color {
+        colorScheme == .dark ? atmosphere.mid : atmosphere.top
     }
-
-    private let accents: [Color] = [
-        Color(red: 0.18, green: 0.52, blue: 0.62),
-        Color(red: 0.78, green: 0.42, blue: 0.22),
-        Color(red: 0.32, green: 0.55, blue: 0.38),
-        Color(red: 0.48, green: 0.36, blue: 0.68)
-    ]
 
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient(
-                    colors: [sheetTop, sheetBottom],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
+                atmosphereField
 
-                VStack(alignment: .leading, spacing: 16) {
-                    headerCopy
-
-                    if session.isMealPlanLoading {
-                        Spacer()
-                        RetroSnakeSpinnerView()
-                            .frame(maxWidth: .infinity)
-                        Spacer()
-                    } else if let plan = session.mealPlan, !plan.meals.isEmpty {
-                        GeometryReader { geo in
-                            // GeometryReader can report 0 during the first layout pass; never
-                            // feed negative / non-finite sizes into `.frame`.
-                            let safeWidth = geo.size.width.isFinite ? max(0, geo.size.width) : 0
-                            let safeHeight = geo.size.height.isFinite ? max(0, geo.size.height) : 0
-                            let cardWidth = max(240, safeWidth - peek * 2)
-                            let cardHeight = max(1, safeHeight - 8)
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                LazyHStack(spacing: cardGap) {
-                                    ForEach(Array(plan.meals.enumerated()), id: \.element.id) { index, meal in
-                                        mealCard(meal, accent: accents[index % accents.count])
-                                            .frame(width: cardWidth, height: cardHeight)
-                                            .id(index)
-                                    }
-                                }
-                                .scrollTargetLayout()
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    let focus = session.mealPlan.map {
+                        MealPlanEngine.focus(
+                            meals: $0.meals,
+                            now: context.date,
+                            fasting: fastingWindow
+                        )
+                    }
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 28) {
+                            switch focus {
+                            case .kitchenClosed:
+                                KitchenClosedHero(ink: ink, steel: steel)
+                                    .frame(minHeight: 420, alignment: .topLeading)
+                            case .next(let meal):
+                                nextPlate(meal)
+                            case .none:
+                                emptyPlan
                             }
-                            .contentMargins(.horizontal, peek, for: .scrollContent)
-                            .scrollTargetBehavior(.viewAligned)
-                            .scrollPosition(id: Binding<Int?>(
-                                get: { pageIndex },
-                                set: { pageIndex = $0 ?? 0 }
-                            ))
                         }
-                        .frame(maxHeight: .infinity)
-
-                        pageDots(count: plan.meals.count)
-
-                        Text(plan.sourceNote)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundStyle(steel)
-                            .padding(.horizontal, 4)
-                    } else {
-                        Spacer()
-                        Text(String(localized: "meal.empty", defaultValue: "No meal plan yet."))
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundStyle(ink)
-                        Spacer()
+                        .padding(.horizontal, ScaleLayout.pageInset)
+                        .padding(.top, 12)
+                        .padding(.bottom, ScaleLayout.tabBarClearance + 12)
+                        .opacity(plateIn || reduceMotion ? 1 : 0)
+                        .offset(y: plateIn || reduceMotion ? 0 : 18)
                     }
                 }
-                .padding(.vertical, 20)
-                .padding(.horizontal, 12)
             }
-            .navigationTitle(String(localized: "meal.title", defaultValue: "Meal plan"))
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(String(localized: "common.refresh", defaultValue: "Refresh")) {
+                    Button(AppLanguageStore.text("common.refresh", default: "Refresh")) {
                         Task { await session.refreshMealPlan(force: true) }
                     }
-                    .disabled(session.isMealPlanLoading)
+                    .foregroundStyle(ink.opacity(0.85))
+                }
+                ToolbarItem(placement: .principal) {
+                    ScaleEyebrow(
+                        title: AppLanguageStore.text("meal.title", default: "Meal plan"),
+                        color: steel,
+                        loud: false
+                    )
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if session.alreadyWeighedToday {
-                        Button(String(localized: "common.manual", defaultValue: "Manual")) { session.presentManualEntry() }
+                        Button(AppLanguageStore.text("common.manual", default: "Manual")) {
+                            session.presentManualEntry()
+                        }
+                        .foregroundStyle(ink.opacity(0.85))
                     } else if session.weighNowGateResolved {
-                        Button(String(localized: "common.weigh", defaultValue: "Weigh")) { session.selectHomeTab(.weigh) }
+                        Button(AppLanguageStore.text("common.weigh", default: "Weigh")) {
+                            session.selectHomeTab(.weigh)
+                        }
+                        .foregroundStyle(accent)
                     }
                 }
             }
+            .toolbarBackground(baseFill.opacity(0.92), for: .navigationBar)
             .task {
                 session.refreshAlreadyWeighedToday()
                 await session.ensureMealPlan()
             }
-            .onChange(of: session.mealPlan?.meals.count ?? 0) { _, _ in
-                pageIndex = 0
+            .onAppear { playEntrance() }
+            .onChange(of: session.mealPlan?.cacheKey) { _, _ in
+                plateIn = false
+                playEntrance()
             }
         }
     }
 
-    private var headerCopy: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(String(localized: "meal.whats_ahead", defaultValue: "What's ahead"))
-                .font(.system(size: 28, weight: .semibold, design: .serif))
-                .foregroundStyle(ink)
-            if let plan = session.mealPlan {
-                Text(String(
-                    format: String(localized: "meal.cap_line", defaultValue: "Cap %d kcal · protein %d g · %@"),
-                    plan.maxKcal,
-                    plan.proteinGrams,
-                    plan.dietRaw
-                ))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(steel)
-            } else {
-                Text(String(localized: "meal.grounded", defaultValue: "Grounded in your deficit, diet prefs, and fasting window."))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(steel)
-            }
-        }
-        .padding(.horizontal, 8)
-    }
-
-    private func pageDots(count: Int) -> some View {
-        HStack(spacing: 8) {
-            ForEach(0..<count, id: \.self) { index in
-                Capsule()
-                    .fill(index == pageIndex ? ink : ink.opacity(0.22))
-                    .frame(width: index == pageIndex ? 18 : 8, height: 8)
-                    .accessibilityLabel("Page \(index + 1) of \(count)")
-                    .accessibilityAddTraits(index == pageIndex ? .isSelected : [])
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 4)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Meal pages")
-    }
-
-    private func mealCard(_ meal: MealPlanMeal, accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [accent, accent.opacity(0.55)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 6)
-
-            HStack(alignment: .firstTextBaseline) {
-                Text(meal.title)
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(ink)
-                Spacer()
-                Text(meal.timeLabel)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(accent)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(accent.opacity(0.14), in: Capsule())
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(meal.ingredients, id: \.self) { line in
-                    HStack(alignment: .top, spacing: 8) {
-                        Circle()
-                            .fill(accent.opacity(0.85))
-                            .frame(width: 6, height: 6)
-                            .padding(.top, 7)
-                        Text(line)
-                            .font(.system(size: 17, weight: .medium, design: .rounded))
-                            .foregroundStyle(ink)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-
-            HStack(spacing: 16) {
-                labeled(String(localized: "meal.macro", defaultValue: "Macro"), meal.keyMacro, accent: accent)
-                labeled(String(localized: "meal.micro", defaultValue: "Micro"), meal.keyMicro, accent: accent)
-            }
-
-            Text("~\(meal.approxKcal) kcal")
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(ink)
-                .padding(.top, 2)
-
-            Spacer(minLength: 0)
-        }
-        .padding(22)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(
+    private var atmosphereField: some View {
+        ZStack {
             LinearGradient(
-                colors: [sheetTop, sheetBottom],
+                colors: [atmosphere.top, atmosphere.mid, atmosphere.bottom],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
-            ),
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(accent.opacity(0.35), lineWidth: 1.5)
-        )
-        .shadow(color: ink.opacity(0.06), radius: 10, y: 4)
+            )
+            Circle()
+                .fill(atmosphere.hazeA)
+                .frame(width: 320, height: 320)
+                .blur(radius: 70)
+                .offset(x: -90, y: -140)
+            Circle()
+                .fill(atmosphere.hazeB)
+                .frame(width: 280, height: 280)
+                .blur(radius: 80)
+                .offset(x: 110, y: 220)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 
-    private func labeled(_ caption: String, _ value: String, accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(caption.uppercased())
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(accent)
-                .tracking(0.6)
-            Text(value)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+    private var fastingWindow: FastingWindow {
+        FastingWindowResolver.current(profile: session.profile)
+    }
+
+    // MARK: - Next plate (one composition)
+
+    @ViewBuilder
+    private func nextPlate(_ meal: MealPlanMeal) -> some View {
+        VStack(alignment: .leading, spacing: 22) {
+            ScaleEyebrow(
+                title: AppLanguageStore.text("meal.next_plate", default: "Next plate"),
+                color: accent,
+                loud: true
+            )
+
+            Text(meal.title)
+                .font(.system(size: 40, weight: .bold, design: .rounded))
                 .foregroundStyle(ink)
                 .fixedSize(horizontal: false, vertical: true)
+                .minimumScaleFactor(0.72)
+                .lineLimit(3)
+                .accessibilityAddTraits(.isHeader)
+
+            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                Text(meal.timeLabel)
+                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(ink)
+                Text("·")
+                    .foregroundStyle(steel.opacity(0.5))
+                Text("~\(meal.approxKcal) kcal")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(steel)
+            }
+
+            if let plan = session.mealPlan {
+                Text(
+                    String(
+                        format: AppLanguageStore.text(
+                            "meal.cap_line",
+                            default: "Cap %d kcal · protein %d g · %@"
+                        ),
+                        plan.maxKcal,
+                        plan.proteinGrams,
+                        plan.dietRaw
+                    )
+                )
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(steel)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Rectangle()
+                .fill(ink.opacity(colorScheme == .dark ? 0.22 : 0.12))
+                .frame(height: 1)
+                .padding(.vertical, 4)
+
+            ingredientBoard(meal.ingredients)
+
+            macroStrip(meal: meal)
+
+            if let plan = session.mealPlan {
+                laterPlates(plan: plan, current: meal)
+                Text(plan.sourceNote)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(steel.opacity(0.85))
+                    .padding(.top, 4)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func ingredientBoard(_ lines: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ScaleEyebrow(
+                title: AppLanguageStore.text("meal.on_the_plate", default: "On the plate"),
+                color: steel
+            )
+            ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(String(format: "%02d", index + 1))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(accent.opacity(0.85))
+                        .frame(width: 28, alignment: .leading)
+                    Text(line)
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                        .foregroundStyle(ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private func macroStrip(meal: MealPlanMeal) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Rectangle()
+                .fill(ink.opacity(colorScheme == .dark ? 0.22 : 0.12))
+                .frame(height: 1)
+            HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(AppLanguageStore.text("meal.macro", default: "Macro").uppercased())
+                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        .tracking(1.1)
+                        .foregroundStyle(steel)
+                    Text(meal.keyMacro)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(AppLanguageStore.text("meal.micro", default: "Micro").uppercased())
+                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        .tracking(1.1)
+                        .foregroundStyle(steel)
+                    Text(meal.keyMicro)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    /// Quiet later-board — text only, no card stack.
+    @ViewBuilder
+    private func laterPlates(plan: MealPlanPayload, current: MealPlanMeal) -> some View {
+        let rest = plan.meals.filter { $0.id != current.id }
+        if !rest.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                ScaleEyebrow(
+                    title: AppLanguageStore.text("meal.later", default: "Later"),
+                    color: steel
+                )
+                ForEach(rest) { meal in
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(meal.timeLabel)
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(steel)
+                            .frame(width: 64, alignment: .leading)
+                        Text(meal.title)
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(ink.opacity(0.88))
+                            .lineLimit(2)
+                        Spacer(minLength: 0)
+                        Text("\(meal.approxKcal)")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(steel)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+            .padding(.top, 8)
+        }
+    }
+
+    private var emptyPlan: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ScaleEyebrow(
+                title: AppLanguageStore.text("meal.title", default: "Meal plan"),
+                color: accent,
+                loud: true
+            )
+            Text(
+                session.isMealPlanLoading
+                    ? AppLanguageStore.text("meal.writing", default: "Keel is writing meals. You can keep moving.")
+                    : AppLanguageStore.text("meal.empty", default: "No meal plan yet.")
+            )
+            .font(.system(size: 34, weight: .bold, design: .rounded))
+            .foregroundStyle(ink)
+            .fixedSize(horizontal: false, vertical: true)
+
+            if !session.isMealPlanLoading {
+                Text(
+                    AppLanguageStore.text(
+                        "meal.empty.hint",
+                        default: "Pull refresh, or weigh in — Keel fills the plate from your deficit."
+                    )
+                )
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .foregroundStyle(steel)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 40)
+        }
+        .frame(maxWidth: .infinity, minHeight: 360, alignment: .topLeading)
+    }
+
+    private func playEntrance() {
+        guard !reduceMotion else {
+            plateIn = true
+            return
+        }
+        withAnimation(.spring(response: 0.48, dampingFraction: 0.86)) {
+            plateIn = true
+        }
+    }
+}
+
+/// Late-night plate: large type that streams in, one line after another.
+private struct KitchenClosedHero: View {
+    var ink: Color
+    var steel: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var anchor = Date()
+
+    private var lines: [(text: String, size: CGFloat, weight: Font.Weight, design: Font.Design, muted: Bool)] {
+        [
+            (AppLanguageStore.text("meal.late.too", default: "Too late"), 72, .bold, .rounded, false),
+            (AppLanguageStore.text("meal.late.eat", default: "to eat now."), 44, .semibold, .rounded, false),
+            (AppLanguageStore.text("meal.late.bed", default: "Go to bed."), 60, .bold, .rounded, false),
+            (AppLanguageStore.text("meal.late.hungry", default: "You won't be hungry."), 28, .semibold, .rounded, true)
+        ]
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: reduceMotion ? 1 : 1.0 / 30.0, paused: reduceMotion)) { context in
+            let counts = lineCounts(at: context.date)
+            VStack(alignment: .leading, spacing: 8) {
+                ScaleEyebrow(
+                    title: AppLanguageStore.text("meal.kitchen_closed", default: "Kitchen's closed"),
+                    color: steel,
+                    loud: true
+                )
+                .padding(.bottom, 8)
+                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                    Text(String(line.text.prefix(counts[index])))
+                        .font(.system(size: line.size, weight: line.weight, design: line.design))
+                        .foregroundStyle(line.muted ? steel : ink)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.55)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(minHeight: line.size * 1.02, alignment: .leading)
+                        .opacity(counts[index] == 0 ? 0 : 1)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            AppLanguageStore.text(
+                "meal.late.a11y",
+                default: "Too late to eat now. Go to bed. You won't be hungry."
+            )
+        )
+        .onAppear { anchor = Date() }
+    }
+
+    private func lineCounts(at date: Date) -> [Int] {
+        if reduceMotion { return lines.map { $0.text.count } }
+        let rate = 0.048
+        let gap = 0.22
+        var cursor = 0.0
+        let elapsed = date.timeIntervalSince(anchor)
+        return lines.map { line in
+            let start = cursor
+            cursor += Double(line.text.count) * rate + gap
+            if elapsed <= start { return 0 }
+            return min(line.text.count, Int((elapsed - start) / rate))
+        }
     }
 }
 

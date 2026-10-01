@@ -1,24 +1,24 @@
-.DS_Store
-xcuserdata/
-*.xcuserstate
-DerivedData/
-.build/
-build/
+
+!default.mode1v3
+!default.mode2v3
+!default.pbxuser
+!default.perspectivev3
+# Shared Grok secrets (never commit the real key)
+# Supabase CLI local cache
+**/Secrets.xcconfig
+*.mode1v3
+*.mode2v3
 *.moved-aside
 *.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
 *.perspectivev3
-!default.perspectivev3
-
-# Shared Grok secrets (never commit the real key)
+*.xcuserstate
+.DS_Store
+.build/
+DerivedData/
 TheScale/Config/Secrets.xcconfig
-**/Secrets.xcconfig
+TheScale/build/
+TheScale/supabase/.temp/
+build/
 workers/grok-proxy/.dev.vars
 workers/grok-proxy/.wrangler/
-
-# Supabase CLI local cache
-TheScale/supabase/.temp/
+xcuserdata/

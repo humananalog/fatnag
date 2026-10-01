@@ -1,5 +1,6 @@
 import Charts
 import SwiftUI
+import UIKit
 
 /// History: Apple Health weight + body fat charts, optional Trend projection, Manual entry.
 ///
@@ -11,11 +12,13 @@ struct WeighInResultsView: View {
     @State private var showTrend = false
     @State private var chartReveal = false
     @State private var loadError: String?
-    @State private var selectedWeightDate: Date?
-    @State private var selectedFatDate: Date?
+    /// Shared across weight + body-fat charts so an X tap highlights both at once.
+    @State private var selectedDate: Date?
     /// Leading edge of the scrollable visible window (pinned to recent data on 3M/1Y).
-    @State private var weightScrollX: Date = Date()
-    @State private var fatScrollX: Date = Date()
+    /// Shared so weight + body-fat charts pan together.
+    @State private var chartScrollX: Date = Date()
+    @State private var weightYFloorMode: HealthChartMath.ChartYFloorMode = .target
+    @State private var fatYFloorMode: HealthChartMath.ChartYFloorMode = .target
     @State private var commentDraft = ""
     @State private var showCommentEditor = false
     @State private var commentMetric: ChartCommentMetric = .weight
@@ -28,6 +31,16 @@ struct WeighInResultsView: View {
     private var atmosphere: TrendAtmosphere {
         TrendAtmosphere.forTrend(session.trendForDisplay)
     }
+
+    /// Fill/line ink from the selected period's weight slope — shared by both charts.
+    private var periodTone: HistoryChartTone {
+        let series = HealthChartMath.chartSeries(session.historyWeights)
+        return HistoryChartTone.from(ratePerWeek: HealthChartMath.ratePerWeek(samples: series))
+    }
+
+    private var periodChartAtmosphere: TrendAtmosphere { periodTone.atmosphere }
+    private var chartInk: Color { periodChartAtmosphere.accent }
+    private var chartMid: Color { periodChartAtmosphere.mid }
 
     private var weightProjection: WeightTrendProjection? {
         guard showTrend else { return nil }
@@ -97,12 +110,18 @@ struct WeighInResultsView: View {
         .sheet(isPresented: $showCommentEditor) {
             NavigationStack {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(commentMetric == .weight ? "Weight comment" : "Body fat comment")
+                    Text(commentMetric == .weight
+                         ? AppLanguageStore.text("history.comment.weight", default: "Weight comment")
+                         : AppLanguageStore.text("history.comment.body_fat", default: "Body fat comment"))
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                     Text(commentSampleDay, format: .dateTime.month().day().year())
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(.secondary)
-                    TextField("What happened that day?", text: $commentDraft, axis: .vertical)
+                    TextField(
+                        AppLanguageStore.text("history.comment.placeholder", default: "What happened that day?"),
+                        text: $commentDraft,
+                        axis: .vertical
+                    )
                         .lineLimit(3...5)
                         .textFieldStyle(.roundedBorder)
                     Text("\(commentDraft.count)/\(ChartCommentStore.maxLength)")
@@ -111,14 +130,14 @@ struct WeighInResultsView: View {
                     Spacer()
                 }
                 .padding(20)
-                .navigationTitle("Add comments")
+                .navigationTitle(AppLanguageStore.text("history.add_comments", default: "Add comments"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showCommentEditor = false }
+                        Button(AppLanguageStore.text("common.cancel", default: "Cancel")) { showCommentEditor = false }
                     }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
+                        Button(AppLanguageStore.text("common.save", default: "Save")) {
                             ChartCommentStore.upsert(
                                 sampleDay: commentSampleDay,
                                 metric: commentMetric,
@@ -135,13 +154,13 @@ struct WeighInResultsView: View {
     }
 
     private var selectedWeightSample: HealthMetricSample? {
-        selectedWeightDate.flatMap {
+        selectedDate.flatMap {
             HealthChartMath.nearestSample(in: HealthChartMath.chartSeries(session.historyWeights), to: $0)
         }
     }
 
     private var selectedFatSample: HealthMetricSample? {
-        selectedFatDate.flatMap {
+        selectedDate.flatMap {
             HealthChartMath.nearestSample(in: HealthChartMath.chartSeries(session.historyBodyFatPercents), to: $0)
         }
     }
@@ -163,7 +182,8 @@ struct WeighInResultsView: View {
                         .foregroundStyle(atmosphere.accent.opacity(0.75))
                         .lineLimit(2)
                 }
-            } else if let fat {
+            }
+            if let fat {
                 let existing = ChartCommentStore.comment(on: fat.date, metric: .bodyFat)?.text
                 Text(String(format: "%.1f%% · %@", fat.value, fat.date.formatted(date: .abbreviated, time: .omitted)))
                     .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -189,7 +209,7 @@ struct WeighInResultsView: View {
                 }
                 showCommentEditor = true
             } label: {
-                Text("Add comments")
+                Text(AppLanguageStore.text("history.add_comments", default: "Add comments"))
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
@@ -203,7 +223,13 @@ struct WeighInResultsView: View {
 
     private var historyTitle: String {
         let name = session.profile.greetingName
-        return name.isEmpty ? "History" : "\(name)'s History"
+        if name.isEmpty {
+            return AppLanguageStore.text("history.title", default: "History")
+        }
+        return String(
+            format: AppLanguageStore.text("history.title.named", default: "%@'s History"),
+            name
+        )
     }
 
     private var topBar: some View {
@@ -217,7 +243,7 @@ struct WeighInResultsView: View {
                     .frame(width: 40, height: 40)
                     .scaleGlassCircle()
             }
-            .accessibilityLabel("Close history")
+            .accessibilityLabel(AppLanguageStore.text("history.close", default: "Close history"))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(historyTitle)
@@ -229,7 +255,7 @@ struct WeighInResultsView: View {
                     if let deltaText = analysis.deltaDisplay(system: session.preferredUnits),
                        analysis.isWinnerLoss
                     {
-                        Text("\(deltaText) · winner")
+                        Text("\(deltaText) · \(AppLanguageStore.text("history.winner", default: "winner"))")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundStyle(atmosphere.accent.opacity(0.9))
                             .lineLimit(1)
@@ -241,7 +267,7 @@ struct WeighInResultsView: View {
                             .lineLimit(1)
                     }
                 } else {
-                    Text("Apple Health")
+                    Text(AppLanguageStore.text("history.source.health", default: "Apple Health"))
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(atmosphere.accent.opacity(0.75))
                         .lineLimit(1)
@@ -253,14 +279,14 @@ struct WeighInResultsView: View {
             Button {
                 session.presentManualEntry()
             } label: {
-                Text("Manual")
+                Text(AppLanguageStore.text("history.source.manual", default: "Manual"))
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(atmosphere.accent)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
                     .scaleGlassCapsule()
             }
-            .accessibilityLabel("Manual weight entry")
+            .accessibilityLabel(AppLanguageStore.text("history.manual.a11y", default: "Manual weight entry"))
         }
         .frame(maxWidth: .infinity)
         .frame(minHeight: 44)
@@ -278,8 +304,7 @@ struct WeighInResultsView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .onChange(of: range) { _, _ in
-                selectedWeightDate = nil
-                selectedFatDate = nil
+                selectedDate = nil
                 chartReveal = false
                 withAnimation(.spring(response: 0.65, dampingFraction: 0.88)) {
                     chartReveal = true
@@ -288,19 +313,18 @@ struct WeighInResultsView: View {
 
             HStack(spacing: 10) {
                 Toggle(isOn: $showTrend.animation(.spring(response: 0.7, dampingFraction: 0.84))) {
-                    Text("Projection")
+                    Text(AppLanguageStore.text("history.projection", default: "Projection"))
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(atmosphere.accent.opacity(0.85))
                 }
                 .toggleStyle(.switch)
                 .labelsHidden()
-                .accessibilityLabel("Show target projection lines")
+                .accessibilityLabel(AppLanguageStore.text("history.projection.a11y", default: "Show target projection lines"))
                 .onChange(of: showTrend) { _, _ in
-                    selectedWeightDate = nil
-                    selectedFatDate = nil
+                    selectedDate = nil
                 }
 
-                Text("Projection")
+                Text(AppLanguageStore.text("history.projection", default: "Projection"))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(atmosphere.accent.opacity(0.85))
 
@@ -354,6 +378,9 @@ struct WeighInResultsView: View {
         .animation(.spring(response: 0.7, dampingFraction: 0.86), value: chartReveal)
         .animation(.spring(response: 0.75, dampingFraction: 0.84), value: showTrend)
         .animation(.spring(response: 0.65, dampingFraction: 0.88), value: session.historyWeights.count)
+        .animation(.spring(response: 0.45, dampingFraction: 0.86), value: weightYFloorMode)
+        .animation(.spring(response: 0.45, dampingFraction: 0.86), value: fatYFloorMode)
+        .animation(.easeInOut(duration: 0.35), value: periodTone)
     }
 
     private func weightChartCard(
@@ -363,44 +390,57 @@ struct WeighInResultsView: View {
     ) -> some View {
         let samples = HealthChartMath.chartSeries(session.historyWeights)
         let extrema = HealthChartMath.extrema(in: samples)
-        let domain = HealthChartMath.weightDomain(
-            values: samples.map(\.value),
-            idealKg: session.profile.idealWeightKg,
-            extraValues: projectedValues
-        )
         let xDomain = historyXDomain(
             projection: projection,
             scientific: scientific
         )
         let scrollLength = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: xDomain)
-        let selected = selectedWeightDate.flatMap {
+        let visibleValues = HealthChartMath.valuesInVisibleXWindow(
+            samples: samples,
+            visibleStart: chartScrollX,
+            visibleLength: scrollLength,
+            xDomain: xDomain
+        )
+        let domain = HealthChartMath.weightDomain(
+            values: visibleValues.isEmpty ? samples.map(\.value) : visibleValues,
+            idealKg: session.profile.idealWeightKg,
+            extraValues: projectedValues,
+            floorMode: weightYFloorMode
+        )
+        let selected = selectedDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
         let floorY = domain.lowerBound
         let targetKg = session.profile.idealWeightKg
         let lineInterpolation: InterpolationMethod = samples.count >= 2 ? .monotone : .linear
+        let ink = chartInk
+        let mid = chartMid
 
         return metricScaffold(
-            title: "Weight",
+            title: AppLanguageStore.text("live.weight", default: "Weight"),
             unit: session.preferredUnits.massLabel,
             samples: samples,
             extrema: extrema,
             formatValue: {
                 String(format: "%.1f", UnitFormat.mass(fromKg: $0, system: session.preferredUnits))
             },
-            emptyCopy: "No weight samples in this range."
+            emptyCopy: AppLanguageStore.text("history.empty.weight", default: "No weight samples in this range."),
+            seriesInk: ink
         ) {
             Chart {
                 RuleMark(y: .value("Target", targetKg))
                     .lineStyle(StrokeStyle(lineWidth: 1.4, dash: [5, 4]))
-                    .foregroundStyle(atmosphere.accent.opacity(0.55))
-                    .annotation(position: .top, alignment: .trailing) {
+                    .foregroundStyle(ink.opacity(0.55))
+                    .annotation(position: .top, alignment: .leading, spacing: 4) {
                         Text(
-                            "Target \(String(format: "%.1f", UnitFormat.mass(fromKg: targetKg, system: session.preferredUnits)))"
+                            "\(AppLanguageStore.text("history.target", default: "Target")) \(String(format: "%.1f", UnitFormat.mass(fromKg: targetKg, system: session.preferredUnits)))"
                         )
                             .font(.system(size: 9, weight: .semibold, design: .rounded))
-                            .foregroundStyle(atmosphere.accent.opacity(0.65))
-                            .padding(.trailing, 2)
+                            .foregroundStyle(ink.opacity(0.7))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(.white.opacity(0.78), in: Capsule())
+                            .fixedSize()
                     }
 
                 // Area first: yStart/yEnd to the plot floor (never fill toward 0 kg).
@@ -416,7 +456,7 @@ struct WeighInResultsView: View {
                         .interpolationMethod(lineInterpolation)
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [atmosphere.accent.opacity(0.28), atmosphere.accent.opacity(0.04)],
+                                colors: [mid.opacity(0.42), mid.opacity(0.05)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -431,7 +471,7 @@ struct WeighInResultsView: View {
                         series: .value("Series", "Health")
                     )
                     .interpolationMethod(lineInterpolation)
-                    .foregroundStyle(atmosphere.accent.opacity(0.92))
+                    .foregroundStyle(ink.opacity(0.92))
                     .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
                 }
 
@@ -441,7 +481,7 @@ struct WeighInResultsView: View {
                         y: .value("Weight", sample.value)
                     )
                     .symbolSize(selected?.id == sample.id ? 72 : 28)
-                    .foregroundStyle(atmosphere.accent.opacity(0.85))
+                    .foregroundStyle(ink.opacity(0.85))
                 }
 
                 // Projection lines only when toggle is on.
@@ -453,30 +493,17 @@ struct WeighInResultsView: View {
                             series: .value("Series", "Projected")
                         )
                         .lineStyle(StrokeStyle(lineWidth: 2.2, dash: [6, 4]))
-                        .foregroundStyle(atmosphere.accent.opacity(0.7))
+                        .foregroundStyle(ink.opacity(0.7))
                         .interpolationMethod(.linear)
                     }
 
                     if let crossing = scientific.crossing {
-                        PointMark(
-                            x: .value("Date", crossing.date),
-                            y: .value("Weight", crossing.value)
+                        projectedCrossingMark(
+                            crossing: crossing,
+                            xDomain: xDomain,
+                            ink: ink,
+                            formatMass: true
                         )
-                        .symbolSize(64)
-                        .foregroundStyle(atmosphere.accent)
-                        .annotation(position: .top, spacing: 6) {
-                            VStack(spacing: 2) {
-                                Text("Projected")
-                                Text(crossing.date, format: .dateTime.month(.abbreviated).day().year())
-                                Text(UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1))
-                            }
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        }
                     }
 
                     ForEach(Array(scientific.observedPath.enumerated()), id: \.offset) { _, point in
@@ -486,7 +513,7 @@ struct WeighInResultsView: View {
                             series: .value("Series", "Observed")
                         )
                         .lineStyle(StrokeStyle(lineWidth: 1.6, dash: [2, 3]))
-                        .foregroundStyle(atmosphere.accent.opacity(0.4))
+                        .foregroundStyle(ink.opacity(0.4))
                         .interpolationMethod(.linear)
                     }
                 } else if showTrend, let projection {
@@ -497,65 +524,65 @@ struct WeighInResultsView: View {
                             series: .value("Series", "Trend")
                         )
                         .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4]))
-                        .foregroundStyle(atmosphere.accent.opacity(0.55))
+                        .foregroundStyle(ink.opacity(0.55))
                         .interpolationMethod(.linear)
                     }
 
                     if let crossing = projection.crossing {
-                        PointMark(
-                            x: .value("Date", crossing.date),
-                            y: .value("Weight", crossing.value)
+                        projectedCrossingMark(
+                            crossing: crossing,
+                            xDomain: xDomain,
+                            ink: ink,
+                            formatMass: true
                         )
-                        .symbolSize(64)
-                        .foregroundStyle(atmosphere.accent)
-                        .annotation(position: .top, spacing: 6) {
-                            VStack(spacing: 2) {
-                                Text(crossing.date, format: .dateTime.month(.abbreviated).day().year())
-                                Text(UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1))
-                            }
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        }
                     }
                 }
 
-                if let selected {
-                    RuleMark(x: .value("Selected", selected.date))
+                if let selectedDate {
+                    RuleMark(x: .value("Selected", selectedDate))
                         .lineStyle(StrokeStyle(lineWidth: 1))
-                        .foregroundStyle(atmosphere.accent.opacity(0.35))
+                        .foregroundStyle(ink.opacity(0.35))
+                }
+
+                if let selected {
                     PointMark(
                         x: .value("Date", selected.date),
                         y: .value("Weight", selected.value)
                     )
                     .symbolSize(90)
-                    .foregroundStyle(atmosphere.accent)
-                    .annotation(position: .top, spacing: 6) {
+                    .foregroundStyle(ink)
+                    .annotation(
+                        position: .top,
+                        spacing: 6,
+                        overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+                    ) {
                         Text(UnitFormat.massString(selected.value, system: session.preferredUnits, fractionDigits: 1))
                             .font(.system(size: 11, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent)
+                            .foregroundStyle(ink)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 4)
-                            .background(.white.opacity(0.8), in: Capsule())
+                            .background(.white.opacity(0.88), in: Capsule())
+                            .fixedSize()
                     }
                 }
 
                 if let extrema, selected == nil {
-                    extremaMarks(extrema: extrema, title: "Weight", formatValue: { String(format: "%.1f", $0) })
+                    extremaMarks(extrema: extrema, title: "Weight", formatValue: { String(format: "%.1f", $0) }, ink: ink)
                 }
             }
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
-            .chartXSelection(value: $selectedWeightDate)
-            .chartTapXSelection()
-            .historyChartAxes(accent: atmosphere.accent)
+            .chartXSelection(value: $selectedDate)
+            .chartTapXSelection {
+                weightYFloorMode.rotate()
+                fatYFloorMode = weightYFloorMode
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
+            .historyChartAxes(range: range, xDomain: xDomain, accent: ink)
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
-                scrollPosition: $weightScrollX
+                scrollPosition: $chartScrollX
             )
         }
     }
@@ -563,36 +590,49 @@ struct WeighInResultsView: View {
     private var bodyFatChartCard: some View {
         let samples = HealthChartMath.chartSeries(session.historyBodyFatPercents)
         let extrema = HealthChartMath.extrema(in: samples)
-        let domain = HealthChartMath.bodyFatDomain(
-            values: samples.map(\.value),
-            idealPercent: session.profile.idealBodyFatPercent
-        )
         let xDomain = HealthChartMath.historyXDomain(range: range)
         let scrollLength = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: xDomain)
-        let selected = selectedFatDate.flatMap {
+        let visibleValues = HealthChartMath.valuesInVisibleXWindow(
+            samples: samples,
+            visibleStart: chartScrollX,
+            visibleLength: scrollLength,
+            xDomain: xDomain
+        )
+        let domain = HealthChartMath.bodyFatDomain(
+            values: visibleValues.isEmpty ? samples.map(\.value) : visibleValues,
+            idealPercent: session.profile.idealBodyFatPercent,
+            floorMode: fatYFloorMode
+        )
+        let selected = selectedDate.flatMap {
             HealthChartMath.nearestSample(in: samples, to: $0)
         }
         let floorY = domain.lowerBound
         let lineInterpolation: InterpolationMethod = samples.count >= 2 ? .monotone : .linear
+        let ink = chartInk
+        let mid = chartMid
 
         return metricScaffold(
-            title: "Body fat",
+            title: AppLanguageStore.text("live.body_fat", default: "Body fat"),
             unit: "%",
             samples: samples,
             extrema: extrema,
             formatValue: { String(format: "%.1f", $0) },
-            emptyCopy: "No body fat samples in this range."
+            emptyCopy: AppLanguageStore.text("history.empty.body_fat", default: "No body fat samples in this range."),
+            seriesInk: ink
         ) {
             Chart {
                 if let ideal = session.profile.idealBodyFatPercent {
                     RuleMark(y: .value("Ideal", ideal))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                        .foregroundStyle(atmosphere.accent.opacity(0.45))
-                        .annotation(position: .top, alignment: .trailing) {
-                            Text("Target")
+                        .foregroundStyle(ink.opacity(0.45))
+                        .annotation(position: .top, alignment: .leading, spacing: 4) {
+                            Text(AppLanguageStore.text("history.target", default: "Target"))
                                 .font(.system(size: 9, weight: .semibold, design: .rounded))
-                                .foregroundStyle(atmosphere.accent.opacity(0.55))
-                                .padding(.trailing, 2)
+                                .foregroundStyle(ink.opacity(0.65))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(.white.opacity(0.78), in: Capsule())
+                                .fixedSize()
                         }
                 }
 
@@ -607,7 +647,7 @@ struct WeighInResultsView: View {
                         .interpolationMethod(lineInterpolation)
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [atmosphere.accent.opacity(0.28), atmosphere.accent.opacity(0.04)],
+                                colors: [mid.opacity(0.42), mid.opacity(0.05)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -622,7 +662,7 @@ struct WeighInResultsView: View {
                         series: .value("Series", "Health")
                     )
                     .interpolationMethod(lineInterpolation)
-                    .foregroundStyle(atmosphere.accent.opacity(0.92))
+                    .foregroundStyle(ink.opacity(0.92))
                     .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
                 }
 
@@ -632,42 +672,54 @@ struct WeighInResultsView: View {
                         y: .value("Body fat", sample.value)
                     )
                     .symbolSize(selected?.id == sample.id ? 72 : 28)
-                    .foregroundStyle(atmosphere.accent.opacity(0.85))
+                    .foregroundStyle(ink.opacity(0.85))
+                }
+
+                if let selectedDate {
+                    RuleMark(x: .value("Selected", selectedDate))
+                        .lineStyle(StrokeStyle(lineWidth: 1))
+                        .foregroundStyle(ink.opacity(0.35))
                 }
 
                 if let selected {
-                    RuleMark(x: .value("Selected", selected.date))
-                        .lineStyle(StrokeStyle(lineWidth: 1))
-                        .foregroundStyle(atmosphere.accent.opacity(0.35))
                     PointMark(
                         x: .value("Date", selected.date),
                         y: .value("Body fat", selected.value)
                     )
                     .symbolSize(90)
-                    .foregroundStyle(atmosphere.accent)
-                    .annotation(position: .top, spacing: 6) {
+                    .foregroundStyle(ink)
+                    .annotation(
+                        position: .top,
+                        spacing: 6,
+                        overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+                    ) {
                         Text(String(format: "%.1f%%", selected.value))
                             .font(.system(size: 11, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent)
+                            .foregroundStyle(ink)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 4)
-                            .background(.white.opacity(0.8), in: Capsule())
+                            .background(.white.opacity(0.88), in: Capsule())
+                            .fixedSize()
                     }
                 }
 
                 if let extrema, selected == nil {
-                    extremaMarks(extrema: extrema, title: "Body fat", formatValue: { String(format: "%.1f", $0) })
+                    extremaMarks(extrema: extrema, title: "Body fat", formatValue: { String(format: "%.1f", $0) }, ink: ink)
                 }
             }
             .chartYScale(domain: domain)
             .chartXScale(domain: xDomain)
-            .chartXSelection(value: $selectedFatDate)
-            .chartTapXSelection()
-            .historyChartAxes(accent: atmosphere.accent)
+            .chartXSelection(value: $selectedDate)
+            .chartTapXSelection {
+                fatYFloorMode.rotate()
+                weightYFloorMode = fatYFloorMode
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
+            .historyChartAxes(range: range, xDomain: xDomain, accent: ink)
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
-                scrollPosition: $fatScrollX
+                scrollPosition: $chartScrollX
             )
         }
     }
@@ -679,44 +731,52 @@ struct WeighInResultsView: View {
         extrema: (highest: HealthMetricSample, lowest: HealthMetricSample)?,
         formatValue: @escaping (Double) -> String,
         emptyCopy: String,
+        seriesInk: Color,
         @ViewBuilder chart: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.78))
+                    .foregroundStyle(seriesInk.opacity(0.78))
                 Text(unit)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.55))
+                    .foregroundStyle(seriesInk.opacity(0.55))
                 Spacer(minLength: 8)
                 if let extrema {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("H \(formatValue(extrema.highest.value)) · L \(formatValue(extrema.lowest.value))")
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent.opacity(0.7))
+                            .foregroundStyle(seriesInk.opacity(0.7))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                         if let rate = HealthChartMath.ratePerWeek(samples: samples) {
                             Text("\(UnitFormat.massDeltaString(rate, system: session.preferredUnits, fractionDigits: 2)) / wk")
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .monospacedDigit()
-                                .foregroundStyle(atmosphere.accent.opacity(0.55))
+                                .foregroundStyle(seriesInk.opacity(0.55))
                         }
                     }
                 }
             }
 
             if samples.isEmpty {
-                Text(emptyCopy)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.7))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                VStack(spacing: 10) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(seriesInk.opacity(0.45))
+                    Text(emptyCopy)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(seriesInk.opacity(0.72))
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .padding(.vertical, 28)
             } else {
                 // Chart chrome (axes/legend/scroll) must stay on the Chart itself.
-                // Applying chart* modifiers here after a ViewBuilder if/else wraps the
-                // Chart in ConditionalContent → empty-chart fallback on 3M/1Y.
+                // Do not clip the Chart view — annotations (Projected / Target) live in the
+                // margins and were getting trimmed by `.clipped()` / panel clipShape.
                 chart()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -729,25 +789,72 @@ struct WeighInResultsView: View {
     }
 
     @ChartContentBuilder
+    private func projectedCrossingMark(
+        crossing: HealthMetricSample,
+        xDomain: ClosedRange<Date>,
+        ink: Color,
+        formatMass: Bool
+    ) -> some ChartContent {
+        let opensLeading = HealthChartMath.annotationOpensLeading(at: crossing.date, in: xDomain)
+        PointMark(
+            x: .value("Date", crossing.date),
+            y: .value("Weight", crossing.value)
+        )
+        .symbolSize(64)
+        .foregroundStyle(ink)
+        .annotation(
+            position: .top,
+            alignment: opensLeading ? .trailing : .leading,
+            spacing: 6,
+            overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+        ) {
+            VStack(alignment: opensLeading ? .trailing : .leading, spacing: 1) {
+                Text(AppLanguageStore.text("history.projected", default: "Projected"))
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                Text(crossing.date, format: .dateTime.month(.abbreviated).day())
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                Text(
+                    formatMass
+                        ? UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1)
+                        : String(format: "%.1f%%", crossing.value)
+                )
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .monospacedDigit()
+            }
+            .foregroundStyle(ink)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .fixedSize()
+        }
+    }
+
+    @ChartContentBuilder
     private func extremaMarks(
         extrema: (highest: HealthMetricSample, lowest: HealthMetricSample),
         title: String,
-        formatValue: @escaping (Double) -> String
+        formatValue: @escaping (Double) -> String,
+        ink: Color
     ) -> some ChartContent {
         PointMark(
             x: .value("Date", extrema.highest.date),
             y: .value(title, extrema.highest.value)
         )
         .symbolSize(56)
-        .foregroundStyle(atmosphere.accent)
-        .annotation(position: .top, spacing: 4) {
+        .foregroundStyle(ink)
+        .annotation(
+            position: .top,
+            spacing: 4,
+            overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+        ) {
             Text("H \(formatValue(extrema.highest.value))")
                 .font(.system(size: 10, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(atmosphere.accent)
+                .foregroundStyle(ink)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
-                .background(.white.opacity(0.55), in: Capsule())
+                .background(.white.opacity(0.7), in: Capsule())
+                .fixedSize()
         }
 
         PointMark(
@@ -755,15 +862,20 @@ struct WeighInResultsView: View {
             y: .value(title, extrema.lowest.value)
         )
         .symbolSize(56)
-        .foregroundStyle(atmosphere.accent)
-        .annotation(position: .bottom, spacing: 4) {
+        .foregroundStyle(ink)
+        .annotation(
+            position: .bottom,
+            spacing: 4,
+            overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+        ) {
             Text("L \(formatValue(extrema.lowest.value))")
                 .font(.system(size: 10, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(atmosphere.accent)
+                .foregroundStyle(ink)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
-                .background(.white.opacity(0.55), in: Capsule())
+                .background(.white.opacity(0.7), in: Capsule())
+                .fixedSize()
         }
     }
 
@@ -838,29 +950,48 @@ struct WeighInResultsView: View {
                 weightExtras.append(contentsOf: scientific.observedPath.map(\.date))
             }
         }
+        // Prefer the weight domain (may extend past `now` when Projection is on) so both
+        // charts share one leading edge; fat falls back when weight scroll is disabled.
         let weightDomain = HealthChartMath.historyXDomain(range: range, extraDates: weightExtras)
         let fatDomain = HealthChartMath.historyXDomain(range: range)
         if let length = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: weightDomain) {
-            weightScrollX = HealthChartMath.scrollLeadingDate(xDomain: weightDomain, visibleLength: length)
-        }
-        if let length = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: fatDomain) {
-            fatScrollX = HealthChartMath.scrollLeadingDate(xDomain: fatDomain, visibleLength: length)
+            chartScrollX = HealthChartMath.scrollLeadingDate(xDomain: weightDomain, visibleLength: length)
+        } else if let length = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: fatDomain) {
+            chartScrollX = HealthChartMath.scrollLeadingDate(xDomain: fatDomain, visibleLength: length)
         }
     }
 }
 
 private extension View {
     /// Axes + legend applied directly on a Chart (before any scroll ConditionalContent).
-    func historyChartAxes(accent: Color) -> some View {
-        self
+    func historyChartAxes(
+        range: HealthHistoryRange,
+        xDomain: ClosedRange<Date>,
+        accent: Color
+    ) -> some View {
+        let ticks = HealthChartMath.xAxisTickDates(range: range, domain: xDomain)
+        return self
+            .chartPlotStyle { plotArea in
+                // Clip series only — annotations render above and must stay readable.
+                plotArea.clipped()
+            }
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                AxisMarks(values: ticks) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                         .foregroundStyle(accent.opacity(0.12))
+                    AxisTick(stroke: StrokeStyle(lineWidth: 1.2))
+                        .foregroundStyle(accent.opacity(0.35))
                     // Named anchors only: custom UnitPoint crashes Charts layout noise on iOS 26+.
-                    AxisValueLabel(anchor: .top)
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(accent.opacity(0.55))
+                    AxisValueLabel(anchor: .top) {
+                        if let date = value.as(Date.self) {
+                            Text(date, format: .dateTime.month(.abbreviated).day())
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(accent.opacity(0.72))
+                                .padding(.top, 4)
+                                .padding(.horizontal, 4)
+                                .contentShape(Rectangle())
+                        }
+                    }
                 }
             }
             .chartYAxis {
@@ -868,7 +999,7 @@ private extension View {
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                         .foregroundStyle(accent.opacity(0.12))
                     AxisValueLabel(anchor: .trailing)
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(accent.opacity(0.55))
                 }
             }
@@ -877,10 +1008,16 @@ private extension View {
 
     /// Tap/select activates the comment point immediately (default chartXSelection waits on long press).
     /// SpatialTap keeps horizontal chart scroll free for 3M/1Y pans.
-    func chartTapXSelection() -> some View {
+    /// Taps on the leading Y-axis strip (~44pt) rotate the Y floor (target ↔ visible min).
+    /// Taps on the plot **or** X-axis label band select the date under the finger.
+    func chartTapXSelection(onYAxisTap: (() -> Void)? = nil) -> some View {
         chartGesture { proxy in
             SpatialTapGesture()
                 .onEnded { value in
+                    if let onYAxisTap, value.location.x < 44 {
+                        onYAxisTap()
+                        return
+                    }
                     proxy.selectXValue(at: value.location.x)
                 }
         }

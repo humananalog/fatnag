@@ -16,11 +16,17 @@ enum ScaleStorefront {
     /// Public privacy URL required by ASC.
     static var privacyPolicyURL: URL { ScaleLegal.privacyPolicyURL }
 
-    static var plusProductID: String { ScalePlan.plus.storeProductID! }
-    static var proProductID: String { ScalePlan.pro.storeProductID! }
+    static var plusProductID: String { ScalePlan.plus.storeProductID(period: .monthly)! }
+    static var proProductID: String { ScalePlan.pro.storeProductID(period: .monthly)! }
+    static var plusAnnualProductID: String { ScalePlan.plus.storeProductID(period: .annual)! }
+    static var proAnnualProductID: String { ScalePlan.pro.storeProductID(period: .annual)! }
 
     static var allPaidProductIDs: Set<String> {
-        Set(ScalePlan.allCases.compactMap(\.storeProductID))
+        Set(
+            ScalePlan.allCases.flatMap { plan -> [String] in
+                ScaleBillingPeriod.allCases.compactMap { plan.storeProductID(period: $0) }
+            }
+        )
     }
 }
 

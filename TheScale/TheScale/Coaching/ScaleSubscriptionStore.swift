@@ -124,29 +124,30 @@ final class ScaleSubscriptionStore: ObservableObject {
         }
     }
 
-    func product(for plan: ScalePlan) -> Product? {
-        guard let id = plan.storeProductID else { return nil }
+    func product(for plan: ScalePlan, period: ScaleBillingPeriod = .monthly) -> Product? {
+        guard let id = plan.storeProductID(period: period) else { return nil }
         return products.first { $0.id == id }
     }
 
     /// Prefer live StoreKit price; fall back to marketing label.
-    func priceLabel(for plan: ScalePlan) -> String {
-        if plan == .free { return plan.priceLabel }
-        if let product = product(for: plan) {
-            return "\(product.displayPrice) / month"
+    func priceLabel(for plan: ScalePlan, period: ScaleBillingPeriod = .monthly) -> String {
+        if plan == .free { return plan.priceLabel(period: period) }
+        if let product = product(for: plan, period: period) {
+            return "\(product.displayPrice) \(period.priceSuffix)"
         }
-        return plan.priceLabel
+        return plan.priceLabel(period: period)
     }
 
     @discardableResult
-    func purchase(_ plan: ScalePlan) async -> Bool {
+    func purchase(_ plan: ScalePlan, period: ScaleBillingPeriod = .monthly) async -> Bool {
         #if DEBUG
         // Dev: paywall tier taps apply instantly (no StoreKit sheet).
         return applyDevPlan(plan)
         #else
-        guard let product = product(for: plan) else {
+        guard let product = product(for: plan, period: period) else {
             purchaseError = """
-            \(plan.displayName) isn’t available yet. Product \(plan.storeProductID ?? "?"). \
+            \(plan.displayName) (\(period.title)) isn’t available yet. \
+            Product \(plan.storeProductID(period: period) ?? "?"). \
             Human Analog team \(ScaleStorefront.developmentTeamID): add it in App Store Connect \
             (or run Debug with \(ScaleStorefront.localStoreKitConfigPath) on the scheme).
             """
@@ -209,10 +210,8 @@ final class ScaleSubscriptionStore: ObservableObject {
         var owned: [ScalePlan] = [.free]
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
-            if transaction.productID == ScalePlan.pro.storeProductID {
-                owned.append(.pro)
-            } else if transaction.productID == ScalePlan.plus.storeProductID {
-                owned.append(.plus)
+            if let mapped = ScalePlan.plan(forProductID: transaction.productID) {
+                owned.append(mapped)
             }
         }
         plan = ScalePlan.best(of: owned)

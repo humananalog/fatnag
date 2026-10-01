@@ -244,6 +244,77 @@ final class MealPlanEngineTests: XCTestCase {
         XCTAssertEqual(slots[1], 16.0, accuracy: 0.35)
     }
 
+    func testNineAtNightClosesTheKitchen() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let night = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 21, minute: 0))!
+        let meals = sampleDay()
+        let focus = MealPlanEngine.focus(meals: meals, now: night, calendar: cal)
+        XCTAssertEqual(focus, .kitchenClosed)
+    }
+
+    func testDinnerStillOpenInsideTheGrace() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 19, minute: 40))!
+        let focus = MealPlanEngine.focus(meals: sampleDay(), now: now, calendar: cal)
+        guard case .next(let meal) = focus else {
+            return XCTFail("expected dinner, got \(focus)")
+        }
+        XCTAssertEqual(meal.title, "Dinner")
+    }
+
+    func testAfternoonShowsOnlyTheNextPlate() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 15, minute: 0))!
+        let focus = MealPlanEngine.focus(meals: sampleDay(), now: now, calendar: cal)
+        guard case .next(let meal) = focus else {
+            return XCTFail("expected dinner, got \(focus)")
+        }
+        XCTAssertEqual(meal.title, "Dinner")
+    }
+
+    func testMorningShowsBreakfast() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 7, minute: 30))!
+        let focus = MealPlanEngine.focus(meals: sampleDay(), now: now, calendar: cal)
+        guard case .next(let meal) = focus else {
+            return XCTFail("expected breakfast, got \(focus)")
+        }
+        XCTAssertEqual(meal.title, "Breakfast")
+    }
+
+    func testDeepNightStaysClosed() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 2, minute: 10))!
+        XCTAssertEqual(MealPlanEngine.focus(meals: sampleDay(), now: now, calendar: cal), .kitchenClosed)
+    }
+
+    func testFastingWindowClosesBeforeALatePlate() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = cal.date(from: DateComponents(year: 2026, month: 9, day: 29, hour: 21, minute: 0))!
+        let meals = [
+            MealPlanMeal(title: "Lunch", timeLabel: "~12:00", ingredients: ["Chicken"], keyMacro: "P", keyMicro: "M", approxKcal: 500),
+            MealPlanMeal(title: "Dinner", timeLabel: "~19:30", ingredients: ["Fish"], keyMacro: "P", keyMicro: "M", approxKcal: 600)
+        ]
+        XCTAssertEqual(
+            MealPlanEngine.focus(meals: meals, now: now, calendar: cal, fasting: .classic168),
+            .kitchenClosed
+        )
+    }
+
+    private func sampleDay() -> [MealPlanMeal] {
+        [
+            MealPlanMeal(title: "Breakfast", timeLabel: "~8:00", ingredients: ["Eggs"], keyMacro: "P", keyMicro: "M", approxKcal: 380),
+            MealPlanMeal(title: "Lunch", timeLabel: "~12:30", ingredients: ["Chicken"], keyMacro: "P", keyMicro: "M", approxKcal: 450),
+            MealPlanMeal(title: "Dinner", timeLabel: "~19:00", ingredients: ["Fish"], keyMacro: "P", keyMicro: "M", approxKcal: 480)
+        ]
+    }
+
     /// Same calendar day complete plan must win over a drifted cache key (no Grok).
     func testDayKeyMatchIsEnoughForReuseSemantics() {
         let day = MealPlanEngine.dayKey()

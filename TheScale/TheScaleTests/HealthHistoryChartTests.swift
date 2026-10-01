@@ -35,6 +35,67 @@ final class HealthHistoryChartTests: XCTestCase {
         XCTAssertGreaterThan(domain.upperBound, 91)
     }
 
+    func testWeightDomainVisibleDataFloorZoomsAboveTarget() {
+        let targetFloor = HealthChartMath.weightDomain(
+            values: [90, 91],
+            idealKg: 75,
+            floorMode: .target
+        )
+        let dataFloor = HealthChartMath.weightDomain(
+            values: [90, 91],
+            idealKg: 75,
+            floorMode: .visibleData
+        )
+        XCTAssertLessThan(targetFloor.lowerBound, dataFloor.lowerBound)
+        XCTAssertGreaterThan(dataFloor.lowerBound, 75)
+        XCTAssertEqual(dataFloor.lowerBound, 90, accuracy: 1.0)
+    }
+
+    func testBodyFatDomainVisibleDataFloorIgnoresIdealBelowData() {
+        let targetFloor = HealthChartMath.bodyFatDomain(
+            values: [18, 20, 19],
+            idealPercent: 12,
+            floorMode: .target
+        )
+        let dataFloor = HealthChartMath.bodyFatDomain(
+            values: [18, 20, 19],
+            idealPercent: 12,
+            floorMode: .visibleData
+        )
+        XCTAssertEqual(targetFloor.lowerBound, 12, accuracy: 0.001)
+        XCTAssertGreaterThan(dataFloor.lowerBound, 12)
+        XCTAssertEqual(dataFloor.lowerBound, 18, accuracy: 0.5)
+    }
+
+    func testYFloorModeRotates() {
+        var mode = HealthChartMath.ChartYFloorMode.target
+        mode.rotate()
+        XCTAssertEqual(mode, .visibleData)
+        mode.rotate()
+        XCTAssertEqual(mode, .target)
+    }
+
+    func testValuesInVisibleXWindowFiltersByScroll() {
+        let cal = Calendar(identifier: .gregorian)
+        let day0 = cal.date(from: DateComponents(year: 2024, month: 1, day: 1))!
+        let samples = (0..<10).map { i in
+            HealthMetricSample(
+                value: Double(80 + i),
+                date: cal.date(byAdding: .day, value: i, to: day0)!
+            )
+        }
+        let xDomain = day0...cal.date(byAdding: .day, value: 9, to: day0)!
+        let visibleStart = cal.date(byAdding: .day, value: 5, to: day0)!
+        let values = HealthChartMath.valuesInVisibleXWindow(
+            samples: samples,
+            visibleStart: visibleStart,
+            visibleLength: 3 * 86_400,
+            xDomain: xDomain
+        )
+        XCTAssertFalse(values.isEmpty)
+        XCTAssertEqual(values.min()!, 85, accuracy: 0.001)
+    }
+
     func testBodyFatDomainUsesIdealWhenPresent() {
         let domain = HealthChartMath.bodyFatDomain(values: [18, 20, 19], idealPercent: 15)
         XCTAssertEqual(domain.lowerBound, 15, accuracy: 0.001)
@@ -247,6 +308,53 @@ final class HealthHistoryChartTests: XCTestCase {
         XCTAssertNil(draft.impedanceOhms)
         XCTAssertEqual(draft.weightKg, 77.4, accuracy: 0.001)
         XCTAssertNotNil(draft.bmi)
+    }
+
+    func testHistoryChartToneFromRate() {
+        XCTAssertEqual(HistoryChartTone.from(ratePerWeek: -0.4), .losing)
+        XCTAssertEqual(HistoryChartTone.from(ratePerWeek: 0.4), .gaining)
+        XCTAssertEqual(HistoryChartTone.from(ratePerWeek: 0.01), .stable)
+        XCTAssertEqual(HistoryChartTone.from(ratePerWeek: nil), .unknown)
+    }
+
+    func testXAxisTickDatesAreConsistentForTwoWeeks() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let domain = HealthChartMath.historyXDomain(range: .lastTwoWeeks, now: now)
+        let ticks = HealthChartMath.xAxisTickDates(range: .lastTwoWeeks, domain: domain)
+        XCTAssertFalse(ticks.isEmpty)
+        XCTAssertLessThanOrEqual(ticks.count, 7)
+        for tick in ticks {
+            XCTAssertGreaterThanOrEqual(tick, domain.lowerBound.addingTimeInterval(-86_400))
+            XCTAssertLessThanOrEqual(tick, domain.upperBound.addingTimeInterval(86_400))
+        }
+        // Stride should be ~2 days between consecutive ticks (allowing end pin).
+        if ticks.count >= 3 {
+            let step = ticks[1].timeIntervalSince(ticks[0])
+            XCTAssertEqual(step, 2 * 86_400, accuracy: 86_400 * 0.5)
+        }
+    }
+
+    func testAnnotationOpensLeadingNearTrailingEdge() {
+        let lower = Date(timeIntervalSince1970: 0)
+        let upper = Date(timeIntervalSince1970: 100)
+        let domain = lower...upper
+        XCTAssertFalse(HealthChartMath.annotationOpensLeading(at: Date(timeIntervalSince1970: 10), in: domain))
+        XCTAssertTrue(HealthChartMath.annotationOpensLeading(at: Date(timeIntervalSince1970: 90), in: domain))
+    }
+
+    func testHistoryXDomainPadsProjectionCallouts() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let future = now.addingTimeInterval(30 * 86_400)
+        let withProjection = HealthChartMath.historyXDomain(
+            range: .lastMonth,
+            extraDates: [future],
+            now: now
+        )
+        let without = HealthChartMath.historyXDomain(range: .lastMonth, now: now)
+        let padWith = withProjection.upperBound.timeIntervalSince(future)
+        let padWithout = without.upperBound.timeIntervalSince(now)
+        XCTAssertGreaterThan(padWith, padWithout)
+        XCTAssertGreaterThanOrEqual(padWith, 4 * 86_400 - 1)
     }
 
     func testProfileIdealWeightMigratesFromLegacyDecode() throws {

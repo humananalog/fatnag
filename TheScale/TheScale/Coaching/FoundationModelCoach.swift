@@ -1,15 +1,12 @@
 import Foundation
 import FoundationModels
 import ScaleOnDevicePolish
-#if canImport(UIKit)
-import UIKit
-#endif
 
 // MARK: - Structured outputs
 
 @Generable(description: "Local notification glance title (Watch) and expanded body (iPhone) for fatnag")
 struct NotificationCopyDraft: Equatable, Sendable {
-    @Guide(description: "Watch glance title. Max 20 characters. Verb or number first. NO emoji. NO name prefix. No em dashes. No AI markers.")
+    @Guide(description: "Watch glance title. Max 22 characters. Verb or number first. Emoji OK (💩 on weigh drills). NO name prefix. No em dashes. No AI markers.")
     var title: String
 
     @Guide(description: "iPhone expanded body. Friendly badass dark humour. Call user by name when natural. Max ~120 characters. No em dashes. No medical disclaimer. No AI markers.")
@@ -91,12 +88,9 @@ enum FoundationModelCoach {
 
     /// True when the UI is foreground-active. HealthKit observer wakes often resume the
     /// process before `.active`; skip Metal sidecar polish there (template copy is enough).
+    /// Uses `AppSceneActivity` — never `UIApplication.applicationState` (Main Thread Checker).
     private static var prefersSidecarMetal: Bool {
-        #if canImport(UIKit)
-        UIApplication.shared.applicationState == .active
-        #else
-        true
-        #endif
+        AppSceneActivity.isActive
     }
 
     /// Refine algorithmic notification title/body. Returns fallbacks unchanged if FM + sidecar unavailable.
@@ -107,9 +101,13 @@ enum FoundationModelCoach {
         fallbackBody: String,
         context: String,
         sex: UserBodyProfile.Sex = .male,
-        locale: CoachLocaleContext = .resolve()
+        ageYears: Double = 30,
+        cultureContext: String = ""
     ) async -> (title: String, body: String, usedFoundationModel: Bool) {
-        let voice = CoachVoice.bannerRules(sex: sex, locale: locale)
+        let voice = AppLanguageStore.locked(
+            CoachVoice.bannerRules(sex: sex, ageYears: ageYears)
+                + cultureSuffix(cultureContext)
+        )
         guard FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else {
                 return (fallbackTitle, fallbackBody, false)
@@ -175,9 +173,13 @@ enum FoundationModelCoach {
         algorithmicReason: String,
         extraContext: String = "",
         sex: UserBodyProfile.Sex = .male,
-        locale: CoachLocaleContext = .resolve()
+        ageYears: Double = 30,
+        cultureContext: String = ""
     ) async -> (shouldNotify: Bool, reason: String, usedFoundationModel: Bool) {
-        let voice = CoachVoice.bannerRules(sex: sex, locale: locale)
+        let voice = AppLanguageStore.locked(
+            CoachVoice.bannerRules(sex: sex, ageYears: ageYears)
+                + cultureSuffix(cultureContext)
+        )
         guard FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else {
                 return (true, "Background wake; algorithmic trigger stands.", false)
@@ -243,10 +245,15 @@ enum FoundationModelCoach {
         profileName: String,
         digestBlock: String,
         sex: UserBodyProfile.Sex = .male,
-        locale: CoachLocaleContext = .resolve()
+        ageYears: Double = 30,
+        cultureContext: String = ""
     ) async -> String? {
-        let voice = CoachVoice.bannerRules(sex: sex, locale: locale)
+        let voice = AppLanguageStore.locked(
+            CoachVoice.bannerRules(sex: sex, ageYears: ageYears)
+                + cultureSuffix(cultureContext)
+        )
         guard FoundationModelAvailability.isAvailable else {
+            guard prefersSidecarMetal else { return nil }
             return await OnDevicePolishService.shared.summarizeFitnessDigest(
                 profileName: profileName,
                 digestBlock: digestBlock,
@@ -283,9 +290,9 @@ enum FoundationModelCoach {
     static func extractMemoryFacts(
         from userText: String,
         sex: UserBodyProfile.Sex = .male,
-        locale: CoachLocaleContext = .resolve()
+        ageYears: Double = 30
     ) async -> [CoachMemoryFact] {
-        let voice = CoachVoice.bannerRules(sex: sex, locale: locale)
+        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex, ageYears: ageYears))
         guard FoundationModelAvailability.isAvailable else {
             return await OnDevicePolishService.shared.extractMemoryFacts(
                 from: userText,
@@ -346,6 +353,8 @@ enum FoundationModelCoach {
         fasting: FastingWindow,
         memoryBlock: String,
         sex: UserBodyProfile.Sex = .male,
+        ageYears: Double = 30,
+        cultureContext: String = "",
         now: Date = Date()
     ) async -> [MealPlanMeal]? {
         guard FoundationModelAvailability.isAvailable else { return nil }
@@ -368,14 +377,16 @@ enum FoundationModelCoach {
             ? "Also describe portions with palms/fists/handfuls in titles or micro lines when natural. Daily picture: \(picture). Protein picture: \(proteinPic)."
             : ""
         do {
-            let session = LanguageModelSession(instructions: """
+            let session = LanguageModelSession(instructions: AppLanguageStore.locked("""
                 You write practical meal menus for FATNAG on-device.
-                \(CoachVoice.bannerRules(sex: sex, locale: .resolve()))
+                \(CoachVoice.bannerRules(sex: sex, ageYears: ageYears))
+                \(CoachVoice.ageVoiceRules(ageYears: ageYears))
+                \(cultureSuffix(cultureContext))
                 Fitness coaching only. Never diagnose. No em dashes.
                 Every ingredient needs a metric portion (g or ml). Real dishes, not fluff.
-                Honour diet preference and fasting windows.
+                Honour diet preference and fasting windows. Prefer local staples when culture context is set.
                 Meal titles and micro lines must be in the LANGUAGE reply language.
-                """)
+                """))
             let prompt = """
                 Build exactly \(plateCount) upcoming meal\(plateCount == 1 ? "" : "s") for \(who) from local now \(localTime).
                 Diet: \(diet.title). Daily max \(maxKcal) kcal. Protein \(proteinGrams) g. Micro focus: \(microHint).
@@ -449,11 +460,11 @@ enum FoundationModelCoach {
         guard trimmed.count >= 4 else { return local }
 
         do {
-            let session = LanguageModelSession(instructions: """
+            let session = LanguageModelSession(instructions: AppLanguageStore.locked("""
                 You structure onboarding profiles for FATNAG, a private fitness app.
                 Stay on-device. Infer only what the user's note supports. Prefer empty / 0 over guessing.
                 Never invent height, age, or sex. Never add medical advice.
-                """)
+                """))
             let prompt = """
                 Extract profile fields from this freeform note for \(name.isEmpty ? "the user" : name).
                 Known body (do not invent; may use when interpreting goals): height \(Int(heightCm.rounded())) cm, age \(Int(ageYears.rounded())), sex \(sex.rawValue), stated ideal \(String(format: "%.1f", idealKg)) kg.
@@ -509,9 +520,15 @@ enum FoundationModelCoach {
 
     // MARK: Helpers
 
+    private static func cultureSuffix(_ cultureContext: String) -> String {
+        let trimmed = cultureContext.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        return "\nCulture / origin cues (use for jokes and food examples; never stereotype):\n\(trimmed)\n"
+    }
+
     private static func clamp(_ text: String, max: Int) -> String {
         guard text.count > max else { return text }
         let idx = text.index(text.startIndex, offsetBy: max - 1)
-            return String(text[..<idx]).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
-        }
+        return String(text[..<idx]).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
+    }
 }

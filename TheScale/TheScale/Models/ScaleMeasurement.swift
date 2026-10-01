@@ -117,12 +117,18 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
     /// Compact persona lines for Grok system prompts (skips blanks).
     var coachPersonaBlock: String {
         var lines: [String] = []
+        let ageInt = max(18, Int(ageYears.rounded()))
+        let band = CoachAgeBand.from(ageYears: ageYears)
+        lines.append("Age: \(ageInt) (\(band.promptLabel)) — match humour and references to this age.")
         let loc = location.trimmingCharacters(in: .whitespacesAndNewlines)
         let eth = ethnicity.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lang = preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let appLang = AppLanguageStore.current.resolved.profileLanguageName
+        let profileLang = preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let vibe = culturalVibe.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !lang.isEmpty {
-            lines.append("Preferred language (mandatory reply language): \(lang)")
+        if !profileLang.isEmpty {
+            lines.append("Preferred language (mandatory reply language): \(profileLang)")
+        } else if !appLang.isEmpty {
+            lines.append("Preferred language (mandatory reply language): \(appLang)")
         }
         if !loc.isEmpty {
             let localBit = useLocalContext
@@ -135,6 +141,7 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
                 "Ethnicity / culture: \(eth) (belonging + food/slang register only; never a punchline)"
             )
         }
+        lines.append(AppLanguageStore.current.resolved.modelDirective)
         if !vibe.isEmpty { lines.append("Vibe / cultural style: \(vibe)") }
         lines.append("Diet preference: \(dietPreference.title)\(dietPreferenceConfirmed ? "" : " (unconfirmed)")")
         let avoid = foodAvoidances.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -160,6 +167,14 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
         if let start = startingWeightKg {
             lines.append(String(format: "Onboarding starting weight: %.1f kg", start))
         }
+        lines.append(
+            CoachVoice.cultureInsightPayload(
+                ageYears: ageYears,
+                location: location,
+                ethnicity: ethnicity,
+                culturalVibe: culturalVibe
+            )
+        )
         guard !lines.isEmpty else { return "" }
         return """
         Persona (match tone and examples to this; do not stereotype or exoticize):

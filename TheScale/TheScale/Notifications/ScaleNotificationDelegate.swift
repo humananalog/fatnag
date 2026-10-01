@@ -12,12 +12,12 @@ final class ScaleNotificationDelegate: NSObject, UNUserNotificationCenterDelegat
         let kindRaw = notification.request.content.userInfo[ScaleNotificationUserInfoKey.kind] as? String
         let kind = kindRaw.flatMap(ScaleNotificationKind.init(rawValue:))
         switch kind {
-        case .fitnessInterval, .weeklyGoal:
+        case .fitnessInterval, .weeklyGoal, .mondaySkip, .sundayWrap:
             // Quiet while already in-app: list only, no sound.
             return [.banner, .list]
         case .coachWake, .morningWeigh, .weightSpike:
             return [.banner, .sound, .list, .badge]
-        case .sample, .badTrend, .watchWear, .preSleepHR, .coachReminder, .none:
+        case .sample, .badTrend, .watchWear, .preSleepHR, .coachReminder, .nag, .weighMiss, .none:
             return [.banner, .sound, .list]
         }
     }

@@ -11,17 +11,22 @@ import UserNotifications
 /// - Sleep-wake ASAP when Health has wake (before 08:00); calendar fallback otherwise.
 @MainActor
 enum MorningWeighDrillScheduler {
-    static let requestId = "thescale.morning-weigh-drill"
-    static let fallbackRequestId = "thescale.morning-weigh-fallback"
-    static let testRequestId = "thescale.morning-weigh-test"
+    nonisolated static let requestId = "thescale.morning-weigh-drill"
+    nonisolated static let fallbackRequestId = "thescale.morning-weigh-fallback"
+    nonisolated static let testRequestId = "thescale.morning-weigh-test"
     private static let lastFiredDayKey = "thescale.morningWeighDrill.lastFiredDay"
     /// Match window when comparing pending vs intended fire (calendar trigger rebuild noise).
     nonisolated static let fireDateMatchTolerance: TimeInterval = 60
 
+    /// All morning-weigh request IDs (ASAP wake, calendar fallback, DEBUG test).
+    nonisolated static var allRequestIds: [String] {
+        [requestId, fallbackRequestId, testRequestId]
+    }
+
     /// Watch glance + iPhone body. Time Sensitive via kind.
-    nonisolated static let drillTitle = "Weigh now"
+    nonisolated static let drillTitle = "💩 Weigh"
     nonisolated static let drillSubtitle = "Empty bladder · scale"
-    nonisolated static let drillBodyCore = "Drop a load, step on the scale, then open fatnag. Morning mass locks the week."
+    nonisolated static let drillBodyCore = "Go drop a 💩, step on the scale, then open fatnag. Morning mass locks the week."
 
     /// Call after digest refresh / scene active / trend refresh.
     /// Safe to call often: fallback `add` only runs when the intended fire date changed.
@@ -34,26 +39,37 @@ enum MorningWeighDrillScheduler {
         calendar: Calendar = .current
     ) async {
         guard prefs.morningWeighDrill else {
-            cancelAllPending()
+            cancelAll()
             return
         }
 
         let allowed = await TrendNotificationScheduler.requestAuthorizationIfNeeded()
         guard allowed else {
-            cancelAllPending()
+            cancelAll()
             return
         }
 
         let dayKey = dayStamp(now, calendar: calendar)
         let alreadyFired = UserDefaults.standard.string(forKey: lastFiredDayKey) == dayKey
 
-        // Already weighed or already fired today: drop today's ASAP; arm tomorrow (idempotent).
-        if alreadyWeighedToday || alreadyFired {
-            UNUserNotificationCenter.current().removePendingNotificationRequests(
-                withIdentifiers: [requestId]
+        // Already weighed today: auto-delete every weigh banner (incl. fallback) and arm tomorrow.
+        if alreadyWeighedToday {
+            clearDeliveredAndTodayPending()
+            await ensureFallbackScheduled(
+                prefs: prefs,
+                profileName: profileName,
+                forceTomorrow: true,
+                now: now,
+                calendar: calendar
             )
-            UNUserNotificationCenter.current().removeDeliveredNotifications(
-                withIdentifiers: [requestId]
+            return
+        }
+
+        // Already fired today (banner shown) but not weighed yet: keep delivered, drop ASAP pending,
+        // arm tomorrow fallback only.
+        if alreadyFired {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(
+                withIdentifiers: [requestId, testRequestId]
             )
             await ensureFallbackScheduled(
                 prefs: prefs,
@@ -162,20 +178,35 @@ enum MorningWeighDrillScheduler {
     }
 
 
-    /// Mark morning drill satisfied after a successful weigh-in today.
+    /// Mark morning drill satisfied after a successful weigh-in today (or Health today sample).
+    /// Auto-deletes every weigh notification still sitting in Notification Center.
     static func markSatisfied(now: Date = Date(), calendar: Calendar = .current) {
         UserDefaults.standard.set(dayStamp(now, calendar: calendar), forKey: lastFiredDayKey)
-        UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [requestId, testRequestId])
-        UNUserNotificationCenter.current()
-            .removeDeliveredNotifications(withIdentifiers: [requestId, testRequestId])
-        // Fallback re-armed for tomorrow on next consider(); leave pending if already tomorrow.
+        clearDeliveredAndTodayPending()
+        WeighMissLadderScheduler.markSatisfied()
+        // Fallback re-armed for tomorrow on next consider().
+    }
+
+    /// Remove delivered weigh banners + same-day ASAP/test pending. Leaves tomorrow fallback alone
+    /// until `ensureFallbackScheduled` rewrites it.
+    static func clearDeliveredAndTodayPending() {
+        let center = UNUserNotificationCenter.current()
+        center.removeDeliveredNotifications(withIdentifiers: allRequestIds)
+        // Drop any still-pending ASAP / test; fallback is rewritten by ensureFallbackScheduled.
+        center.removePendingNotificationRequests(withIdentifiers: [requestId, testRequestId])
     }
 
     static func cancelAllPending() {
         UNUserNotificationCenter.current().removePendingNotificationRequests(
-            withIdentifiers: [requestId, fallbackRequestId, testRequestId]
+            withIdentifiers: allRequestIds
         )
+    }
+
+    /// Prefs off / auth denied: wipe pending and delivered weigh drills.
+    static func cancelAll() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: allRequestIds)
+        center.removeDeliveredNotifications(withIdentifiers: allRequestIds)
     }
 
     // MARK: - Private

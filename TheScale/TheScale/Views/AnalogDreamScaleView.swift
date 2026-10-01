@@ -2,8 +2,9 @@ import SwiftUI
 import UIKit
 
 /// Real bathroom-scale UX: fixed marker at 12 o'clock; dial disc rotates under it.
-/// Tick spacing and major/minor marks follow metric (kg) or imperial (lb).
-/// Disc labels are oriented so each number reads upright when that mark sits under the needle.
+/// Tick spacing and major/minor marks follow **only** the selected unit system
+/// (kg **or** lb — never both rings at once). The minimum and maximum marks of
+/// that unit's range sit on a 350° arc.
 struct AnalogDreamScaleView: View {
     @Binding var weightKg: Double
     var boundsKg: ClosedRange<Double>
@@ -20,34 +21,24 @@ struct AnalogDreamScaleView: View {
     @State private var lastMinorTick: Int = .min
     @State private var lastMajorTick: Int = .min
     @State private var dragStartDisplay: Double?
+    @State private var lastLightHapticAt: Date = .distantPast
+    @State private var lightHaptic = UIImpactFeedbackGenerator(style: .light)
+    @State private var mediumHaptic = UIImpactFeedbackGenerator(style: .medium)
 
-    /// Minor step in the active display unit (kg or lb).
-    private var minorStepDisplay: Double {
-        unitSystem == .metric ? 0.5 : 1.0
+    /// Core Haptics rejects bursts above ~32 Hz — keep light ticks under that.
+    private static let minLightHapticInterval: TimeInterval = 0.055
+
+    /// Layout for the active unit only (never mixes kg + lb grids).
+    private var layout: AnalogScaleLayout {
+        AnalogScaleLayout.make(boundsKg: boundsKg, system: unitSystem)
     }
 
-    /// Major label every N minor ticks: metric 5 kg (10×0.5), imperial 5 lb (5×1).
-    private var majorEvery: Int {
-        unitSystem == .metric ? 10 : 5
-    }
-
-    /// Degrees of disc per display unit (kg or lb).
-    private var degreesPerDisplay: Double {
-        unitSystem == .metric ? 5 : 2.5
-    }
-
-    private let viewportDegrees: Double = 25
+    private let viewportDegrees: Double = 28
     private let discSide: CGFloat = 520
     private let tickRadius: CGFloat = 240
     private let windowHeight: CGFloat = 88
     private let housingHeight: CGFloat = 200
     private let maxHousingWidth: CGFloat = 420
-
-    private var boundsDisplay: ClosedRange<Double> {
-        let lo = UnitFormat.mass(fromKg: boundsKg.lowerBound, system: unitSystem)
-        let hi = UnitFormat.mass(fromKg: boundsKg.upperBound, system: unitSystem)
-        return min(lo, hi)...max(lo, hi)
-    }
 
     private var displayValue: Double {
         UnitFormat.mass(fromKg: weightKg, system: unitSystem)
@@ -67,15 +58,12 @@ struct AnalogDreamScaleView: View {
     }
 
     private var discRotation: Angle {
-        .degrees(-(displayValue - boundsDisplay.lowerBound) * degreesPerDisplay)
+        // 0° puts the minimum mark under the needle; the maximum sits 350° around the disc.
+        .degrees(-(displayValue - layout.boundsDisplay.lowerBound) * layout.degreesPerUnit)
     }
 
     private var discWindowOffsetY: CGFloat {
         tickRadius - windowHeight * 0.35
-    }
-
-    private var tickCount: Int {
-        max(Int(((boundsDisplay.upperBound - boundsDisplay.lowerBound) / minorStepDisplay).rounded()), 1)
     }
 
     var body: some View {
@@ -86,12 +74,13 @@ struct AnalogDreamScaleView: View {
                 .frame(height: housingHeight)
                 .clipped()
                 .contentShape(Rectangle())
-                .gesture(dragGesture)
+                // Win horizontal drags over the Settings ScrollView so the disc actually turns.
+                .highPriorityGesture(dragGesture)
                 .accessibilityIdentifier(accessibilityId)
                 .accessibilityLabel("Target weight \(String(format: "%.1f", displayValue)) \(unitSystem.massLabel)")
                 .accessibilityValue(String(format: "%.1f %@", displayValue, unitSystem.massLabel))
                 .accessibilityAdjustableAction { direction in
-                    let step = minorStepDisplay
+                    let step = layout.minorStep
                     switch direction {
                     case .increment:
                         setDisplay(displayValue + step, commit: true)
@@ -108,6 +97,9 @@ struct AnalogDreamScaleView: View {
                     setDisplay(displayValue, commit: false)
                 }
                 .onChange(of: unitSystem) { _, _ in
+                    lastMinorTick = .min
+                    lastMajorTick = .min
+                    dragStartDisplay = nil
                     setDisplay(displayValue, commit: false)
                 }
 
@@ -118,6 +110,9 @@ struct AnalogDreamScaleView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
+        // Hard remount when units flip so kg and lb discs never composite together.
+        .id("analog-scale-\(unitSystem.rawValue)")
+        .transaction { $0.animation = nil }
     }
 
     private var housing: some View {
@@ -168,15 +163,13 @@ struct AnalogDreamScaleView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             VStack(spacing: 0) {
-                Capsule()
-                    .fill(accent)
-                    .frame(width: 3, height: 28)
-                    .shadow(color: ink.opacity(0.35), radius: 1.5, y: 1)
+                // Grey pointer only. No teal shaft.
                 TriangleMarker()
-                    .fill(accent)
-                    .frame(width: 12, height: 10)
+                    .fill(steel.opacity(colorScheme == .dark ? 0.92 : 0.78))
+                    .frame(width: 16, height: 14)
+                    .shadow(color: ink.opacity(0.25), radius: 1.2, y: 1)
             }
-            .padding(.top, 10)
+            .padding(.top, 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .allowsHitTesting(false)
 
@@ -185,6 +178,7 @@ struct AnalogDreamScaleView: View {
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(ink)
                     .monospacedDigit()
+                    .contentTransition(.numericText())
                 Text(unitSystem.massLabel.uppercased())
                     .font(.system(size: 11, weight: .heavy, design: .rounded))
                     .tracking(1.2)
@@ -192,25 +186,39 @@ struct AnalogDreamScaleView: View {
             }
             .padding(.bottom, 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .allowsHitTesting(false)
         }
     }
 
     private var discFace: some View {
-        Canvas { context, size in
-            let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            let radius = tickRadius
-            let halfWindow = viewportDegrees / 2
-            let padTicks = Int((halfWindow / (degreesPerDisplay * minorStepDisplay)).rounded()) + 8
+        let layout = self.layout
+        let system = unitSystem
+        let inkColor = ink
+        let steelColor = steel
+        let radius = tickRadius
+        let halfWindow = viewportDegrees / 2
+        let padTicks = Int((halfWindow / (layout.degreesPerUnit * layout.minorStep)).rounded()) + 10
 
-            for i in -padTicks...(tickCount + padTicks) {
-                let display = boundsDisplay.lowerBound + Double(i) * minorStepDisplay
-                let inBand = display >= boundsDisplay.lowerBound - 0.01
-                    && display <= boundsDisplay.upperBound + 0.01
-                let degFromZero = Double(i) * minorStepDisplay * degreesPerDisplay
+        return Canvas { context, size in
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            let step = layout.minorStep
+            let origin = layout.alignedLower
+            let majorStep = layout.majorStep
+            let degreesPer = layout.degreesPerUnit
+            let lo = layout.boundsDisplay.lowerBound
+            let hi = layout.boundsDisplay.upperBound
+
+            for i in -padTicks...(layout.tickCount + padTicks) {
+                let display = origin + Double(i) * step
+                // Only paint the selected unit's in-band marks — no ghost second ring.
+                let inBand = display >= lo - 0.01 && display <= hi + 0.01
+                guard inBand else { continue }
+
+                let degFromZero = (display - lo) * degreesPer
                 // 0° = +x (3 o'clock), -90° = 12 o'clock.
                 let deg = -90 + degFromZero
                 let rad = deg * .pi / 180
-                let isMajor = i % majorEvery == 0
+                let isMajor = AnalogScaleMarks.isMajor(display: display, majorStep: majorStep)
                 let outer = radius
                 let inner = radius - (isMajor ? 22 : 12)
                 let cosA = Darwin.cos(rad)
@@ -218,64 +226,83 @@ struct AnalogDreamScaleView: View {
                 var path = Path()
                 path.move(to: CGPoint(x: center.x + cosA * inner, y: center.y + sinA * inner))
                 path.addLine(to: CGPoint(x: center.x + cosA * outer, y: center.y + sinA * outer))
-                let tickOpacity = inBand ? (isMajor ? 0.72 : 0.42) : 0.18
                 context.stroke(
                     path,
-                    with: .color(isMajor ? ink.opacity(tickOpacity) : steel.opacity(tickOpacity)),
-                    lineWidth: isMajor ? 2.2 : 1.1
+                    with: .color(isMajor ? inkColor.opacity(0.85) : steelColor.opacity(0.48)),
+                    lineWidth: isMajor ? 2.4 : 1.15
                 )
 
-                if isMajor, inBand {
-                    let labelValue = min(max(display, boundsDisplay.lowerBound), boundsDisplay.upperBound)
-                    let labelR = radius - 38
+                if isMajor {
+                    let labelR = radius - 40
                     let pt = CGPoint(x: center.x + cosA * labelR, y: center.y + sinA * labelR)
-                    let labelText = unitSystem == .metric
-                        ? String(format: "%.0f", labelValue)
-                        : String(format: "%.0f", labelValue.rounded())
+                    let labelText = AnalogScaleMarks.label(
+                        display: display,
+                        system: system
+                    )
                     let text = Text(labelText)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundColor(ink.opacity(0.78))
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundColor(inkColor.opacity(0.88))
+                    let resolved = context.resolve(text)
                     // Rotate so the glyph is upright when this mark sits under the top needle.
-                    // At 12 o'clock (deg = -90), text rotation = 0.
                     context.drawLayer { layer in
                         layer.translateBy(x: pt.x, y: pt.y)
                         layer.rotate(by: .degrees(deg + 90))
-                        layer.draw(text, at: .zero, anchor: .center)
+                        layer.draw(resolved, at: .zero, anchor: .center)
                     }
                 }
             }
         }
+        .id("disc-\(system.rawValue)-\(layout.alignedLower)-\(layout.alignedUpper)-\(layout.tickCount)")
     }
 
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 0)
+        DragGesture(minimumDistance: 4)
             .onChanged { value in
+                // Prefer horizontal intent so vertical scroll still works outside the dial.
+                if abs(value.translation.height) > abs(value.translation.width) * 1.35,
+                   dragStartDisplay == nil {
+                    return
+                }
                 if dragStartDisplay == nil {
                     dragStartDisplay = displayValue
+                    lightHaptic.prepare()
+                    mediumHaptic.prepare()
                 }
                 guard let start = dragStartDisplay else { return }
-                let delta = -Double(value.translation.width) / degreesPerDisplay
+                let delta = -Double(value.translation.width) / layout.degreesPerUnit
                 let raw = start + delta
-                let snapped = (raw / minorStepDisplay).rounded() * minorStepDisplay
+                let snapped = (raw / layout.minorStep).rounded() * layout.minorStep
                 setDisplay(snapped, commit: false)
             }
             .onEnded { _ in
+                let hadDrag = dragStartDisplay != nil
                 dragStartDisplay = nil
-                onCommit?(weightKg)
+                if hadDrag {
+                    onCommit?(weightKg)
+                }
             }
     }
 
     private func setDisplay(_ display: Double, commit: Bool) {
-        let clamped = min(max(display, boundsDisplay.lowerBound), boundsDisplay.upperBound)
-        var snapped = (clamped / minorStepDisplay).rounded() * minorStepDisplay
-        snapped = min(max(snapped, boundsDisplay.lowerBound), boundsDisplay.upperBound)
-        let minorIndex = Int((snapped / minorStepDisplay).rounded())
+        let layout = self.layout
+        let clamped = min(max(display, layout.boundsDisplay.lowerBound), layout.boundsDisplay.upperBound)
+        var snapped = (clamped / layout.minorStep).rounded() * layout.minorStep
+        snapped = min(max(snapped, layout.boundsDisplay.lowerBound), layout.boundsDisplay.upperBound)
+        let minorIndex = Int((snapped / layout.minorStep).rounded())
         if minorIndex != lastMinorTick {
             lastMinorTick = minorIndex
-            UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
-            if minorIndex % majorEvery == 0, minorIndex != lastMajorTick {
-                lastMajorTick = minorIndex
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.85)
+            let now = Date()
+            if now.timeIntervalSince(lastLightHapticAt) >= Self.minLightHapticInterval {
+                lastLightHapticAt = now
+                lightHaptic.impactOccurred(intensity: 0.45)
+            }
+            if AnalogScaleMarks.isMajor(display: snapped, majorStep: layout.majorStep) {
+                let majorIndex = Int((snapped / layout.majorStep).rounded())
+                if majorIndex != lastMajorTick {
+                    lastMajorTick = majorIndex
+                    mediumHaptic.impactOccurred(intensity: 0.8)
+                }
             }
         }
         let kg = UnitFormat.kg(fromMass: snapped, system: unitSystem)
@@ -289,7 +316,91 @@ struct AnalogDreamScaleView: View {
     }
 }
 
+/// Single-unit dial geometry. Built only for metric **or** imperial — never both.
+struct AnalogScaleLayout: Equatable, Sendable {
+    /// Min mark at 0° and max mark at this angle. The remaining 10° is the gap
+    /// so the two ends do not sit on top of each other.
+    static let dialArcDegrees: Double = 350
+
+    var system: PreferredUnitSystem
+    var minorStep: Double
+    var majorStep: Double
+    var degreesPerUnit: Double
+    var boundsDisplay: ClosedRange<Double>
+    var alignedLower: Double
+    var alignedUpper: Double
+    var tickCount: Int
+
+    static func make(
+        boundsKg: ClosedRange<Double>,
+        system: PreferredUnitSystem
+    ) -> AnalogScaleLayout {
+        let minor: Double = system == .metric ? 0.5 : 1.0
+        let major: Double = 5.0
+        let lo = UnitFormat.mass(fromKg: boundsKg.lowerBound, system: system)
+        let hi = UnitFormat.mass(fromKg: boundsKg.upperBound, system: system)
+        let bounds = min(lo, hi)...max(lo, hi)
+        let span = max(bounds.upperBound - bounds.lowerBound, minor)
+        // Same 350° arc for every unit system; kg and lb just change how many
+        // marks share that arc.
+        let degrees = dialArcDegrees / span
+        let alignedLo = (bounds.lowerBound / minor).rounded(.down) * minor
+        let alignedHi = (bounds.upperBound / minor).rounded(.up) * minor
+        let count = max(Int(((alignedHi - alignedLo) / minor).rounded()), 1)
+        return AnalogScaleLayout(
+            system: system,
+            minorStep: minor,
+            majorStep: major,
+            degreesPerUnit: degrees,
+            boundsDisplay: bounds,
+            alignedLower: alignedLo,
+            alignedUpper: alignedHi,
+            tickCount: count
+        )
+    }
+
+    /// In-band display values for the selected system only (testable).
+    func displayTicks(includePad: Int = 0) -> [Double] {
+        let start = -includePad
+        let end = tickCount + includePad
+        var values: [Double] = []
+        values.reserveCapacity(end - start + 1)
+        for i in start...end {
+            let display = alignedLower + Double(i) * minorStep
+            if display >= boundsDisplay.lowerBound - 0.01,
+               display <= boundsDisplay.upperBound + 0.01 {
+                values.append(display)
+            }
+        }
+        return values
+    }
+
+    func majorLabels() -> [Double] {
+        displayTicks().filter { AnalogScaleMarks.isMajor(display: $0, majorStep: majorStep) }
+    }
+}
+
+/// Round major marks for **one** unit grid (70 / 75 / 80 kg, or 150 / 155 / 160 lb).
+enum AnalogScaleMarks {
+    static func isMajor(display: Double, majorStep: Double = 5) -> Bool {
+        guard majorStep > 0 else { return false }
+        let nearest = (display / majorStep).rounded() * majorStep
+        return abs(display - nearest) < 0.05
+    }
+
+    static func label(display: Double, system: PreferredUnitSystem) -> String {
+        // Numbers only — unit lives under the needle. Never emit a second-system conversion.
+        switch system {
+        case .metric:
+            return String(format: "%.0f", display.rounded())
+        case .imperial:
+            return String(format: "%.0f", display.rounded())
+        }
+    }
+}
+
 private struct TriangleMarker: Shape {
+    /// Tip points down toward the dial.
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.midX, y: rect.maxY))

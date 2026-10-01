@@ -11,11 +11,11 @@ enum WeeklyTrackBand: String, Equatable, Sendable {
 
     var statusLabel: String {
         switch self {
-        case .crushed: return String(localized: "week.band.crushed", defaultValue: "Crushed")
-        case .ahead: return String(localized: "week.band.ahead", defaultValue: "Ahead")
-        case .onTrack: return String(localized: "week.band.on_track", defaultValue: "On track")
-        case .atRisk: return String(localized: "week.band.at_risk", defaultValue: "At risk")
-        case .unknown: return String(localized: "week.band.unknown", defaultValue: "Set baseline")
+        case .crushed: return AppLanguageStore.text("week.band.crushed", default: "Crushed")
+        case .ahead: return AppLanguageStore.text("week.band.ahead", default: "Ahead")
+        case .onTrack: return AppLanguageStore.text("week.band.on_track", default: "On track")
+        case .atRisk: return AppLanguageStore.text("week.band.at_risk", default: "At risk")
+        case .unknown: return AppLanguageStore.text("week.band.unknown", default: "Set baseline")
         }
     }
 }
@@ -43,10 +43,10 @@ enum ProgressWeekMoment: String, Equatable, Sendable {
 
     var statusHeadline: String {
         switch self {
-        case .mondayFresh: return String(localized: "week.moment.monday_fresh", defaultValue: "This week's plan")
-        case .earlyWeek: return String(localized: "week.moment.early", defaultValue: "Building the week")
-        case .midWeek: return String(localized: "week.moment.mid", defaultValue: "Mid-week check")
-        case .lateWeek: return String(localized: "week.moment.late", defaultValue: "Sunday push")
+        case .mondayFresh: return AppLanguageStore.text("week.moment.monday_fresh", default: "This week's plan")
+        case .earlyWeek: return AppLanguageStore.text("week.moment.early", default: "Building the week")
+        case .midWeek: return AppLanguageStore.text("week.moment.mid", default: "Mid-week check")
+        case .lateWeek: return AppLanguageStore.text("week.moment.late", default: "Sunday push")
         }
     }
 }
@@ -188,8 +188,8 @@ enum WeeklyGoalSurfaceEngine {
         // Early Monday: near-zero move must not inherit last week's "crushed" chrome.
         let earlyWeekQuiet = moment == .mondayFresh
             && abs(movedDelta ?? 0) < 0.08
-        let fractionForBand: Double? = earlyWeekQuiet ? (rawFraction.map { min($0, 0.12) } ?? 0) : rawFraction
-        let fraction = fractionForBand ?? 0
+        // Missing baseline stays nil so Monday does not paint "on track" at 0%.
+        let fractionForBand: Double? = earlyWeekQuiet ? rawFraction.map { min($0, 0.12) } : rawFraction
         let percent = Int((min(max(earlyWeekQuiet ? 0 : (rawFraction ?? 0), 0), 1.2) * 100).rounded())
 
         var band = trackBand(
@@ -240,6 +240,8 @@ enum WeeklyGoalSurfaceEngine {
             switch targetMode {
             case .hardcoreCatchUp:
                 return base + " Hardcore catch-up week."
+            case .commando:
+                return base + " Commando: food intake drops to the safe max."
             case .accelerate:
                 return base + " Accelerate: no coast."
             case .aggressive, .hold:
@@ -352,7 +354,7 @@ enum WeeklyGoalSurfaceEngine {
         isWinner: Bool
     ) -> String {
         if moment == .mondayFresh { return ProgressWeekMoment.mondayFresh.statusHeadline }
-        if isWinner { return String(localized: "week.band.crushed", defaultValue: "Crushed") }
+        if isWinner { return AppLanguageStore.text("week.band.crushed", default: "Crushed") }
         switch moment {
         case .mondayFresh:
             return moment.statusHeadline
@@ -362,10 +364,10 @@ enum WeeklyGoalSurfaceEngine {
             return band.statusLabel
         case .lateWeek:
             if band == .atRisk {
-                return String(localized: "week.moment.late", defaultValue: "Sunday push")
+                return AppLanguageStore.text("week.moment.late", default: "Sunday push")
             }
             if band == .onTrack || band == .ahead {
-                return String(localized: "week.headline.finish_strong", defaultValue: "Finish strong")
+                return AppLanguageStore.text("week.headline.finish_strong", default: "Finish strong")
             }
             return band.statusLabel
         }
@@ -500,7 +502,7 @@ enum WeeklyGoalSurfaceEngine {
         maxCal = min(tdee + 500, maxCal)
 
         var steps = 8_500
-        if band == .atRisk || targetMode == .hardcoreCatchUp { steps = 10_500 }
+        if band == .atRisk || targetMode == .hardcoreCatchUp || targetMode == .commando { steps = 10_500 }
         if targetMode == .accelerate { steps = max(steps, 9_500) }
         // Ahead of week pace: do not coast with a soft step floor.
         if band == .ahead || band == .crushed {
@@ -514,7 +516,7 @@ enum WeeklyGoalSurfaceEngine {
             steps = Int(today.rounded())
         }
 
-        let proteinPerKg = weeklyDeltaKg < -0.15 || targetMode == .hardcoreCatchUp ? 1.8 : 1.6
+        let proteinPerKg = weeklyDeltaKg < -0.15 || targetMode == .hardcoreCatchUp || targetMode == .commando ? 1.8 : 1.6
         let protein = Int((weight * proteinPerKg).rounded())
         let micro = microPriority(profile: profile, weeklyDeltaKg: weeklyDeltaKg, diet: profile.dietPreference)
         let intakeTracked = hasRobustNutritionLog(digest: digest)
@@ -523,7 +525,7 @@ enum WeeklyGoalSurfaceEngine {
             steps: steps,
             maxCalories: Int(maxCal.rounded()),
             proteinGrams: max(70, protein),
-            proteinLabel: String(localized: "targets.protein", defaultValue: "Protein"),
+            proteinLabel: AppLanguageStore.text("targets.protein", default: "Protein"),
             microName: micro.name,
             microTargetLine: micro.line,
             intakeTracked: intakeTracked
@@ -546,7 +548,7 @@ enum WeeklyGoalSurfaceEngine {
         guard showNutritionTargets else { return [] }
         return [
             HomeDailyTargetChip(
-                title: String(localized: "targets.energy", defaultValue: "Energy"),
+                title: AppLanguageStore.text("targets.energy", default: "Energy"),
                 valueLine: CoachVoice.energyChipLine(
                     kcal: targets.maxCalories,
                     diet: diet,
@@ -572,9 +574,9 @@ enum WeeklyGoalSurfaceEngine {
         digest: FitnessDigest?
     ) -> [DailyMetricProgress] {
         let stepsCurrent = digest?.stepsToday
-        let stepsTitle = String(localized: "targets.steps", defaultValue: "Steps")
-        let moveTitle = String(localized: "targets.move", defaultValue: "Move")
-        let energyTitle = String(localized: "targets.energy", defaultValue: "Energy")
+        let stepsTitle = AppLanguageStore.text("targets.steps", default: "Steps")
+        let moveTitle = AppLanguageStore.text("targets.move", default: "Move")
+        let energyTitle = AppLanguageStore.text("targets.energy", default: "Energy")
         let steps = progressRow(
             kind: .steps,
             title: stepsTitle,
@@ -733,19 +735,19 @@ enum WeeklyGoalSurfaceEngine {
         weeklyDeltaKg: Double,
         diet: DietPreference
     ) -> (name: String, line: String) {
-        let iron = String(localized: "targets.iron", defaultValue: "Iron")
-        let fiber = String(localized: "targets.fiber", defaultValue: "Fiber")
-        let potassium = String(localized: "targets.potassium", defaultValue: "Potassium")
+        let iron = AppLanguageStore.text("targets.iron", default: "Iron")
+        let fiber = AppLanguageStore.text("targets.fiber", default: "Fiber")
+        let potassium = AppLanguageStore.text("targets.potassium", default: "Potassium")
         if diet == .vegan || diet == .vegetarian {
-            return (iron, String(localized: "targets.iron.vegan", defaultValue: "Hit ≥ 18 mg · pair with vitamin C"))
+            return (iron, AppLanguageStore.text("targets.iron.vegan", default: "Hit ≥ 18 mg · pair with vitamin C"))
         }
         if profile.sex == .female {
-            return (iron, String(localized: "targets.iron.female", defaultValue: "Prioritize ≥ 18 mg with meals"))
+            return (iron, AppLanguageStore.text("targets.iron.female", default: "Prioritize ≥ 18 mg with meals"))
         }
         if weeklyDeltaKg < -0.1 {
-            return (fiber, String(localized: "targets.fiber.cut", defaultValue: "Hit ≥ 30 g · keeps the cut sane"))
+            return (fiber, AppLanguageStore.text("targets.fiber.cut", default: "Hit ≥ 30 g · keeps the cut sane"))
         }
-        return (potassium, String(localized: "targets.potassium.aim", defaultValue: "Aim ≥ 3,500 mg from food"))
+        return (potassium, AppLanguageStore.text("targets.potassium.aim", default: "Aim ≥ 3,500 mg from food"))
     }
 
     // MARK: - Today-ahead advice
@@ -830,6 +832,14 @@ enum WeeklyGoalSurfaceEngine {
             }
         }
 
+        if targetMode == .commando {
+            switch sex {
+            case .female:
+                return "\(who), commando week. \(dayPart.capitalized): \(energyCap), \(proteinBit), \(targets.steps) steps. The old date was too fast, so intake drops hard."
+            case .male:
+                return "\(who), commando week. \(dayPart.capitalized): \(energyCap), \(proteinBit), \(targets.steps) steps. Cut intake. The date has to be honest."
+            }
+        }
         if targetMode == .hardcoreCatchUp {
             switch sex {
             case .female:

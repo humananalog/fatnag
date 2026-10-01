@@ -265,6 +265,7 @@ enum OnboardingStore {
 /// How often Grok should review the latest Health digest (when consent + live config exist).
 enum GrokCheckInterval: String, Codable, CaseIterable, Identifiable, Sendable {
     case manualOnly
+    case every10Minutes
     case every6Hours
     case every12Hours
     case daily
@@ -275,6 +276,7 @@ enum GrokCheckInterval: String, Codable, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .manualOnly: return "Manual only (Coach tab)"
+        case .every10Minutes: return "Every 10 minutes"
         case .every6Hours: return "Every 6 hours"
         case .every12Hours: return "Every 12 hours"
         case .daily: return "Once daily"
@@ -282,14 +284,24 @@ enum GrokCheckInterval: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Nominal spacing between automated checks. `nil` = never auto.
+    /// Nominal spacing between on-device activity reads. `nil` = never auto.
     var nominalSeconds: TimeInterval? {
         switch self {
         case .manualOnly: return nil
+        case .every10Minutes: return 10 * 60
         case .every6Hours: return 6 * 3600
         case .every12Hours: return 12 * 3600
         case .daily: return 24 * 3600
         case .morningAndEvening: return 12 * 3600
+        }
+    }
+
+    /// Grok stays on a multi-hour cadence. Ten minutes is the local Health analyzer, not a model call.
+    var grokNominalSeconds: TimeInterval? {
+        switch self {
+        case .manualOnly: return nil
+        case .every10Minutes: return 6 * 3600
+        default: return nominalSeconds
         }
     }
 }
@@ -329,8 +341,8 @@ struct FitnessMonitorPreferences: Equatable, Codable, Sendable {
     var lastPreSleepAlertAt: Date?
 
     static let `default` = FitnessMonitorPreferences(
-        enabled: false,
-        interval: .daily,
+        enabled: true,
+        interval: .every10Minutes,
         notifyOnTriggers: true,
         thresholds: .default,
         lastAutomatedCheckAt: nil,
@@ -931,7 +943,7 @@ enum FitnessTriggerMonitor {
         now: Date = Date()
     ) -> Bool {
         guard prefs.enabled else { return false }
-        guard let spacing = prefs.interval.nominalSeconds else { return false }
+        guard let spacing = prefs.interval.grokNominalSeconds else { return false }
         guard let last = prefs.lastAutomatedCheckAt else { return true }
         return now.timeIntervalSince(last) >= spacing * 0.92
     }

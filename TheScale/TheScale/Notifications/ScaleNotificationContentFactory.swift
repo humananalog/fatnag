@@ -31,7 +31,6 @@ enum ScaleNotificationContentFactory {
         content.threadIdentifier = draft.kind.threadId
         content.interruptionLevel = draft.kind.interruptionLevel
         content.relevanceScore = draft.relevanceScore ?? draft.kind.relevanceScore
-        content.targetContentIdentifier = draft.kind.destination.rawValue
 
         var info: [AnyHashable: Any] = [
             ScaleNotificationUserInfoKey.destination: draft.kind.destination.rawValue,
@@ -44,6 +43,11 @@ enum ScaleNotificationContentFactory {
             info[key] = value
         }
         content.userInfo = info
+        if let dest = info[ScaleNotificationUserInfoKey.destination] as? String {
+            content.targetContentIdentifier = dest
+        } else {
+            content.targetContentIdentifier = draft.kind.destination.rawValue
+        }
 
         let headline = draft.visualHeadline ?? content.title
         let detail = draft.visualDetail ?? (content.subtitle.isEmpty ? content.body : content.subtitle)
@@ -56,8 +60,13 @@ enum ScaleNotificationContentFactory {
         }
 
         if draft.kind.usesCommunicationStyle {
-            return applyCommunicationStyle(to: content, body: content.body, threadId: draft.kind.threadId)
-                ?? content
+            let senderName = draft.kind == .nag ? "Nag" : "Coach"
+            return applyCommunicationStyle(
+                to: content,
+                body: content.body,
+                threadId: draft.kind.threadId,
+                displayName: senderName
+            ) ?? content
         }
         return content
     }
@@ -82,17 +91,19 @@ enum ScaleNotificationContentFactory {
     private static func applyCommunicationStyle(
         to content: UNMutableNotificationContent,
         body: String,
-        threadId: String
+        threadId: String,
+        displayName: String
     ) -> UNNotificationContent? {
-        let handle = INPersonHandle(value: "coach@fatnag.local", type: .unknown)
+        let senderId = displayName == "Nag" ? "nag" : "coach"
+        let handle = INPersonHandle(value: "\(senderId)@fatnag.local", type: .unknown)
         let avatar = coachAvatarImage()
         let coach = INPerson(
             personHandle: handle,
             nameComponents: nil,
-            displayName: "Coach",
+            displayName: displayName,
             image: avatar,
             contactIdentifier: nil,
-            customIdentifier: "fatnag.coach",
+            customIdentifier: "fatnag.\(senderId)",
             isMe: false,
             suggestionType: .none
         )

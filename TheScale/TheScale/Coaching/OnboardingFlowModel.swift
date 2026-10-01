@@ -115,20 +115,32 @@ final class OnboardingFlowModel: ObservableObject {
 
     var primaryCTA: String {
         switch step {
-        case .language: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
-        case .identity: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
-        case .body: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
+        case .language: return AppLanguageStore.text("onboarding.cta.continue", default: "Continue")
+        case .identity: return AppLanguageStore.text("onboarding.cta.continue", default: "Continue")
+        case .body: return AppLanguageStore.text("onboarding.cta.continue", default: "Continue")
         case .anatomy: return isInferring
-            ? String(localized: "onboarding.cta.filling", defaultValue: "Filling profile…")
-            : String(localized: "onboarding.cta.dream", defaultValue: "Set dream weight")
-        case .dream: return String(localized: "onboarding.cta.lock", defaultValue: "Lock target")
-        case .lifestyle: return String(localized: "onboarding.cta.continue", defaultValue: "Continue")
-        case .confirm: return String(localized: "onboarding.cta.start", defaultValue: "Start weighing")
+            ? AppLanguageStore.text("onboarding.cta.filling", default: "Filling profile…")
+            : AppLanguageStore.text("onboarding.cta.dream", default: "Set dream weight")
+        case .dream: return AppLanguageStore.text("onboarding.cta.lock", default: "Lock target")
+        case .lifestyle: return AppLanguageStore.text("onboarding.cta.continue", default: "Continue")
+        case .confirm: return AppLanguageStore.text("onboarding.cta.start", default: "Start weighing")
         }
     }
 
     var stepCountLabel: String {
         "\(step.rawValue + 1) / \(Step.allCases.count)"
+    }
+
+    /// Current weight uses the Health sample when it is 14 days old or newer.
+    /// Older than two weeks, or no sample, means the person sets it on the scale dial.
+    nonisolated static func weightNeedsScale(lastSample: Date?, now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard let lastSample else { return true }
+        let days = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: lastSample),
+            to: calendar.startOfDay(for: now)
+        ).day ?? 0
+        return days > 14
     }
 
     func seed(from profile: UserBodyProfile, notifications: NotificationPreferences, units: PreferredUnitSystem) {

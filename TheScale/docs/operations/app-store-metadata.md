@@ -19,10 +19,12 @@ Fill these in ASC before Submit for Review. Binary alone is not enough.
 | Secondary | Lifestyle (optional) |
 | Seller | Human Analog Limited (`XHVW66YM39`) |
 
-IAP product IDs stay:
+IAP product IDs (Coach group, App Store X.99):
 
-- Plus: `app.thescale.ios.plus.monthly`
-- Pro: `app.thescale.ios.pro.monthly`
+- Plus Monthly: `app.thescale.ios.plus.monthly` — **$1.99**
+- Plus Annual: `app.thescale.ios.plus.annual` — **$19.99**
+- Pro Monthly: `app.thescale.ios.pro.monthly` — **$7.99**
+- Pro Annual: `app.thescale.ios.pro.annual` — **$79.99**
 
 ## Inflight version form (paste checklist)
 
@@ -36,8 +38,8 @@ Use on the Inflight version page for **6816630442**:
 | **Promotional text** (updatable anytime) | `Nag until the fat folds — daily weigh-ins that keep the routine until the loss shows. Apple Health sync. Honest Coach credits.` |
 | **Description opener** | `FATNAG nags you into the habit that shrinks the folds: weigh daily, stay honest, win the week. Privacy-first companion for Mi Body Composition Scale 2 — weigh-ins stay on your iPhone, confirm into Apple Health, and optional Keel Coach helps when you go soft, with weekly credit caps instead of endless chat spam.` |
 | **Keywords** | `scale,mi scale,weight,body fat,healthkit,fasting,coach,fitness,bia,weigh in` |
-| **Support URL** | `https://humananalog.github.io/the-scale/support` |
-| **Privacy Policy URL** | `https://humananalog.github.io/the-scale/privacy` |
+| **Support URL** | `https://humananalog.github.io/fatnag/support` |
+| **Privacy Policy URL** | `https://humananalog.github.io/fatnag/privacy` |
 | **Category** | Health & Fitness |
 
 Full description body + review notes below.
@@ -54,9 +56,9 @@ Full description body + review notes below.
 
 Must be live HTTPS:
 
-`https://humananalog.github.io/the-scale/privacy`
+`https://humananalog.github.io/fatnag/privacy`
 
-Hosting steps: `docs/operations/legal-url-hosting.md`. Path may still say `the-scale`; visible product name in HTML is **FATNAG**.
+Hosting steps: `docs/operations/legal-url-hosting.md`. Public path is `humananalog.github.io/fatnag`; product name in HTML is **FATNAG**.
 
 ## App Privacy (nutrition labels)
 
@@ -109,7 +111,7 @@ Not a medical device. Fitness guidance only.
 
 | Field | Value |
 |-------|--------|
-| Support URL | `https://humananalog.github.io/the-scale/support` (`ScaleLegal.supportURL`) |
+| Support URL | `https://humananalog.github.io/fatnag/support` (`ScaleLegal.supportURL`) |
 | Marketing URL | Optional product page |
 | Privacy | See above |
 
@@ -127,8 +129,8 @@ Background: healthkit observers + enableBackgroundDelivery for workouts/sleep/we
 Network: optional Keel Coach via HTTPS Worker after explicit consent. Store builds leave GROK_API_KEY empty (Worker holds the secret).
 Notifications: local UNUserNotificationCenter; Time Sensitive only for user-requested wake pings; Communication-style Coach chrome when entitlement allows.
 Medical: disclaimer in onboarding + Settings → Legal only; never in notification bodies.
-Privacy: GDPR/CCPA texts in Settings; in-app Export / Erase; Privacy Policy https://humananalog.github.io/the-scale/privacy; age gate 18+.
-IAP: Plus app.thescale.ios.plus.monthly ($2/mo, 28 credits/wk); Pro app.thescale.ios.pro.monthly ($8/mo, 120 credits/wk). Sandbox tester account provided separately.
+Privacy: GDPR/CCPA texts in Settings; in-app Export / Erase; Privacy Policy https://humananalog.github.io/fatnag/privacy; age gate 18+.
+IAP: Plus monthly $1.99 / annual $19.99 (28 credits/wk); Pro monthly $7.99 / annual $79.99 (120 credits/wk). Product IDs under Coach group. Sandbox tester account provided separately.
 ```
 
 ## Demo account
