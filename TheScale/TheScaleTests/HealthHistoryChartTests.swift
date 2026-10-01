@@ -317,21 +317,79 @@ final class HealthHistoryChartTests: XCTestCase {
         XCTAssertEqual(HistoryChartTone.from(ratePerWeek: nil), .unknown)
     }
 
-    func testXAxisTickDatesAreConsistentForTwoWeeks() {
+    func testXAxisMarksWeekUsesWeekdayLabels() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.locale = Locale(identifier: "en_US_POSIX")
         let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let domain = HealthChartMath.historyXDomain(range: .lastTwoWeeks, now: now)
-        let ticks = HealthChartMath.xAxisTickDates(range: .lastTwoWeeks, domain: domain)
-        XCTAssertFalse(ticks.isEmpty)
-        XCTAssertLessThanOrEqual(ticks.count, 7)
-        for tick in ticks {
-            XCTAssertGreaterThanOrEqual(tick, domain.lowerBound.addingTimeInterval(-86_400))
-            XCTAssertLessThanOrEqual(tick, domain.upperBound.addingTimeInterval(86_400))
+        let domain = HealthChartMath.historyXDomain(range: .lastWeek, now: now, calendar: cal)
+        let marks = HealthChartMath.xAxisMarks(
+            range: .lastWeek,
+            domain: domain,
+            plotWidth: 320,
+            calendar: cal
+        )
+        XCTAssertFalse(marks.isEmpty)
+        XCTAssertLessThanOrEqual(marks.count, 7)
+        // Weekday style: short names, no digits.
+        for mark in marks {
+            XCTAssertFalse(mark.text.contains { $0.isNumber }, mark.text)
+            XCTAssertLessThanOrEqual(mark.text.count, 4)
         }
-        // Stride should be ~2 days between consecutive ticks (allowing end pin).
-        if ticks.count >= 3 {
-            let step = ticks[1].timeIntervalSince(ticks[0])
-            XCTAssertEqual(step, 2 * 86_400, accuracy: 86_400 * 0.5)
+    }
+
+    func testXAxisMarksTwoWeeksUsesMonthDayAndStaysSparse() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.locale = Locale(identifier: "en_US_POSIX")
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let domain = HealthChartMath.historyXDomain(range: .lastTwoWeeks, now: now, calendar: cal)
+        let marks = HealthChartMath.xAxisMarks(
+            range: .lastTwoWeeks,
+            domain: domain,
+            plotWidth: 300,
+            calendar: cal
+        )
+        XCTAssertGreaterThanOrEqual(marks.count, 2)
+        XCTAssertLessThanOrEqual(marks.count, 6)
+        for mark in marks {
+            XCTAssertTrue(mark.text.contains { $0.isNumber }, mark.text)
         }
+        if marks.count >= 3 {
+            let step = marks[1].date.timeIntervalSince(marks[0].date)
+            XCTAssertGreaterThanOrEqual(step, 1.5 * 86_400)
+        }
+    }
+
+    func testXAxisMarksYearUsesMonthLabelsAcrossFullDomain() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.locale = Locale(identifier: "en_US_POSIX")
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let domain = HealthChartMath.historyXDomain(range: .lastYear, now: now, calendar: cal)
+        let visible = HealthChartMath.scrollVisibleDomainLength(for: .lastYear, xDomain: domain)
+        let marks = HealthChartMath.xAxisMarks(
+            range: .lastYear,
+            domain: domain,
+            visibleLength: visible,
+            plotWidth: 320,
+            calendar: cal
+        )
+        // Must span the year — not only the first ~7 days of the domain.
+        XCTAssertGreaterThanOrEqual(marks.count, 4)
+        let covered = marks.last!.date.timeIntervalSince(marks.first!.date)
+        XCTAssertGreaterThan(covered, 180 * 86_400)
+        for mark in marks {
+            // Month ("Nov") or month+year ("Nov 22") — never day-of-month style ("Nov 14").
+            XCTAssertLessThanOrEqual(mark.text.count, 8, mark.text)
+            XCTAssertFalse(mark.text.isEmpty)
+        }
+    }
+
+    func testXAxisMarksNarrowPlotDropsDensity() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let domain = HealthChartMath.historyXDomain(range: .lastMonth, now: now)
+        let wide = HealthChartMath.xAxisMarks(range: .lastMonth, domain: domain, plotWidth: 360)
+        let narrow = HealthChartMath.xAxisMarks(range: .lastMonth, domain: domain, plotWidth: 180)
+        XCTAssertLessThanOrEqual(narrow.count, wide.count)
+        XCTAssertLessThanOrEqual(narrow.count, 4)
     }
 
     func testAnnotationOpensLeadingNearTrailingEdge() {

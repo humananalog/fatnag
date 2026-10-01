@@ -579,7 +579,12 @@ struct WeighInResultsView: View {
                 fatYFloorMode = weightYFloorMode
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
-            .historyChartAxes(range: range, xDomain: xDomain, accent: ink)
+            .historyChartAxes(
+                range: range,
+                xDomain: xDomain,
+                visibleLength: scrollLength,
+                accent: ink
+            )
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
                 scrollPosition: $chartScrollX
@@ -716,7 +721,12 @@ struct WeighInResultsView: View {
                 weightYFloorMode = fatYFloorMode
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
-            .historyChartAxes(range: range, xDomain: xDomain, accent: ink)
+            .historyChartAxes(
+                range: range,
+                xDomain: xDomain,
+                visibleLength: scrollLength,
+                accent: ink
+            )
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
                 scrollPosition: $chartScrollX
@@ -967,28 +977,43 @@ private extension View {
     func historyChartAxes(
         range: HealthHistoryRange,
         xDomain: ClosedRange<Date>,
+        visibleLength: TimeInterval?,
         accent: Color
     ) -> some View {
-        let ticks = HealthChartMath.xAxisTickDates(range: range, domain: xDomain)
+        // Approximate plot width from the phone; Charts axis layout is not GeometryReader-friendly.
+        let plotWidth = max(Double(UIScreen.main.bounds.width) - 112, 200)
+        let marks = HealthChartMath.xAxisMarks(
+            range: range,
+            domain: xDomain,
+            visibleLength: visibleLength,
+            plotWidth: plotWidth
+        )
+        let tickDates = marks.map(\.date)
         return self
             .chartPlotStyle { plotArea in
                 // Clip series only — annotations render above and must stay readable.
                 plotArea.clipped()
             }
             .chartXAxis {
-                AxisMarks(values: ticks) { value in
+                AxisMarks(values: tickDates) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                         .foregroundStyle(accent.opacity(0.12))
-                    AxisTick(stroke: StrokeStyle(lineWidth: 1.2))
-                        .foregroundStyle(accent.opacity(0.35))
+                    AxisTick(length: 5, stroke: StrokeStyle(lineWidth: 1.2))
+                        .foregroundStyle(accent.opacity(0.4))
                     // Named anchors only: custom UnitPoint crashes Charts layout noise on iOS 26+.
                     AxisValueLabel(anchor: .top) {
                         if let date = value.as(Date.self) {
-                            Text(date, format: .dateTime.month(.abbreviated).day())
+                            let text = marks.first(where: {
+                                abs($0.date.timeIntervalSince(date)) < 1
+                            })?.text
+                            Text(text ?? "")
                                 .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                .foregroundStyle(accent.opacity(0.72))
-                                .padding(.top, 4)
-                                .padding(.horizontal, 4)
+                                .foregroundStyle(accent.opacity(0.75))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                                .padding(.top, 5)
+                                .padding(.horizontal, 2)
+                                .fixedSize(horizontal: true, vertical: false)
                                 .contentShape(Rectangle())
                         }
                     }

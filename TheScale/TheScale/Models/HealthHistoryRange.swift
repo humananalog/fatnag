@@ -71,16 +71,6 @@ enum HealthHistoryRange: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Fixed X-axis label stride so 1W…1Y share one visual language (not automatic jitter).
-    var xAxisStrideComponents: DateComponents {
-        switch self {
-        case .lastWeek: return DateComponents(day: 1)
-        case .lastTwoWeeks: return DateComponents(day: 2)
-        case .lastMonth: return DateComponents(day: 7)
-        case .lastThreeMonths: return DateComponents(day: 14)
-        case .lastYear: return DateComponents(month: 1)
-        }
-    }
 }
 
 /// One Health quantity sample used by the results charts.
@@ -295,44 +285,272 @@ enum HealthChartMath {
         return start...end.addingTimeInterval(pad)
     }
 
-    /// Stable X-axis tick dates for History charts (same rhythm for weight + body fat).
+    /// One X-axis label: calendar-anchored date + period-sensitive copy.
+    struct HistoryXAxisMark: Equatable, Sendable {
+        let date: Date
+        let text: String
+    }
+
+    private enum XAxisCadence: Equatable {
+        case everyDays(Int)
+        case everyWeeks(Int)
+        case everyMonths(Int)
+    }
+
+    private enum XAxisLabelStyle: Equatable {
+        case weekday
+        case monthDay
+        case month
+        case monthYear
+    }
+
+    /// Period-sensitive, space-aware X marks for History charts.
+    ///
+    /// Density is sized for the **visible** window (scroll length on 3M/1Y), then
+    /// ticks are generated across the full domain so panning never lands on a blank axis.
+    /// Labels shorten intelligently (weekday → day → month → month+year).
+    static func xAxisMarks(
+        range: HealthHistoryRange,
+        domain: ClosedRange<Date>,
+        visibleLength: TimeInterval? = nil,
+        plotWidth: Double = 300,
+        calendar: Calendar = .current
+    ) -> [HistoryXAxisMark] {
+        let lower = domain.lowerBound
+        let upper = domain.upperBound
+        let fullSpan = upper.timeIntervalSince(lower)
+        guard fullSpan.isFinite, fullSpan > 0 else {
+            return [HistoryXAxisMark(date: lower, text: formatXAxisDate(lower, style: .monthDay, calendar: calendar))]
+        }
+
+        let visibleSpan: TimeInterval = {
+            if let visibleLength, visibleLength.isFinite, visibleLength > 0 {
+                return min(visibleLength, fullSpan)
+            }
+            return fullSpan
+        }()
+
+        let style = labelStyle(for: range, domain: domain, calendar: calendar)
+        let labelWidth = estimatedLabelWidth(style: style)
+        // Leave gutters so edge labels aren't clipped; never crowd past ~1 label / 52–64pt.
+        let usable = max(plotWidth - 24, 120)
+        let spaceBudget = max(2, min(7, Int(floor(usable / labelWidth))))
+
+        let cadence = chooseCadence(
+            range: range,
+            visibleSpan: visibleSpan,
+            targetInView: spaceBudget
+        )
+
+        var dates = generateCadenceDates(
+            cadence: cadence,
+            domain: domain,
+            calendar: calendar
+        )
+
+        // Ensure the trailing edge (today / projection end) can be labeled when space allows.
+        let endDay = calendar.startOfDay(for: upper)
+        if endDay >= lower, !dates.contains(where: { calendar.isDate($0, inSameDayAs: endDay) }) {
+            dates.append(endDay)
+            dates.sort()
+        }
+
+        // Thin to a max that fits the visible window *density*, scaled to full domain.
+        let maxAcrossDomain = max(
+            spaceBudget,
+            Int(ceil(fullSpan / max(visibleSpan, 1) * Double(spaceBudget)))
+        )
+        let safetyCap = 24
+        dates = thinDates(
+            dates,
+            domain: domain,
+            maxCount: min(maxAcrossDomain, safetyCap),
+            calendar: calendar
+        )
+
+        return dates.map { date in
+            HistoryXAxisMark(
+                date: date,
+                text: formatXAxisDate(date, style: style, calendar: calendar)
+            )
+        }
+    }
+
+    /// Back-compat helper used by older tests — dates only.
     static func xAxisTickDates(
         range: HealthHistoryRange,
         domain: ClosedRange<Date>,
         calendar: Calendar = .current,
         maxTicks: Int = 7
     ) -> [Date] {
+        // Legacy maxTicks ignored for density; space-aware path owns the budget.
+        _ = maxTicks
+        return xAxisMarks(range: range, domain: domain, calendar: calendar).map(\.date)
+    }
+
+    private static func labelStyle(
+        for range: HealthHistoryRange,
+        domain: ClosedRange<Date>,
+        calendar: Calendar
+    ) -> XAxisLabelStyle {
+        let crossesYear = calendar.component(.year, from: domain.lowerBound)
+            != calendar.component(.year, from: domain.upperBound)
+        switch range {
+        case .lastWeek:
+            return .weekday
+        case .lastTwoWeeks, .lastMonth, .lastThreeMonths:
+            return .monthDay
+        case .lastYear:
+            return crossesYear ? .monthYear : .month
+        }
+    }
+
+    private static func estimatedLabelWidth(style: XAxisLabelStyle) -> Double {
+        switch style {
+        case .weekday: return 40
+        case .monthDay: return 56
+        case .month: return 44
+        case .monthYear: return 58
+        }
+    }
+
+    private static func chooseCadence(
+        range: HealthHistoryRange,
+        visibleSpan: TimeInterval,
+        targetInView: Int
+    ) -> XAxisCadence {
+        let day: TimeInterval = 86_400
+        let ideal = visibleSpan / Double(max(targetInView - 1, 1))
+
+        switch range {
+        case .lastWeek:
+            // Prefer daily weekdays; if tight, every other day.
+            return ideal < day * 1.6 ? .everyDays(1) : .everyDays(2)
+        case .lastTwoWeeks:
+            if ideal <= day * 2.2 { return .everyDays(2) }
+            if ideal <= day * 3.5 { return .everyDays(3) }
+            return .everyDays(4)
+        case .lastMonth:
+            // Weekly anchors read cleanly on a month strip.
+            return ideal <= day * 5 ? .everyDays(5) : .everyWeeks(1)
+        case .lastThreeMonths:
+            if ideal <= day * 10 { return .everyWeeks(1) }
+            if ideal <= day * 18 { return .everyWeeks(2) }
+            return .everyMonths(1)
+        case .lastYear:
+            // Month starts in the visible ~90d window → about 3 labels on screen.
+            if ideal <= day * 40 { return .everyMonths(1) }
+            return .everyMonths(2)
+        }
+    }
+
+    private static func generateCadenceDates(
+        cadence: XAxisCadence,
+        domain: ClosedRange<Date>,
+        calendar: Calendar
+    ) -> [Date] {
         let lower = domain.lowerBound
         let upper = domain.upperBound
-        guard upper > lower, maxTicks > 0 else { return [lower] }
+        var dates: [Date] = []
 
-        var cursor = calendar.startOfDay(for: lower)
-        if cursor < lower {
-            cursor = calendar.date(byAdding: range.xAxisStrideComponents, to: cursor) ?? lower
-        }
-        var ticks: [Date] = []
-        ticks.reserveCapacity(maxTicks)
-        while cursor <= upper, ticks.count < maxTicks {
-            if cursor >= lower {
-                ticks.append(cursor)
+        switch cadence {
+        case .everyDays(let n):
+            let step = max(n, 1)
+            var cursor = calendar.startOfDay(for: lower)
+            if cursor < lower {
+                cursor = calendar.date(byAdding: .day, value: step, to: cursor) ?? lower
             }
-            guard let next = calendar.date(byAdding: range.xAxisStrideComponents, to: cursor),
-                  next > cursor
-            else { break }
-            cursor = next
-        }
-        if ticks.isEmpty {
-            return [lower, upper]
-        }
-        // Pin the visible end so the latest edge always has a finger-friendly label.
-        if let last = ticks.last, upper.timeIntervalSince(last) > 86_400 * 0.4 {
-            if ticks.count >= maxTicks {
-                ticks[ticks.count - 1] = calendar.startOfDay(for: upper)
-            } else {
-                ticks.append(calendar.startOfDay(for: upper))
+            while cursor <= upper {
+                dates.append(cursor)
+                guard let next = calendar.date(byAdding: .day, value: step, to: cursor), next > cursor else { break }
+                cursor = next
+            }
+
+        case .everyWeeks(let n):
+            let step = max(n, 1)
+            // Align to the calendar's week start inside the domain.
+            var cursor = calendar.dateInterval(of: .weekOfYear, for: lower)?.start
+                ?? calendar.startOfDay(for: lower)
+            if cursor < lower {
+                cursor = calendar.date(byAdding: .weekOfYear, value: step, to: cursor) ?? lower
+            }
+            while cursor <= upper {
+                if cursor >= lower { dates.append(cursor) }
+                guard let next = calendar.date(byAdding: .weekOfYear, value: step, to: cursor), next > cursor else { break }
+                cursor = next
+            }
+
+        case .everyMonths(let n):
+            let step = max(n, 1)
+            let comps = calendar.dateComponents([.year, .month], from: lower)
+            var cursor = calendar.date(from: comps) ?? calendar.startOfDay(for: lower)
+            if cursor < lower {
+                cursor = calendar.date(byAdding: .month, value: step, to: cursor) ?? lower
+            }
+            while cursor <= upper {
+                if cursor >= lower { dates.append(cursor) }
+                guard let next = calendar.date(byAdding: .month, value: step, to: cursor), next > cursor else { break }
+                cursor = next
             }
         }
-        return ticks
+
+        if dates.isEmpty {
+            dates = [calendar.startOfDay(for: lower), calendar.startOfDay(for: upper)]
+        }
+        return dates
+    }
+
+    /// Keep endpoints, then greedily retain marks with the largest minimum gap (space-aware).
+    private static func thinDates(
+        _ dates: [Date],
+        domain: ClosedRange<Date>,
+        maxCount: Int,
+        calendar: Calendar
+    ) -> [Date] {
+        let unique = Array(Set(dates.map { calendar.startOfDay(for: $0) })).sorted()
+        guard unique.count > maxCount, maxCount >= 2 else { return unique }
+
+        var kept: [Date] = [unique.first!, unique.last!]
+        let interior = Array(unique.dropFirst().dropLast())
+        let slots = maxCount - 2
+        guard slots > 0 else { return kept.sorted() }
+
+        // Prefer evenly spaced picks along the domain (stable, no jitter on pan).
+        for i in 1...slots {
+            let fraction = Double(i) / Double(slots + 1)
+            let target = domain.lowerBound.addingTimeInterval(
+                domain.upperBound.timeIntervalSince(domain.lowerBound) * fraction
+            )
+            if let best = interior.min(by: {
+                abs($0.timeIntervalSince(target)) < abs($1.timeIntervalSince(target))
+            }) {
+                if !kept.contains(where: { calendar.isDate($0, inSameDayAs: best) }) {
+                    kept.append(best)
+                }
+            }
+        }
+        return Array(Set(kept.map { calendar.startOfDay(for: $0) })).sorted()
+    }
+
+    private static func formatXAxisDate(
+        _ date: Date,
+        style: XAxisLabelStyle,
+        calendar: Calendar
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = .current
+        switch style {
+        case .weekday:
+            formatter.setLocalizedDateFormatFromTemplate("EEE")
+        case .monthDay:
+            formatter.setLocalizedDateFormatFromTemplate("MMM d")
+        case .month:
+            formatter.setLocalizedDateFormatFromTemplate("MMM")
+        case .monthYear:
+            formatter.setLocalizedDateFormatFromTemplate("MMM yy")
+        }
+        return formatter.string(from: date)
     }
 
     /// True when a callout near `date` should open toward the leading edge (avoid right clip).
