@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Spotify-style first-of-month story. Two viewport pages, auto-scrolled.
 /// Page 1: DOWN with the delta on its right, then a hard emoji zoom.
@@ -11,6 +12,7 @@ struct MonthlyHeroCardView: View {
     @State private var countStart = Date()
     @State private var emojiPhase = 0
     @State private var shownWords = 0
+    @State private var shareItem: MonthlyHeroShareImage?
 
     private var universe: ScalePaletteUniverse {
         ScalePaletteUniverse.resolve(sex: session.profile.sex)
@@ -53,7 +55,32 @@ struct MonthlyHeroCardView: View {
         }
         .preferredColorScheme(.dark)
         .onAppear { play() }
+        .task(id: shareFingerprint) {
+            await prepareShareImage()
+        }
         .accessibilityIdentifier("monthlyHero")
+    }
+
+    /// Insight text plus month, so Keel’s line refreshes the JPEG without rerendering every animation frame.
+    private var shareFingerprint: String {
+        guard let card = session.monthlyHero else { return "" }
+        return "\(card.monthKey)|\(displayInsight(card))|\(session.preferredUnits.rawValue)|\(universe.rawValue)"
+    }
+
+    private func prepareShareImage() async {
+        guard let card = session.monthlyHero else {
+            shareItem = nil
+            return
+        }
+        let insight = displayInsight(card)
+        let units = session.preferredUnits
+        let palette = universe
+        shareItem = MonthlyHeroShareRenderer.render(
+            facts: card.facts,
+            insight: insight,
+            universe: palette,
+            units: units
+        )
     }
 
     private var topBar: some View {
@@ -71,6 +98,8 @@ struct MonthlyHeroCardView: View {
 
             Spacer(minLength: 8)
 
+            shareButton
+
             Button {
                 play()
             } label: {
@@ -87,6 +116,39 @@ struct MonthlyHeroCardView: View {
         .padding(.horizontal, 20)
         .padding(.top, 8)
         .padding(.bottom, 6)
+    }
+
+    /// System share sheet. The item is a JPEG file so WhatsApp, Messages, and Photos receive a photo.
+    @ViewBuilder
+    private var shareButton: some View {
+        if let shareItem {
+            ShareLink(
+                item: shareItem,
+                subject: Text(shareItem.subject),
+                message: Text(shareItem.message),
+                preview: SharePreview(
+                    shareItem.subject,
+                    image: Image(uiImage: UIImage(data: shareItem.jpeg) ?? UIImage())
+                )
+            ) {
+                shareGlyph
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("monthlyHero.share")
+        } else {
+            shareGlyph
+                .opacity(0.35)
+                .accessibilityIdentifier("monthlyHero.share")
+        }
+    }
+
+    private var shareGlyph: some View {
+        Image(systemName: "square.and.arrow.up")
+            .font(.body.weight(.semibold))
+            .foregroundStyle(ink.opacity(0.92))
+            .frame(width: 40, height: 40)
+            .background(.ultraThinMaterial, in: Circle())
+            .accessibilityLabel(AppLanguageStore.text("monthly.share_a11y", default: "Share monthly card"))
     }
 
     private func firstPage(_ card: MonthlyHeroPayload, height: CGFloat) -> some View {
@@ -642,7 +704,7 @@ private struct MonthlyWordFlow: Layout {
 }
 
 /// Weight line, lower mass toward the bottom so a loss visibly drops.
-private struct MonthlySparkline: Shape {
+struct MonthlySparkline: Shape {
     var values: [Double]
 
     func path(in rect: CGRect) -> Path {

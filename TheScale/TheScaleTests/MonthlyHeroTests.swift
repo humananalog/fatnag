@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import TheScale
 
@@ -289,6 +290,74 @@ final class MonthlyHeroTests: XCTestCase {
         XCTAssertTrue(facts.ruleInsight.contains("Not a verdict"))
         XCTAssertTrue(facts.monthlyAction.contains("walk"))
         XCTAssertFalse(facts.monthlyAction.contains("clinician"))
+    }
+
+    func testShareDeltaGluesGramsAndKeepsKilogramsSpaced() {
+        let grams = MonthlyHeroEngine.compose(
+            samples: [
+                sample(80.0, 2026, 3, 2),
+                sample(79.8, 2026, 3, 12),
+                sample(79.7, 2026, 3, 20),
+                sample(79.6, 2026, 3, 28),
+            ],
+            weighInKg: 79.6,
+            idealKg: 72,
+            name: "Sam",
+            now: date(2026, 4, 1),
+            calendar: calendar
+        )
+        XCTAssertEqual(MonthlyHeroShareCopy.delta(facts: grams, units: .metric), "−400g")
+        XCTAssertEqual(MonthlyHeroShareCopy.delta(facts: grams, units: .imperial).contains(" "), true)
+
+        let kilos = MonthlyHeroEngine.compose(
+            samples: [
+                sample(92.4, 2026, 9, 2),
+                sample(91.0, 2026, 9, 12),
+                sample(89.4, 2026, 9, 20),
+                sample(88.2, 2026, 9, 28),
+            ],
+            weighInKg: 87.6,
+            idealKg: 78,
+            name: "Bob",
+            now: date(2026, 10, 1),
+            calendar: calendar
+        )
+        let metric = MonthlyHeroShareCopy.delta(facts: kilos, units: .metric)
+        XCTAssertTrue(metric.contains(" kg"), metric)
+        XCTAssertFalse(metric.hasSuffix("g") && !metric.contains(" "), metric)
+    }
+
+    func testSharePosterIsWhatsAppPortraitJPEG() async {
+        let facts = MonthlyHeroEngine.compose(
+            samples: [
+                sample(92.4, 2026, 9, 2),
+                sample(91.0, 2026, 9, 12),
+                sample(89.4, 2026, 9, 20),
+                sample(88.2, 2026, 9, 28),
+            ],
+            weighInKg: 87.6,
+            idealKg: 78,
+            name: "Bob",
+            now: date(2026, 10, 1),
+            calendar: calendar
+        )
+        let item = await MainActor.run {
+            MonthlyHeroShareRenderer.render(
+                facts: facts,
+                insight: facts.ruleInsight,
+                universe: .glacierForge,
+                units: .metric
+            )
+        }
+        let image = item.flatMap { UIImage(data: $0.jpeg) }
+        XCTAssertNotNil(image)
+        XCTAssertEqual(image?.size.width ?? 0, MonthlyHeroShareCanvas.pixelSize.width, accuracy: 1)
+        XCTAssertEqual(image?.size.height ?? 0, MonthlyHeroShareCanvas.pixelSize.height, accuracy: 1)
+        XCTAssertEqual(Double(MonthlyHeroShareCanvas.pixelSize.width / MonthlyHeroShareCanvas.pixelSize.height), 9.0 / 16.0, accuracy: 0.001)
+        XCTAssertEqual(item?.jpeg.prefix(2), Data([0xFF, 0xD8]))
+        XCTAssertGreaterThan(item?.jpeg.count ?? 0, 20_000)
+        XCTAssertEqual(item?.filename, "fatnag-2026-10.jpg")
+        XCTAssertTrue(item?.message.contains("−") == true)
     }
 
     func testFestivalTitlesAreUniqueAcrossTheYear() {
