@@ -80,9 +80,7 @@ enum DemoHealthKitSeeder {
             try await save(objects)
         }
 
-        if let workout = makeWorkout(persona: persona, now: now) {
-            try await save([workout])
-        }
+        try await seedWorkout(persona: persona, now: now)
     }
 
     // MARK: - Sample builders
@@ -409,33 +407,105 @@ enum DemoHealthKitSeeder {
         return out
     }
 
-    private static func makeWorkout(
+    private static func seedWorkout(
         persona: DemoPersonaSeeder.Persona,
         now: Date
-    ) -> HKWorkout? {
+    ) async throws {
         let cal = Calendar.current
         // Yesterday evening session so "recent workouts" looks real.
         guard let day = cal.date(byAdding: .day, value: -1, to: now),
               let start = cal.date(bySettingHour: 18, minute: 30, second: 0, of: day)
-        else { return nil }
+        else { return }
         let duration: TimeInterval = persona == .male ? 55 * 60 : 40 * 60
         let end = start.addingTimeInterval(duration)
         let kcal = persona == .male ? 420.0 : 310.0
         let activity: HKWorkoutActivityType =
             persona == .male ? .traditionalStrengthTraining : .running
 
-        // Deprecated HKWorkout convenience init is fine for DEBUG Simulator fixtures.
-        return HKWorkout(
-            activityType: activity,
-            start: start,
-            end: end,
-            duration: duration,
-            totalEnergyBurned: HKQuantity(unit: .kilocalorie(), doubleValue: kcal),
-            totalDistance: persona == .female
-                ? HKQuantity(unit: .meterUnit(with: .kilo), doubleValue: 5.2)
-                : nil,
-            metadata: meta(persona)
-        )
+        let config = HKWorkoutConfiguration()
+        config.activityType = activity
+        config.locationType = persona == .female ? .outdoor : .indoor
+
+        let builder = HKWorkoutBuilder(healthStore: store, configuration: config, device: nil)
+        let metadata = meta(persona)
+
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            builder.beginCollection(withStart: start) { success, error in
+                guard success else {
+                    continuation.resume(
+                        throwing: HealthKitWriterError.saveFailed(
+                            error?.localizedDescription ?? "Workout beginCollection failed."
+                        )
+                    )
+                    return
+                }
+
+                var samples: [HKSample] = []
+                if let energyType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) {
+                    samples.append(
+                        HKQuantitySample(
+                            type: energyType,
+                            quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal),
+                            start: start,
+                            end: end,
+                            metadata: metadata
+                        )
+                    )
+                }
+                if persona == .female,
+                   let distType = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) {
+                    samples.append(
+                        HKQuantitySample(
+                            type: distType,
+                            quantity: HKQuantity(unit: .meterUnit(with: .kilo), doubleValue: 5.2),
+                            start: start,
+                            end: end,
+                            metadata: metadata
+                        )
+                    )
+                }
+
+                let finishCollection = {
+                    builder.addMetadata(metadata) { _, _ in
+                        builder.endCollection(withEnd: end) { success, error in
+                            guard success else {
+                                continuation.resume(
+                                    throwing: HealthKitWriterError.saveFailed(
+                                        error?.localizedDescription ?? "Workout endCollection failed."
+                                    )
+                                )
+                                return
+                            }
+                            builder.finishWorkout { _, error in
+                                if let error {
+                                    continuation.resume(
+                                        throwing: HealthKitWriterError.saveFailed(error.localizedDescription)
+                                    )
+                                } else {
+                                    continuation.resume()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if samples.isEmpty {
+                    finishCollection()
+                    return
+                }
+                builder.add(samples) { success, error in
+                    guard success else {
+                        continuation.resume(
+                            throwing: HealthKitWriterError.saveFailed(
+                                error?.localizedDescription ?? "Workout add samples failed."
+                            )
+                        )
+                        return
+                    }
+                    finishCollection()
+                }
+            }
+        }
     }
 
     // MARK: - Persistence

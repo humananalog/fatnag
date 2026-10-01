@@ -52,8 +52,8 @@ final class HazeTiltMotion: ObservableObject {
         active = true
         // Defer one runloop tick so CoreMotion does not race Managed Preferences
         // reads during cold launch (harmless sandbox warning otherwise).
-        Task { @MainActor in
-            guard self.active, self.clients > 0 else { return }
+        Task { @MainActor [weak self] in
+            guard let self, self.active, self.clients > 0 else { return }
             self.manager.deviceMotionUpdateInterval = 1.0 / 10.0
             let queue = OperationQueue()
             queue.name = "com.humananalog.thescale.haze-tilt"
@@ -61,7 +61,7 @@ final class HazeTiltMotion: ObservableObject {
             self.manager.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: queue) { [weak self] data, _ in
                 guard let data else { return }
                 // Integrate on the motion queue; hop to MainActor only to publish.
-                Task { @MainActor in
+                Task { @MainActor [weak self] in
                     self?.integrate(data)
                 }
             }

@@ -980,8 +980,9 @@ private extension View {
         visibleLength: TimeInterval?,
         accent: Color
     ) -> some View {
-        // Approximate plot width from the phone; Charts axis layout is not GeometryReader-friendly.
-        let plotWidth = max(Double(UIScreen.main.bounds.width) - 112, 200)
+        // Approximate plot width from the foreground window scene (not UIScreen.main —
+        // deprecated on iOS 26). Charts axis layout is not GeometryReader-friendly.
+        let plotWidth = max(Double(Self.foregroundScreenWidth) - 112, 200)
         let marks = HealthChartMath.xAxisMarks(
             range: range,
             domain: xDomain,
@@ -1030,6 +1031,13 @@ private extension View {
                 }
             }
             .chartLegend(.hidden)
+    }
+
+    /// Active window-scene screen width (iOS 26+ prefers this over `UIScreen.main`).
+    static var foregroundScreenWidth: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
+        return scene?.screen.bounds.width ?? 390
     }
 
     /// Tap/select activates the comment point immediately (default chartXSelection waits on long press).
