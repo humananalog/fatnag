@@ -34,6 +34,9 @@ final class CoachQuotaTests: XCTestCase {
         XCTAssertEqual(ScalePlan.free.upgradeTarget, .plus)
         XCTAssertEqual(ScalePlan.plus.upgradeTarget, .pro)
         XCTAssertNil(ScalePlan.pro.upgradeTarget)
+        let plusLock = CoachWeeklyQuota.lockMessage(kind: .chat, plan: .plus, used: 28, limit: 28)
+        XCTAssertTrue(plusLock.contains("Plus"))
+        XCTAssertTrue(plusLock.contains("Pro"))
         XCTAssertEqual(ScalePlan.best(of: [.free, .plus, .pro]), .pro)
         XCTAssertEqual(ScalePlan.best(of: [.free, .plus]), .plus)
     }

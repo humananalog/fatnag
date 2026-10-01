@@ -9,6 +9,8 @@ struct ProgressSheet: View {
     @State private var coachReply: CoachReply?
     @State private var isCoaching = false
     @State private var showPrivacyGate = false
+    @State private var showUpgradePaywall = false
+    @ObservedObject private var subscription = ScaleSubscriptionStore.shared
 
     /// Bumped on every Progress access so entrance always replays.
     @State private var entranceToken = 0
@@ -200,6 +202,20 @@ struct ProgressSheet: View {
                 }
             } message: {
                 Text(AppLanguageStore.text("progress.privacy.body", default: "Only a short weight/fat trend summary goes to Keel when you tap roast. Revoke in Settings."))
+            }
+            .sheet(isPresented: $showUpgradePaywall) {
+                PaywallView(
+                    lockMessage: coachReply?.text,
+                    highlighted: subscription.plan.upgradeTarget ?? .pro
+                )
+                .environmentObject(session)
+                .presentationDragIndicator(.visible)
+            }
+            .onChange(of: subscription.plan) { _, plan in
+                guard coachReply?.isQuotaLock == true else { return }
+                if CoachWeeklyQuota.canConsume(plan: plan) {
+                    coachReply = nil
+                }
             }
         }
     }
@@ -412,6 +428,8 @@ struct ProgressSheet: View {
             ProgressView()
                 .tint(atmosphere.accent)
                 .padding(.bottom, 8)
+        } else if let coachReply, coachReply.isQuotaLock, let next = subscription.plan.upgradeTarget {
+            quotaUpgradeBlock(next: next)
         } else if let coachReply {
             Text(coachReply.text)
                 .font(.system(size: 23, weight: .semibold, design: .rounded))
@@ -421,6 +439,61 @@ struct ProgressSheet: View {
                 .padding(.bottom, 8)
                 .accessibilityIdentifier("progress.roast")
         }
+    }
+
+    private var upgradeGold: Color {
+        ScalePaletteUniverse.resolve(sex: session.profile.sex).paywallGold
+    }
+
+    private func quotaUpgradeBlock(next: ScalePlan) -> some View {
+        let planName = subscription.plan.displayName
+        return VStack(alignment: .leading, spacing: 14) {
+            Text(
+                String(
+                    format: AppLanguageStore.text(
+                        "progress.keel_limit",
+                        default: "%@ is out of Keel until Monday."
+                    ),
+                    planName
+                )
+            )
+            .font(.system(size: 20, weight: .semibold, design: .rounded))
+            .foregroundStyle(roastInk)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("progress.roast")
+
+            Button {
+                showUpgradePaywall = true
+            } label: {
+                Text(
+                    String(
+                        format: AppLanguageStore.text("progress.upgrade", default: "Upgrade to %@"),
+                        next.displayName
+                    )
+                )
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundStyle(Color(red: 0.14, green: 0.10, blue: 0.05))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [upgradeGold, upgradeGold.opacity(0.78)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.38), lineWidth: 1)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("progress.upgrade")
+        }
+        .padding(.bottom, 8)
     }
 
     private var chartsButton: some View {

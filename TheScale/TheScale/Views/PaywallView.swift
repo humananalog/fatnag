@@ -71,26 +71,37 @@ struct PaywallView: View {
             ZStack(alignment: .top) {
                 ink.ignoresSafeArea()
 
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        heroBlock(width: width, height: heroHeight)
-                            .background(
-                                GeometryReader { proxy in
-                                    Color.clear.preference(
-                                        key: PaywallScrollOffsetKey.self,
-                                        value: proxy.frame(in: .named("paywallScroll")).minY
-                                    )
-                                }
-                            )
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 0) {
+                            heroBlock(width: width, height: heroHeight)
+                                .background(
+                                    GeometryReader { proxy in
+                                        Color.clear.preference(
+                                            key: PaywallScrollOffsetKey.self,
+                                            value: proxy.frame(in: .named("paywallScroll")).minY
+                                        )
+                                    }
+                                )
 
-                        panelContent
-                            .frame(width: width)
-                            .background(ink)
+                            panelContent
+                                .frame(width: width)
+                                .background(ink)
+                        }
+                    }
+                    .coordinateSpace(name: "paywallScroll")
+                    .onPreferenceChange(PaywallScrollOffsetKey.self) { scrollY = $0 }
+                    .ignoresSafeArea(edges: .top)
+                    .onAppear {
+                        guard highlighted != store.plan else { return }
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(350))
+                            withAnimation(.easeInOut(duration: 0.45)) {
+                                proxy.scrollTo(tierAnchor(highlighted), anchor: .center)
+                            }
+                        }
                     }
                 }
-                .coordinateSpace(name: "paywallScroll")
-                .onPreferenceChange(PaywallScrollOffsetKey.self) { scrollY = $0 }
-                .ignoresSafeArea(edges: .top)
 
                 // Close overlays the hero; sits below the system gripper.
                 HStack {
@@ -374,10 +385,14 @@ struct PaywallView: View {
         }
     }
 
+    private func tierAnchor(_ plan: ScalePlan) -> String {
+        "paywall.tier.\(plan.rawValue)"
+    }
+
     private func tierRow(_ plan: ScalePlan) -> some View {
         let isCurrent = plan == store.plan
         let isPro = plan == .pro
-        let isStep = plan == highlighted && !isCurrent && !isPro
+        let isNext = !isCurrent && plan == highlighted && highlighted == store.plan.upgradeTarget
         let liveProduct = store.product(for: plan, period: billingPeriod)
         let priceText = store.priceLabel(for: plan, period: billingPeriod)
 
@@ -388,20 +403,21 @@ struct PaywallView: View {
                     .foregroundStyle(ivory)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
-                if isPro && !isCurrent {
+                if isNext {
+                    Text(AppLanguageStore.text("paywall.next", default: "Next"))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(ink)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(gold, in: Capsule())
+                        .accessibilityIdentifier("paywall.next")
+                } else if isPro && !isCurrent {
                     Text(AppLanguageStore.text("paywall.best", default: "Best"))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(gold, in: Capsule())
-                } else if isStep {
-                    Text(AppLanguageStore.text("paywall.next", default: "Next"))
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(ivory.opacity(0.9))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(ivory.opacity(0.14), in: Capsule())
                 }
                 if billingPeriod == .annual, let save = plan.annualSavingsLabel, !isCurrent, plan != .free {
                     Text(save)
@@ -414,7 +430,7 @@ struct PaywallView: View {
                 Spacer(minLength: 8)
                 Text(priceText)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(isPro ? gold : mist)
+                    .foregroundStyle((isPro || isNext) ? gold : mist)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
@@ -441,7 +457,7 @@ struct PaywallView: View {
                         if store.isPurchasing {
                             ProgressView()
                                 .controlSize(.small)
-                                .tint(isPro ? ink : ivory)
+                                .tint((isPro || isNext) ? ink : ivory)
                         }
                         Text(isPro
                               ? AppLanguageStore.text("paywall.go_pro", default: "Go Pro")
@@ -455,11 +471,11 @@ struct PaywallView: View {
                     .padding(.vertical, isPro ? 14 : 12)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(isPro ? ink : ivory)
+                .foregroundStyle((isPro || isNext) ? ink : ivory)
                 .disabled(store.isBusy || liveProduct == nil)
                 .opacity(liveProduct == nil ? 0.45 : 1)
                 .background {
-                    if isPro {
+                    if isPro || isNext {
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
                             .fill(
                                 LinearGradient(
@@ -476,20 +492,22 @@ struct PaywallView: View {
                 .accessibilityIdentifier("paywall.buy.\(plan.rawValue)")
             }
         }
-        .padding(isPro ? 18 : 15)
+        .padding((isPro || isNext) ? 18 : 15)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .id(tierAnchor(plan))
+        .accessibilityIdentifier(tierAnchor(plan))
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(isPro ? gold.opacity(0.12) : ivory.opacity(0.045))
+                .fill((isPro || isNext) ? gold.opacity(0.12) : ivory.opacity(0.045))
         }
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(
-                    isPro ? gold.opacity(0.88) : ivory.opacity(0.12),
-                    lineWidth: isPro ? 1.5 : 1
+                    (isPro || isNext) ? gold.opacity(0.88) : ivory.opacity(0.12),
+                    lineWidth: (isPro || isNext) ? 1.5 : 1
                 )
         )
-        .shadow(color: isPro ? gold.opacity(0.18) : .clear, radius: 18, y: 8)
+        .shadow(color: (isPro || isNext) ? gold.opacity(0.18) : .clear, radius: 18, y: 8)
         .animation(.easeInOut(duration: 0.2), value: billingPeriod)
     }
 
