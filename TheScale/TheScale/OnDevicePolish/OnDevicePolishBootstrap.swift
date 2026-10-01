@@ -7,6 +7,7 @@ import ScaleOnDevicePolish
 enum OnDevicePolishBootstrap {
     /// True when hardware can run Apple Intelligence (15 Pro / 16+), even if disabled.
     static var appleIntelligenceDeviceCapable: Bool {
+        guard #available(iOS 26.0, *) else { return false }
         let model = SystemLanguageModel.default
         switch model.availability {
         case .available:

@@ -4,6 +4,7 @@ import ScaleOnDevicePolish
 
 // MARK: - Structured outputs
 
+@available(iOS 26.0, *)
 @Generable(description: "Local notification glance title (Watch) and expanded body (iPhone) for fatnag")
 struct NotificationCopyDraft: Equatable, Sendable {
     @Guide(description: "Watch glance title. Max 22 characters. Verb or number first. Emoji OK (💩 on weigh drills). NO name prefix. No em dashes. No AI markers.")
@@ -13,6 +14,7 @@ struct NotificationCopyDraft: Equatable, Sendable {
     var body: String
 }
 
+@available(iOS 26.0, *)
 @Generable(description: "Whether a local notification is worth firing right now")
 struct PingJudgment: Equatable, Sendable {
     @Guide(description: "True only if the ping is necessary: bad trend, Watch not worn, or pre-sleep HR missing/elevated. False for noise.")
@@ -22,12 +24,14 @@ struct PingJudgment: Equatable, Sendable {
     var reason: String
 }
 
+@available(iOS 26.0, *)
 @Generable(description: "Compact on-device memory facts extracted from user chat")
 struct MemoryExtractionDraft: Equatable, Sendable {
     @Guide(description: "Zero to three durable facts worth remembering (diet, training, lifestyle). Empty if nothing sticky.")
     var facts: [String]
 }
 
+@available(iOS 26.0, *)
 @Generable(description: "One meal with metric ingredient portions for an on-device menu")
 struct MealPlanFMMealDraft: Equatable, Sendable {
     @Guide(description: "Meal title by slot. With IF use Lunch/Dinner or First plate/Mid plate/Last plate. Never Breakfast when fasting.")
@@ -49,12 +53,14 @@ struct MealPlanFMMealDraft: Equatable, Sendable {
     var kcal: Int
 }
 
+@available(iOS 26.0, *)
 @Generable(description: "Next meals for the day with metric portions")
 struct MealPlanFMDraft: Equatable, Sendable {
     @Guide(description: "Upcoming meals for the eating window. Match the requested plate count (often 2 for 16-8).")
     var meals: [MealPlanFMMealDraft]
 }
 
+@available(iOS 26.0, *)
 @Generable(description: "Onboarding profile fields inferred on-device from a freeform note")
 struct OnboardingProfileFMDraft: Equatable, Sendable {
     @Guide(description: "Diet preference: omnivore, pescatarian, vegetarian, vegan, other, or empty if unknown.")
@@ -108,7 +114,7 @@ enum FoundationModelCoach {
             CoachVoice.bannerRules(sex: sex, ageYears: ageYears)
                 + cultureSuffix(cultureContext)
         )
-        guard FoundationModelAvailability.isAvailable else {
+        guard #available(iOS 26.0, *), FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else {
                 return (fallbackTitle, fallbackBody, false)
             }
@@ -180,7 +186,7 @@ enum FoundationModelCoach {
             CoachVoice.bannerRules(sex: sex, ageYears: ageYears)
                 + cultureSuffix(cultureContext)
         )
-        guard FoundationModelAvailability.isAvailable else {
+        guard #available(iOS 26.0, *), FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else {
                 return (true, "Background wake; algorithmic trigger stands.", false)
             }
@@ -252,7 +258,7 @@ enum FoundationModelCoach {
             CoachVoice.bannerRules(sex: sex, ageYears: ageYears)
                 + cultureSuffix(cultureContext)
         )
-        guard FoundationModelAvailability.isAvailable else {
+        guard #available(iOS 26.0, *), FoundationModelAvailability.isAvailable else {
             guard prefersSidecarMetal else { return nil }
             return await OnDevicePolishService.shared.summarizeFitnessDigest(
                 profileName: profileName,
@@ -293,7 +299,7 @@ enum FoundationModelCoach {
         ageYears: Double = 30
     ) async -> [CoachMemoryFact] {
         let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex, ageYears: ageYears))
-        guard FoundationModelAvailability.isAvailable else {
+        guard #available(iOS 26.0, *), FoundationModelAvailability.isAvailable else {
             return await OnDevicePolishService.shared.extractMemoryFacts(
                 from: userText,
                 voiceRules: voice
@@ -357,7 +363,7 @@ enum FoundationModelCoach {
         cultureContext: String = "",
         now: Date = Date()
     ) async -> [MealPlanMeal]? {
-        guard FoundationModelAvailability.isAvailable else { return nil }
+        guard #available(iOS 26.0, *), FoundationModelAvailability.isAvailable else { return nil }
         let who = CoachVoice.who(name, sex: sex)
         let localTime = now.formatted(date: .omitted, time: .shortened)
         let fastingLine: String = {
@@ -452,7 +458,7 @@ enum FoundationModelCoach {
     ) async -> OnboardingInferenceDraft {
         let local = OnboardingLocalInference.infer(from: freeform, name: name)
         guard allowOnDeviceModel else { return local }
-        guard FoundationModelAvailability.isAvailable else {
+        guard #available(iOS 26.0, *), FoundationModelAvailability.isAvailable else {
             // Sidecar can refine vibe later when ready; keep deterministic local merge for first paint.
             return local
         }
@@ -487,6 +493,7 @@ enum FoundationModelCoach {
         }
     }
 
+    @available(iOS 26.0, *)
     static func draft(from fm: OnboardingProfileFMDraft) -> OnboardingInferenceDraft {
         let dietRaw = fm.diet.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let diet = DietPreference(rawValue: dietRaw)

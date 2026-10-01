@@ -182,6 +182,7 @@ final class OnboardingInferenceTests: XCTestCase {
         XCTAssertEqual(draft.idealWeightKg, 62)
     }
 
+    @available(iOS 26.0, *)
     func testFMDraftMapping() {
         let fm = OnboardingProfileFMDraft(
             diet: "vegan",

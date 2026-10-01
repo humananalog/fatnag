@@ -17,6 +17,9 @@ enum FoundationModelAvailability {
         if let disabled = runtimeDisabledReason {
             return .unavailable(reason: disabled)
         }
+        guard #available(iOS 26.0, *) else {
+            return .unavailable(reason: "Apple Intelligence needs iOS 26. This iPhone uses algorithmic copy and Keel.")
+        }
         #if targetEnvironment(simulator)
         // Simulator often reports `.available` then fails every request with
         // `promptTemplateNotFound` (safety / instruct templates missing). Skip FM on sim.

@@ -50,6 +50,16 @@ enum HomeGlassDestination: String, CaseIterable, Identifiable, Hashable, Sendabl
 }
 
 extension View {
+    /// iOS 26 shrinks the tab bar on scroll; iOS 18 (iPhone XR) keeps the standard bar.
+    @ViewBuilder
+    func scaleTabBarMinimizeOnScrollDown() -> some View {
+        if #available(iOS 26.0, *) {
+            self.tabBarMinimizeBehavior(.onScrollDown)
+        } else {
+            self
+        }
+    }
+
     /// Shared black-tinted liquid glass capsule for floating chrome (not the tab bar).
     @ViewBuilder
     func scaleBlackGlassCapsule() -> some View {
