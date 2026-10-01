@@ -501,7 +501,9 @@ enum DemoRealUserSnapshot {
     }
 
     static var canRestore: Bool {
-        UserDefaults.standard.object(forKey: storageKey) != nil
+        discardIfDemoTarget()
+        guard UserDefaults.standard.object(forKey: storageKey) != nil else { return false }
+        return !isDemoName(displayName)
     }
 
     static var displayName: String {
@@ -511,20 +513,49 @@ enum DemoRealUserSnapshot {
         return name
     }
 
+    /// Bob and Alice are fixtures. They must never become the profile the return button restores.
+    static func isDemoPersona(_ profile: UserBodyProfile) -> Bool {
+        let name = profile.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name == "Bob", profile.sex == .male, abs(profile.heightCm - 178) < 0.6, abs(profile.ageYears - 34) < 0.6 {
+            return true
+        }
+        if name == "Alice", profile.sex == .female, abs(profile.heightCm - 165) < 0.6, abs(profile.ageYears - 29) < 0.6 {
+            return true
+        }
+        return false
+    }
+
     static func captureIfNeeded() {
+        discardIfDemoTarget()
+        let profile = UserProfileStore.load()
+        // Already on a demo: keep the real snapshot (Alex). Do not replace it with Alice or Bob.
+        guard !isDemoPersona(profile), !isDemoName(profile.displayName) else { return }
         guard !canRestore else { return }
         var payload = captureRaw()
-        let name = UserProfileStore.load().displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-        payload["displayName"] = name
+        payload["displayName"] = profile.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         UserDefaults.standard.set(payload, forKey: storageKey)
     }
 
     @discardableResult
     static func restore() -> Bool {
+        discardIfDemoTarget()
         guard let payload = UserDefaults.standard.dictionary(forKey: storageKey) else { return false }
+        guard !isDemoName(displayName) else { return false }
         apply(payload)
-        UserDefaults.standard.removeObject(forKey: storageKey)
+        // Keep the copy so the next Bob/Alice load can return to the same person.
         return true
+    }
+
+    private static func isDemoName(_ name: String) -> Bool {
+        switch name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "alice", "bob": return true
+        default: return false
+        }
+    }
+
+    private static func discardIfDemoTarget() {
+        guard isDemoName(displayName) else { return }
+        UserDefaults.standard.removeObject(forKey: storageKey)
     }
 
     static func captureRaw() -> [String: Any] {

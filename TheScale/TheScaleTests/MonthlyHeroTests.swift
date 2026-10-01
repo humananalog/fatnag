@@ -401,7 +401,46 @@ final class DemoRealUserSnapshotTests: XCTestCase {
 
         XCTAssertTrue(DemoRealUserSnapshot.restore())
         XCTAssertEqual(UserProfileStore.load().displayName, "Real Pat")
+        XCTAssertTrue(DemoRealUserSnapshot.canRestore)
+        XCTAssertEqual(DemoRealUserSnapshot.displayName, "Real Pat")
+    }
+
+    func testAliceIsNeverTheReturnTarget() {
+        let defaults = UserDefaults.standard
+        let stash = DemoRealUserSnapshot.captureRaw()
+        let priorSnapshot = defaults.object(forKey: DemoRealUserSnapshot.storageKey)
+        defer {
+            DemoRealUserSnapshot.apply(stash)
+            if let priorSnapshot {
+                defaults.set(priorSnapshot, forKey: DemoRealUserSnapshot.storageKey)
+            } else {
+                defaults.removeObject(forKey: DemoRealUserSnapshot.storageKey)
+            }
+        }
+
+        defaults.removeObject(forKey: DemoRealUserSnapshot.storageKey)
+        var alice = UserBodyProfile.default
+        alice.displayName = "Alice"
+        alice.sex = .female
+        alice.heightCm = 165
+        alice.ageYears = 29
+        UserProfileStore.save(alice)
+
+        DemoPersonaSeeder.persist(.male)
         XCTAssertFalse(DemoRealUserSnapshot.canRestore)
+        XCTAssertNotEqual(DemoRealUserSnapshot.displayName, "Alice")
+
+        var alex = UserBodyProfile.default
+        alex.displayName = "Alex"
+        alex.sex = .male
+        alex.heightCm = 175
+        alex.ageYears = 35
+        UserProfileStore.save(alex)
+        DemoPersonaSeeder.persist(.female)
+        XCTAssertEqual(DemoRealUserSnapshot.displayName, "Alex")
+        XCTAssertEqual(UserProfileStore.load().displayName, "Alice")
+        XCTAssertTrue(DemoRealUserSnapshot.restore())
+        XCTAssertEqual(UserProfileStore.load().displayName, "Alex")
     }
 }
 #endif
