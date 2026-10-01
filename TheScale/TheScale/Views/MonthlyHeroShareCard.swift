@@ -52,6 +52,85 @@ enum MonthlyHeroShareCopy {
     static func endpoint(_ kg: Double, units: PreferredUnitSystem) -> String {
         UnitFormat.massString(kg, system: units, fractionDigits: 1)
     }
+
+    /// Uppercase month, only when the festival line does not already say it.
+    static func monthKicker(monthName: String, festivalTitle: String) -> String? {
+        let month = monthName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard month.count >= 3 else { return nil }
+        if festivalTitle.range(of: month, options: .caseInsensitive) != nil { return nil }
+        return month.uppercased()
+    }
+
+    /// Insight for the poster. The hero already showed the unit, the delta, and the month.
+    static func posterInsight(raw: String, facts: MonthlyHeroFacts, units: PreferredUnitSystem) -> String {
+        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let comma = text.firstIndex(of: ","), text.distance(from: text.startIndex, to: comma) <= 16 {
+            let head = text[..<comma]
+            if head.split(separator: " ").count == 1 {
+                text = String(text[text.index(after: comma)...])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        text = text.replacingOccurrences(of: "This month:", with: "", options: .caseInsensitive)
+        if monthKicker(monthName: facts.monthName, festivalTitle: facts.festivalTitle) == nil,
+           facts.monthName.count >= 3 {
+            text = text.replacingOccurrences(of: facts.monthName, with: "", options: .caseInsensitive)
+        }
+        if let phrase = facts.unit?.phrase, !phrase.isEmpty {
+            text = text.replacingOccurrences(of: phrase, with: "", options: .caseInsensitive)
+        }
+        if let kg = facts.deltaKg {
+            let signed = UnitFormat.massDeltaString(kg, system: units)
+            text = text.replacingOccurrences(of: signed, with: "")
+            let bare = UnitFormat.massString(abs(kg), system: units, fractionDigits: 2)
+            text = text.replacingOccurrences(of: bare, with: "")
+        }
+        text = text.replacingOccurrences(
+            of: #"[−+\-±]?\d+(?:[.,]\d+)?\s?(?:kg|lb|lbs|oz|g)\b"#,
+            with: "",
+            options: .regularExpression
+        )
+        text = text.replacingOccurrences(of: #"\s*\([^)]*(?:kg|lb|lbs|oz|g)[^)]*\)"#, with: "", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"\s*\(\s*\)"#, with: "", options: .regularExpression)
+
+        let sentences = text
+            .replacingOccurrences(of: "!", with: ".")
+            .replacingOccurrences(of: "?", with: ".")
+            .components(separatedBy: ".")
+            .map { tidyPosterSentence($0) }
+            .filter { $0.split(separator: " ").count >= 2 }
+
+        guard !sentences.isEmpty else { return "" }
+        return sentences.joined(separator: ". ") + "."
+    }
+
+    private static func tidyPosterSentence(_ raw: String) -> String {
+        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let glue = #"(?i)^(down|up|about|lighter by|since last month|since early|versus a typical|versus about a month ago)\b[, ]*"#
+        while let range = text.range(of: glue, options: .regularExpression) {
+            text.removeSubrange(range)
+            text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if text.lowercased().hasPrefix("is ") {
+            text = String(text.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        text = text.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+        text = text.trimmingCharacters(in: CharacterSet(charactersIn: " ,—-"))
+        guard let first = text.first else { return "" }
+        return first.uppercased() + text.dropFirst()
+    }
+
+    /// The action is the instruction. The poster is already the month.
+    static func posterAction(_ action: String) -> String {
+        var text = action.trimmingCharacters(in: .whitespacesAndNewlines)
+        let prefix = "this month:"
+        if text.lowercased().hasPrefix(prefix) {
+            text = String(text.dropFirst(prefix.count))
+        }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        return trimmed.prefix(1).uppercased() + trimmed.dropFirst()
+    }
 }
 
 enum MonthlyHeroShareRenderer {
@@ -81,7 +160,7 @@ enum MonthlyHeroShareRenderer {
 
         let delta = MonthlyHeroShareCopy.delta(facts: facts, units: units)
         let unitLine = facts.unit?.phrase
-        var message = "\(facts.monthName): \(facts.bigWord) \(delta)"
+        var message = "\(facts.festivalTitle) · \(facts.bigWord) \(delta)"
         if let unitLine, !unitLine.isEmpty {
             message += " · \(unitLine)"
         }
@@ -123,6 +202,7 @@ private struct MonthlyHeroSharePoster: View {
         let accent = style.accent
         let delta = MonthlyHeroShareCopy.delta(facts: facts, units: units)
         let hero = facts.unit?.emoji ?? facts.burst.first ?? facts.festivalEmoji
+        let seasonMark = facts.festivalEmoji == hero ? nil : facts.festivalEmoji
         ZStack {
             LinearGradient(
                 colors: [style.voidTop, style.voidMid, style.voidBottom],
@@ -141,104 +221,120 @@ private struct MonthlyHeroSharePoster: View {
                 .offset(x: 100, y: 180)
 
             VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("\(facts.monthName.uppercased())  \(facts.festivalEmoji)")
-                        .font(.system(size: 12, weight: .heavy, design: .rounded))
-                        .tracking(2.2)
-                        .foregroundStyle(accent)
-                    Spacer(minLength: 8)
-                    FatnagWordmark(size: 15, color: style.ink.opacity(0.9), tracking: -0.4)
-                }
+                masthead(accent: accent, seasonMark: seasonMark)
 
-                Text(facts.festivalTitle)
-                    .font(.system(size: 18, weight: .semibold, design: .serif))
-                    .foregroundStyle(style.ink.opacity(0.78))
-                    .lineLimit(1)
-                    .padding(.top, 6)
+                Spacer(minLength: 20)
 
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(facts.bigWord)
-                        .font(.system(size: 40, weight: .black, design: .rounded))
+                        .font(.system(size: 46, weight: .black, design: .rounded))
                         .foregroundStyle(style.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
                     Text(delta)
-                        .font(.system(size: 34, weight: .black, design: .rounded))
+                        .font(.system(size: 42, weight: .black, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(accent)
                         .lineLimit(1)
                         .minimumScaleFactor(0.45)
                 }
-                .padding(.top, 16)
 
-                Spacer(minLength: 8)
-
-                VStack(spacing: 6) {
-                    ZStack {
-                        Circle()
-                            .fill(accent.opacity(0.22))
-                            .frame(width: 150, height: 150)
-                            .blur(radius: 16)
-                        Text(hero)
-                            .font(.system(size: 92))
-                    }
-                    .frame(maxWidth: .infinity)
-                    if !facts.burst.isEmpty {
-                        HStack(spacing: 10) {
-                            ForEach(Array(facts.burst.prefix(4).enumerated()), id: \.offset) { _, emoji in
-                                Text(emoji)
-                                    .font(.system(size: 22))
-                            }
-                        }
-                    }
-                    if let phrase = facts.unit?.phrase {
-                        Text(phrase)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundStyle(style.ink)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                }
-
-                Spacer(minLength: 8)
-
-                if facts.sparkline.count >= 2 {
-                    shareSparkline(accent: accent)
-                        .padding(.top, 4)
-                }
-
-                Text(insight)
-                    .font(.system(size: 22, weight: .heavy, design: .serif))
-                    .foregroundStyle(style.ink)
-                    .lineLimit(4)
-                    .minimumScaleFactor(0.72)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 14)
-
-                Text(facts.monthlyAction)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(style.ink)
-                    .lineLimit(3)
-                    .minimumScaleFactor(0.8)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(accent.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .strokeBorder(accent.opacity(0.45), lineWidth: 1)
-                    )
+                Capsule()
+                    .fill(accent)
+                    .frame(width: 36, height: 3)
                     .padding(.top, 12)
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 12)
+
+                VStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(accent.opacity(0.30))
+                            .frame(width: 150, height: 150)
+                            .blur(radius: 20)
+                        Text(hero)
+                            .font(.system(size: 96))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 150)
+                    if let phrase = facts.unit?.phrase {
+                        Text(phrase)
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .foregroundStyle(style.ink)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.75)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+
+                Spacer(minLength: 18)
+
+                storyBand(accent: accent, insight: insight)
             }
-            .padding(.horizontal, 26)
-            .padding(.top, 58)
-            .padding(.bottom, 64)
+            .padding(.horizontal, 28)
+            .padding(.top, 48)
+            .padding(.bottom, 48)
         }
         .frame(width: MonthlyHeroShareCanvas.pointSize.width, height: MonthlyHeroShareCanvas.pointSize.height)
         .clipped()
         .preferredColorScheme(.dark)
+    }
+
+    private func masthead(accent: Color, seasonMark: String?) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            FatnagWordmark(size: 15, color: style.ink.opacity(0.88), tracking: -0.4)
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    if let kicker = MonthlyHeroShareCopy.monthKicker(
+                        monthName: facts.monthName,
+                        festivalTitle: facts.festivalTitle
+                    ) {
+                        Text(kicker)
+                            .font(.system(size: 11, weight: .heavy, design: .rounded))
+                            .tracking(2.4)
+                            .foregroundStyle(accent)
+                    }
+                    Text(facts.festivalTitle)
+                        .font(.system(size: 28, weight: .semibold, design: .serif))
+                        .foregroundStyle(style.ink)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                }
+                Spacer(minLength: 8)
+                if let seasonMark {
+                    Text(seasonMark)
+                        .font(.system(size: 36))
+                }
+            }
+        }
+    }
+
+    private func storyBand(accent: Color, insight: String) -> some View {
+        let line = MonthlyHeroShareCopy.posterInsight(raw: insight, facts: facts, units: units)
+        let action = MonthlyHeroShareCopy.posterAction(facts.monthlyAction)
+        return VStack(alignment: .leading, spacing: 14) {
+            if facts.sparkline.count >= 2 {
+                shareSparkline(accent: accent)
+            }
+            if !line.isEmpty {
+                Text(line)
+                    .font(.system(size: 20, weight: .semibold, design: .serif))
+                    .foregroundStyle(style.ink)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.8)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !action.isEmpty {
+                Text(action)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(accent)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func shareSparkline(accent: Color) -> some View {

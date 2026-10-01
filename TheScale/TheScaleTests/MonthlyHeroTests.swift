@@ -358,6 +358,37 @@ final class MonthlyHeroTests: XCTestCase {
         XCTAssertGreaterThan(item?.jpeg.count ?? 0, 20_000)
         XCTAssertEqual(item?.filename, "fatnag-2026-10.jpg")
         XCTAssertTrue(item?.message.contains("−") == true)
+        XCTAssertTrue(item?.message.contains("October audit") == true)
+        XCTAssertEqual(item?.message.components(separatedBy: "October").count, 2)
+    }
+
+    func testMonthNameIsSaidOnceOnThePoster() {
+        XCTAssertNil(MonthlyHeroShareCopy.monthKicker(monthName: "October", festivalTitle: "October audit"))
+        XCTAssertNil(MonthlyHeroShareCopy.monthKicker(monthName: "April", festivalTitle: "April, honestly"))
+        XCTAssertEqual(MonthlyHeroShareCopy.monthKicker(monthName: "March", festivalTitle: "The thaw"), "MARCH")
+
+        let facts = MonthlyHeroEngine.compose(
+            samples: [
+                sample(92.4, 2026, 9, 2),
+                sample(91.0, 2026, 9, 12),
+                sample(89.4, 2026, 9, 20),
+                sample(88.2, 2026, 9, 28),
+            ],
+            weighInKg: 87.6,
+            idealKg: 78,
+            name: "Bob",
+            now: date(2026, 10, 1),
+            calendar: calendar
+        )
+        let line = MonthlyHeroShareCopy.posterInsight(raw: facts.ruleInsight, facts: facts, units: .metric)
+        XCTAssertFalse(line.localizedCaseInsensitiveContains("october"), line)
+        XCTAssertFalse(line.localizedCaseInsensitiveContains("pumpkin"), line)
+        XCTAssertFalse(line.localizedCaseInsensitiveContains("kg"), line)
+        XCTAssertFalse(line.localizedCaseInsensitiveContains("this month"), line)
+        XCTAssertFalse(line.isEmpty, line)
+        let action = MonthlyHeroShareCopy.posterAction(facts.monthlyAction)
+        XCTAssertFalse(action.lowercased().hasPrefix("this month"), action)
+        XCTAssertFalse(action.localizedCaseInsensitiveContains("october"), action)
     }
 
     func testFestivalTitlesAreUniqueAcrossTheYear() {

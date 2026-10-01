@@ -154,20 +154,35 @@ struct MonthlyHeroCardView: View {
     private func firstPage(_ card: MonthlyHeroPayload, height: CGFloat) -> some View {
         let facts = card.facts
         let accent = accentColor(facts)
+        let kicker = MonthlyHeroShareCopy.monthKicker(
+            monthName: facts.monthName,
+            festivalTitle: facts.festivalTitle
+        )
+        let hero = facts.unit?.emoji ?? facts.burst.first ?? facts.festivalEmoji
+        let seasonMark = facts.festivalEmoji == hero ? nil : facts.festivalEmoji
         return VStack(alignment: .leading, spacing: 0) {
-            Text("\(facts.monthName.uppercased())  \(facts.festivalEmoji)")
-                .font(.system(size: 13, weight: .heavy, design: .rounded))
-                .tracking(2.6)
-                .foregroundStyle(accent)
-                .opacity(revealed ? 1 : 0)
-                .offset(y: revealed ? 0 : 16)
-                .accessibilityIdentifier("monthlyHero.festival")
+            if let kicker {
+                Text(seasonMark.map { "\(kicker)  \($0)" } ?? kicker)
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .tracking(2.6)
+                    .foregroundStyle(accent)
+                    .opacity(revealed ? 1 : 0)
+                    .offset(y: revealed ? 0 : 16)
+                    .accessibilityIdentifier("monthlyHero.festival")
+            }
 
-            Text(facts.festivalTitle)
-                .font(.system(size: 22, weight: .semibold, design: .serif))
-                .foregroundStyle(ink.opacity(0.78))
-                .padding(.top, 8)
-                .opacity(revealed ? 1 : 0)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(facts.festivalTitle)
+                    .font(.system(size: 22, weight: .semibold, design: .serif))
+                    .foregroundStyle(ink.opacity(0.78))
+                    .accessibilityIdentifier(kicker == nil ? "monthlyHero.festival" : "")
+                if kicker == nil, let seasonMark {
+                    Text(seasonMark)
+                        .font(.system(size: 22))
+                }
+            }
+            .padding(.top, kicker == nil ? 0 : 8)
+            .opacity(revealed ? 1 : 0)
 
             headlineRow(facts, accent: accent)
                 .padding(.top, 28)
