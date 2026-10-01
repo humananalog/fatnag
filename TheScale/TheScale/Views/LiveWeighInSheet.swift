@@ -703,11 +703,36 @@ struct LiveWeighInSheet: View {
                     .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.32))
             }
             if case .healthKitFailed(let message) = session.phase, !isCalibration {
-                Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color(red: 0.48, green: 0.12, blue: 0.12))
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(message, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color(red: 0.48, green: 0.12, blue: 0.12))
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.85)
+                    HStack(spacing: 8) {
+                        Button {
+                            Task {
+                                let allowed = await session.requestHealthAccessFromSettings()
+                                if !allowed {
+                                    session.openHealthWriteSettings()
+                                }
+                            }
+                        } label: {
+                            Text(AppLanguageStore.text("live.allow_health_write", default: "Allow Health write"))
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color(red: 0.48, green: 0.12, blue: 0.12))
+
+                        Button {
+                            session.openHealthWriteSettings()
+                        } label: {
+                            Text(AppLanguageStore.text("live.open_health", default: "Open Health"))
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
             }
         }
         .padding(.horizontal, panelInnerPad)

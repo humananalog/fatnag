@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import UIKit
 import UserNotifications
 
 /// A nearby Xiaomi scale discovered via BLE advertisements.
@@ -2171,10 +2172,29 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
 
-    /// Settings: re-prompt Health permissions, refresh digest, arm background delivery.
-    func requestHealthAccessFromSettings() async {
-        _ = await refreshFitnessDigestForCoach(reRequestAuth: true)
+    /// Settings / live sheet: re-prompt Health permissions (especially Weight *write*), refresh digest, arm background delivery.
+    /// Returns `true` when Weight write is authorized after the attempt.
+    @discardableResult
+    func requestHealthAccessFromSettings() async -> Bool {
+        do {
+            try await healthStore.reRequestAuthorization()
+        } catch {
+            ScaleDebugLog.throttled("health.reauth.fail", "Health re-auth failed: \(error.localizedDescription)")
+        }
+        _ = await refreshFitnessDigestForCoach(reRequestAuth: false)
         await armHealthKitBackgroundDelivery()
+        return healthStore.isBodyMassWriteAuthorized
+    }
+
+    /// Opens Apple Health (or app Settings) so the user can turn on Weight write for fatnag.
+    func openHealthWriteSettings() {
+        if let healthURL = URL(string: "x-apple-health://") {
+            UIApplication.shared.open(healthURL)
+            return
+        }
+        if let settings = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(settings)
+        }
     }
 
     /// Parse Coach chat for stated weight / body-fat targets, gate medically, update profile when safe.

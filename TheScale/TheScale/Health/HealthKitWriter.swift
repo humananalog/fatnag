@@ -6,6 +6,8 @@ protocol HealthWriting: AnyObject {
     var isHealthDataAvailable: Bool { get }
     /// True after the system Health permission sheet has been presented at least once.
     var authorizationWasRequested: Bool { get }
+    /// True when Apple Health allows this app to *write* body mass (read success does not imply this).
+    var isBodyMassWriteAuthorized: Bool { get }
     func requestAuthorizationIfNeeded() async throws
     /// Call again after the user taps Allow Health access in Settings (sheet may no-op if already decided).
     func reRequestAuthorization() async throws
@@ -48,7 +50,7 @@ enum HealthKitWriterError: LocalizedError {
         case .readFailed(let message):
             return message
         case .sharingDenied:
-            return "Apple Health write access is off. Open Settings → Health → Data Access → FATNAG and allow Weight."
+            return "Apple Health write access for Weight is off. Tap Allow Health write, turn on Weight (and BMI) for fatnag, then Confirm again."
         }
     }
 }
@@ -82,6 +84,11 @@ final class HealthKitWriter: HealthWriting {
 
     var authorizationWasRequested: Bool {
         didAuthorize || UserDefaults.standard.bool(forKey: Self.authorizationRequestedKey)
+    }
+
+    var isBodyMassWriteAuthorized: Bool {
+        guard let massType = HKObjectType.quantityType(forIdentifier: .bodyMass) else { return false }
+        return canShare(massType)
     }
 
     private var shareTypes: Set<HKSampleType> {
@@ -140,8 +147,9 @@ final class HealthKitWriter: HealthWriting {
             return
         }
         #endif
-        if didAuthorize, !needsReadAuthRefresh {
-            // Still ask iOS if new types appeared (no-op when already decided for those types).
+        // Read can succeed while Weight *write* is still denied/undetermined — never skip
+        // the share prompt just because a prior read auth flag is set.
+        if isBodyMassWriteAuthorized, didAuthorize, !needsReadAuthRefresh {
             let status = try await store.statusForAuthorizationRequest(toShare: shareTypes, read: readTypes)
             if status != .shouldRequest { return }
         }
@@ -845,6 +853,10 @@ final class HealthKitWriter: HealthWriting {
     func write(draft: EditableMeasurementDraft, profile: UserBodyProfile) async throws {
         guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
 
+        // Always re-check share access before Confirm — read can succeed while write is denied,
+        // and a prior "authorization requested" flag must not skip the Weight write prompt.
+        try await ensureWeightWriteAccess()
+
         // Mi Scale RTC is often wrong (factory clock / TZ). Wrong or future dates make
         // HealthKit reject the save or land the sample on another day — phone time wins
         // for BLE; manual entry keeps the user-picked stamp.
@@ -858,9 +870,14 @@ final class HealthKitWriter: HealthWriting {
         guard let massType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else {
             throw HealthKitWriterError.missingType("bodyMass")
         }
-        if store.authorizationStatus(for: massType) == .sharingDenied {
+        guard canShare(massType) else {
             throw HealthKitWriterError.sharingDenied
         }
+
+        ScaleDebugLog.throttled(
+            "health.write.auth",
+            "Health write auth mass=\(shareStatusLabel(.bodyMass)) bmi=\(shareStatusLabel(.bodyMassIndex)) fat=\(shareStatusLabel(.bodyFatPercentage)) lean=\(shareStatusLabel(.leanBodyMass))"
+        )
         samples.append(
             HKQuantitySample(
                 type: massType,
@@ -877,7 +894,11 @@ final class HealthKitWriter: HealthWriting {
                 heightCm: profile.heightCm
             )
 
-        if let bmiType = HKQuantityType.quantityType(forIdentifier: .bodyMassIndex) {
+        // Optional types: omit when write is denied. HealthKit rejects the *entire* batch
+        // if any object lacks share authorization — that looked like "not authorized"
+        // even when Weight itself was allowed.
+        if let bmiType = HKQuantityType.quantityType(forIdentifier: .bodyMassIndex),
+           canShare(bmiType) {
             samples.append(
                 HKQuantitySample(
                     type: bmiType,
@@ -890,7 +911,8 @@ final class HealthKitWriter: HealthWriting {
 
         if draft.includeCompositionInHealth {
             if let fat = draft.bodyFatPercent,
-               let fatType = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage) {
+               let fatType = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage),
+               canShare(fatType) {
                 samples.append(
                     HKQuantitySample(
                         type: fatType,
@@ -901,7 +923,8 @@ final class HealthKitWriter: HealthWriting {
                 )
             }
             if let lean = draft.leanBodyMassKg,
-               let leanType = HKQuantityType.quantityType(forIdentifier: .leanBodyMass) {
+               let leanType = HKQuantityType.quantityType(forIdentifier: .leanBodyMass),
+               canShare(leanType) {
                 samples.append(
                     HKQuantitySample(
                         type: leanType,
@@ -916,7 +939,7 @@ final class HealthKitWriter: HealthWriting {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             store.save(samples) { success, error in
                 if let error {
-                    continuation.resume(throwing: HealthKitWriterError.saveFailed(error.localizedDescription))
+                    continuation.resume(throwing: Self.mapSaveError(error))
                 } else if !success {
                     continuation.resume(throwing: HealthKitWriterError.saveFailed("HealthKit save returned false."))
                 } else {
@@ -924,6 +947,60 @@ final class HealthKitWriter: HealthWriting {
                 }
             }
         }
+    }
+
+    private func canShare(_ type: HKObjectType) -> Bool {
+        store.authorizationStatus(for: type) == .sharingAuthorized
+    }
+
+    private func shareStatusLabel(_ identifier: HKQuantityTypeIdentifier) -> String {
+        guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { return "missing" }
+        switch store.authorizationStatus(for: type) {
+        case .notDetermined: return "undetermined"
+        case .sharingDenied: return "denied"
+        case .sharingAuthorized: return "ok"
+        @unknown default: return "unknown"
+        }
+    }
+
+    /// Prompt for Weight write if needed; fail clearly when the user previously denied.
+    private func ensureWeightWriteAccess() async throws {
+        guard let massType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else {
+            throw HealthKitWriterError.missingType("bodyMass")
+        }
+        if canShare(massType) { return }
+
+        // Show the system sheet when still undecided, or re-invoke after a Settings change.
+        // If the user previously denied write, iOS will not show the sheet again — Settings/Health is required.
+        try await store.requestAuthorization(toShare: shareTypes, read: readTypes)
+        markAuthorizationRequested()
+
+        if canShare(massType) { return }
+        ScaleDebugLog.throttled(
+            "health.write.denied",
+            "Weight write still denied after auth prompt (status=\(shareStatusLabel(.bodyMass))). Open Health → Sharing → Apps → fatnag → turn on Weight."
+        )
+        throw HealthKitWriterError.sharingDenied
+    }
+
+    nonisolated private static func mapSaveError(_ error: Error) -> Error {
+        let ns = error as NSError
+        if ns.domain == HKError.errorDomain {
+            switch ns.code {
+            case HKError.errorAuthorizationDenied.rawValue,
+                 HKError.errorAuthorizationNotDetermined.rawValue:
+                return HealthKitWriterError.sharingDenied
+            default:
+                break
+            }
+        }
+        let lower = error.localizedDescription.lowercased()
+        if lower.contains("not authorized")
+            || lower.contains("authorization")
+            || lower.contains("not determined") {
+            return HealthKitWriterError.sharingDenied
+        }
+        return HealthKitWriterError.saveFailed(error.localizedDescription)
     }
 
     nonisolated private static func workoutActivityName(_ type: HKWorkoutActivityType) -> String {

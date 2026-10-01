@@ -176,6 +176,7 @@ final class ScaleSessionImpedanceTests: XCTestCase {
     private final class FakeHealth: HealthWriting {
         var isHealthDataAvailable: Bool { false }
         var authorizationWasRequested: Bool { false }
+        var isBodyMassWriteAuthorized: Bool { false }
         func requestAuthorizationIfNeeded() async throws {}
         func reRequestAuthorization() async throws {}
         func fetchRecentWeights(limit: Int) async throws -> [HealthWeightSample] { [] }
