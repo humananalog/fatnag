@@ -125,6 +125,8 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var hasCompletedOnboarding: Bool {
         didSet { OnboardingStore.hasCompleted = hasCompletedOnboarding }
     }
+    /// Settings → redo onboarding. Profile stays; the flow opens with those answers filled in.
+    @Published var isOnboardingReplay = false
     /// Soft star-rating sheet (non-invasive; only after real weigh-in success).
     @Published var isAppReviewPromptPresented = false
     /// Consumer feedback sheet (Settings entry or optional post–happy-moment soft ask).

@@ -30,6 +30,13 @@ struct OnboardingView: View {
                         FatnagWordmark(size: compact ? 28 : 32, color: ink)
                             .accessibilityIdentifier("onboarding.brand")
                         Spacer(minLength: 8)
+                        if session.isOnboardingReplay {
+                            Button(AppLanguageStore.text("onboarding.cancel", default: "Cancel")) {
+                                session.isOnboardingReplay = false
+                            }
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .accessibilityIdentifier("onboarding.cancelReplay")
+                        }
                         stepDots
                     }
 
@@ -809,6 +816,7 @@ struct OnboardingView: View {
         session.notificationPreferences = prefs
         OnboardingStore.hasCompleted = true
         session.hasCompletedOnboarding = true
+        session.isOnboardingReplay = false
         if flow.enableNotifications {
             Task {
                 _ = await TrendNotificationScheduler.requestAuthorizationIfNeeded()

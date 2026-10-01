@@ -26,6 +26,7 @@ struct SettingsView: View {
     @State private var dataRightsNote: String?
     @State private var languageValidationNote: String?
     @State private var languageRejected = false
+    @State private var settingsQuery = ""
     /// Draft age on the wheel before Confirm.
     @State private var draftAgeYears: Int = 30
     @State private var pendingHeightCm: Double?
@@ -98,43 +99,32 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                brandHeader
-
-                sectionLabel(AppLanguageStore.text("settings.section.language", default: "Language"))
-                languageCard
-
-                sectionLabel(AppLanguageStore.text("settings.section.you", default: "You"))
-                profileCard
-
-                sectionLabel(AppLanguageStore.text("settings.section.weekly_ai", default: "Weekly AI"))
-                planCard
-
-                sectionLabel(AppLanguageStore.text("settings.section.coach", default: "Coach"))
-                coachCard
-
-                sectionLabel(AppLanguageStore.text("settings.section.alerts_health", default: "Alerts & Health"))
-                notificationsCard
-                fitnessMonitorCard
-
-                sectionLabel(AppLanguageStore.text("settings.section.scale", default: "Scale"))
-                calibrationCard
-
-                sectionLabel(AppLanguageStore.text("settings.section.privacy_legal", default: "Privacy & Legal"))
-                privacyCard
-                legalCard
-
-                sectionLabel(AppLanguageStore.text("settings.section.help", default: "Help"))
-                feedbackCard
-
-                sectionLabel(AppLanguageStore.text("settings.section.app", default: "App"))
-                aboutCard
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 28) {
+                    if settingsSearchTrimmed.isEmpty {
+                        settingsBody
+                    } else {
+                        settingsSearchResults { hit in
+                            settingsQuery = ""
+                            DispatchQueue.main.async {
+                                withAnimation(.easeInOut(duration: 0.35)) {
+                                    proxy.scrollTo(hit.id, anchor: .top)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, ScaleLayout.pageInset)
+                .padding(.top, 16)
+                .padding(.bottom, ScaleLayout.tabBarClearance)
             }
-            .padding(.horizontal, ScaleLayout.pageInset)
-            .padding(.top, 16)
-            .padding(.bottom, ScaleLayout.tabBarClearance)
         }
+        .searchable(
+            text: $settingsQuery,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: AppLanguageStore.text("settings.search", default: "Search")
+        )
         .task {
             syncBodyFatTextFromProfile()
             await refreshNotificationStatus()
@@ -327,6 +317,96 @@ struct SettingsView: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var settingsSearchTrimmed: String {
+        settingsQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var settingsBody: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            brandHeader
+
+            sectionLabel(AppLanguageStore.text("settings.section.language", default: "Language"))
+            languageCard
+                .id("settings.language")
+
+            sectionLabel(AppLanguageStore.text("settings.section.you", default: "You"))
+            profileCard
+                .id("settings.profile")
+
+            sectionLabel(AppLanguageStore.text("settings.section.weekly_ai", default: "Weekly AI"))
+            planCard
+                .id("settings.plan")
+
+            sectionLabel(AppLanguageStore.text("settings.section.coach", default: "Coach"))
+            coachCard
+                .id("settings.coach")
+
+            sectionLabel(AppLanguageStore.text("settings.section.alerts_health", default: "Alerts & Health"))
+            notificationsCard
+                .id("settings.notifications")
+            fitnessMonitorCard
+                .id("settings.fitness")
+
+            sectionLabel(AppLanguageStore.text("settings.section.scale", default: "Scale"))
+            calibrationCard
+                .id("settings.scale")
+
+            sectionLabel(AppLanguageStore.text("settings.section.privacy_legal", default: "Privacy & Legal"))
+            privacyCard
+                .id("settings.privacy")
+            legalCard
+                .id("settings.legal")
+
+            sectionLabel(AppLanguageStore.text("settings.section.help", default: "Help"))
+            feedbackCard
+                .id("settings.feedback")
+
+            sectionLabel(AppLanguageStore.text("settings.section.app", default: "App"))
+            aboutCard
+                .id("settings.about")
+        }
+    }
+
+    private func settingsSearchResults(select: @escaping (SettingsSearchCatalog.Hit) -> Void) -> some View {
+        let hits = SettingsSearchCatalog.matches(settingsSearchTrimmed, in: SettingsSearchCatalog.hits)
+        return Group {
+            if hits.isEmpty {
+                Text(AppLanguageStore.text("settings.search.empty", default: "No Results"))
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(steel)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 48)
+                    .accessibilityIdentifier("settings.search.empty")
+            } else {
+                ForEach(hits) { hit in
+                    Button {
+                        select(hit)
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(hit.title)
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(ink)
+                                Text(hit.section)
+                                    .font(.caption)
+                                    .foregroundStyle(steel)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(steel)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(panelFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings.search.\(hit.id)")
+                }
+            }
+        }
+    }
+
     private func sectionLabel(_ title: String) -> some View {
         ScaleEyebrow(title: title, color: steel)
             .padding(.bottom, -12)
@@ -505,9 +585,28 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(steel)
 
+                Button {
+                    session.isOnboardingReplay = true
+                } label: {
+                    Label(
+                        AppLanguageStore.text("settings.redo_onboarding", default: "Redo onboarding"),
+                        systemImage: "arrow.counterclockwise"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("settings.redoOnboarding")
+                Text(AppLanguageStore.text(
+                    "settings.redo_onboarding.help",
+                    default: "Walk through setup again. Every saved answer is already filled in."
+                ))
+                .font(.caption2)
+                .foregroundStyle(steel)
+
                 labeledField(
                     title: "Name",
-                    help: "What Keel calls you in drills and chat."
+                    help: "What Keel calls you in drills and chat.",
+                    anchor: "settings.name"
                 ) {
                     TextField("Your first name", text: $session.profile.displayName)
                         .focused($focusedField, equals: .name)
@@ -517,6 +616,7 @@ struct SettingsView: View {
                 Text(AppLanguageStore.text("settings.units", default: "Units"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
+                    .id("settings.units")
                 Picker(AppLanguageStore.text("settings.units", default: "Units"), selection: $session.preferredUnits) {
                     ForEach(PreferredUnitSystem.allCases) { system in
                         Text(system.shortTitle).tag(system)
@@ -529,7 +629,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Height",
-                    help: "Used for BMI and body-fat math. Changing asks for confirmation. About 120-250 cm / 3'11\"-8'2\"."
+                    help: "Used for BMI and body-fat math. Changing asks for confirmation. About 120-250 cm / 3'11\"-8'2\".",
+                    anchor: "settings.height"
                 ) {
                     HStack(spacing: 6) {
                         TextField(
@@ -558,7 +659,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Age",
-                    help: "Adults only. Apple wheel selector. Changing asks for confirmation."
+                    help: "Adults only. Apple wheel selector. Changing asks for confirmation.",
+                    anchor: "settings.age"
                 ) {
                     VStack(spacing: 8) {
                         Picker("Age", selection: $draftAgeYears) {
@@ -582,6 +684,7 @@ struct SettingsView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text(AppLanguageStore.text("settings.dream_weight", default: "Dream / target weight"))
+                        .id("settings.dream")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(ink)
                     Text(
@@ -636,7 +739,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Dream body fat % (optional)",
-                    help: "Most people leave this blank. FATNAG suggests a target from sex and age. Override only within physics limits (about 3-60%)."
+                    help: "Most people leave this blank. FATNAG suggests a target from sex and age. Override only within physics limits (about 3-60%).",
+                    anchor: "settings.fat"
                 ) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(
@@ -708,6 +812,7 @@ struct SettingsView: View {
                 .font(.footnote)
 
                 Text(AppLanguageStore.text("settings.gender", default: "Gender"))
+                    .id("settings.sex")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
                 Picker(
@@ -729,6 +834,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("settings.gender")
 
                 Text(AppLanguageStore.text("settings.diet", default: "Diet"))
+                    .id("settings.diet")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
                 Text(AppLanguageStore.text("settings.diet.help", default: "How you eat most days. Drives meal-plan tone."))
@@ -862,6 +968,7 @@ struct SettingsView: View {
     private func labeledField<Content: View>(
         title: String,
         help: String,
+        anchor: String? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -877,6 +984,7 @@ struct SettingsView: View {
                 .padding(.vertical, 8)
                 .background(softPanelFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
+        .modifier(SettingsAnchor(id: anchor))
     }
 
     private func validationLine(_ text: String) -> some View {
@@ -938,7 +1046,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Location",
-                    help: "City or region (e.g. Hong Kong, Manila). Helps meal staples and nearby fitness when the toggle below is on."
+                    help: "City or region (e.g. Hong Kong, Manila). Helps meal staples and nearby fitness when the toggle below is on.",
+                    anchor: "settings.location"
                 ) {
                     TextField("City or region", text: $session.profile.location)
                         .focused($focusedField, equals: .location)
@@ -957,7 +1066,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Food avoidances / allergies",
-                    help: "Hard nos for meal plans (peanuts, shellfish, no dairy). Leave blank if none."
+                    help: "Hard nos for meal plans (peanuts, shellfish, no dairy). Leave blank if none.",
+                    anchor: "settings.avoidances"
                 ) {
                     TextField(
                         "e.g. peanuts, shellfish",
@@ -977,7 +1087,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Medical / habits (optional)",
-                    help: "Injuries, meds, alcohol, sleep quirks. On-device Coach context only; not a diagnosis."
+                    help: "Injuries, meds, alcohol, sleep quirks. On-device Coach context only; not a diagnosis.",
+                    anchor: "settings.medical"
                 ) {
                     TextField(
                         "e.g. knee tweak, weekend wine",
@@ -991,7 +1102,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Ethnicity / culture (optional)",
-                    help: "Only what you want Keel to respect in tone and food examples."
+                    help: "Only what you want Keel to respect in tone and food examples.",
+                    anchor: "settings.ethnicity"
                 ) {
                     TextField("Optional", text: $session.profile.ethnicity)
                         .focused($focusedField, equals: .ethnicity)
@@ -999,7 +1111,8 @@ struct SettingsView: View {
 
                 labeledField(
                     title: "Vibe / cultural style (optional)",
-                    help: "Short coach-facing note (e.g. direct, soft, Filipina in HK)."
+                    help: "Short coach-facing note (e.g. direct, soft, Filipina in HK).",
+                    anchor: "settings.vibe"
                 ) {
                     TextField(
                         "Short note for Keel",
@@ -1671,6 +1784,7 @@ struct SettingsView: View {
                 Text("Debug · Promo demos")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
+                    .id("settings.demo")
 
                 Text("Loads a full camera-ready persona (profile, 4 weeks of weighs, gauges, meals, Keel chat) and writes Steps / Energy / Diet / Sleep / Workouts into HealthKit. Tap Turn On All on the Health share sheet once. Your profile is kept so you can come back.")
                     .font(.caption2)
@@ -1824,6 +1938,67 @@ struct SettingsView: View {
             return "Offset: corrected = raw + (true - raw). Good for a small constant bias."
         case .factor:
             return "Factor: corrected = raw × (true / raw). Better when error grows with mass."
+        }
+    }
+}
+
+private struct SettingsAnchor: ViewModifier {
+    var id: String?
+
+    func body(content: Content) -> some View {
+        if let id {
+            content.id(id)
+        } else {
+            content
+        }
+    }
+}
+
+enum SettingsSearchCatalog {
+    struct Hit: Identifiable, Equatable {
+        var id: String
+        var title: String
+        var section: String
+        var keywords: String
+    }
+
+    static let hits: [Hit] = [
+        Hit(id: "settings.language", title: "Language", section: "Language", keywords: "language locale"),
+        Hit(id: "settings.name", title: "Name", section: "You", keywords: "name profile alex"),
+        Hit(id: "settings.units", title: "Units", section: "You", keywords: "units metric imperial kg lb"),
+        Hit(id: "settings.height", title: "Height", section: "You", keywords: "height cm inches"),
+        Hit(id: "settings.age", title: "Age", section: "You", keywords: "age years"),
+        Hit(id: "settings.sex", title: "Gender", section: "You", keywords: "sex gender male female"),
+        Hit(id: "settings.dream", title: "Dream weight", section: "You", keywords: "dream target goal weight"),
+        Hit(id: "settings.fat", title: "Body fat", section: "You", keywords: "body fat percent"),
+        Hit(id: "settings.diet", title: "Diet", section: "You", keywords: "diet omnivore vegan"),
+        Hit(id: "settings.profile", title: "Redo onboarding", section: "You", keywords: "onboarding restart setup prefilled"),
+        Hit(id: "settings.plan", title: "Weekly AI", section: "Weekly AI", keywords: "plus pro plan subscription"),
+        Hit(id: "settings.location", title: "Location", section: "Coach", keywords: "location city"),
+        Hit(id: "settings.avoidances", title: "Food avoidances", section: "Coach", keywords: "allergy peanuts shellfish"),
+        Hit(id: "settings.medical", title: "Medical and habits", section: "Coach", keywords: "medical health habits"),
+        Hit(id: "settings.ethnicity", title: "Ethnicity", section: "Coach", keywords: "ethnicity culture"),
+        Hit(id: "settings.vibe", title: "Vibe", section: "Coach", keywords: "vibe style tone"),
+        Hit(id: "settings.notifications", title: "Notifications", section: "Alerts & Health", keywords: "alerts notifications reminders"),
+        Hit(id: "settings.fitness", title: "Fitness monitor", section: "Alerts & Health", keywords: "fitness steps heart health"),
+        Hit(id: "settings.scale", title: "Weight calibration", section: "Scale", keywords: "scale calibration offset factor"),
+        Hit(id: "settings.privacy", title: "Export and erase", section: "Privacy & Legal", keywords: "export erase delete privacy data"),
+        Hit(id: "settings.legal", title: "Legal", section: "Privacy & Legal", keywords: "legal terms privacy policy"),
+        Hit(id: "settings.feedback", title: "Feedback", section: "Help", keywords: "feedback bug"),
+        Hit(id: "settings.about", title: "About", section: "App", keywords: "about version build"),
+        Hit(id: "settings.demo", title: "Demo personas", section: "Debug", keywords: "bob alice demo return profile")
+    ]
+
+    static func matches(_ query: String, in hits: [Hit]) -> [Hit] {
+        let tokens = query
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .split(separator: " ")
+            .map(String.init)
+        guard !tokens.isEmpty else { return [] }
+        return hits.filter { hit in
+            let hay = "\(hit.title) \(hit.section) \(hit.keywords)".lowercased()
+            return tokens.allSatisfy { hay.contains($0) }
         }
     }
 }

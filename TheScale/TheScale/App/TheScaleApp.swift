@@ -93,7 +93,7 @@ struct TheScaleApp: App {
                     .ignoresSafeArea()
 
                 Group {
-                    if session.hasCompletedOnboarding {
+                    if session.hasCompletedOnboarding && !session.isOnboardingReplay {
                         ContentView()
                             .environmentObject(session)
                     } else {

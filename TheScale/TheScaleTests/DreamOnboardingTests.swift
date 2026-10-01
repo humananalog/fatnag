@@ -366,4 +366,35 @@ final class DailyMetricProgressTests: XCTestCase {
         XCTAssertEqual(steps?.fraction ?? -1, 0, accuracy: 0.001)
         XCTAssertTrue(steps?.currentLine.contains("0") == true)
     }
+
+    @MainActor
+    func testReplayOnboardingKeepsSavedAnswers() {
+        let prior = OnboardingStore.hasCompleted
+        defer { OnboardingStore.hasCompleted = prior }
+        OnboardingStore.hasCompleted = true
+        var profile = UserBodyProfile.default
+        profile.displayName = "Alex"
+        profile.heightCm = 175
+        profile.ageYears = 35
+        profile.sex = .male
+        profile.idealWeightKg = 78
+        let flow = OnboardingFlowModel()
+        flow.seed(from: profile, notifications: .default, units: .metric)
+        XCTAssertEqual(flow.name, "Alex")
+        XCTAssertEqual(flow.heightCm, 175, accuracy: 0.01)
+        XCTAssertEqual(flow.ageYears, 35, accuracy: 0.01)
+        XCTAssertEqual(flow.sex, .male)
+        XCTAssertEqual(flow.idealKg, 78, accuracy: 0.01)
+        XCTAssertEqual(flow.step, .language)
+    }
+
+    func testSettingsSearchFindsHeight() {
+        let hits = SettingsSearchCatalog.matches("height", in: SettingsSearchCatalog.hits)
+        XCTAssertEqual(hits.map(\.id), ["settings.height"])
+        XCTAssertTrue(SettingsSearchCatalog.matches("zzzz", in: SettingsSearchCatalog.hits).isEmpty)
+        XCTAssertEqual(
+            SettingsSearchCatalog.matches("redo onboarding", in: SettingsSearchCatalog.hits).map(\.id),
+            ["settings.profile"]
+        )
+    }
 }
