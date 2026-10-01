@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Layout rhythm shared across Weigh / Progress / Keel / Meals / Settings / sheets.
 enum ScaleLayout {
@@ -174,13 +175,38 @@ struct ScaleBoundedProgress: View {
     }
 }
 
+/// Label color for a solid button fill. Lime, gold, and other bright fills get near-black ink.
+enum ScaleFillInk {
+    static let dark = Color(red: 0.10, green: 0.12, blue: 0.08)
+    /// sRGB relative luminance. Above this, white type disappears into the fill.
+    static let lightFillLuminance: CGFloat = 0.50
+
+    static func label(on fill: Color) -> Color {
+        isLight(fill) ? dark : .white
+    }
+
+    static func isLight(_ fill: Color) -> Bool {
+        let ui = UIColor(fill)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard ui.getRed(&r, green: &g, blue: &b, alpha: &a) else { return false }
+        return relativeLuminance(r, g, b) >= lightFillLuminance
+    }
+
+    private static func relativeLuminance(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat) -> CGFloat {
+        func linear(_ channel: CGFloat) -> CGFloat {
+            channel <= 0.04045 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
+        }
+        return (0.2126 * linear(r)) + (0.7152 * linear(g)) + (0.0722 * linear(b))
+    }
+}
+
 struct ScalePrimaryButtonStyle: ButtonStyle {
     let accent: Color
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 16, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white)
+            .foregroundStyle(ScaleFillInk.label(on: accent))
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity)
             .background(

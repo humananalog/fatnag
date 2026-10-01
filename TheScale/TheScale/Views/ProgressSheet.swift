@@ -535,7 +535,7 @@ struct ProgressSheet: View {
                       ? AppLanguageStore.text("progress.keel_roast", default: "Keel roast")
                       : AppLanguageStore.text("progress.keel_roast.offline", default: "Keel roast (offline)"))
                     .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(colorScheme == .dark ? atmosphere.ink : Color(red: 0.04, green: 0.05, blue: 0.07))
+                    .foregroundStyle(ScaleFillInk.label(on: atmosphere.accent))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 15)
                     .background(atmosphere.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))

@@ -68,6 +68,24 @@ final class ScalePaletteUniverseTests: XCTestCase {
         }
     }
 
+    func testLimeButtonLabelIsDark() {
+        let maleLime = WeeklyGoalAtmosphere.forBand(.ahead, colorScheme: .dark, sex: .male).accent
+        let femaleLime = WeeklyGoalAtmosphere.forBand(.crushed, colorScheme: .dark, sex: .female).accent
+        for fill in [maleLime, femaleLime] {
+            let ink = rgba(ScaleFillInk.label(on: fill))
+            XCTAssertLessThan(ink.r, 0.2, "Lime and pale-gold fills need dark type")
+            XCTAssertLessThan(ink.g, 0.2)
+            XCTAssertLessThan(ink.b, 0.2)
+        }
+
+        let olive = WeeklyGoalAtmosphere.forBand(.ahead, colorScheme: .light, sex: .male).accent
+        let coral = WeeklyGoalAtmosphere.forBand(.atRisk, colorScheme: .dark, sex: .male).accent
+        for fill in [olive, coral] {
+            let ink = rgba(ScaleFillInk.label(on: fill))
+            XCTAssertGreaterThan(ink.r, 0.9, "Dark fills keep white type")
+        }
+    }
+
     func testPaywallGoldDiffersByUniverse() {
         XCTAssertNotEqual(
             ScalePaletteUniverse.glacierForge.paywallGold,
