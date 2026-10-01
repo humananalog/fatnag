@@ -94,4 +94,27 @@ final class CoachQuotaTests: XCTestCase {
         XCTAssertTrue(GrokClient.liveModel.hasSuffix("non-reasoning"))
         XCTAssertFalse(GrokClient.liveModel.contains("mini"))
     }
+
+    func testLightGrokCapsRespectTiers() {
+        XCTAssertEqual(ScalePlan.free.weeklyLightGrokAssists, 1)
+        XCTAssertEqual(ScalePlan.plus.weeklyLightGrokAssists, 4)
+        XCTAssertEqual(ScalePlan.pro.weeklyLightGrokAssists, 10)
+        XCTAssertEqual(ScalePlan.free.lightAssistChatReserve, 2)
+        XCTAssertEqual(ScalePlan.plus.lightAssistChatReserve, 4)
+        XCTAssertEqual(ScalePlan.pro.lightAssistChatReserve, 8)
+    }
+
+    func testLightGrokLeavesChatCreditsOnFree() {
+        LightGrokAssist.debugReset()
+        // Used 3 of 5 → remaining 2 equals reserve → no light spend.
+        CoachWeeklyQuota.debugSetUsed(3)
+        XCTAssertFalse(LightGrokAssist.canSpend(plan: .free))
+        // Used 2 of 5 → remaining 3 > reserve 2 → soft cap still allows.
+        CoachWeeklyQuota.debugSetUsed(2)
+        // Consent / transport may still block; soft quota math alone must not exhaust Free chat.
+        let snap = CoachWeeklyQuota.snapshot(plan: .free)
+        XCTAssertEqual(snap.remaining, 3)
+        XCTAssertGreaterThan(snap.remaining, ScalePlan.free.lightAssistChatReserve)
+        LightGrokAssist.debugReset()
+    }
 }

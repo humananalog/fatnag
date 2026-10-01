@@ -115,6 +115,7 @@ enum FoundationModelCoach {
                 + cultureSuffix(cultureContext)
         )
         guard #available(iOS 26.0, *), FoundationModelAvailability.isAvailable else {
+            // Background wakes stay algorithmic / Metal-skip. Foreground: Metal then light Grok.
             guard prefersSidecarMetal else {
                 return (fallbackTitle, fallbackBody, false)
             }
@@ -126,7 +127,18 @@ enum FoundationModelCoach {
                 context: context,
                 voiceRules: voice
             )
-            return (sidecar.title, sidecar.body, sidecar.usedSidecar)
+            if sidecar.usedSidecar {
+                return (sidecar.title, sidecar.body, true)
+            }
+            let light = await LightGrokAssist.refineNotificationCopy(
+                profileName: profileName,
+                kind: kind,
+                fallbackTitle: fallbackTitle,
+                fallbackBody: fallbackBody,
+                context: context,
+                voiceRules: voice
+            )
+            return (light.title, light.body, light.usedNetwork)
         }
         let name = profileName.isEmpty ? "Hey" : profileName
         do {
@@ -168,7 +180,18 @@ enum FoundationModelCoach {
                 context: context,
                 voiceRules: voice
             )
-            return (sidecar.title, sidecar.body, sidecar.usedSidecar)
+            if sidecar.usedSidecar {
+                return (sidecar.title, sidecar.body, true)
+            }
+            let light = await LightGrokAssist.refineNotificationCopy(
+                profileName: profileName,
+                kind: kind,
+                fallbackTitle: fallbackTitle,
+                fallbackBody: fallbackBody,
+                context: context,
+                voiceRules: voice
+            )
+            return (light.title, light.body, light.usedNetwork)
         }
     }
 

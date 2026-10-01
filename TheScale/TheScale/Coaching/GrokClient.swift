@@ -1055,6 +1055,37 @@ actor GrokClient {
         }
     }
 
+    /// Compact live polish for phones without Apple Intelligence. Burns 1 Keel credit.
+    /// Caller must already gate with `LightGrokAssist.canSpend`. Returns nil on lock / offline / empty.
+    func lightPolish(
+        system: String,
+        user: String,
+        maxTokens: Int = 72
+    ) async -> String? {
+        guard GrokPrivacyConsent.isAccepted else { return nil }
+        guard GrokSharedConfig.configurationIssue == nil else { return nil }
+        guard let transport = resolveTransport() else { return nil }
+        if let _ = await consumeQuota(.lightAssist) { return nil }
+
+        let body: [String: Any] = [
+            "model": Self.liveModel,
+            "temperature": 0.45,
+            "max_tokens": max(48, min(maxTokens, 120)),
+            "stream": false,
+            "messages": [
+                ["role": "system", "content": String(system.prefix(900))],
+                ["role": "user", "content": String(user.prefix(700))]
+            ]
+        ]
+        do {
+            let data = try await postChat(body: body, transport: transport, timeout: 18)
+            let raw = Self.parseContent(from: data)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return raw.isEmpty ? nil : raw
+        } catch {
+            return nil
+        }
+    }
+
     private func fetchSpecialistNotes(
         specialty: CoachAgentRole,
         brief: CoachBrief,

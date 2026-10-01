@@ -110,6 +110,25 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// Soft cap on background light-Grok polish when Apple Intelligence is off (XR / iOS 18).
+    /// These still burn the shared weekly credit pool — keep them sparse so chat stays usable.
+    var weeklyLightGrokAssists: Int {
+        switch self {
+        case .free: return 1
+        case .plus: return 4
+        case .pro: return 10
+        }
+    }
+
+    /// Credits that light assist must leave untouched for chat / Monday card / meals.
+    var lightAssistChatReserve: Int {
+        switch self {
+        case .free: return 2
+        case .plus: return 4
+        case .pro: return 8
+        }
+    }
+
     var blurb: String {
         switch self {
         case .free:
@@ -300,6 +319,7 @@ enum CoachQuotaKind: String, Sendable {
     case monthlyCard
     case fitnessCheck
     case mealPlan
+    case lightAssist
 
     var title: String {
         switch self {
@@ -308,6 +328,7 @@ enum CoachQuotaKind: String, Sendable {
         case .monthlyCard: return "Monthly card"
         case .fitnessCheck: return "Fitness check"
         case .mealPlan: return "Meal plan"
+        case .lightAssist: return "Light Keel polish"
         }
     }
 }

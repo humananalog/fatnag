@@ -18,7 +18,7 @@ enum FoundationModelAvailability {
             return .unavailable(reason: disabled)
         }
         guard #available(iOS 26.0, *) else {
-            return .unavailable(reason: "Apple Intelligence needs iOS 26. This iPhone uses algorithmic copy and Keel.")
+            return .unavailable(reason: "Apple Intelligence needs iOS 26. Light Keel polish stays within your plan; chat still uses weekly credits.")
         }
         #if targetEnvironment(simulator)
         // Simulator often reports `.available` then fails every request with

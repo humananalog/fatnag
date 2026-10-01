@@ -10,8 +10,9 @@ Industry-standard tier names: **Free**, **Plus**, **Pro**.
 
 ## Product rules
 
-- Every tier keeps the **full app experience** (weigh-in, Health sync, charts, Monday card UI, notifications, Foundation Models polish).
-- Only **live Grok** network calls consume credits (chat turn, Monday card rewrite, fitness Grok check, meal plan). Each counts as **1** credit; specialist consults behind a chat turn do not add extra burns (`X-Scale-Credit: 0` on the Worker).
+- Every tier keeps the **full app experience** (weigh-in, Health sync, charts, Monday card UI, notifications, Foundation Models polish when eligible).
+- Phones **without** Apple Intelligence (iPhone XR / iOS 18, etc.) may use a **light Grok polish** for home advice / banner rewrite when Metal sidecar is not ready. Caps: Free **1**/week, Plus **4**, Pro **10**, and always leave chat credits reserved (Free 2 / Plus 4 / Pro 8). At most **one** light network polish per local day.
+- Only **live Grok** network calls consume credits (chat turn, Monday card rewrite, fitness Grok check, meal plan, light assist). Each counts as **1** credit; specialist consults behind a chat turn do not add extra burns (`X-Scale-Credit: 0` on the Worker).
 - Credits reset each **ISO week** (Monday). Exhausted Free → unlock Plus; exhausted Plus → unlock Pro; Pro waits for Monday.
 - Model: `grok-4.20-non-reasoning` (Human Analog console). Avoid reasoning SKUs for COGS.
 

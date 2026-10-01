@@ -49,12 +49,16 @@ Requires eligible device + Apple Intelligence enabled + model ready.
 
 | Job | FM | Grok |
 |-----|----|------|
-| Notification title/body polish | Prefer | No |
+| Notification title/body polish | Prefer | Light assist only when FM + Metal off (tier-capped) |
 | Ping noise filter (`shouldSendPing`) | Prefer (allow if FM off) | No |
 | Coach wake reminder copy | Prefer polish **after** schedule | Timing stays local notifications; polish never blocks |
-| Private fitness digest summary when Grok offline | Prefer | - |
+| Private fitness digest summary when Grok offline | Prefer | Light home-line polish when FM off (1/day max) |
 | Memory fact extraction | Optional `@Generable` pass | Heuristic + Grok context when consented |
 | Full multi-agent Coach chat | No | Prefer when consent + live config |
+
+### Light Grok on older phones (1.0.78+)
+
+iPhone XR / iOS 18 cannot run Apple Intelligence. Those devices prefer the **Metal 0.5B sidecar** when installed; otherwise a **light Grok** rewrite may run for the home today-line or one banner polish. Soft weekly caps (Free 1 / Plus 4 / Pro 10) plus a chat-credit reserve (Free 2 / Plus 4 / Pro 8) keep Free’s 5 credits usable for real Coach turns. See `LightGrokAssist`.
 
 Code: `FoundationModelAvailability`, `FoundationModelCoach` (`LanguageModelSession`). Settings status + Coach `FM ready` / `FM off` badge.
 

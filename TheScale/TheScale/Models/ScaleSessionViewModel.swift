@@ -1760,9 +1760,8 @@ final class ScaleSessionViewModel: ObservableObject {
         )
     }
 
-    /// Optional on-device FM polish for the today-ahead line (never required).
+    /// Optional polish for the today-ahead line (FM free → Metal → light Grok within tier caps).
     private func polishTomorrowAdviceIfAvailable() async {
-        guard FoundationModelAvailability.isAvailable else { return }
         let digest = lastFitnessDigest
         let block = digest?.promptBlock(
             preSleepWindowMinutes: fitnessMonitorPreferences.thresholds.preSleepHRWindowMinutes
@@ -1796,24 +1795,47 @@ final class ScaleSessionViewModel: ObservableObject {
         let digestBlock = block.isEmpty ? energyLine : (block + "\n" + energyLine)
         guard !digestBlock.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 || !fallback.isEmpty else { return }
-        if let polished = await FoundationModelCoach.summarizeFitnessDigest(
-            profileName: profile.greetingName,
-            digestBlock: prompt + "\n\n" + digestBlock,
-            sex: profile.sex,
+
+        let culture = CoachVoice.cultureInsightPayload(
             ageYears: profile.ageYears,
-            cultureContext: CoachVoice.cultureInsightPayload(
+            location: profile.location,
+            ethnicity: profile.ethnicity,
+            culturalVibe: profile.culturalVibe
+        )
+
+        if FoundationModelAvailability.isAvailable {
+            if let polished = await FoundationModelCoach.summarizeFitnessDigest(
+                profileName: profile.greetingName,
+                digestBlock: prompt + "\n\n" + digestBlock,
+                sex: profile.sex,
                 ageYears: profile.ageYears,
-                location: profile.location,
-                ethnicity: profile.ethnicity,
-                culturalVibe: profile.culturalVibe
-            )
-        ) {
-            let cleaned = CoachCopySanitize.clean(polished)
-            guard !cleaned.isEmpty, cleaned.count < 280 else { return }
-            var next = weeklyGoalSurface
-            next.todayAdvice = cleaned
-            weeklyGoalSurface = next
+                cultureContext: culture
+            ) {
+                applyPolishedTodayAdvice(polished)
+            }
+            return
         }
+
+        // Older phones (XR / no Apple Intelligence): one light Keel rewrite when budget allows.
+        let voice = AppLanguageStore.locked(
+            CoachVoice.bannerRules(sex: profile.sex, ageYears: profile.ageYears)
+                + (culture.isEmpty ? "" : "\n\(culture)")
+        )
+        if let polished = await LightGrokAssist.polishOneLiner(
+            system: voice + "\nReply with one line only. No title prefix.",
+            user: prompt + "\n\n" + String(digestBlock.prefix(500)),
+            maxTokens: 72
+        ) {
+            applyPolishedTodayAdvice(polished)
+        }
+    }
+
+    private func applyPolishedTodayAdvice(_ polished: String) {
+        let cleaned = CoachCopySanitize.clean(polished)
+        guard !cleaned.isEmpty, cleaned.count < 280 else { return }
+        var next = weeklyGoalSurface
+        next.todayAdvice = cleaned
+        weeklyGoalSurface = next
     }
 
     func makeCoachBrief(digest: FitnessDigest? = nil) -> CoachBrief {

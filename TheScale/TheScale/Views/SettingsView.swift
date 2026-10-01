@@ -1151,7 +1151,7 @@ struct SettingsView: View {
                 Text(OnDevicePolishBootstrap.combinedStatusSummary)
                     .font(.caption)
                     .foregroundStyle(steel)
-                Text("Apple Intelligence phones use the system model. Other compatible iPhones auto-install a private 0.5B Metal polish pack (~470 MB, Wi-Fi). Keel handles live Coach when consented.")
+                Text("Apple Intelligence phones use the system model. Older phones (XR / no AI) use a private 0.5B Metal pack when downloaded, or a light Keel polish within your weekly Free/Plus/Pro limit. Full Coach chat still burns the shared Keel credits.")
                     .font(.caption2)
                     .foregroundStyle(steel)
                 if case .ready = onDevicePolish.snapshot.phase {
