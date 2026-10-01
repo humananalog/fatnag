@@ -38,6 +38,7 @@ enum ScaleFeedbackSource: String, Sendable {
     case softAsk = "soft_ask"
     case debug
     case coachReply = "coach_reply"
+    case subscription
 }
 
 enum ScaleFeedbackRating: String, Sendable {

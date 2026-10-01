@@ -15,6 +15,8 @@ final class ScaleSubscriptionStore: ObservableObject {
     @Published private(set) var isRestoring = false
     /// Bumps when weekly Grok credits change so Settings / Coach refresh status lines.
     @Published private(set) var quotaEpoch: Int = 0
+    /// Thank-you or goodbye after a real plan change. Nil until one is earned.
+    @Published var moment: SubscriptionMoment?
     /// Last product-load note for Settings / paywall diagnostics.
     @Published private(set) var productsStatusLine: String = "Products not loaded yet."
 
@@ -51,12 +53,17 @@ final class ScaleSubscriptionStore: ObservableObject {
     }
 
     /// Instant Free / Plus / Pro for DEBUG paywall and Settings. No StoreKit sheet.
+    /// `announce` is for a real purchase tap. Demo seeding leaves it false.
     @discardableResult
-    func applyDevPlan(_ plan: ScalePlan) -> Bool {
+    func applyDevPlan(_ plan: ScalePlan, announce: Bool = false) -> Bool {
+        let previous = self.plan
         purchaseError = nil
         debugOverride = plan
         self.plan = plan
         noteQuotaChange()
+        if announce {
+            publishMoment(from: previous, to: plan, force: true)
+        }
         return true
     }
 
@@ -142,7 +149,7 @@ final class ScaleSubscriptionStore: ObservableObject {
     func purchase(_ plan: ScalePlan, period: ScaleBillingPeriod = .monthly) async -> Bool {
         #if DEBUG
         // Dev: paywall tier taps apply instantly (no StoreKit sheet).
-        return applyDevPlan(plan)
+        return applyDevPlan(plan, announce: true)
         #else
         guard let product = product(for: plan, period: period) else {
             purchaseError = """
@@ -164,7 +171,7 @@ final class ScaleSubscriptionStore: ObservableObject {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
-                await refreshPlanFromEntitlements()
+                await refreshPlanFromEntitlements(announceEvenIfInitial: true)
                 return true
             case .userCancelled:
                 return false
@@ -199,11 +206,13 @@ final class ScaleSubscriptionStore: ObservableObject {
         }
     }
 
-    func refreshPlanFromEntitlements() async {
+    func refreshPlanFromEntitlements(announceEvenIfInitial: Bool = false) async {
+        let previous = plan
         #if DEBUG
         if let override = debugOverride {
             plan = override
             noteQuotaChange()
+            finishPlanResolution(from: previous, to: plan, announceEvenIfInitial: announceEvenIfInitial)
             return
         }
         #endif
@@ -216,6 +225,42 @@ final class ScaleSubscriptionStore: ObservableObject {
         }
         plan = ScalePlan.best(of: owned)
         noteQuotaChange()
+        finishPlanResolution(from: previous, to: plan, announceEvenIfInitial: announceEvenIfInitial)
+    }
+
+    func clearMoment() {
+        moment = nil
+    }
+
+    /// First entitlement read is silent. Later rises and drops get a card.
+    private var hasResolvedInitialPlan = false
+    private var momentTicket = 0
+
+    private func finishPlanResolution(
+        from previous: ScalePlan,
+        to next: ScalePlan,
+        announceEvenIfInitial: Bool
+    ) {
+        let initial = !hasResolvedInitialPlan
+        hasResolvedInitialPlan = true
+        guard !initial || announceEvenIfInitial else { return }
+        publishMoment(from: previous, to: next, force: true)
+    }
+
+    private func publishMoment(from previous: ScalePlan, to next: ScalePlan, force: Bool) {
+        if !hasResolvedInitialPlan && !force { return }
+        hasResolvedInitialPlan = true
+        guard let nextMoment = SubscriptionMoment.resolve(from: previous, to: next) else { return }
+        #if DEBUG
+        if PromoCaptureMode.isActive { return }
+        #endif
+        momentTicket += 1
+        let ticket = momentTicket
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(480))
+            guard ticket == self.momentTicket else { return }
+            self.moment = nextMoment
+        }
     }
 
     private func listenForTransactions() async {

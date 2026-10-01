@@ -31,6 +31,15 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    /// Free < Plus < Pro. Used to tell a new subscription from a step up or a goodbye.
+    var rank: Int {
+        switch self {
+        case .free: return 0
+        case .plus: return 1
+        case .pro: return 2
+        }
+    }
+
     var displayName: String {
         switch self {
         case .free: return AppLanguageStore.text("plan.free", default: "Free")
@@ -173,6 +182,115 @@ enum ScalePlan: String, Codable, CaseIterable, Identifiable, Sendable {
         if plans.contains(.pro) { return .pro }
         if plans.contains(.plus) { return .plus }
         return .free
+    }
+}
+
+/// A plan change worth a card. Higher rank is a welcome. Lower rank is a goodbye.
+enum SubscriptionMoment: Equatable, Identifiable, Sendable {
+    case thanks(from: ScalePlan, to: ScalePlan)
+    case farewell(from: ScalePlan, to: ScalePlan)
+
+    var id: String {
+        switch self {
+        case .thanks(let from, let to): return "thanks-\(from.rawValue)-\(to.rawValue)"
+        case .farewell(let from, let to): return "farewell-\(from.rawValue)-\(to.rawValue)"
+        }
+    }
+
+    var isThanks: Bool {
+        if case .thanks = self { return true }
+        return false
+    }
+
+    var arrived: ScalePlan {
+        switch self {
+        case .thanks(_, let to), .farewell(_, let to): return to
+        }
+    }
+
+    var departed: ScalePlan {
+        switch self {
+        case .thanks(let from, _), .farewell(let from, _): return from
+        }
+    }
+
+    static func resolve(from previous: ScalePlan, to next: ScalePlan) -> SubscriptionMoment? {
+        if next.rank > previous.rank { return .thanks(from: previous, to: next) }
+        if next.rank < previous.rank { return .farewell(from: previous, to: next) }
+        return nil
+    }
+
+    var eyebrow: String {
+        switch self {
+        case .thanks:
+            return AppLanguageStore.text("subscription.thanks.eyebrow", default: "You're in")
+        case .farewell:
+            return AppLanguageStore.text("subscription.farewell.eyebrow", default: "A quiet close")
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .thanks:
+            return AppLanguageStore.text("subscription.thanks.title", default: "Thank you.")
+        case .farewell:
+            return AppLanguageStore.text("subscription.farewell.title", default: "Sorry to see you go.")
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .thanks(let from, let to) where from == .free:
+            return String(
+                format: AppLanguageStore.text(
+                    "subscription.thanks.welcome",
+                    default: "Welcome to %@. Keel has more room for you this week — %d credits. We're glad you're here."
+                ),
+                to.displayName,
+                to.weeklyGrokCredits
+            )
+        case .thanks(_, let to):
+            return String(
+                format: AppLanguageStore.text(
+                    "subscription.thanks.upgrade",
+                    default: "%@ is yours now. More Keel this week (%d), same coach."
+                ),
+                to.displayName,
+                to.weeklyGrokCredits
+            )
+        case .farewell(let from, let to) where to == .free:
+            return String(
+                format: AppLanguageStore.text(
+                    "subscription.farewell.free",
+                    default: "%@ has ended. You're on Free, and your weigh-ins stay on this iPhone."
+                ),
+                from.displayName
+            )
+        case .farewell(let from, let to):
+            return String(
+                format: AppLanguageStore.text(
+                    "subscription.farewell.step",
+                    default: "%@ has ended. You're on %@. Everything you logged stays here."
+                ),
+                from.displayName,
+                to.displayName
+            )
+        }
+    }
+
+    var feedbackLine: String {
+        switch self {
+        case .thanks:
+            return AppLanguageStore.text(
+                "subscription.thanks.feedback",
+                default: "The feedback form is in Settings. A bug, an idea, or a note about what you love — we read it."
+            )
+        case .farewell:
+            return AppLanguageStore.text(
+                "subscription.farewell.feedback",
+                default: "If you want to tell us why, the feedback form is in Settings. No pressure."
+            )
+        }
     }
 }
 

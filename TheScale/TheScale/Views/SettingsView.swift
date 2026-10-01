@@ -119,6 +119,10 @@ struct SettingsView: View {
                 .padding(.top, 16)
                 .padding(.bottom, ScaleLayout.tabBarClearance)
             }
+            .onAppear { scrollToPendingSettingsAnchor(proxy) }
+            .onChange(of: session.settingsScrollAnchor) { _, _ in
+                scrollToPendingSettingsAnchor(proxy)
+            }
         }
         .searchable(
             text: $settingsQuery,
@@ -1659,6 +1663,17 @@ struct SettingsView: View {
     }
 
     // MARK: - Privacy & Legal
+
+    private func scrollToPendingSettingsAnchor(_ proxy: ScrollViewProxy) {
+        guard session.settingsScrollAnchor != nil else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            guard let anchor = session.settingsScrollAnchor else { return }
+            withAnimation(.easeInOut(duration: 0.35)) {
+                proxy.scrollTo(anchor, anchor: .center)
+            }
+            session.settingsScrollAnchor = nil
+        }
+    }
 
     private var feedbackCard: some View {
         settingsPanel {

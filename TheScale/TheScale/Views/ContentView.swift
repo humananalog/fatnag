@@ -86,6 +86,7 @@ struct WeeklyGoalHazeBackground: View {
 /// Home: one weekly-goal composition. No card chrome. Haze atmosphere only.
 struct ContentView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
+    @ObservedObject private var subscription = ScaleSubscriptionStore.shared
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @State private var showNotificationCenter = false
@@ -262,6 +263,15 @@ struct ContentView: View {
             )
             .environmentObject(session)
             .presentationDetents([.large])
+        }
+        .fullScreenCover(item: $subscription.moment) { moment in
+            SubscriptionMomentCard(
+                moment: moment,
+                onFeedback: { session.presentFeedbackAfterSubscriptionCard() },
+                onSettings: { session.presentSettingsFeedbackAfterSubscriptionCard() },
+                onClose: { subscription.clearMoment() }
+            )
+            .environmentObject(session)
         }
         .task {
             await bootstrapHome()

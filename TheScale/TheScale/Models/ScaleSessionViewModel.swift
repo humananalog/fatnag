@@ -133,6 +133,8 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published var isFeedbackPresented = false
     /// How the feedback sheet was opened (affects `source` field persisted to Supabase).
     @Published var feedbackPresentationSource: ScaleFeedbackSource = .settings
+    /// Settings scrolls here once, then clears. Used by the subscription cards.
+    @Published var settingsScrollAnchor: String?
     /// Selected system TabView destination (native Liquid Glass tab bar).
     @Published var homeTab: HomeGlassDestination = .weigh
     @Published var isProgressPresented = false
@@ -1019,6 +1021,22 @@ final class ScaleSessionViewModel: ObservableObject {
     func presentFeedback(source: ScaleFeedbackSource) {
         feedbackPresentationSource = source
         isFeedbackPresented = true
+    }
+
+    /// Close the subscription card, then open the feedback form.
+    func presentFeedbackAfterSubscriptionCard() {
+        ScaleSubscriptionStore.shared.clearMoment()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(360))
+            presentFeedback(source: .subscription)
+        }
+    }
+
+    /// Close the subscription card and land on Settings → Feedback.
+    func presentSettingsFeedbackAfterSubscriptionCard() {
+        ScaleSubscriptionStore.shared.clearMoment()
+        settingsScrollAnchor = "settings.feedback"
+        presentSettings()
     }
 
     func dismissFeedback() {
