@@ -308,5 +308,70 @@ final class ScaleSessionImpedanceTests: XCTestCase {
         await waitUntil { session.liveHint == "Waiting for impedance sweep…" }
         XCTAssertEqual(session.liveHint, "Waiting for impedance sweep…")
     }
+
+    func testFinalizeWeightOnlyForSaveLeavesReadyDraft() async {
+        let scanner = FakeScanner()
+        let session = ScaleSessionViewModel(
+            scanner: scanner,
+            healthStore: FakeHealth(),
+            profile: .default
+        )
+        session.selectScale(
+            DiscoveredScale(id: UUID(), name: "MIBFS", rssi: -40, lastSeen: Date())
+        )
+        scanner.emit(
+            ScaleMeasurement(
+                weightKg: 71.2,
+                impedanceOhms: nil,
+                scaleDate: nil,
+                hasImpedance: false,
+                displayUnit: .kilogram
+            )
+        )
+        await waitUntil { session.phase == .awaitingImpedance }
+        session.finalizeWeightOnlyForSave()
+        XCTAssertEqual(session.phase, .ready)
+        XCTAssertEqual(session.draft?.weightKg ?? 0, 71.2, accuracy: 0.01)
+        XCTAssertEqual(session.draft?.includeCompositionInHealth, false)
+    }
+
+    func testResolvedSampleDateIgnoresBadBleScaleClock() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let received = now
+        let wrongYear = now.addingTimeInterval(-400 * 24 * 3600)
+        let future = now.addingTimeInterval(2 * 24 * 3600)
+
+        let bleFromWrong = HealthKitWriter.resolvedSampleDate(
+            scaleDate: wrongYear,
+            receivedAt: received,
+            isManualEntry: false,
+            now: now
+        )
+        XCTAssertEqual(bleFromWrong.timeIntervalSince1970, received.timeIntervalSince1970, accuracy: 1)
+
+        let bleFromFuture = HealthKitWriter.resolvedSampleDate(
+            scaleDate: future,
+            receivedAt: received,
+            isManualEntry: false,
+            now: now
+        )
+        XCTAssertEqual(bleFromFuture.timeIntervalSince1970, received.timeIntervalSince1970, accuracy: 1)
+
+        let manualKept = HealthKitWriter.resolvedSampleDate(
+            scaleDate: now.addingTimeInterval(-2 * 24 * 3600),
+            receivedAt: received,
+            isManualEntry: true,
+            now: now
+        )
+        XCTAssertEqual(manualKept.timeIntervalSince1970, now.addingTimeInterval(-2 * 24 * 3600).timeIntervalSince1970, accuracy: 1)
+
+        let manualFutureFallsBack = HealthKitWriter.resolvedSampleDate(
+            scaleDate: future,
+            receivedAt: received,
+            isManualEntry: true,
+            now: now
+        )
+        XCTAssertEqual(manualFutureFallsBack.timeIntervalSince1970, received.timeIntervalSince1970, accuracy: 1)
+    }
 }
 

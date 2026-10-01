@@ -144,6 +144,10 @@ struct LiveWeighInSheet: View {
 
     /// Physics gate before Health write. Impossible/notable swings need explicit confirm.
     private func beginConfirmSave() async {
+        // Early confirm while BIA is still scanning → save weight now (composition optional later).
+        if case .awaitingImpedance = session.phase {
+            session.finalizeWeightOnlyForSave()
+        }
         guard let kg = session.displayWeightKg ?? session.draft?.weightKg else { return }
         if let spike = session.evaluateSpikeBeforeSave(weighedKg: kg) {
             session.pendingSpikeVerdict = spike
@@ -186,6 +190,9 @@ struct LiveWeighInSheet: View {
     private var showsConfirmChrome: Bool {
         session.phase == .ready
             || session.phase == .reviewing
+            // Weight is already locked while BIA finishes — allow Confirm (weight-only)
+            // instead of trapping the user for the full impedance wait.
+            || session.phase == .awaitingImpedance
             || session.isEditingDraft
             || session.phase == .healthKitWriting
             || session.phase == .healthKitSuccess

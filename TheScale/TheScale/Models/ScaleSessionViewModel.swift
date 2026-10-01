@@ -2758,7 +2758,15 @@ final class ScaleSessionViewModel: ObservableObject {
                 profile: profile
             )
         }
-        guard let draft else { return }
+        guard let draft else {
+            let message = AppLanguageStore.text(
+                "live.save.no_measurement",
+                default: "No measurement to save. Step on the scale again, wait for the weight to lock, then Confirm."
+            )
+            phase = .healthKitFailed(message)
+            liveHint = message
+            return
+        }
         if weighInPurpose == .normal,
            let message = ProfileNumericBounds.rejectWeighKgMessage(draft.weightKg) {
             weighRejectionMessage = message
@@ -2841,7 +2849,30 @@ final class ScaleSessionViewModel: ObservableObject {
             isWeighInHeroPresented = true
         } catch {
             phase = .healthKitFailed(error.localizedDescription)
+            liveHint = error.localizedDescription
         }
+    }
+
+    /// Stop waiting on BIA and lock a weight-only draft so Confirm can write Health now.
+    func finalizeWeightOnlyForSave() {
+        cancelImpedanceWait()
+        guard let measurement = latestMeasurement else { return }
+        let calibrated = calibratedMeasurement(from: measurement)
+        composition = nil
+        draft = EditableMeasurementDraft.from(
+            measurement: calibrated,
+            composition: nil,
+            profile: profile
+        )
+        // Force weight-only Health write even if an earlier composition existed.
+        if var locked = draft {
+            locked.includeCompositionInHealth = false
+            draft = locked
+        }
+        phase = .ready
+        impedanceMissingReason =
+            "Saving weight now. Body fat was still scanning — stand barefoot longer next time for composition."
+        liveHint = impedanceMissingReason ?? liveHint
     }
 
     /// Legacy entry used by older UI paths; routes through draft confirm.

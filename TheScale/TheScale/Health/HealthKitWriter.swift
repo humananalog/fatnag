@@ -35,6 +35,7 @@ enum HealthKitWriterError: LocalizedError {
     case missingType(String)
     case saveFailed(String)
     case readFailed(String)
+    case sharingDenied
 
     var errorDescription: String? {
         switch self {
@@ -46,6 +47,8 @@ enum HealthKitWriterError: LocalizedError {
             return message
         case .readFailed(let message):
             return message
+        case .sharingDenied:
+            return "Apple Health write access is off. Open Settings → Health → Data Access → FATNAG and allow Weight."
         }
     }
 }
@@ -842,11 +845,21 @@ final class HealthKitWriter: HealthWriting {
     func write(draft: EditableMeasurementDraft, profile: UserBodyProfile) async throws {
         guard isHealthDataAvailable else { throw HealthKitWriterError.unavailable }
 
-        let date = draft.scaleDate ?? draft.receivedAt
+        // Mi Scale RTC is often wrong (factory clock / TZ). Wrong or future dates make
+        // HealthKit reject the save or land the sample on another day — phone time wins
+        // for BLE; manual entry keeps the user-picked stamp.
+        let date = Self.resolvedSampleDate(
+            scaleDate: draft.scaleDate,
+            receivedAt: draft.receivedAt,
+            isManualEntry: draft.isManualEntry
+        )
         var samples: [HKQuantitySample] = []
 
         guard let massType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else {
             throw HealthKitWriterError.missingType("bodyMass")
+        }
+        if store.authorizationStatus(for: massType) == .sharingDenied {
+            throw HealthKitWriterError.sharingDenied
         }
         samples.append(
             HKQuantitySample(
@@ -955,6 +968,31 @@ final class HealthKitWriter: HealthWriting {
         if let ohms = draft.impedanceOhms {
             meta["ImpedanceOhms"] = ohms
         }
+        if let scaleDate = draft.scaleDate {
+            meta["ScaleClockDate"] = ISO8601DateFormatter().string(from: scaleDate)
+        }
         return meta
+    }
+
+    /// Health sample timestamp for a weigh-in.
+    ///
+    /// BLE Mi Scale clocks drift / ship unset — using them directly causes HealthKit
+    /// save failures (future dates) or "not recorded today" confusion (wrong day).
+    /// Manual entries keep the user-chosen date when it is sane.
+    nonisolated static func resolvedSampleDate(
+        scaleDate: Date?,
+        receivedAt: Date,
+        isManualEntry: Bool,
+        now: Date = Date()
+    ) -> Date {
+        let phone = min(receivedAt, now.addingTimeInterval(60))
+        if !isManualEntry {
+            return phone
+        }
+        guard let scaleDate else { return phone }
+        // Manual pick: allow same-day / recent history, reject future or ancient clocks.
+        if scaleDate.timeIntervalSince(now) > 5 * 60 { return phone }
+        if now.timeIntervalSince(scaleDate) > 400 * 24 * 3600 { return phone }
+        return scaleDate
     }
 }
