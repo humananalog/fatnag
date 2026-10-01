@@ -26,6 +26,8 @@ struct SettingsView: View {
     @State private var dataRightsNote: String?
     @State private var languageValidationNote: String?
     @State private var languageRejected = false
+    /// Bumps when the language picker applies so the brand “fat” stem pulses once.
+    @State private var brandFatPulseTick = 0
     @State private var settingsQuery = ""
     /// Draft age on the wheel before Confirm.
     @State private var draftAgeYears: Int = 30
@@ -270,6 +272,7 @@ struct SettingsView: View {
                                 return
                             }
                             languageRejected = false
+                            brandFatPulseTick += 1
                             session.profile.preferredLanguage = applied.resolved.profileLanguageName
                             languageValidationNote = String(
                                 format: AppLanguageStore.text(
@@ -306,8 +309,13 @@ struct SettingsView: View {
 
     private var brandHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
-            FatnagWordmark(size: 28, color: ink)
-                .accessibilityIdentifier("settings.brand")
+            FatnagWordmark(
+                size: 28,
+                color: ink,
+                jokeFat: true,
+                fatPulseTick: brandFatPulseTick
+            )
+            .accessibilityIdentifier("settings.brand")
             Text(FatnagBrand.tagline)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(copper)

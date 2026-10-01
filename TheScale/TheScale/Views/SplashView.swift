@@ -55,10 +55,10 @@ struct SplashView: View {
                         .accessibilityHidden(true)
 
                     HStack(spacing: 0) {
-                        Text("fat")
+                        Text(verbatim: "fat")
                             .font(.system(size: 52, weight: .light, design: .default))
                             .opacity(fatOpacity)
-                        Text("nag")
+                        Text(verbatim: "nag")
                             .font(.system(size: 52, weight: .heavy, design: .default))
                             .opacity(nagOpacity)
                             .scaleEffect(nagScale)
