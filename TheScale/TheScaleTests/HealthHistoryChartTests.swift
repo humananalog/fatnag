@@ -326,6 +326,7 @@ final class HealthHistoryChartTests: XCTestCase {
             range: .lastWeek,
             domain: domain,
             plotWidth: 320,
+            now: now,
             calendar: cal
         )
         XCTAssertFalse(marks.isEmpty)
@@ -346,6 +347,7 @@ final class HealthHistoryChartTests: XCTestCase {
             range: .lastTwoWeeks,
             domain: domain,
             plotWidth: 300,
+            now: now,
             calendar: cal
         )
         XCTAssertGreaterThanOrEqual(marks.count, 2)
@@ -370,6 +372,7 @@ final class HealthHistoryChartTests: XCTestCase {
             domain: domain,
             visibleLength: visible,
             plotWidth: 320,
+            now: now,
             calendar: cal
         )
         // Must span the year — not only the first ~7 days of the domain.
@@ -386,10 +389,85 @@ final class HealthHistoryChartTests: XCTestCase {
     func testXAxisMarksNarrowPlotDropsDensity() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let domain = HealthChartMath.historyXDomain(range: .lastMonth, now: now)
-        let wide = HealthChartMath.xAxisMarks(range: .lastMonth, domain: domain, plotWidth: 360)
-        let narrow = HealthChartMath.xAxisMarks(range: .lastMonth, domain: domain, plotWidth: 180)
+        let wide = HealthChartMath.xAxisMarks(range: .lastMonth, domain: domain, plotWidth: 360, now: now)
+        let narrow = HealthChartMath.xAxisMarks(range: .lastMonth, domain: domain, plotWidth: 180, now: now)
         XCTAssertLessThanOrEqual(narrow.count, wide.count)
-        XCTAssertLessThanOrEqual(narrow.count, 4)
+        XCTAssertLessThanOrEqual(narrow.count, 5)
+    }
+
+    func testXAxisLabelStyleFollowsSelectedPeriodNotDomainSpan() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.locale = Locale(identifier: "en_US_POSIX")
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        // Projection-stretched domain (months ahead) while picker is still 1W.
+        let stretched = now.addingTimeInterval(-7 * 86_400)...now.addingTimeInterval(120 * 86_400)
+        let weekMarks = HealthChartMath.xAxisMarks(
+            range: .lastWeek,
+            domain: stretched,
+            plotWidth: 320,
+            now: now,
+            calendar: cal
+        )
+        XCTAssertFalse(weekMarks.isEmpty)
+        for mark in weekMarks {
+            XCTAssertFalse(
+                mark.text.contains(where: \.isNumber),
+                "1W must stay weekday labels even if projection stretches domain: \(mark.text)"
+            )
+        }
+
+        let yearDomain = HealthChartMath.historyXDomain(range: .lastYear, now: now, calendar: cal)
+        let yearLabel = HealthChartMath.formatXAxisLabel(
+            yearDomain.lowerBound,
+            range: .lastYear,
+            now: now,
+            calendar: cal
+        )
+        let weekLabel = HealthChartMath.formatXAxisLabel(
+            yearDomain.lowerBound,
+            range: .lastWeek,
+            now: now,
+            calendar: cal
+        )
+        XCTAssertNotEqual(yearLabel, weekLabel)
+        XCTAssertFalse(weekLabel.contains(where: \.isNumber))
+    }
+
+    func testXAxisCadenceIsDistinctPerPeriod() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.locale = Locale(identifier: "en_US_POSIX")
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let week = HealthChartMath.xAxisMarks(
+            range: .lastWeek,
+            domain: HealthChartMath.historyXDomain(range: .lastWeek, now: now, calendar: cal),
+            plotWidth: 320,
+            now: now,
+            calendar: cal
+        )
+        let month = HealthChartMath.xAxisMarks(
+            range: .lastMonth,
+            domain: HealthChartMath.historyXDomain(range: .lastMonth, now: now, calendar: cal),
+            plotWidth: 320,
+            now: now,
+            calendar: cal
+        )
+        let year = HealthChartMath.xAxisMarks(
+            range: .lastYear,
+            domain: HealthChartMath.historyXDomain(range: .lastYear, now: now, calendar: cal),
+            plotWidth: 320,
+            now: now,
+            calendar: cal
+        )
+        XCTAssertFalse(week.isEmpty)
+        XCTAssertFalse(month.isEmpty)
+        XCTAssertFalse(year.isEmpty)
+        // Period picker drives format: 1W weekdays vs 1M month-day vs 1Y month.
+        XCTAssertFalse(week[0].text.contains(where: \.isNumber), week[0].text)
+        XCTAssertTrue(month[0].text.contains(where: \.isNumber), month[0].text)
+        XCTAssertNotEqual(
+            HealthChartMath.formatXAxisLabel(now, range: .lastWeek, now: now, calendar: cal),
+            HealthChartMath.formatXAxisLabel(now, range: .lastYear, now: now, calendar: cal)
+        )
     }
 
     func testAnnotationOpensLeadingNearTrailingEdge() {

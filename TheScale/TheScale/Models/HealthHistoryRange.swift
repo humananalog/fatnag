@@ -304,43 +304,29 @@ enum HealthChartMath {
         case monthYear
     }
 
-    /// Period-sensitive, space-aware X marks for History charts.
+    /// Period-locked, space-aware X marks for History charts.
     ///
-    /// Density is sized for the **visible** window (scroll length on 3M/1Y), then
-    /// ticks are generated across the full domain so panning never lands on a blank axis.
-    /// Labels shorten intelligently (weekday → day → month → month+year).
+    /// **Style + cadence follow the picker (`range`) only** — never the plot domain
+    /// length. Projection can stretch X far past the selected window; labels must
+    /// still read as 1W / 2W / 1M / 3M / 1Y.
     static func xAxisMarks(
         range: HealthHistoryRange,
         domain: ClosedRange<Date>,
         visibleLength: TimeInterval? = nil,
         plotWidth: Double = 300,
+        now: Date = Date(),
         calendar: Calendar = .current
     ) -> [HistoryXAxisMark] {
         let lower = domain.lowerBound
         let upper = domain.upperBound
         let fullSpan = upper.timeIntervalSince(lower)
+        let style = labelStyle(for: range, now: now, calendar: calendar)
         guard fullSpan.isFinite, fullSpan > 0 else {
-            return [HistoryXAxisMark(date: lower, text: formatXAxisDate(lower, style: .monthDay, calendar: calendar))]
+            return [HistoryXAxisMark(date: lower, text: formatXAxisDate(lower, style: style, calendar: calendar))]
         }
 
-        let visibleSpan: TimeInterval = {
-            if let visibleLength, visibleLength.isFinite, visibleLength > 0 {
-                return min(visibleLength, fullSpan)
-            }
-            return fullSpan
-        }()
-
-        let style = labelStyle(for: range, domain: domain, calendar: calendar)
-        let labelWidth = estimatedLabelWidth(style: style)
-        // Leave gutters so edge labels aren't clipped; never crowd past ~1 label / 52–64pt.
-        let usable = max(plotWidth - 24, 120)
-        let spaceBudget = max(2, min(7, Int(floor(usable / labelWidth))))
-
-        let cadence = chooseCadence(
-            range: range,
-            visibleSpan: visibleSpan,
-            targetInView: spaceBudget
-        )
+        // Cadence is a hard contract of the selected period.
+        let cadence = cadence(for: range)
 
         var dates = generateCadenceDates(
             cadence: cadence,
@@ -348,23 +334,34 @@ enum HealthChartMath {
             calendar: calendar
         )
 
-        // Ensure the trailing edge (today / projection end) can be labeled when space allows.
-        let endDay = calendar.startOfDay(for: upper)
-        if endDay >= lower, !dates.contains(where: { calendar.isDate($0, inSameDayAs: endDay) }) {
-            dates.append(endDay)
+        // Prefer labeling "now" (end of selected period) over a far projection tip.
+        let periodEnd = calendar.startOfDay(for: min(now, upper))
+        if periodEnd >= lower, !dates.contains(where: { calendar.isDate($0, inSameDayAs: periodEnd) }) {
+            dates.append(periodEnd)
             dates.sort()
         }
 
-        // Thin to a max that fits the visible window *density*, scaled to full domain.
+        let labelWidth = estimatedLabelWidth(style: style)
+        let usable = max(plotWidth - 24, 120)
+        let spaceBudgetInView = max(2, min(periodMaxLabels(range), Int(floor(usable / labelWidth))))
+
+        let visibleSpan: TimeInterval = {
+            if let visibleLength, visibleLength.isFinite, visibleLength > 0 {
+                return min(visibleLength, fullSpan)
+            }
+            // Density vs the selected period window, not a projection-stretched domain.
+            let periodStart = range.startDate(relativeTo: now, calendar: calendar)
+            return max(min(now, upper).timeIntervalSince(max(periodStart, lower)), 86_400)
+        }()
+
         let maxAcrossDomain = max(
-            spaceBudget,
-            Int(ceil(fullSpan / max(visibleSpan, 1) * Double(spaceBudget)))
+            spaceBudgetInView,
+            Int(ceil(fullSpan / max(visibleSpan, 1) * Double(spaceBudgetInView)))
         )
-        let safetyCap = 24
         dates = thinDates(
             dates,
             domain: domain,
-            maxCount: min(maxAcrossDomain, safetyCap),
+            maxCount: min(maxAcrossDomain, periodSafetyCap(range)),
             calendar: calendar
         )
 
@@ -376,6 +373,16 @@ enum HealthChartMath {
         }
     }
 
+    /// Format a date with the label style locked to the selected period.
+    static func formatXAxisLabel(
+        _ date: Date,
+        range: HealthHistoryRange,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> String {
+        formatXAxisDate(date, style: labelStyle(for: range, now: now, calendar: calendar), calendar: calendar)
+    }
+
     /// Back-compat helper used by older tests — dates only.
     static func xAxisTickDates(
         range: HealthHistoryRange,
@@ -383,25 +390,57 @@ enum HealthChartMath {
         calendar: Calendar = .current,
         maxTicks: Int = 7
     ) -> [Date] {
-        // Legacy maxTicks ignored for density; space-aware path owns the budget.
         _ = maxTicks
         return xAxisMarks(range: range, domain: domain, calendar: calendar).map(\.date)
     }
 
+    /// Hard label style from the period picker (not domain length).
     private static func labelStyle(
         for range: HealthHistoryRange,
-        domain: ClosedRange<Date>,
+        now: Date,
         calendar: Calendar
     ) -> XAxisLabelStyle {
-        let crossesYear = calendar.component(.year, from: domain.lowerBound)
-            != calendar.component(.year, from: domain.upperBound)
         switch range {
         case .lastWeek:
             return .weekday
         case .lastTwoWeeks, .lastMonth, .lastThreeMonths:
             return .monthDay
         case .lastYear:
+            let start = range.startDate(relativeTo: now, calendar: calendar)
+            let crossesYear = calendar.component(.year, from: start)
+                != calendar.component(.year, from: now)
             return crossesYear ? .monthYear : .month
+        }
+    }
+
+    /// Hard cadence from the period picker — never inferred from plot span.
+    private static func cadence(for range: HealthHistoryRange) -> XAxisCadence {
+        switch range {
+        case .lastWeek: return .everyDays(1)
+        case .lastTwoWeeks: return .everyDays(2)
+        case .lastMonth: return .everyWeeks(1)
+        case .lastThreeMonths: return .everyWeeks(2)
+        case .lastYear: return .everyMonths(1)
+        }
+    }
+
+    private static func periodMaxLabels(_ range: HealthHistoryRange) -> Int {
+        switch range {
+        case .lastWeek: return 7
+        case .lastTwoWeeks: return 5
+        case .lastMonth: return 5
+        case .lastThreeMonths: return 5
+        case .lastYear: return 6
+        }
+    }
+
+    private static func periodSafetyCap(_ range: HealthHistoryRange) -> Int {
+        switch range {
+        case .lastWeek: return 8
+        case .lastTwoWeeks: return 10
+        case .lastMonth: return 8
+        case .lastThreeMonths: return 12
+        case .lastYear: return 14
         }
     }
 
@@ -411,36 +450,6 @@ enum HealthChartMath {
         case .monthDay: return 56
         case .month: return 44
         case .monthYear: return 58
-        }
-    }
-
-    private static func chooseCadence(
-        range: HealthHistoryRange,
-        visibleSpan: TimeInterval,
-        targetInView: Int
-    ) -> XAxisCadence {
-        let day: TimeInterval = 86_400
-        let ideal = visibleSpan / Double(max(targetInView - 1, 1))
-
-        switch range {
-        case .lastWeek:
-            // Prefer daily weekdays; if tight, every other day.
-            return ideal < day * 1.6 ? .everyDays(1) : .everyDays(2)
-        case .lastTwoWeeks:
-            if ideal <= day * 2.2 { return .everyDays(2) }
-            if ideal <= day * 3.5 { return .everyDays(3) }
-            return .everyDays(4)
-        case .lastMonth:
-            // Weekly anchors read cleanly on a month strip.
-            return ideal <= day * 5 ? .everyDays(5) : .everyWeeks(1)
-        case .lastThreeMonths:
-            if ideal <= day * 10 { return .everyWeeks(1) }
-            if ideal <= day * 18 { return .everyWeeks(2) }
-            return .everyMonths(1)
-        case .lastYear:
-            // Month starts in the visible ~90d window → about 3 labels on screen.
-            if ideal <= day * 40 { return .everyMonths(1) }
-            return .everyMonths(2)
         }
     }
 

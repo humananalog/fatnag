@@ -990,6 +990,8 @@ private extension View {
         )
         let tickDates = marks.map(\.date)
         return self
+            // Force Charts to rebuild axis marks when the period picker changes.
+            .id("history-x-\(range.rawValue)-\(tickDates.count)")
             .chartPlotStyle { plotArea in
                 // Clip series only — annotations render above and must stay readable.
                 plotArea.clipped()
@@ -1001,12 +1003,11 @@ private extension View {
                     AxisTick(length: 5, stroke: StrokeStyle(lineWidth: 1.2))
                         .foregroundStyle(accent.opacity(0.4))
                     // Named anchors only: custom UnitPoint crashes Charts layout noise on iOS 26+.
+                    // Format live from `range` so labels always match the selected period
+                    // (lookup against tick dates can miss after Charts date snapping).
                     AxisValueLabel(anchor: .top) {
                         if let date = value.as(Date.self) {
-                            let text = marks.first(where: {
-                                abs($0.date.timeIntervalSince(date)) < 1
-                            })?.text
-                            Text(text ?? "")
+                            Text(HealthChartMath.formatXAxisLabel(date, range: range))
                                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                                 .foregroundStyle(accent.opacity(0.75))
                                 .lineLimit(1)
