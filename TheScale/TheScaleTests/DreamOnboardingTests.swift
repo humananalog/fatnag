@@ -388,6 +388,17 @@ final class DailyMetricProgressTests: XCTestCase {
         XCTAssertEqual(flow.step, .language)
     }
 
+    func testCurrentWeightUsesScaleOnlyWhenHealthIsOlderThanTwoWeeks() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 1))!
+        XCTAssertTrue(OnboardingFlowModel.weightNeedsScale(lastSample: nil, now: now, calendar: calendar))
+        let fresh = calendar.date(byAdding: .day, value: -14, to: now)!
+        XCTAssertFalse(OnboardingFlowModel.weightNeedsScale(lastSample: fresh, now: now, calendar: calendar))
+        let stale = calendar.date(byAdding: .day, value: -15, to: now)!
+        XCTAssertTrue(OnboardingFlowModel.weightNeedsScale(lastSample: stale, now: now, calendar: calendar))
+    }
+
     func testSettingsSearchFindsHeight() {
         let hits = SettingsSearchCatalog.matches("height", in: SettingsSearchCatalog.hits)
         XCTAssertEqual(hits.map(\.id), ["settings.height"])

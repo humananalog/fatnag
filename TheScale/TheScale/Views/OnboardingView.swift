@@ -1,10 +1,17 @@
 import SwiftUI
+import UIKit
 
 /// First launch: language → identity → body → anatomy → dream → lifestyle → confirm.
 /// Every step is one screenfit page on iPhone 15. Hard facts. Short lines.
 struct OnboardingView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @StateObject private var flow = OnboardingFlowModel()
+    @State private var healthWeight: HealthMetricSample?
+    @State private var healthWeightResolved = false
+    @State private var adjustWeightOnScale = false
+
+    private var compact: Bool { verticalSizeClass == .compact }
 
     private let ink = Color(red: 0.08, green: 0.09, blue: 0.11)
     private let steel = Color(red: 0.42, green: 0.45, blue: 0.50)
@@ -12,9 +19,41 @@ struct OnboardingView: View {
     private let warn = Color(red: 0.65, green: 0.12, blue: 0.12)
 
     var body: some View {
-        GeometryReader { geo in
-            let compact = geo.size.height < 780
-            ZStack {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 0) {
+                journeyHeader
+                    .padding(.horizontal, 20)
+                    .padding(.top, 6)
+                    .padding(.bottom, 10)
+
+                Group {
+                    switch flow.step {
+                    case .language: languageStep(compact: compact)
+                    case .identity: identityStep(compact: compact)
+                    case .body: bodyStep(compact: compact)
+                    case .anatomy: anatomyStep(compact: compact)
+                    case .dream: dreamStep(compact: compact)
+                    case .lifestyle: lifestyleStep(compact: compact)
+                    case .confirm: confirmStep(compact: compact)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.horizontal, 20)
+                .id(flow.appLanguage.rawValue)
+
+                if flow.isInferring {
+                    Text(AppLanguageStore.text("onboarding.shaping", default: "Shaping profile…"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(moss)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 4)
+                        .accessibilityIdentifier("onboarding.inferring")
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                continueBar
+            }
+            .background {
                 LinearGradient(
                     colors: [
                         Color(red: 0.94, green: 0.96, blue: 0.98),
@@ -24,96 +63,146 @@ struct OnboardingView: View {
                     endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
-
-                VStack(alignment: .leading, spacing: compact ? 10 : 14) {
-                    HStack(alignment: .firstTextBaseline) {
-                        FatnagWordmark(size: compact ? 28 : 32, color: ink)
-                            .accessibilityIdentifier("onboarding.brand")
-                        Spacer(minLength: 8)
-                        if session.isOnboardingReplay {
-                            Button(AppLanguageStore.text("onboarding.cancel", default: "Cancel")) {
-                                session.isOnboardingReplay = false
-                            }
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .accessibilityIdentifier("onboarding.cancelReplay")
-                        }
-                        stepDots
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button(AppLanguageStore.text("common.done", default: "Done")) {
+                        dismissKeyboard()
                     }
-
-                    Text(stepTitle)
-                        .font(.system(size: compact ? 17 : 19, weight: .semibold, design: .rounded))
-                        .foregroundStyle(ink)
-                        .accessibilityIdentifier("onboarding.stepTitle")
-                    Text(stepSubtitle)
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(steel)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.85)
-
-                    Group {
-                        switch flow.step {
-                        case .language: languageStep(compact: compact)
-                        case .identity: identityStep(compact: compact)
-                        case .body: bodyStep(compact: compact)
-                        case .anatomy: anatomyStep(compact: compact)
-                        case .dream: dreamStep(compact: compact)
-                        case .lifestyle: lifestyleStep(compact: compact)
-                        case .confirm: confirmStep(compact: compact)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .id(flow.appLanguage.rawValue)
-
-                    if flow.isInferring {
-                        Text(AppLanguageStore.text("onboarding.shaping", default: "Shaping profile…"))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(moss)
-                            .accessibilityIdentifier("onboarding.inferring")
-                    }
-
-                    HStack(spacing: 10) {
-                        if flow.step != .language {
-                            Button(AppLanguageStore.text("onboarding.back", default: "Back")) {
-                                withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
-                                    flow.goBack()
-                                }
-                            }
-                            .buttonStyle(.bordered)
-                            .accessibilityIdentifier("onboarding.back")
-                        }
-                        Button {
-                            Task { await advance() }
-                        } label: {
-                            HStack {
-                                if flow.isInferring && flow.step == .anatomy {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                        .tint(.white)
-                                }
-                                Text(flow.primaryCTA)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(ink)
-                        .disabled(!flow.canAdvance)
-                        .accessibilityIdentifier("onboarding.continue")
-                    }
+                    .fontWeight(.semibold)
+                    .accessibilityIdentifier("onboarding.keyboardDone")
                 }
-                .padding(.horizontal, 22)
-                .padding(.top, 12)
-                .padding(.bottom, 10)
             }
         }
         .preferredColorScheme(.light)
         .environment(\.locale, flow.appLanguage.locale)
         .environment(\.layoutDirection, flow.appLanguage.layoutDirection)
+        .scrollDismissesKeyboard(.interactively)
         .onAppear {
             flow.seed(
                 from: session.profile,
                 notifications: session.notificationPreferences,
                 units: session.preferredUnits
             )
+        }
+        .task(id: flow.step) {
+            await resolveHealthWeightIfNeeded()
+        }
+    }
+
+    private var journeyHeader: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                FatnagWordmark(size: compact ? 26 : 30, color: ink)
+                    .accessibilityIdentifier("onboarding.brand")
+                Spacer(minLength: 12)
+                if session.isOnboardingReplay {
+                    Button(AppLanguageStore.text("onboarding.cancel", default: "Cancel")) {
+                        dismissKeyboard()
+                        session.isOnboardingReplay = false
+                    }
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color.white.opacity(0.85), in: Capsule())
+                    .accessibilityIdentifier("onboarding.cancelReplay")
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(stepTitle)
+                        .font(.system(size: compact ? 22 : 26, weight: .bold, design: .rounded))
+                        .foregroundStyle(ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .accessibilityIdentifier("onboarding.stepTitle")
+                    Spacer(minLength: 8)
+                    Text("\(flow.step.rawValue + 1) of \(OnboardingFlowModel.Step.allCases.count)")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(steel)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.8), in: Capsule())
+                        .accessibilityIdentifier("onboarding.stepCounter")
+                }
+
+                HStack(spacing: 5) {
+                    ForEach(OnboardingFlowModel.Step.allCases, id: \.rawValue) { index in
+                        Capsule()
+                            .fill(index.rawValue <= flow.step.rawValue ? moss : steel.opacity(0.22))
+                            .frame(height: 5)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .accessibilityHidden(true)
+
+                Text(stepSubtitle)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(steel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var continueBar: some View {
+        HStack(spacing: 10) {
+            if flow.step != .language {
+                Button(AppLanguageStore.text("onboarding.back", default: "Back")) {
+                    dismissKeyboard()
+                    withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
+                        flow.goBack()
+                    }
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("onboarding.back")
+            }
+            Button {
+                dismissKeyboard()
+                Task { await advance() }
+            } label: {
+                HStack {
+                    if flow.isInferring && flow.step == .anatomy {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.white)
+                    }
+                    Text(flow.primaryCTA)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(ink)
+            .disabled(!flow.canAdvance)
+            .accessibilityIdentifier("onboarding.continue")
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+        .background(.ultraThinMaterial)
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
+    }
+
+    private func resolveHealthWeightIfNeeded() async {
+        guard flow.step == .anatomy, !healthWeightResolved else { return }
+        dismissKeyboard()
+        let sample = await session.latestHealthBodyMass()
+        guard !Task.isCancelled, flow.step == .anatomy else { return }
+        healthWeightResolved = true
+        guard let sample else { return }
+        healthWeight = sample
+        if !OnboardingFlowModel.weightNeedsScale(lastSample: sample.date) {
+            flow.currentWeightKg = sample.value
         }
     }
 
@@ -155,20 +244,6 @@ struct OnboardingView: View {
         .accessibilityIdentifier("onboarding.language")
     }
 
-    private var stepDots: some View {
-        HStack(spacing: 6) {
-            ForEach(OnboardingFlowModel.Step.allCases, id: \.rawValue) { index in
-                Capsule()
-                    .fill(index.rawValue <= flow.step.rawValue ? moss : steel.opacity(0.25))
-                    .frame(width: index == flow.step ? 16 : 6, height: 5)
-            }
-            Text(flow.stepCountLabel)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(steel)
-                .accessibilityIdentifier("onboarding.stepCounter")
-        }
-    }
-
     private var stepTitle: String {
         switch flow.step {
         case .language: return AppLanguageStore.text("onboarding.step.language", default: "Language")
@@ -183,13 +258,13 @@ struct OnboardingView: View {
 
     private var stepSubtitle: String {
         switch flow.step {
-        case .language: return AppLanguageStore.text("onboarding.sub.language", default: "First. Sets the whole app.")
-        case .identity: return AppLanguageStore.text("onboarding.sub.identity", default: "Consistency coach. Not a diet app.")
-        case .body: return AppLanguageStore.text("onboarding.sub.body", default: "18+. Required for BIA and Keel.")
-        case .anatomy: return AppLanguageStore.text("onboarding.sub.anatomy", default: "Height, weight, optional BF%. Units live-convert.")
-        case .dream: return AppLanguageStore.text("onboarding.sub.dream", default: "Drag the disc. Impossible pace gets a hard no.")
-        case .lifestyle: return AppLanguageStore.text("onboarding.sub.lifestyle", default: "Optional. Leave blank; we may ask gently later.")
-        case .confirm: return AppLanguageStore.text("onboarding.sub.confirm", default: "Legal once. Then weigh.")
+        case .language: return AppLanguageStore.text("onboarding.sub.language", default: "This choice follows you through the whole app.")
+        case .identity: return AppLanguageStore.text("onboarding.sub.identity", default: "A consistency coach. The number gets less scary.")
+        case .body: return AppLanguageStore.text("onboarding.sub.body", default: "Adults only. This sets the math.")
+        case .anatomy: return AppLanguageStore.text("onboarding.sub.anatomy", default: "Height, then weight. Units switch live.")
+        case .dream: return AppLanguageStore.text("onboarding.sub.dream", default: "Drag the dial. A reckless pace gets a no.")
+        case .lifestyle: return AppLanguageStore.text("onboarding.sub.lifestyle", default: "Optional. Blank is a fine answer.")
+        case .confirm: return AppLanguageStore.text("onboarding.sub.confirm", default: "One legal yes. Then the scale.")
         }
     }
 
@@ -281,10 +356,9 @@ struct OnboardingView: View {
                     .accessibilityIdentifier("onboarding.age.error")
             }
 
-            Text("GENDER")
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .tracking(1.2)
-                .foregroundStyle(steel)
+            Text("Gender")
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(ink)
 
             HStack(spacing: 10) {
                 genderChip(.male)
@@ -331,6 +405,7 @@ struct OnboardingView: View {
     // MARK: - Anatomy
 
     private func anatomyStep(compact: Bool) -> some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: compact ? 8 : 10) {
             vectorArt("OnboardingVectorAnatomy", height: compact ? 56 : 72)
 
@@ -350,19 +425,7 @@ struct OnboardingView: View {
                 id: "onboarding.height"
             )
 
-            unitAwareField(
-                title: "Weight",
-                display: Binding(
-                    get: { UnitFormat.mass(fromKg: flow.currentWeightKg, system: flow.unitSystem) },
-                    set: {
-                        let kg = UnitFormat.kg(fromMass: $0, system: flow.unitSystem)
-                        flow.currentWeightKg = ProfileNumericBounds.clampWeightKg(kg).value
-                    }
-                ),
-                unit: flow.unitSystem.massLabel,
-                fraction: 1,
-                id: "onboarding.currentWeight"
-            )
+            currentWeightControl
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Body fat % (optional)")
@@ -419,6 +482,9 @@ struct OnboardingView: View {
 
             Spacer(minLength: 0)
         }
+        .padding(.bottom, 12)
+        }
+        .scrollDismissesKeyboard(.interactively)
         .onChange(of: flow.heightCm) { _, _ in
             flow.updateIdealFromHeightIfNeeded()
         }
@@ -428,9 +494,83 @@ struct OnboardingView: View {
         }
     }
 
+    private var showsWeightScale: Bool {
+        adjustWeightOnScale || OnboardingFlowModel.weightNeedsScale(lastSample: healthWeight?.date)
+    }
+
+    private var currentWeightControl: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !healthWeightResolved && !adjustWeightOnScale {
+                Text("Checking Health for a recent weigh…")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(steel)
+                    .accessibilityIdentifier("onboarding.currentWeight")
+            } else if showsWeightScale {
+                Text("Current weight")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
+                if let date = healthWeight?.date, OnboardingFlowModel.weightNeedsScale(lastSample: date) {
+                    Text("Last Health weigh was \(relativeWeigh(date)). Drag the dial.")
+                        .font(.caption)
+                        .foregroundStyle(steel)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if healthWeight == nil {
+                    Text("No recent Health weigh. Drag the dial. Marks follow \(flow.unitSystem.massLabel) only.")
+                        .font(.caption)
+                        .foregroundStyle(steel)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                AnalogDreamScaleView(
+                    weightKg: Binding(
+                        get: { flow.currentWeightKg },
+                        set: { flow.currentWeightKg = ProfileNumericBounds.clampWeightKg($0).value }
+                    ),
+                    boundsKg: ProfileNumericBounds.weightKg,
+                    unitSystem: flow.unitSystem,
+                    ink: ink,
+                    steel: steel,
+                    accent: moss,
+                    accessibilityId: "onboarding.currentWeight",
+                    caption: "Drag. The needle stays. \(flow.unitSystem.massLabel) marks only."
+                )
+            } else if let sample = healthWeight {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Current weight")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(ink)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(UnitFormat.massString(sample.value, system: flow.unitSystem, fractionDigits: 1))
+                            .font(.system(size: 36, weight: .black, design: .rounded))
+                            .foregroundStyle(ink)
+                            .monospacedDigit()
+                    }
+                    Text("From Health · \(relativeWeigh(sample.date))")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(moss)
+                    Button("Not this weight") {
+                        adjustWeightOnScale = true
+                    }
+                    .font(.caption.weight(.bold))
+                    .accessibilityIdentifier("onboarding.currentWeight.adjust")
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.78), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .accessibilityIdentifier("onboarding.currentWeight")
+            }
+        }
+    }
+
+    private func relativeWeigh(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
     // MARK: - Dream
 
     private func dreamStep(compact: Bool) -> some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: compact ? 8 : 10) {
             if !compact {
                 vectorArt("OnboardingVectorDream", height: 56)
@@ -490,6 +630,8 @@ struct OnboardingView: View {
             }
 
             Spacer(minLength: 0)
+        }
+        .padding(.bottom, 12)
         }
     }
 

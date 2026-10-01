@@ -2432,6 +2432,28 @@ final class ScaleSessionViewModel: ObservableObject {
         await considerMorningWeighDrill()
     }
 
+    /// Newest body-mass sample, if Health has one. Used to prefill onboarding weight.
+    func latestHealthBodyMass() async -> HealthMetricSample? {
+        #if DEBUG
+        if isDemoPersonaActive, let last = historyWeights.max(by: { $0.date < $1.date }) {
+            return last
+        }
+        #endif
+        if let cached = recentHealthWeights.max(by: { $0.date < $1.date }) {
+            return HealthMetricSample(value: cached.weightKg, date: cached.date)
+        }
+        guard healthKitAvailable else { return nil }
+        do {
+            try await healthStore.requestAuthorizationIfNeeded()
+            let end = Date()
+            let start = Calendar.current.date(byAdding: .year, value: -2, to: end) ?? end
+            let samples = try await healthStore.fetchWeights(from: start, to: end)
+            return samples.max(by: { $0.date < $1.date })
+        } catch {
+            return nil
+        }
+    }
+
     /// Load Apple Health weight + body fat samples for the results charts.
     /// Always also loads the last 2 weeks for Trend projection (independent of picker range).
     func loadHistory(for range: HealthHistoryRange = .default) async throws {

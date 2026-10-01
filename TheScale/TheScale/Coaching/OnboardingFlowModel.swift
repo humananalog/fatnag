@@ -131,6 +131,18 @@ final class OnboardingFlowModel: ObservableObject {
         "\(step.rawValue + 1) / \(Step.allCases.count)"
     }
 
+    /// Current weight uses the Health sample when it is 14 days old or newer.
+    /// Older than two weeks, or no sample, means the person sets it on the scale dial.
+    nonisolated static func weightNeedsScale(lastSample: Date?, now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard let lastSample else { return true }
+        let days = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: lastSample),
+            to: calendar.startOfDay(for: now)
+        ).day ?? 0
+        return days > 14
+    }
+
     func seed(from profile: UserBodyProfile, notifications: NotificationPreferences, units: PreferredUnitSystem) {
         name = profile.displayName
         heightCm = profile.heightCm
