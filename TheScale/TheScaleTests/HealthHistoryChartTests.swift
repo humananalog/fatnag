@@ -310,6 +310,53 @@ final class HealthHistoryChartTests: XCTestCase {
         XCTAssertNotNil(draft.bmi)
     }
 
+    func testHistoryChartToneFromRate() {
+        XCTAssertEqual(HistoryChartTone.from(ratePerWeek: -0.4), .losing)
+        XCTAssertEqual(HistoryChartTone.from(ratePerWeek: 0.4), .gaining)
+        XCTAssertEqual(HistoryChartTone.from(ratePerWeek: 0.01), .stable)
+        XCTAssertEqual(HistoryChartTone.from(ratePerWeek: nil), .unknown)
+    }
+
+    func testXAxisTickDatesAreConsistentForTwoWeeks() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let domain = HealthChartMath.historyXDomain(range: .lastTwoWeeks, now: now)
+        let ticks = HealthChartMath.xAxisTickDates(range: .lastTwoWeeks, domain: domain)
+        XCTAssertFalse(ticks.isEmpty)
+        XCTAssertLessThanOrEqual(ticks.count, 7)
+        for tick in ticks {
+            XCTAssertGreaterThanOrEqual(tick, domain.lowerBound.addingTimeInterval(-86_400))
+            XCTAssertLessThanOrEqual(tick, domain.upperBound.addingTimeInterval(86_400))
+        }
+        // Stride should be ~2 days between consecutive ticks (allowing end pin).
+        if ticks.count >= 3 {
+            let step = ticks[1].timeIntervalSince(ticks[0])
+            XCTAssertEqual(step, 2 * 86_400, accuracy: 86_400 * 0.5)
+        }
+    }
+
+    func testAnnotationOpensLeadingNearTrailingEdge() {
+        let lower = Date(timeIntervalSince1970: 0)
+        let upper = Date(timeIntervalSince1970: 100)
+        let domain = lower...upper
+        XCTAssertFalse(HealthChartMath.annotationOpensLeading(at: Date(timeIntervalSince1970: 10), in: domain))
+        XCTAssertTrue(HealthChartMath.annotationOpensLeading(at: Date(timeIntervalSince1970: 90), in: domain))
+    }
+
+    func testHistoryXDomainPadsProjectionCallouts() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let future = now.addingTimeInterval(30 * 86_400)
+        let withProjection = HealthChartMath.historyXDomain(
+            range: .lastMonth,
+            extraDates: [future],
+            now: now
+        )
+        let without = HealthChartMath.historyXDomain(range: .lastMonth, now: now)
+        let padWith = withProjection.upperBound.timeIntervalSince(future)
+        let padWithout = without.upperBound.timeIntervalSince(now)
+        XCTAssertGreaterThan(padWith, padWithout)
+        XCTAssertGreaterThanOrEqual(padWith, 4 * 86_400 - 1)
+    }
+
     func testProfileIdealWeightMigratesFromLegacyDecode() throws {
         let legacy = """
         {"heightCm":180,"ageYears":40,"sex":"male"}

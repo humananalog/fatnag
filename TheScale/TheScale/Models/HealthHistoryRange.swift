@@ -70,6 +70,17 @@ enum HealthHistoryRange: String, CaseIterable, Identifiable, Sendable {
             return calendar.date(byAdding: .year, value: -1, to: now) ?? now.addingTimeInterval(-365 * 86_400)
         }
     }
+
+    /// Fixed X-axis label stride so 1W…1Y share one visual language (not automatic jitter).
+    var xAxisStrideComponents: DateComponents {
+        switch self {
+        case .lastWeek: return DateComponents(day: 1)
+        case .lastTwoWeeks: return DateComponents(day: 2)
+        case .lastMonth: return DateComponents(day: 7)
+        case .lastThreeMonths: return DateComponents(day: 14)
+        case .lastYear: return DateComponents(month: 1)
+        }
+    }
 }
 
 /// One Health quantity sample used by the results charts.
@@ -273,8 +284,66 @@ enum HealthChartMath {
             end = start.addingTimeInterval(86_400)
             span = 86_400
         }
-        let pad = max(span * 0.02, 3_600)
+        // Extra trailing pad when Projection extends past `now` so crossing callouts
+        // are not clipped against the right card edge.
+        let pad: TimeInterval
+        if extraDates.contains(where: { $0 > now }) {
+            pad = max(span * 0.12, 4 * 86_400)
+        } else {
+            pad = max(span * 0.04, 12 * 3_600)
+        }
         return start...end.addingTimeInterval(pad)
+    }
+
+    /// Stable X-axis tick dates for History charts (same rhythm for weight + body fat).
+    static func xAxisTickDates(
+        range: HealthHistoryRange,
+        domain: ClosedRange<Date>,
+        calendar: Calendar = .current,
+        maxTicks: Int = 7
+    ) -> [Date] {
+        let lower = domain.lowerBound
+        let upper = domain.upperBound
+        guard upper > lower, maxTicks > 0 else { return [lower] }
+
+        var cursor = calendar.startOfDay(for: lower)
+        if cursor < lower {
+            cursor = calendar.date(byAdding: range.xAxisStrideComponents, to: cursor) ?? lower
+        }
+        var ticks: [Date] = []
+        ticks.reserveCapacity(maxTicks)
+        while cursor <= upper, ticks.count < maxTicks {
+            if cursor >= lower {
+                ticks.append(cursor)
+            }
+            guard let next = calendar.date(byAdding: range.xAxisStrideComponents, to: cursor),
+                  next > cursor
+            else { break }
+            cursor = next
+        }
+        if ticks.isEmpty {
+            return [lower, upper]
+        }
+        // Pin the visible end so the latest edge always has a finger-friendly label.
+        if let last = ticks.last, upper.timeIntervalSince(last) > 86_400 * 0.4 {
+            if ticks.count >= maxTicks {
+                ticks[ticks.count - 1] = calendar.startOfDay(for: upper)
+            } else {
+                ticks.append(calendar.startOfDay(for: upper))
+            }
+        }
+        return ticks
+    }
+
+    /// True when a callout near `date` should open toward the leading edge (avoid right clip).
+    static func annotationOpensLeading(
+        at date: Date,
+        in domain: ClosedRange<Date>
+    ) -> Bool {
+        let span = domain.upperBound.timeIntervalSince(domain.lowerBound)
+        guard span > 0 else { return false }
+        let progress = date.timeIntervalSince(domain.lowerBound) / span
+        return progress >= 0.62
     }
 
     /// Visible scroll window for 3M/1Y, or `nil` when scroll must stay off.

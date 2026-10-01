@@ -32,6 +32,16 @@ struct WeighInResultsView: View {
         TrendAtmosphere.forTrend(session.trendForDisplay)
     }
 
+    /// Fill/line ink from the selected period's weight slope — shared by both charts.
+    private var periodTone: HistoryChartTone {
+        let series = HealthChartMath.chartSeries(session.historyWeights)
+        return HistoryChartTone.from(ratePerWeek: HealthChartMath.ratePerWeek(samples: series))
+    }
+
+    private var periodChartAtmosphere: TrendAtmosphere { periodTone.atmosphere }
+    private var chartInk: Color { periodChartAtmosphere.accent }
+    private var chartMid: Color { periodChartAtmosphere.mid }
+
     private var weightProjection: WeightTrendProjection? {
         guard showTrend else { return nil }
         return HealthChartMath.projectWeightToIdeal(
@@ -370,6 +380,7 @@ struct WeighInResultsView: View {
         .animation(.spring(response: 0.65, dampingFraction: 0.88), value: session.historyWeights.count)
         .animation(.spring(response: 0.45, dampingFraction: 0.86), value: weightYFloorMode)
         .animation(.spring(response: 0.45, dampingFraction: 0.86), value: fatYFloorMode)
+        .animation(.easeInOut(duration: 0.35), value: periodTone)
     }
 
     private func weightChartCard(
@@ -402,6 +413,8 @@ struct WeighInResultsView: View {
         let floorY = domain.lowerBound
         let targetKg = session.profile.idealWeightKg
         let lineInterpolation: InterpolationMethod = samples.count >= 2 ? .monotone : .linear
+        let ink = chartInk
+        let mid = chartMid
 
         return metricScaffold(
             title: AppLanguageStore.text("live.weight", default: "Weight"),
@@ -411,19 +424,23 @@ struct WeighInResultsView: View {
             formatValue: {
                 String(format: "%.1f", UnitFormat.mass(fromKg: $0, system: session.preferredUnits))
             },
-            emptyCopy: AppLanguageStore.text("history.empty.weight", default: "No weight samples in this range.")
+            emptyCopy: AppLanguageStore.text("history.empty.weight", default: "No weight samples in this range."),
+            seriesInk: ink
         ) {
             Chart {
                 RuleMark(y: .value("Target", targetKg))
                     .lineStyle(StrokeStyle(lineWidth: 1.4, dash: [5, 4]))
-                    .foregroundStyle(atmosphere.accent.opacity(0.55))
-                    .annotation(position: .top, alignment: .trailing) {
+                    .foregroundStyle(ink.opacity(0.55))
+                    .annotation(position: .top, alignment: .leading, spacing: 4) {
                         Text(
                             "\(AppLanguageStore.text("history.target", default: "Target")) \(String(format: "%.1f", UnitFormat.mass(fromKg: targetKg, system: session.preferredUnits)))"
                         )
                             .font(.system(size: 9, weight: .semibold, design: .rounded))
-                            .foregroundStyle(atmosphere.accent.opacity(0.65))
-                            .padding(.trailing, 2)
+                            .foregroundStyle(ink.opacity(0.7))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(.white.opacity(0.78), in: Capsule())
+                            .fixedSize()
                     }
 
                 // Area first: yStart/yEnd to the plot floor (never fill toward 0 kg).
@@ -439,7 +456,7 @@ struct WeighInResultsView: View {
                         .interpolationMethod(lineInterpolation)
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [atmosphere.accent.opacity(0.28), atmosphere.accent.opacity(0.04)],
+                                colors: [mid.opacity(0.42), mid.opacity(0.05)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -454,7 +471,7 @@ struct WeighInResultsView: View {
                         series: .value("Series", "Health")
                     )
                     .interpolationMethod(lineInterpolation)
-                    .foregroundStyle(atmosphere.accent.opacity(0.92))
+                    .foregroundStyle(ink.opacity(0.92))
                     .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
                 }
 
@@ -464,7 +481,7 @@ struct WeighInResultsView: View {
                         y: .value("Weight", sample.value)
                     )
                     .symbolSize(selected?.id == sample.id ? 72 : 28)
-                    .foregroundStyle(atmosphere.accent.opacity(0.85))
+                    .foregroundStyle(ink.opacity(0.85))
                 }
 
                 // Projection lines only when toggle is on.
@@ -476,30 +493,17 @@ struct WeighInResultsView: View {
                             series: .value("Series", "Projected")
                         )
                         .lineStyle(StrokeStyle(lineWidth: 2.2, dash: [6, 4]))
-                        .foregroundStyle(atmosphere.accent.opacity(0.7))
+                        .foregroundStyle(ink.opacity(0.7))
                         .interpolationMethod(.linear)
                     }
 
                     if let crossing = scientific.crossing {
-                        PointMark(
-                            x: .value("Date", crossing.date),
-                            y: .value("Weight", crossing.value)
+                        projectedCrossingMark(
+                            crossing: crossing,
+                            xDomain: xDomain,
+                            ink: ink,
+                            formatMass: true
                         )
-                        .symbolSize(64)
-                        .foregroundStyle(atmosphere.accent)
-                        .annotation(position: .top, spacing: 6) {
-                            VStack(spacing: 2) {
-                                Text(AppLanguageStore.text("history.projected", default: "Projected"))
-                                Text(crossing.date, format: .dateTime.month(.abbreviated).day().year())
-                                Text(UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1))
-                            }
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        }
                     }
 
                     ForEach(Array(scientific.observedPath.enumerated()), id: \.offset) { _, point in
@@ -509,7 +513,7 @@ struct WeighInResultsView: View {
                             series: .value("Series", "Observed")
                         )
                         .lineStyle(StrokeStyle(lineWidth: 1.6, dash: [2, 3]))
-                        .foregroundStyle(atmosphere.accent.opacity(0.4))
+                        .foregroundStyle(ink.opacity(0.4))
                         .interpolationMethod(.linear)
                     }
                 } else if showTrend, let projection {
@@ -520,36 +524,24 @@ struct WeighInResultsView: View {
                             series: .value("Series", "Trend")
                         )
                         .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4]))
-                        .foregroundStyle(atmosphere.accent.opacity(0.55))
+                        .foregroundStyle(ink.opacity(0.55))
                         .interpolationMethod(.linear)
                     }
 
                     if let crossing = projection.crossing {
-                        PointMark(
-                            x: .value("Date", crossing.date),
-                            y: .value("Weight", crossing.value)
+                        projectedCrossingMark(
+                            crossing: crossing,
+                            xDomain: xDomain,
+                            ink: ink,
+                            formatMass: true
                         )
-                        .symbolSize(64)
-                        .foregroundStyle(atmosphere.accent)
-                        .annotation(position: .top, spacing: 6) {
-                            VStack(spacing: 2) {
-                                Text(crossing.date, format: .dateTime.month(.abbreviated).day().year())
-                                Text(UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1))
-                            }
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .background(.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        }
                     }
                 }
 
                 if let selectedDate {
                     RuleMark(x: .value("Selected", selectedDate))
                         .lineStyle(StrokeStyle(lineWidth: 1))
-                        .foregroundStyle(atmosphere.accent.opacity(0.35))
+                        .foregroundStyle(ink.opacity(0.35))
                 }
 
                 if let selected {
@@ -558,20 +550,25 @@ struct WeighInResultsView: View {
                         y: .value("Weight", selected.value)
                     )
                     .symbolSize(90)
-                    .foregroundStyle(atmosphere.accent)
-                    .annotation(position: .top, spacing: 6) {
+                    .foregroundStyle(ink)
+                    .annotation(
+                        position: .top,
+                        spacing: 6,
+                        overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+                    ) {
                         Text(UnitFormat.massString(selected.value, system: session.preferredUnits, fractionDigits: 1))
                             .font(.system(size: 11, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent)
+                            .foregroundStyle(ink)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 4)
-                            .background(.white.opacity(0.8), in: Capsule())
+                            .background(.white.opacity(0.88), in: Capsule())
+                            .fixedSize()
                     }
                 }
 
                 if let extrema, selected == nil {
-                    extremaMarks(extrema: extrema, title: "Weight", formatValue: { String(format: "%.1f", $0) })
+                    extremaMarks(extrema: extrema, title: "Weight", formatValue: { String(format: "%.1f", $0) }, ink: ink)
                 }
             }
             .chartYScale(domain: domain)
@@ -582,7 +579,7 @@ struct WeighInResultsView: View {
                 fatYFloorMode = weightYFloorMode
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
-            .historyChartAxes(accent: atmosphere.accent)
+            .historyChartAxes(range: range, xDomain: xDomain, accent: ink)
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
                 scrollPosition: $chartScrollX
@@ -611,6 +608,8 @@ struct WeighInResultsView: View {
         }
         let floorY = domain.lowerBound
         let lineInterpolation: InterpolationMethod = samples.count >= 2 ? .monotone : .linear
+        let ink = chartInk
+        let mid = chartMid
 
         return metricScaffold(
             title: AppLanguageStore.text("live.body_fat", default: "Body fat"),
@@ -618,18 +617,22 @@ struct WeighInResultsView: View {
             samples: samples,
             extrema: extrema,
             formatValue: { String(format: "%.1f", $0) },
-            emptyCopy: AppLanguageStore.text("history.empty.body_fat", default: "No body fat samples in this range.")
+            emptyCopy: AppLanguageStore.text("history.empty.body_fat", default: "No body fat samples in this range."),
+            seriesInk: ink
         ) {
             Chart {
                 if let ideal = session.profile.idealBodyFatPercent {
                     RuleMark(y: .value("Ideal", ideal))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                        .foregroundStyle(atmosphere.accent.opacity(0.45))
-                        .annotation(position: .top, alignment: .trailing) {
+                        .foregroundStyle(ink.opacity(0.45))
+                        .annotation(position: .top, alignment: .leading, spacing: 4) {
                             Text(AppLanguageStore.text("history.target", default: "Target"))
                                 .font(.system(size: 9, weight: .semibold, design: .rounded))
-                                .foregroundStyle(atmosphere.accent.opacity(0.55))
-                                .padding(.trailing, 2)
+                                .foregroundStyle(ink.opacity(0.65))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(.white.opacity(0.78), in: Capsule())
+                                .fixedSize()
                         }
                 }
 
@@ -644,7 +647,7 @@ struct WeighInResultsView: View {
                         .interpolationMethod(lineInterpolation)
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [atmosphere.accent.opacity(0.28), atmosphere.accent.opacity(0.04)],
+                                colors: [mid.opacity(0.42), mid.opacity(0.05)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -659,7 +662,7 @@ struct WeighInResultsView: View {
                         series: .value("Series", "Health")
                     )
                     .interpolationMethod(lineInterpolation)
-                    .foregroundStyle(atmosphere.accent.opacity(0.92))
+                    .foregroundStyle(ink.opacity(0.92))
                     .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
                 }
 
@@ -669,13 +672,13 @@ struct WeighInResultsView: View {
                         y: .value("Body fat", sample.value)
                     )
                     .symbolSize(selected?.id == sample.id ? 72 : 28)
-                    .foregroundStyle(atmosphere.accent.opacity(0.85))
+                    .foregroundStyle(ink.opacity(0.85))
                 }
 
                 if let selectedDate {
                     RuleMark(x: .value("Selected", selectedDate))
                         .lineStyle(StrokeStyle(lineWidth: 1))
-                        .foregroundStyle(atmosphere.accent.opacity(0.35))
+                        .foregroundStyle(ink.opacity(0.35))
                 }
 
                 if let selected {
@@ -684,20 +687,25 @@ struct WeighInResultsView: View {
                         y: .value("Body fat", selected.value)
                     )
                     .symbolSize(90)
-                    .foregroundStyle(atmosphere.accent)
-                    .annotation(position: .top, spacing: 6) {
+                    .foregroundStyle(ink)
+                    .annotation(
+                        position: .top,
+                        spacing: 6,
+                        overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+                    ) {
                         Text(String(format: "%.1f%%", selected.value))
                             .font(.system(size: 11, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent)
+                            .foregroundStyle(ink)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 4)
-                            .background(.white.opacity(0.8), in: Capsule())
+                            .background(.white.opacity(0.88), in: Capsule())
+                            .fixedSize()
                     }
                 }
 
                 if let extrema, selected == nil {
-                    extremaMarks(extrema: extrema, title: "Body fat", formatValue: { String(format: "%.1f", $0) })
+                    extremaMarks(extrema: extrema, title: "Body fat", formatValue: { String(format: "%.1f", $0) }, ink: ink)
                 }
             }
             .chartYScale(domain: domain)
@@ -708,7 +716,7 @@ struct WeighInResultsView: View {
                 weightYFloorMode = fatYFloorMode
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             }
-            .historyChartAxes(accent: atmosphere.accent)
+            .historyChartAxes(range: range, xDomain: xDomain, accent: ink)
             .historyChartScroll(
                 visibleDomainLength: scrollLength,
                 scrollPosition: $chartScrollX
@@ -723,30 +731,31 @@ struct WeighInResultsView: View {
         extrema: (highest: HealthMetricSample, lowest: HealthMetricSample)?,
         formatValue: @escaping (Double) -> String,
         emptyCopy: String,
+        seriesInk: Color,
         @ViewBuilder chart: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.78))
+                    .foregroundStyle(seriesInk.opacity(0.78))
                 Text(unit)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(atmosphere.accent.opacity(0.55))
+                    .foregroundStyle(seriesInk.opacity(0.55))
                 Spacer(minLength: 8)
                 if let extrema {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text("H \(formatValue(extrema.highest.value)) · L \(formatValue(extrema.lowest.value))")
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(atmosphere.accent.opacity(0.7))
+                            .foregroundStyle(seriesInk.opacity(0.7))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                         if let rate = HealthChartMath.ratePerWeek(samples: samples) {
                             Text("\(UnitFormat.massDeltaString(rate, system: session.preferredUnits, fractionDigits: 2)) / wk")
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .monospacedDigit()
-                                .foregroundStyle(atmosphere.accent.opacity(0.55))
+                                .foregroundStyle(seriesInk.opacity(0.55))
                         }
                     }
                 }
@@ -756,51 +765,96 @@ struct WeighInResultsView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                         .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(atmosphere.accent.opacity(0.45))
+                        .foregroundStyle(seriesInk.opacity(0.45))
                     Text(emptyCopy)
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(atmosphere.accent.opacity(0.72))
+                        .foregroundStyle(seriesInk.opacity(0.72))
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .padding(.vertical, 28)
             } else {
                 // Chart chrome (axes/legend/scroll) must stay on the Chart itself.
-                // Applying chart* modifiers here after a ViewBuilder if/else wraps the
-                // Chart in ConditionalContent → empty-chart fallback on 3M/1Y.
+                // Do not clip the Chart view — annotations (Projected / Target) live in the
+                // margins and were getting trimmed by `.clipped()` / panel clipShape.
                 chart()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
             }
         }
         .padding(panelInnerPad)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .scaleGlassPanel(cornerRadius: 18)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel(title: title, unit: unit, samples: samples, extrema: extrema))
+    }
+
+    @ChartContentBuilder
+    private func projectedCrossingMark(
+        crossing: HealthMetricSample,
+        xDomain: ClosedRange<Date>,
+        ink: Color,
+        formatMass: Bool
+    ) -> some ChartContent {
+        let opensLeading = HealthChartMath.annotationOpensLeading(at: crossing.date, in: xDomain)
+        PointMark(
+            x: .value("Date", crossing.date),
+            y: .value("Weight", crossing.value)
+        )
+        .symbolSize(64)
+        .foregroundStyle(ink)
+        .annotation(
+            position: .top,
+            alignment: opensLeading ? .trailing : .leading,
+            spacing: 6,
+            overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+        ) {
+            VStack(alignment: opensLeading ? .trailing : .leading, spacing: 1) {
+                Text(AppLanguageStore.text("history.projected", default: "Projected"))
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                Text(crossing.date, format: .dateTime.month(.abbreviated).day())
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                Text(
+                    formatMass
+                        ? UnitFormat.massString(crossing.value, system: session.preferredUnits, fractionDigits: 1)
+                        : String(format: "%.1f%%", crossing.value)
+                )
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .monospacedDigit()
+            }
+            .foregroundStyle(ink)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .fixedSize()
+        }
     }
 
     @ChartContentBuilder
     private func extremaMarks(
         extrema: (highest: HealthMetricSample, lowest: HealthMetricSample),
         title: String,
-        formatValue: @escaping (Double) -> String
+        formatValue: @escaping (Double) -> String,
+        ink: Color
     ) -> some ChartContent {
         PointMark(
             x: .value("Date", extrema.highest.date),
             y: .value(title, extrema.highest.value)
         )
         .symbolSize(56)
-        .foregroundStyle(atmosphere.accent)
-        .annotation(position: .top, spacing: 4) {
+        .foregroundStyle(ink)
+        .annotation(
+            position: .top,
+            spacing: 4,
+            overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+        ) {
             Text("H \(formatValue(extrema.highest.value))")
                 .font(.system(size: 10, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(atmosphere.accent)
+                .foregroundStyle(ink)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
-                .background(.white.opacity(0.55), in: Capsule())
+                .background(.white.opacity(0.7), in: Capsule())
+                .fixedSize()
         }
 
         PointMark(
@@ -808,15 +862,20 @@ struct WeighInResultsView: View {
             y: .value(title, extrema.lowest.value)
         )
         .symbolSize(56)
-        .foregroundStyle(atmosphere.accent)
-        .annotation(position: .bottom, spacing: 4) {
+        .foregroundStyle(ink)
+        .annotation(
+            position: .bottom,
+            spacing: 4,
+            overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))
+        ) {
             Text("L \(formatValue(extrema.lowest.value))")
                 .font(.system(size: 10, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(atmosphere.accent)
+                .foregroundStyle(ink)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
-                .background(.white.opacity(0.55), in: Capsule())
+                .background(.white.opacity(0.7), in: Capsule())
+                .fixedSize()
         }
     }
 
@@ -905,20 +964,34 @@ struct WeighInResultsView: View {
 
 private extension View {
     /// Axes + legend applied directly on a Chart (before any scroll ConditionalContent).
-    func historyChartAxes(accent: Color) -> some View {
-        self
+    func historyChartAxes(
+        range: HealthHistoryRange,
+        xDomain: ClosedRange<Date>,
+        accent: Color
+    ) -> some View {
+        let ticks = HealthChartMath.xAxisTickDates(range: range, domain: xDomain)
+        return self
             .chartPlotStyle { plotArea in
-                // Dense series can paint past the plot into the Y-axis / card padding.
+                // Clip series only — annotations render above and must stay readable.
                 plotArea.clipped()
             }
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                AxisMarks(values: ticks) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                         .foregroundStyle(accent.opacity(0.12))
+                    AxisTick(stroke: StrokeStyle(lineWidth: 1.2))
+                        .foregroundStyle(accent.opacity(0.35))
                     // Named anchors only: custom UnitPoint crashes Charts layout noise on iOS 26+.
-                    AxisValueLabel(anchor: .top)
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(accent.opacity(0.55))
+                    AxisValueLabel(anchor: .top) {
+                        if let date = value.as(Date.self) {
+                            Text(date, format: .dateTime.month(.abbreviated).day())
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(accent.opacity(0.72))
+                                .padding(.top, 4)
+                                .padding(.horizontal, 4)
+                                .contentShape(Rectangle())
+                        }
+                    }
                 }
             }
             .chartYAxis {
@@ -926,7 +999,7 @@ private extension View {
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                         .foregroundStyle(accent.opacity(0.12))
                     AxisValueLabel(anchor: .trailing)
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(accent.opacity(0.55))
                 }
             }
@@ -936,6 +1009,7 @@ private extension View {
     /// Tap/select activates the comment point immediately (default chartXSelection waits on long press).
     /// SpatialTap keeps horizontal chart scroll free for 3M/1Y pans.
     /// Taps on the leading Y-axis strip (~44pt) rotate the Y floor (target ↔ visible min).
+    /// Taps on the plot **or** X-axis label band select the date under the finger.
     func chartTapXSelection(onYAxisTap: (() -> Void)? = nil) -> some View {
         chartGesture { proxy in
             SpatialTapGesture()
