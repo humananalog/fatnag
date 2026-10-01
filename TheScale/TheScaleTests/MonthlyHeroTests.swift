@@ -369,3 +369,39 @@ final class MonthlyHeroTests: XCTestCase {
         }
     }
 }
+
+#if DEBUG
+final class DemoRealUserSnapshotTests: XCTestCase {
+    func testBobAndAliceCanReturnToTheRealProfile() {
+        let defaults = UserDefaults.standard
+        let stash = DemoRealUserSnapshot.captureRaw()
+        let priorSnapshot = defaults.object(forKey: DemoRealUserSnapshot.storageKey)
+        defer {
+            DemoRealUserSnapshot.apply(stash)
+            if let priorSnapshot {
+                defaults.set(priorSnapshot, forKey: DemoRealUserSnapshot.storageKey)
+            } else {
+                defaults.removeObject(forKey: DemoRealUserSnapshot.storageKey)
+            }
+        }
+
+        defaults.removeObject(forKey: DemoRealUserSnapshot.storageKey)
+        var real = UserBodyProfile.default
+        real.displayName = "Real Pat"
+        UserProfileStore.save(real)
+
+        DemoPersonaSeeder.persist(.male)
+        XCTAssertEqual(UserProfileStore.load().displayName, "Bob")
+        XCTAssertEqual(DemoRealUserSnapshot.displayName, "Real Pat")
+        XCTAssertTrue(DemoRealUserSnapshot.canRestore)
+
+        DemoPersonaSeeder.persist(.female)
+        XCTAssertEqual(UserProfileStore.load().displayName, "Alice")
+        XCTAssertEqual(DemoRealUserSnapshot.displayName, "Real Pat")
+
+        XCTAssertTrue(DemoRealUserSnapshot.restore())
+        XCTAssertEqual(UserProfileStore.load().displayName, "Real Pat")
+        XCTAssertFalse(DemoRealUserSnapshot.canRestore)
+    }
+}
+#endif

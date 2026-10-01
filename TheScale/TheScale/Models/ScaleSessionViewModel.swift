@@ -850,6 +850,46 @@ final class ScaleSessionViewModel: ObservableObject {
         isNotificationCenterPresented = false
     }
 
+    /// Put the profile, coach stores, and Health charts back to whoever was here before Bob or Alice.
+    func restoreRealUserAfterDemo() async -> Bool {
+        guard DemoRealUserSnapshot.canRestore else { return false }
+        guard DemoRealUserSnapshot.restore() else { return false }
+
+        let meals = MealPlanStore.load()
+        profile = UserProfileStore.load()
+        if let meals {
+            MealPlanStore.save(meals)
+            mealPlan = meals
+        } else {
+            mealPlan = nil
+        }
+        calibration = ScaleCalibrationStore.load()
+        notificationPreferences = NotificationPreferencesStore.load()
+        fitnessMonitorPreferences = FitnessMonitorPreferencesStore.load()
+        weeklyGoal = WeeklyMiniGoalStore.load()
+        preferredUnits = PreferredUnitSystemStore.load()
+        hasCompletedOnboarding = OnboardingStore.hasCompleted
+        mondayCard = MondayCardStore.load()
+        let language = AppLanguageStore.current
+        AppLanguageStore.current = language
+
+        historyWeights = []
+        historyBodyFatPercents = []
+        historyTrendWindowWeights = []
+        recentHealthWeights = []
+        healthBaselineKg = nil
+        lastFitnessDigest = nil
+        historyRange = .default
+        progressSurfaceWarmed = false
+        clearDemoPersonaLock()
+
+        await DemoHealthKitSeeder.deleteAllDemoSamples()
+        try? await loadHistory(for: historyRange)
+        _ = await refreshHomeGauges(force: true)
+        rebuildWeeklyGoalSurface()
+        return true
+    }
+
     /// Present a camera-ready surface for marketing captures (`-promoShot=`).
     func applyPromoShot(_ shot: String) {
         let key = shot.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()

@@ -454,6 +454,13 @@ enum DemoHealthKitSeeder {
         }
     }
 
+    /// Remove every Bob/Alice sample this app wrote, so Health reads are the real user again.
+    static func deleteAllDemoSamples() async {
+        for persona in [DemoPersonaSeeder.Persona.male, .female] {
+            try? await deletePriorDemoSamples(persona: persona)
+        }
+    }
+
     private static func deletePriorDemoSamples(persona: DemoPersonaSeeder.Persona) async throws {
         let predicate = HKQuery.predicateForObjects(
             withMetadataKey: metadataKey,

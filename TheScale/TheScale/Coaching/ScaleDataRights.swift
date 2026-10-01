@@ -97,6 +97,7 @@ enum ScaleDataRights {
         LegalAcceptanceStore.clear()
         #if DEBUG
         session.clearDemoPersonaLock()
+        UserDefaults.standard.removeObject(forKey: DemoRealUserSnapshot.storageKey)
         #endif
     }
 

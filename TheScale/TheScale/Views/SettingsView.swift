@@ -1672,9 +1672,28 @@ struct SettingsView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
 
-                Text("Loads a full camera-ready persona (profile, 4 weeks of weighs, gauges, meals, Keel chat) and writes Steps / Energy / Diet / Sleep / Workouts into HealthKit. Tap Turn On All on the Health share sheet once.")
+                Text("Loads a full camera-ready persona (profile, 4 weeks of weighs, gauges, meals, Keel chat) and writes Steps / Energy / Diet / Sleep / Workouts into HealthKit. Tap Turn On All on the Health share sheet once. Your profile is kept so you can come back.")
                     .font(.caption2)
                     .foregroundStyle(steel)
+
+                if DemoRealUserSnapshot.canRestore {
+                    Button {
+                        Task {
+                            let restored = await session.restoreRealUserAfterDemo()
+                            dataRightsNote = restored
+                                ? "Back on your profile."
+                                : "Could not restore your profile."
+                            if restored {
+                                session.dismissSettings()
+                            }
+                        }
+                    } label: {
+                        Label(demoReturnTitle, systemImage: "person.crop.circle.badge.checkmark")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("settings.demoRestore")
+                }
 
                 Button {
                     session.applyDemoPersona(.male)
@@ -1737,6 +1756,16 @@ struct SettingsView: View {
             ShareSheet(items: [item.url])
         }
     }
+
+    #if DEBUG
+    private var demoReturnTitle: String {
+        let name = DemoRealUserSnapshot.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty {
+            return "Return to my profile"
+        }
+        return "Return to \(name)"
+    }
+    #endif
 
     private var legalCard: some View {
         settingsPanel {

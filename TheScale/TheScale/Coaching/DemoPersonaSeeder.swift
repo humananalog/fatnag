@@ -33,6 +33,7 @@ enum DemoPersonaSeeder {
 
     /// Persist profile + companion stores before `ScaleSessionViewModel` boots (launch args).
     static func persist(_ persona: Persona, now: Date = Date()) {
+        DemoRealUserSnapshot.captureIfNeeded()
         let profile = makeProfile(persona, now: now)
         UserProfileStore.save(profile)
 
@@ -484,5 +485,71 @@ private func roundKg(_ value: Double) -> Double {
 
 private func roundPct(_ value: Double) -> Double {
     (value * 10).rounded() / 10
+}
+
+/// Copy of the real profile taken the moment Bob or Alice is about to overwrite it.
+/// Switching demo personas does not replace this copy.
+enum DemoRealUserSnapshot {
+    static let storageKey = "thescale.debug.realUserSnapshot"
+
+    private static var keys: [String] {
+        ScaleDataRights.appUserDefaultsKeys + [
+            "thescale.appLanguage",
+            "thescale.goalRevision.stamp",
+            "AppleLanguages"
+        ]
+    }
+
+    static var canRestore: Bool {
+        UserDefaults.standard.object(forKey: storageKey) != nil
+    }
+
+    static var displayName: String {
+        guard let payload = UserDefaults.standard.dictionary(forKey: storageKey),
+              let name = payload["displayName"] as? String
+        else { return "" }
+        return name
+    }
+
+    static func captureIfNeeded() {
+        guard !canRestore else { return }
+        var payload = captureRaw()
+        let name = UserProfileStore.load().displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        payload["displayName"] = name
+        UserDefaults.standard.set(payload, forKey: storageKey)
+    }
+
+    @discardableResult
+    static func restore() -> Bool {
+        guard let payload = UserDefaults.standard.dictionary(forKey: storageKey) else { return false }
+        apply(payload)
+        UserDefaults.standard.removeObject(forKey: storageKey)
+        return true
+    }
+
+    static func captureRaw() -> [String: Any] {
+        var values: [String: Any] = [:]
+        var missing: [String] = []
+        for key in keys {
+            if let value = UserDefaults.standard.object(forKey: key) {
+                values[key] = value
+            } else {
+                missing.append(key)
+            }
+        }
+        return ["values": values, "missing": missing]
+    }
+
+    static func apply(_ raw: [String: Any]) {
+        let values = raw["values"] as? [String: Any] ?? [:]
+        let missing = raw["missing"] as? [String] ?? []
+        for (key, value) in values {
+            UserDefaults.standard.set(value, forKey: key)
+        }
+        for key in missing {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        AppLanguageStore.syncBundleLanguages()
+    }
 }
 #endif
