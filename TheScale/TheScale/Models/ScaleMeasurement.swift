@@ -1,6 +1,6 @@
 import Foundation
 
-/// Decoded BLE frame from Mi Body Composition Scale 2 (XMTZC05HM / MIBFS).
+/// Decoded BLE frame from a compatible body scale (brand/model via `sourceDeviceLabel`).
 struct ScaleMeasurement: Equatable, Identifiable, Sendable {
     let id: UUID
     /// Weight in kilograms.
@@ -18,6 +18,8 @@ struct ScaleMeasurement: Equatable, Identifiable, Sendable {
     let receivedAt: Date
     /// False for live settling frames shown while the scale is still locking weight.
     let isStabilized: Bool
+    /// Decoder / hardware label for HealthKit metadata (generic when unknown).
+    let sourceDeviceLabel: String
 
     init(
         id: UUID = UUID(),
@@ -28,7 +30,8 @@ struct ScaleMeasurement: Equatable, Identifiable, Sendable {
         biaPending: Bool = false,
         displayUnit: ScaleWeightUnit,
         receivedAt: Date = Date(),
-        isStabilized: Bool = true
+        isStabilized: Bool = true,
+        sourceDeviceLabel: String = "Bluetooth body scale"
     ) {
         self.id = id
         self.weightKg = weightKg
@@ -39,6 +42,7 @@ struct ScaleMeasurement: Equatable, Identifiable, Sendable {
         self.displayUnit = displayUnit
         self.receivedAt = receivedAt
         self.isStabilized = isStabilized
+        self.sourceDeviceLabel = sourceDeviceLabel
     }
 }
 

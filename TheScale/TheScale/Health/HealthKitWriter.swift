@@ -857,7 +857,7 @@ final class HealthKitWriter: HealthWriting {
         // and a prior "authorization requested" flag must not skip the Weight write prompt.
         try await ensureWeightWriteAccess()
 
-        // Mi Scale RTC is often wrong (factory clock / TZ). Wrong or future dates make
+        // Some BLE scale RTCs are wrong (factory clock / TZ). Wrong or future dates make
         // HealthKit reject the save or land the sample on another day — phone time wins
         // for BLE; manual entry keeps the user-picked stamp.
         let date = Self.resolvedSampleDate(
@@ -1039,7 +1039,7 @@ final class HealthKitWriter: HealthWriting {
             HKMetadataKeyWasUserEntered: draft.isManualEntry,
             "SourceDevice": draft.isManualEntry
                 ? "Manual entry"
-                : "Xiaomi Mi Body Composition Scale 2 (XMTZC05HM)",
+                : draft.sourceDeviceLabel,
             "App": "FATNAG"
         ]
         if let ohms = draft.impedanceOhms {
@@ -1053,7 +1053,7 @@ final class HealthKitWriter: HealthWriting {
 
     /// Health sample timestamp for a weigh-in.
     ///
-    /// BLE Mi Scale clocks drift / ship unset — using them directly causes HealthKit
+    /// BLE scale clocks often drift / ship unset — using them directly causes HealthKit
     /// save failures (future dates) or "not recorded today" confusion (wrong day).
     /// Manual entries keep the user-chosen date when it is sane.
     nonisolated static func resolvedSampleDate(

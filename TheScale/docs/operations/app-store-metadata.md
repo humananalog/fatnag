@@ -36,8 +36,8 @@ Use on the Inflight version page for **6816630442**:
 | **Subtitle** (≤30) | `Nag until the fat folds.` |
 | **Subtitle alternates** (if Alex overrides) | `Daily nag. Smaller pants.` / `Weigh. Nag. Lose. Repeat.` |
 | **Promotional text** (updatable anytime) | `Nag until the fat folds — daily weigh-ins that keep the routine until the loss shows. Apple Health sync. Honest Coach credits.` |
-| **Description opener** | `FATNAG nags you into the habit that shrinks the folds: weigh daily, stay honest, win the week. Privacy-first companion for Mi Body Composition Scale 2 — weigh-ins stay on your iPhone, confirm into Apple Health, and optional Keel Coach helps when you go soft, with weekly credit caps instead of endless chat spam.` |
-| **Keywords** | `scale,mi scale,weight,body fat,healthkit,fasting,coach,fitness,bia,weigh in` |
+| **Description opener** | `FATNAG nags you into the habit that shrinks the folds: weigh daily, stay honest, win the week. Privacy-first companion for compatible Bluetooth body scales — weigh-ins stay on your iPhone, confirm into Apple Health, and optional Keel Coach helps when you go soft, with weekly credit caps instead of endless chat spam.` |
+| **Keywords** | `scale,weight,body fat,healthkit,fasting,coach,fitness,bia,weigh in,bluetooth` |
 | **Support URL** | `https://humananalog.github.io/fatnag/support` |
 | **Privacy Policy URL** | `https://humananalog.github.io/fatnag/privacy` |
 | **Category** | Health & Fitness |
@@ -78,7 +78,7 @@ No advertising data. No tracking domains. No third-party analytics SDKs.
 Capture on the latest required iPhone sizes in ASC (typically 6.7" + 6.1"):
 
 1. **Home** - weekly goal / day gauges (no debug chrome).
-2. **Live weigh-in** - Mi Scale live sheet with settled weight.
+2. **Live weigh-in** - Live scale sheet with settled weight.
 3. **Progress / charts** - weight history with ideal line.
 4. **Coach** - chat thread (consent already granted on the demo device).
 5. **Paywall** - Free / Plus / Pro (luxury sheet).
@@ -88,14 +88,14 @@ Do **not** include DEBUG menus, plan overrides, or sample notification buttons.
 
 ## Promotional text / description (draft)
 
-**Catchphrase note:** Primary subtitle **Nag until the fat folds.** is the funny FATNAG line — daily nagging that keeps the weigh-in routine until body fat actually folds/shrinks. Do **not** put Mi Scale in the subtitle or punch lines (hardware name belongs only in description / Bluetooth setup copy).
+**Catchphrase note:** Primary subtitle **Nag until the fat folds.** is the funny FATNAG line — daily nagging that keeps the weigh-in routine until body fat actually folds/shrinks. Do **not** put a hardware brand in the subtitle or punch lines (supported scales belong only in description / Bluetooth setup copy).
 
 **Promotional text (updatable):** Nag until the fat folds — daily weigh-ins that keep the routine until the loss shows. Apple Health sync. Honest Coach credits.
 
 **Description (draft):**
-FATNAG nags you into the habit that shrinks the folds: weigh daily, stay honest, win the week. Privacy-first companion for Mi Body Composition Scale 2 — weigh-ins stay on your iPhone, confirm into Apple Health, and optional Keel Coach helps when you go soft, with weekly credit caps instead of endless chat spam.
+FATNAG nags you into the habit that shrinks the folds: weigh daily, stay honest, win the week. Privacy-first companion for compatible Bluetooth body scales — weigh-ins stay on your iPhone, confirm into Apple Health, and optional Keel Coach helps when you go soft, with weekly credit caps instead of endless chat spam.
 
-- Bluetooth LE read of Mi Scale advertisements (no manufacturer cloud pairing)
+- Bluetooth LE read of compatible scale advertisements (no manufacturer cloud pairing)
 - Body composition estimates + Apple Health write on Confirm
 - Charts, trend, and dream-weight projection
 - Local notifications for morning weigh drills and fitness signals you enable
@@ -105,7 +105,7 @@ Not a medical device. Fitness guidance only.
 
 ## Keywords (draft)
 
-`scale,mi scale,weight,body fat,healthkit,fasting,coach,fitness,bia,weigh in`
+`scale,weight,body fat,healthkit,fasting,coach,fitness,bia,weigh in,bluetooth`
 
 ## Support + marketing URLs
 
@@ -123,7 +123,7 @@ Use / adapt `ScaleLegal.appStoreReviewNotes`:
 FATNAG: App Review notes
 ASC app id: 6816630442 · bundle app.thescale.ios
 
-Hardware: Xiaomi Mi Body Composition Scale 2 via Bluetooth LE advertisements (no pairing cloud).
+Hardware: compatible Bluetooth LE body scales via advertisements (no pairing cloud). Mi Body Composition Scale 2 (`0x181B`) is supported today; the decoder registry is brand/model agnostic for more scales.
 HealthKit: write mass/BMI/fat%/lean on Confirm; read only types used for charts + fitness coaching digests.
 Background: healthkit observers + enableBackgroundDelivery for workouts/sleep/weight/steps/HR; BGAppRefresh + BGProcessing as backups for fitness checks. iOS may throttle.
 Network: optional Keel Coach via HTTPS Worker after explicit consent. Store builds leave GROK_API_KEY empty (Worker holds the secret).
@@ -138,7 +138,7 @@ IAP: Plus monthly $1.99 / annual $19.99 (28 credits/wk); Pro monthly $7.99 / ann
 No login account. Provide:
 
 - Sandbox Apple ID for IAP restore/purchase
-- Note that Mi Scale hardware is optional for review if Manual weigh-in + Health samples are present on the review device
+- Note that a Bluetooth scale is optional for review if Manual weigh-in + Health samples are present on the review device
 - Steps: Onboard → allow Health → Manual weigh-in or Confirm from Health → open Coach after consent → Settings Export/Erase visible
 
 ## Related

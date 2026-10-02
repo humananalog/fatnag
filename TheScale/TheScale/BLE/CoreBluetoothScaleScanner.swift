@@ -15,10 +15,11 @@ protocol ScaleScannerDelegate: AnyObject {
     func scaleScanner(_ scanner: ScaleScanning, transientStatus: String)
 }
 
-/// Passive BLE scanner for Mi Body Composition Scale 2 advertisements.
+/// Passive BLE scanner for compatible body-scale advertisements.
 ///
-/// XMTZC05HM / MIBFS broadcasts weight + impedance in service data `0x181B`.
-/// No pairing or GATT connection is required for a live reading.
+/// Scans unfiltered, then matches ads through `ScaleFrameDecoderRegistry`
+/// (Mi Body Composition Scale 2 today; other brands/models can register next).
+/// No pairing or GATT connection is required for broadcast readings.
 final class CoreBluetoothScaleScanner: NSObject, ScaleScanning {
     weak var delegate: ScaleScannerDelegate?
 
@@ -50,7 +51,7 @@ final class CoreBluetoothScaleScanner: NSObject, ScaleScanning {
 
     func focus(on peripheralID: UUID) {
         focusedPeripheralID = peripheralID
-        // Keep scanning advertisements; connection is unnecessary for MIBFS broadcast frames.
+        // Keep scanning advertisements; connection is unnecessary for broadcast frames.
         beginScanIfPossible()
     }
 
@@ -58,8 +59,7 @@ final class CoreBluetoothScaleScanner: NSObject, ScaleScanning {
         guard wantsScan else { return }
         guard central.state == .poweredOn else { return }
         // Do not filter by service UUID in the scan options: some iOS versions
-        // only surface 0x181B inside the advertisement manufacturer/service-data
-        // payload after an unfiltered scan.
+        // only surface scale service-data after an unfiltered scan.
         central.scanForPeripherals(withServices: nil, options: [
             CBCentralManagerScanOptionAllowDuplicatesKey: true
         ])
@@ -74,15 +74,15 @@ final class CoreBluetoothScaleScanner: NSObject, ScaleScanning {
             ?? peripheral.name
         let serviceData = advertisementData[CBAdvertisementDataServiceDataKey] as? [CBUUID: Data]
 
-        let looksLikeScale = MiScale2FrameDecoder.matchesAdvertisedName(name)
-            || serviceData?.keys.contains(where: { $0.uuidString.uppercased().hasSuffix("181B") }) == true
-
-        guard looksLikeScale else { return }
+        guard let decoder = ScaleFrameDecoderRegistry.matching(
+            advertisedName: name,
+            serviceData: serviceData
+        ) else { return }
 
         knownPeripherals[peripheral.identifier] = peripheral
         let scale = DiscoveredScale(
             id: peripheral.identifier,
-            name: name ?? "Mi Scale",
+            name: name ?? decoder.fallbackAdvertisedName,
             rssi: rssi.intValue,
             lastSeen: Date()
         )
@@ -93,25 +93,21 @@ final class CoreBluetoothScaleScanner: NSObject, ScaleScanning {
         }
 
         guard let serviceData else { return }
-        for (uuid, data) in serviceData {
-            guard uuid.uuidString.uppercased().hasSuffix("181B") else { continue }
-            // Prefer live decode so unstabilized kg streams into the weigh-in sheet.
-            switch MiScale2FrameDecoder.decodeLive(data) {
-            case .success(let measurement):
-                if !measurement.isStabilized {
-                    delegate?.scaleScanner(self, transientStatus: "Live weight… keep standing still.")
-                } else if measurement.biaPending {
-                    delegate?.scaleScanner(
-                        self,
-                        transientStatus: "Weight locked. Waiting for body composition (stay barefoot)…"
-                    )
-                }
-                delegate?.scaleScanner(self, didDecode: measurement)
-            case .failure(.weightRemoved):
-                delegate?.scaleScanner(self, transientStatus: "Weight removed. Step back on barefoot for body fat.")
-            case .failure:
-                break
+        switch ScaleFrameDecoderRegistry.decodeLive(serviceData: serviceData) {
+        case .measurement(let measurement, _):
+            if !measurement.isStabilized {
+                delegate?.scaleScanner(self, transientStatus: "Live weight… keep standing still.")
+            } else if measurement.biaPending {
+                delegate?.scaleScanner(
+                    self,
+                    transientStatus: "Weight locked. Waiting for body composition (stay barefoot)…"
+                )
             }
+            delegate?.scaleScanner(self, didDecode: measurement)
+        case .weightRemoved:
+            delegate?.scaleScanner(self, transientStatus: "Weight removed. Step back on barefoot for body fat.")
+        case .none:
+            break
         }
     }
 }

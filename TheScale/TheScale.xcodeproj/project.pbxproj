@@ -19,6 +19,7 @@
 		3B9F0978281C4C8EBE8DADFC /* ScaleSessionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98B7D1B4269643799F3CE3B0 /* ScaleSessionViewModel.swift */; };
 		3CAF1391CFF64BF3AC07916E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87EB1E9E2263405C8B1B48F0 /* ContentView.swift */; };
 		639C1D0FBB9F479E88FDD8E4 /* MiScale2FrameDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E034D719C949FFB23C0620 /* MiScale2FrameDecoder.swift */; };
+		A1B2C3D4E5F60718293A00SD1 /* ScaleFrameDecoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A10SD1 /* ScaleFrameDecoding.swift */; };
 		6F875465CF3841AAAE957421 /* TheScaleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35B878F26684D38829349F0 /* TheScaleApp.swift */; };
 		77A738E9F5444319B38724AA /* HealthKitWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD9268209C7548B6B832E710 /* HealthKitWriter.swift */; };
 		8425863436B347BE915C74E8 /* CoreBluetoothScaleScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8BB567BC5A469595541B70 /* CoreBluetoothScaleScanner.swift */; };
@@ -306,6 +307,7 @@
 		AC8BB567BC5A469595541B70 /* CoreBluetoothScaleScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBluetoothScaleScanner.swift; sourceTree = "<group>"; };
 		D6A9DA851C404433ACD94ECA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D9E034D719C949FFB23C0620 /* MiScale2FrameDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiScale2FrameDecoder.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A10SD1 /* ScaleFrameDecoding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScaleFrameDecoding.swift; sourceTree = "<group>"; };
 		DD9268209C7548B6B832E710 /* HealthKitWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitWriter.swift; sourceTree = "<group>"; };
 		E595CBE9B3604BDA974B7530 /* MiScale2DecoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiScale2DecoderTests.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A10HG1 /* HomeGlassBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeGlassBar.swift; sourceTree = "<group>"; };
@@ -387,6 +389,7 @@
 			isa = PBXGroup;
 			children = (
 				D9E034D719C949FFB23C0620 /* MiScale2FrameDecoder.swift */,
+				A1B2C3D4E5F60718293A10SD1 /* ScaleFrameDecoding.swift */,
 				AC8BB567BC5A469595541B70 /* CoreBluetoothScaleScanner.swift */,
 			);
 			path = BLE;
@@ -869,6 +872,7 @@
 				A1B2C3D4E5F60718293A00PN1 /* ProfileNumericBounds.swift in Sources */,
 				3B9F0978281C4C8EBE8DADFC /* ScaleSessionViewModel.swift in Sources */,
 				639C1D0FBB9F479E88FDD8E4 /* MiScale2FrameDecoder.swift in Sources */,
+				A1B2C3D4E5F60718293A00SD1 /* ScaleFrameDecoding.swift in Sources */,
 				8425863436B347BE915C74E8 /* CoreBluetoothScaleScanner.swift in Sources */,
 				77A738E9F5444319B38724AA /* HealthKitWriter.swift in Sources */,
 				A1B2C3D4E5F60718293A00SDL /* ScaleDebugLog.swift in Sources */,
@@ -994,10 +998,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 174;
+				CURRENT_PROJECT_VERSION = 175;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 1.0.79;
+				MARKETING_VERSION = 1.0.80;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1065,7 +1069,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 174;
+				CURRENT_PROJECT_VERSION = 175;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TheScale/Resources/Info.plist;
@@ -1082,7 +1086,7 @@
 					"-weak_framework",
 					FoundationModels,
 				);
-				MARKETING_VERSION = 1.0.79;
+				MARKETING_VERSION = 1.0.80;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1101,10 +1105,10 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 174;
+				CURRENT_PROJECT_VERSION = 175;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				MARKETING_VERSION = 1.0.79;
+				MARKETING_VERSION = 1.0.80;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1122,7 +1126,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = TheScale/Resources/TheScale.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 174;
+				CURRENT_PROJECT_VERSION = 175;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TheScale/Resources/Info.plist;
@@ -1139,7 +1143,7 @@
 					"-weak_framework",
 					FoundationModels,
 				);
-				MARKETING_VERSION = 1.0.79;
+				MARKETING_VERSION = 1.0.80;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1205,7 +1209,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TheScaleWidgets/TheScaleWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 174;
+				CURRENT_PROJECT_VERSION = 175;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TheScaleWidgets/Info.plist;
@@ -1217,7 +1221,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.79;
+				MARKETING_VERSION = 1.0.80;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1232,7 +1236,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TheScaleWidgets/TheScaleWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 174;
+				CURRENT_PROJECT_VERSION = 175;
 				DEVELOPMENT_TEAM = XHVW66YM39;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TheScaleWidgets/Info.plist;
@@ -1244,7 +1248,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.79;
+				MARKETING_VERSION = 1.0.80;
 				PRODUCT_BUNDLE_IDENTIFIER = app.thescale.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

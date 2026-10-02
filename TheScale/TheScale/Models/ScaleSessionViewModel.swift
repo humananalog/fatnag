@@ -3,7 +3,7 @@ import Foundation
 import UIKit
 import UserNotifications
 
-/// A nearby Xiaomi scale discovered via BLE advertisements.
+/// A nearby Bluetooth body scale discovered via BLE advertisements.
 struct DiscoveredScale: Identifiable, Equatable, Sendable {
     let id: UUID
     let name: String
@@ -363,7 +363,7 @@ final class ScaleSessionViewModel: ObservableObject {
         phase = .scanning
         liveHint = weighInPurpose == .calibration
             ? "Find the scale, then place your reference mass on the platform."
-            : "Looking for MIBFS / Mi Body Composition Scale 2…"
+            : "Looking for a nearby Bluetooth body scale…"
         scanner.startScanning()
         Task { await refreshHealthBaseline() }
     }
@@ -2932,7 +2932,8 @@ final class ScaleSessionViewModel: ObservableObject {
             biaPending: measurement.biaPending,
             displayUnit: measurement.displayUnit,
             receivedAt: measurement.receivedAt,
-            isStabilized: measurement.isStabilized
+            isStabilized: measurement.isStabilized,
+            sourceDeviceLabel: measurement.sourceDeviceLabel
         )
     }
 

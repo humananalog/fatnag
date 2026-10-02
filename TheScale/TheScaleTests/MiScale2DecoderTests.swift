@@ -1,3 +1,4 @@
+import CoreBluetooth
 import XCTest
 @testable import TheScale
 
@@ -102,6 +103,32 @@ final class MiScale2FrameDecoderTests: XCTestCase {
         XCTAssertTrue(MiScale2FrameDecoder.matchesAdvertisedName("MIBFS"))
         XCTAssertTrue(MiScale2FrameDecoder.matchesAdvertisedName("mibfs-abc"))
         XCTAssertFalse(MiScale2FrameDecoder.matchesAdvertisedName("Apple Watch"))
+    }
+
+    func testRegistryMatchesMiCompatibleAdsAndTagsSource() throws {
+        let adapter = MiScale2FrameDecoderAdapter()
+        XCTAssertTrue(adapter.matches(advertisedName: "MIBFS", serviceData: nil))
+        XCTAssertFalse(adapter.matches(advertisedName: "Apple Watch", serviceData: nil))
+
+        var bytes = [UInt8](repeating: 0, count: 13)
+        bytes[0] = 0x02
+        bytes[1] = 0x22
+        bytes[2] = 0xE8; bytes[3] = 0x07
+        bytes[4] = 9; bytes[5] = 11; bytes[6] = 12; bytes[7] = 30; bytes[8] = 0
+        bytes[9] = 0xF4; bytes[10] = 0x01
+        bytes[11] = 0xB0; bytes[12] = 0x36
+
+        let outcome = ScaleFrameDecoderRegistry.decodeLive(
+            serviceData: [CBUUID(string: "181B"): Data(bytes)]
+        )
+        guard case .measurement(let measurement, let label) = outcome else {
+            return XCTFail("Expected registry decode")
+        }
+        XCTAssertEqual(measurement.weightKg, 70.0, accuracy: 0.001)
+        XCTAssertEqual(measurement.sourceDeviceLabel, "Bluetooth body scale")
+        XCTAssertEqual(label, "Bluetooth body scale")
+        XCTAssertFalse(label.localizedCaseInsensitiveContains("Xiaomi"))
+        XCTAssertFalse(label.localizedCaseInsensitiveContains("Mi Scale"))
     }
 }
 

@@ -24,7 +24,7 @@ enum CoachAgentRole: String, CaseIterable, Identifiable, Codable, Sendable {
         case .medical:
             return """
             \(AppLanguageStore.current.resolved.modelDirective)
-            You are the health-context specialist for FATNAG, a privacy-first Mi Scale → Apple Health app.
+            You are the health-context specialist for FATNAG, a privacy-first Bluetooth scale → Apple Health app.
             \(voice)
             Prefer trends over single weigh-ins. Be honest when data is thin.
             You are not a clinician and must not diagnose. Fitness guidance only.

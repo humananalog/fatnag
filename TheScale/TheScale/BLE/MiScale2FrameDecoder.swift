@@ -158,7 +158,8 @@ enum MiScale2FrameDecoder {
         return nil
     }
 
-    /// True when a BLE local name looks like a Xiaomi body composition scale.
+    /// True when a BLE local name looks like a known Mi-compatible body composition scale.
+    /// Other brands register their own name matchers via `ScaleFrameDecoding`.
     static func matchesAdvertisedName(_ name: String?) -> Bool {
         guard let name else { return false }
         let upper = name.uppercased()

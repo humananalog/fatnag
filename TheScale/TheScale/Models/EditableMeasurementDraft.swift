@@ -18,6 +18,8 @@ struct EditableMeasurementDraft: Equatable, Sendable {
     var sourceHasImpedance: Bool
     /// True for travel / hotel mass-only logs (no BIA, no fake fat/lean).
     var isManualEntry: Bool
+    /// Hardware / decoder label for HealthKit (BLE scales); manual stays "Manual entry".
+    var sourceDeviceLabel: String
 
     /// Lean mass as percent of body weight (companion to body fat %).
     var leanPercent: Double? {
@@ -54,7 +56,8 @@ struct EditableMeasurementDraft: Equatable, Sendable {
             scaleDate: measurement.scaleDate,
             receivedAt: measurement.receivedAt,
             sourceHasImpedance: measurement.hasImpedance,
-            isManualEntry: false
+            isManualEntry: false,
+            sourceDeviceLabel: measurement.sourceDeviceLabel
         )
     }
 
@@ -76,7 +79,8 @@ struct EditableMeasurementDraft: Equatable, Sendable {
             scaleDate: date,
             receivedAt: date,
             sourceHasImpedance: false,
-            isManualEntry: true
+            isManualEntry: true,
+            sourceDeviceLabel: "Manual entry"
         )
     }
 

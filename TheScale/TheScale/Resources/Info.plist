@@ -30,9 +30,9 @@
 		<string>bluetooth-le</string>
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>FATNAG uses Bluetooth to read weight and body-composition advertisements from your nearby Mi Body Composition Scale 2. Data stays on this iPhone.</string>
+	<string>FATNAG uses Bluetooth to read weight and body-composition advertisements from a nearby compatible body scale. Data stays on this iPhone.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>FATNAG uses Bluetooth to read weight and body-composition advertisements from your nearby Mi Body Composition Scale 2. Data stays on this iPhone.</string>
+	<string>FATNAG uses Bluetooth to read weight and body-composition advertisements from a nearby compatible body scale. Data stays on this iPhone.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>FATNAG reads weight, body fat, heart rate, resting heart rate, HRV (SDNN), respiratory rate, sleeping wrist temperature, blood oxygen, VO2 max, sleep (including stages when available), steps, active energy, Exercise Time, walking and running distance, workouts, and nutrition (dietary energy, protein, fiber, iron, potassium) from Apple Health. Used only for charts, daily targets, fitness digests, and optional Keel coaching after you consent. Nothing is uploaded without that opt-in.</string>
 	<key>NSHealthUpdateUsageDescription</key>
