@@ -197,6 +197,7 @@ struct TheScaleApp: App {
                     // Let splash / first home frame paint before Health + Metal work.
                     try? await Task.sleep(nanoseconds: 900_000_000)
                     guard AppSceneActivity.isActive else { return }
+                    await session.refreshHomeFromHealth(force: true)
                     _ = await session.runFitnessMonitorCheck(force: false)
                     await session.armHealthKitBackgroundDelivery()
                     await session.refreshTrendNotifications()

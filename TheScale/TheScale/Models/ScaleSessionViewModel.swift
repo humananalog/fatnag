@@ -213,6 +213,8 @@ final class ScaleSessionViewModel: ObservableObject {
     private var lastAcceptedSignature: String?
     private var impedanceWaitTask: Task<Void, Never>?
     private var lastHomeGaugeRefreshAt: Date?
+    /// Last time home pulled weight + gauges from Health (observer / foreground).
+    private var lastHomeHealthRefreshAt: Date?
     /// Coalesce auto sheet open: ignore BLE reopen until this instant.
     private var autoSheetCooldownUntil: Date?
     /// Prevents concurrent discover + decode races from double-presenting.
@@ -1721,6 +1723,28 @@ final class ScaleSessionViewModel: ObservableObject {
         return weeklyGoalSurface
     }
 
+    /// Pull latest HealthKit into home chrome: weight baseline + steps/move gauges.
+    /// Always runs on foreground / observer wakes so home is not stuck on a stale snapshot.
+    /// Notification prefs do **not** gate this — Health UI stays live even when Coach alerts are off.
+    func refreshHomeFromHealth(force: Bool = false) async {
+        #if DEBUG
+        if isDemoPersonaActive { return }
+        #endif
+        if !force,
+           let last = lastHomeHealthRefreshAt,
+           Date().timeIntervalSince(last) < 12 {
+            return
+        }
+        await refreshHealthBaseline()
+        await refreshHomeGauges(force: true)
+        await reconcileAlreadyWeighedTodayFromHealth()
+        lastHomeHealthRefreshAt = Date()
+        ScaleDebugLog.throttled(
+            "homeHealth.refresh",
+            "Home Health refresh baseline=\(healthBaselineKg.map { String(format: "%.1f", $0) } ?? "nil") steps=\(lastFitnessDigest?.stepsToday.map { Int($0) } ?? -1)"
+        )
+    }
+
     /// Refresh Health digest + rebuild the home weekly-goal hero.
     @discardableResult
     func refreshWeeklyGoalSurface() async -> WeeklyGoalSurface {
@@ -2343,12 +2367,25 @@ final class ScaleSessionViewModel: ObservableObject {
         let wantTrend =
             notificationPreferences.notifyOnBadTrend || notificationPreferences.weeklyGoalReminders
         let wantMorning = notificationPreferences.morningWeighDrill
-        // Morning drill / miss ladder alone must still wake: sleep digest + calendar fallback.
-        guard monitoringOn || wantTrend || wantMorning else { return false }
 
         do {
             try await healthStore.requestAuthorizationIfNeeded()
             await armHealthKitBackgroundDelivery()
+
+            // Home must update even when fitness alerts are off. Observer wakes used to
+            // early-return before weight/gauges, leaving the Weigh tab on a stale snapshot.
+            let forceHome =
+                forceFullCoach
+                || reason == .bodyMass
+                || reason == .steps
+                || reason == .activeEnergy
+                || reason == .workout
+                || reason == .appRefresh
+                || reason == .manual
+            await refreshHomeFromHealth(force: forceHome)
+
+            // Morning drill / miss ladder alone must still wake: sleep digest + calendar fallback.
+            guard monitoringOn || wantTrend || wantMorning else { return true }
 
             if monitoringOn || wantMorning {
                 let digest = try await healthStore.fetchFitnessDigest(

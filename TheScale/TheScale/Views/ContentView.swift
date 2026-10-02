@@ -285,8 +285,9 @@ struct ContentView: View {
             if ProcessInfo.processInfo.arguments.contains("-debugMonthlyHero") { return }
             #endif
             Task {
-                await session.reconcileAlreadyWeighedTodayFromHealth()
-                await session.refreshHomeGauges(force: false)
+                // Force Health pull on every foreground — do not rely on the 8s gauge throttle
+                // or notification prefs (observer wakes used to skip home when alerts were off).
+                await session.refreshHomeFromHealth(force: true)
                 // Monday / overnight week-roll: re-warm Progress so last week's
                 // achievement never sticks as this week's %.
                 await session.warmProgressSurface(force: MondayCardEngine.isMonday())
@@ -338,7 +339,7 @@ struct ContentView: View {
             .toolbar(.hidden, for: .navigationBar)
             .task(id: session.homeTab) {
                 guard session.homeTab == .weigh else { return }
-                await session.reconcileAlreadyWeighedTodayFromHealth()
+                await session.refreshHomeFromHealth(force: false)
                 await session.warmProgressSurface(force: false)
             }
         }
@@ -356,8 +357,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, minHeight: height, alignment: .top)
             }
             .refreshable {
-                await session.refreshHomeGauges(force: true)
-                await session.refreshHealthBaseline()
+                await session.refreshHomeFromHealth(force: true)
                 await session.refreshWeeklyGoalSurface()
             }
         }
@@ -461,11 +461,10 @@ struct ContentView: View {
         session.startPassiveListening()
         // Warm Progress (history → baseline → Monday reconcile) in parallel with gauges
         // so the Progress tab is ready on first swipe / tap.
-        async let gauges = session.refreshHomeGauges(force: true)
+        async let homeHealth = session.refreshHomeFromHealth(force: true)
         async let progressWarm = session.warmProgressSurface(force: true)
-        _ = await gauges
+        _ = await homeHealth
         _ = await progressWarm
-        await session.reconcileAlreadyWeighedTodayFromHealth()
         await session.refreshWeeklyGoalSurface()
         await session.refreshTrendNotifications()
         ScaleNotificationRouter.openDestination = { destination in
