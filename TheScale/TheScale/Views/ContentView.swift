@@ -93,6 +93,8 @@ struct ContentView: View {
     @State private var pendingNotifCount = 0
     /// Banking-style mass privacy: dots by default, eye toggles reveal.
     @State private var hideHomeMass = MassPrivacyStore.hideHomeMass
+    /// Compact layout when the Weigh tab is short (inferred from scroll content height).
+    @State private var isCompactHomeHeight = false
 
     private var surface: WeeklyGoalSurface {
         session.weeklyGoalSurface
@@ -346,20 +348,29 @@ struct ContentView: View {
     }
 
     private var homeScroll: some View {
-        GeometryReader { geo in
-            let height = ProgressBounds.safeLength(geo.size.height)
-            let compact = height > 0 && height < 720
-            ScrollView(.vertical, showsIndicators: false) {
-                homeColumn(compact: compact)
-                    .padding(.horizontal, ScaleLayout.pageInset)
-                    .padding(.top, 8)
-                    .padding(.bottom, ScaleLayout.tabBarClearance)
-                    .frame(maxWidth: .infinity, minHeight: height, alignment: .top)
-            }
-            .refreshable {
-                await session.refreshHomeFromHealth(force: true)
-                await session.refreshWeeklyGoalSurface()
-            }
+        // Keep ScrollView as the refreshable host. Wrapping it in GeometryReader
+        // breaks pull-to-refresh on some iOS versions (gesture never fires).
+        ScrollView(.vertical, showsIndicators: false) {
+            homeColumn(compact: isCompactHomeHeight)
+                .padding(.horizontal, ScaleLayout.pageInset)
+                .padding(.top, 8)
+                .padding(.bottom, ScaleLayout.tabBarClearance)
+                .frame(maxWidth: .infinity, alignment: .top)
+                .background {
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: HomeScrollHeightKey.self,
+                            value: geo.size.height
+                        )
+                    }
+                }
+        }
+        .onPreferenceChange(HomeScrollHeightKey.self) { height in
+            let safe = ProgressBounds.safeLength(height)
+            isCompactHomeHeight = safe > 0 && safe < 720
+        }
+        .refreshable {
+            await session.syncHomeWithHealthKit()
         }
     }
 
@@ -708,6 +719,13 @@ struct GoalDateRevisionSheet: View {
             .padding(20)
             .navigationBarTitleDisplayMode(.inline)
         }
+    }
+}
+
+private struct HomeScrollHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 

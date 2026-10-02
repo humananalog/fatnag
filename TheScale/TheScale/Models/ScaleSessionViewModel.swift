@@ -1723,6 +1723,70 @@ final class ScaleSessionViewModel: ObservableObject {
         return weeklyGoalSurface
     }
 
+    /// Pull-to-refresh on home: hard-sync weight + today steps/move from HealthKit, then rebuild UI.
+    /// Never lets a zero/nil digest wipe a fresher non-zero gauge read from the same sync.
+    func syncHomeWithHealthKit() async {
+        #if DEBUG
+        if isDemoPersonaActive {
+            rebuildWeeklyGoalSurface()
+            return
+        }
+        #endif
+        guard healthKitAvailable else {
+            rebuildWeeklyGoalSurface()
+            return
+        }
+        do {
+            try await healthStore.requestAuthorizationIfNeeded()
+        } catch {
+            ScaleDebugLog.throttled("homeSync.auth", "Home Health sync auth failed: \(error.localizedDescription)")
+        }
+
+        await refreshHealthBaseline()
+
+        var gaugeMetrics = HomeDailyMetrics.zero
+        do {
+            gaugeMetrics = try await healthStore.fetchHomeDailyMetrics(now: Date())
+        } catch {
+            ScaleDebugLog.throttled("homeSync.gauges", "Home gauges sync FAILED: \(error.localizedDescription)")
+        }
+
+        let digest = await refreshFitnessDigestForCoach()
+        var merged = digest
+        // Prefer the larger of lean gauges vs full digest so a flaky collection query cannot
+        // pin the home Steps row at 0 / target while Fitness shows thousands.
+        let gaugeSteps = gaugeMetrics.stepsToday
+        let digestSteps = merged.stepsToday ?? 0
+        merged.stepsToday = max(gaugeSteps, digestSteps)
+
+        let gaugeMove = gaugeMetrics.activeEnergyKcalToday
+        let digestMove = merged.activeEnergyKcalToday ?? 0
+        merged.activeEnergyKcalToday = max(gaugeMove, digestMove)
+
+        if gaugeMetrics.dietaryEnergyKcalToday > 0 {
+            merged.dietaryEnergyKcalToday = max(
+                merged.dietaryEnergyKcalToday ?? 0,
+                gaugeMetrics.dietaryEnergyKcalToday
+            )
+        }
+        if gaugeMetrics.dietaryProteinGramsToday > 0 {
+            merged.dietaryProteinGramsToday = max(
+                merged.dietaryProteinGramsToday ?? 0,
+                gaugeMetrics.dietaryProteinGramsToday
+            )
+        }
+
+        lastHomeGaugeRefreshAt = Date()
+        lastHomeHealthRefreshAt = Date()
+        lastFitnessDigest = merged
+        await reconcileAlreadyWeighedTodayFromHealth()
+        rebuildWeeklyGoalSurface()
+        ScaleDebugLog.throttled(
+            "homeSync.ok",
+            "Home Health pull-to-refresh steps=\(Int(merged.stepsToday ?? 0)) move=\(Int(merged.activeEnergyKcalToday ?? 0)) baseline=\(healthBaselineKg.map { String(format: "%.1f", $0) } ?? "nil")"
+        )
+    }
+
     /// Pull latest HealthKit into home chrome: weight baseline + steps/move gauges.
     /// Always runs on foreground / observer wakes so home is not stuck on a stale snapshot.
     /// Notification prefs do **not** gate this — Health UI stays live even when Coach alerts are off.
@@ -1756,7 +1820,20 @@ final class ScaleSessionViewModel: ObservableObject {
         #endif
         // Fast path first so Horizon Arc Bank fills without waiting on sleep/HRV/workouts.
         await refreshHomeGauges(force: true)
-        _ = await refreshFitnessDigestForCoach()
+        let priorSteps = lastFitnessDigest?.stepsToday ?? 0
+        let priorMove = lastFitnessDigest?.activeEnergyKcalToday ?? 0
+        var digest = await refreshFitnessDigestForCoach()
+        // Full digest must not clobber good gauge totals with a failed/empty step query.
+        if (digest.stepsToday ?? 0) < 1, priorSteps > 0 {
+            digest.stepsToday = priorSteps
+        }
+        if (digest.activeEnergyKcalToday ?? 0) < 1, priorMove > 0 {
+            digest.activeEnergyKcalToday = priorMove
+        }
+        if digest.stepsToday != lastFitnessDigest?.stepsToday
+            || digest.activeEnergyKcalToday != lastFitnessDigest?.activeEnergyKcalToday {
+            lastFitnessDigest = digest
+        }
         rebuildWeeklyGoalSurface()
         await polishTomorrowAdviceIfAvailable()
         return weeklyGoalSurface

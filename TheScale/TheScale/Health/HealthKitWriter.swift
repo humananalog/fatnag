@@ -562,14 +562,20 @@ final class HealthKitWriter: HealthWriting {
         now: Date,
         calendar: Calendar = .current
     ) async throws -> Double? {
+        let dayStart = calendar.startOfDay(for: now)
+        // Primary: strict window from midnight → now (matches Fitness "Today" for in-progress days).
+        // Collection-by-anchor alone often returns nil for steps mid-day on some iOS builds.
+        if let direct = try await sumQuantity(identifier, unit: unit, from: dayStart, to: now),
+           direct > 0 {
+            return direct
+        }
         guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else {
             throw HealthKitWriterError.missingType(identifier.rawValue)
         }
-        let dayStart = calendar.startOfDay(for: now)
         guard let nextMidnight = calendar.date(byAdding: .day, value: 1, to: dayStart) else {
             return try await sumQuantity(identifier, unit: unit, from: dayStart, to: now)
         }
-        return try await withCheckedThrowingContinuation { continuation in
+        let collectionSum: Double? = try await withCheckedThrowingContinuation { continuation in
             let query = HKStatisticsCollectionQuery(
                 quantityType: type,
                 quantitySamplePredicate: HKQuery.predicateForSamples(
@@ -590,11 +596,26 @@ final class HealthKitWriter: HealthWriting {
                     continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
                     return
                 }
-                let value = collection?.statistics(for: dayStart)?.sumQuantity()?.doubleValue(for: unit)
-                continuation.resume(returning: value)
+                var total = 0.0
+                var saw = false
+                collection?.enumerateStatistics(from: dayStart, to: now) { statistics, _ in
+                    if let quantity = statistics.sumQuantity() {
+                        total += quantity.doubleValue(for: unit)
+                        saw = true
+                    }
+                }
+                if saw {
+                    continuation.resume(returning: total)
+                    return
+                }
+                let legacy = collection?.statistics(for: dayStart)?.sumQuantity()?.doubleValue(for: unit)
+                continuation.resume(returning: legacy)
             }
             store.execute(query)
         }
+        if let collectionSum, collectionSum > 0 { return collectionSum }
+        // Last resort: allow nil/0 from the midnight→now sum (already tried).
+        return try await sumQuantity(identifier, unit: unit, from: dayStart, to: now)
     }
 
     /// Soft day sum for home gauges: never throws. Missing / denied / empty → 0.

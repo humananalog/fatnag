@@ -596,21 +596,17 @@ struct FitnessDigest: Equatable, Sendable {
     }
 
     /// Overlay lean home-gauge totals without wiping Coach-only fields (HRV, sleep, …).
-    /// Never clobber a fresher full-digest total with a suspiciously lower lean read.
+    /// Prefer higher same-day totals; never let a flaky 0 wipe good steps, and never keep yesterday.
     mutating func applyHomeDailyMetrics(_ metrics: HomeDailyMetrics) {
-        let digestAge = Date().timeIntervalSince(generatedAt)
-        if let existing = stepsToday, existing > 0,
-           metrics.stepsToday < existing * 0.15,
-           digestAge < 15 * 60 {
-            // Keep digest steps.
-        } else {
+        let sameDay = Calendar.current.isDate(generatedAt, inSameDayAs: metrics.generatedAt)
+        if metrics.stepsToday > 0 {
+            stepsToday = max(stepsToday ?? 0, metrics.stepsToday)
+        } else if !sameDay || (stepsToday ?? 0) <= 0 {
             stepsToday = metrics.stepsToday
         }
-        if let existing = activeEnergyKcalToday, existing > 0,
-           metrics.activeEnergyKcalToday < existing * 0.15,
-           digestAge < 15 * 60 {
-            // Keep digest move energy.
-        } else {
+        if metrics.activeEnergyKcalToday > 0 {
+            activeEnergyKcalToday = max(activeEnergyKcalToday ?? 0, metrics.activeEnergyKcalToday)
+        } else if !sameDay || (activeEnergyKcalToday ?? 0) <= 0 {
             activeEnergyKcalToday = metrics.activeEnergyKcalToday
         }
         // Keep dietary nil when zero so Move-burn fallback still works when no food log.
@@ -856,7 +852,9 @@ struct FitnessDigest: Equatable, Sendable {
         let sleepBits = sleepHoursLastNight.map { String(format: "sleep=%.1fh", $0) } ?? "sleep=nil"
         let hrvBits = hrvSDNNMs.map { String(format: "hrv=%.0fms", $0) } ?? "hrv=nil"
         let recoveryBits = recovery.map { "recovery=\($0.band.rawValue)" } ?? "recovery=nil"
-        return "FitnessDigest access=\(access.rawValue) signals=\(hasAnyFitnessSignal) \(sleepBits) \(hrvBits) \(recoveryBits) workouts24h=\(workoutCountLast24h) recent=\(recentWorkouts.count) \(workoutBits) \(distBits)"
+        let stepsBits = stepsToday.map { "steps=\(Int($0.rounded()))" } ?? "steps=nil"
+        let moveBits = activeEnergyKcalToday.map { "move=\(Int($0.rounded()))kcal" } ?? "move=nil"
+        return "FitnessDigest access=\(access.rawValue) signals=\(hasAnyFitnessSignal) \(stepsBits) \(moveBits) \(sleepBits) \(hrvBits) \(recoveryBits) workouts24h=\(workoutCountLast24h) recent=\(recentWorkouts.count) \(workoutBits) \(distBits)"
     }
 }
 
