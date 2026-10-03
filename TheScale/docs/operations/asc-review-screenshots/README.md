@@ -9,8 +9,6 @@ Upload the **matching** PNG to each Coach SKU (Apple X.99 price points).
 | Pro Annual `app.thescale.ios.pro.annual` | $79.99 / year | `review-pro-annual.png` |
 | Pro Monthly `app.thescale.ios.pro.monthly` | $7.99 / month | `review-pro-monthly.png` |
 
-`subscription-review-paywall-annual.png` is a copy of the Pro Annual shot (legacy alias).
-
 ## Regenerate
 
 ```bash

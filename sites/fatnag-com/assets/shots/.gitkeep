@@ -1,7 +1,2 @@
-# Drop App Store screenshots here:
-# 01-home.png
-# 02-weigh.png
-# 03-progress.png
-# 04-keel.png
-#
-# Then update index.html shot-cards to use <img src="/assets/shots/01-home.png" alt="..." />
+# Site defaults are JPG at this folder root (see README.md).
+# PNG masters: bob/ and alice/. QA: qa-review.html

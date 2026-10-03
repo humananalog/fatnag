@@ -120,10 +120,7 @@ capture_one "paywall-plus-monthly" "review-plus-monthly.png"
 capture_one "paywall-pro-annual" "review-pro-annual.png"
 capture_one "paywall-pro-monthly" "review-pro-monthly.png"
 
-# Compatibility alias used by older ASC checklist docs.
-cp -f "$OUT_DIR/review-pro-annual.png" "$OUT_DIR/subscription-review-paywall-annual.png"
-
 echo "==> Wrote:"
-ls -la "$OUT_DIR"/review-*.png "$OUT_DIR"/subscription-review-paywall-annual.png
+ls -la "$OUT_DIR"/review-*.png
 echo "Upload matching PNG to each Coach SKU Review Information field."
 open -R "$OUT_DIR/review-plus-annual.png" >/dev/null 2>&1 || true

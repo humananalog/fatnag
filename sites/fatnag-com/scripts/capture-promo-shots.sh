@@ -215,15 +215,15 @@ for entry in "${SHOTS_LIST[@]}"; do
   capture_shot alice -demoFemale "$shot" "$file"
 done
 
-echo "==> Publishing Bob shots as site defaults"
+echo "==> Publishing Bob web exports as site defaults (JPG/WebP only; PNG masters stay in bob/alice)"
 for entry in "${SHOTS_LIST[@]}"; do
   IFS=: read -r _ file <<<"$entry"
-  cp -f "$SHOTS/bob/$file" "$SHOTS/$file"
-  if [[ -f "$SHOTS/bob/${file%.png}.jpg" ]]; then
-    cp -f "$SHOTS/bob/${file%.png}.jpg" "$SHOTS/${file%.png}.jpg"
+  stem="${file%.png}"
+  if [[ -f "$SHOTS/bob/${stem}.jpg" ]]; then
+    cp -f "$SHOTS/bob/${stem}.jpg" "$SHOTS/${stem}.jpg"
   fi
-  if [[ -f "$SHOTS/bob/${file%.png}.webp" ]]; then
-    cp -f "$SHOTS/bob/${file%.png}.webp" "$SHOTS/${file%.png}.webp"
+  if [[ -f "$SHOTS/bob/${stem}.webp" ]]; then
+    cp -f "$SHOTS/bob/${stem}.webp" "$SHOTS/${stem}.webp"
   fi
 done
 
@@ -236,7 +236,7 @@ fi
 xcrun simctl status_bar "$UDID" clear >/dev/null 2>&1 || true
 
 echo "==> Done"
-ls -la "$SHOTS"/*.png "$SHOTS/bob"/*.png "$SHOTS/alice"/*.png 2>/dev/null | sed 's|^|  |'
+ls -la "$SHOTS"/*.{jpg,webp} "$SHOTS/bob"/*.png "$SHOTS/alice"/*.png 2>/dev/null | sed 's|^|  |'
 if [[ "$DO_RECORD" -eq 1 ]]; then
   ls -la "$SHOTS/recordings"/*.mp4 2>/dev/null | sed 's|^|  |' || true
 fi

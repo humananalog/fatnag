@@ -49,13 +49,6 @@ struct LegalDocumentView: View {
     }
 }
 
-/// Back-compat wrapper used by older NavigationLinks.
-struct PrivacyPolicyView: View {
-    var body: some View {
-        LegalDocumentView(document: .privacyPolicy)
-    }
-}
-
 #Preview {
     NavigationStack {
         LegalDocumentView(document: .privacyPolicy)
