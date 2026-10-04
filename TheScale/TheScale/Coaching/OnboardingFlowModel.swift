@@ -5,12 +5,13 @@ import Foundation
 final class OnboardingFlowModel: ObservableObject {
     enum Step: Int, CaseIterable, Equatable {
         case language = 0
-        case identity = 1
-        case body = 2
-        case anatomy = 3
-        case dream = 4
-        case lifestyle = 5
-        case confirm = 6
+        case units = 1
+        case identity = 2
+        case body = 3
+        case anatomy = 4
+        case dream = 5
+        case lifestyle = 6
+        case confirm = 7
     }
 
     @Published var step: Step = .language
@@ -32,6 +33,8 @@ final class OnboardingFlowModel: ObservableObject {
     @Published var idealBodyFat: Double?
     @Published var goalDate: Date = Calendar.current.date(byAdding: .month, value: 3, to: Date()) ?? Date()
     @Published var unitSystem: PreferredUnitSystem = .metric
+    /// True once the user taps kg or lb on the early units step.
+    @Published var didConfirmUnits = false
     @Published var diet: DietPreference = .omnivore
     /// True once the user touches the diet picker (or saves later in Settings / gap sheet).
     @Published var dietConfirmed = false
@@ -93,6 +96,8 @@ final class OnboardingFlowModel: ObservableObject {
         switch step {
         case .language:
             return true
+        case .units:
+            return didConfirmUnits
         case .identity:
             return !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .body:
@@ -115,14 +120,11 @@ final class OnboardingFlowModel: ObservableObject {
 
     var primaryCTA: String {
         switch step {
-        case .language: return AppLanguageStore.text("onboarding.cta.next", default: "Next")
-        case .identity: return AppLanguageStore.text("onboarding.cta.next", default: "Next")
-        case .body: return AppLanguageStore.text("onboarding.cta.next", default: "Next")
+        case .language, .units, .identity, .body, .dream, .lifestyle:
+            return AppLanguageStore.text("onboarding.cta.next", default: "Next")
         case .anatomy: return isInferring
             ? AppLanguageStore.text("onboarding.cta.filling", default: "Filling profile…")
             : AppLanguageStore.text("onboarding.cta.next", default: "Next")
-        case .dream: return AppLanguageStore.text("onboarding.cta.next", default: "Next")
-        case .lifestyle: return AppLanguageStore.text("onboarding.cta.next", default: "Next")
         case .confirm: return AppLanguageStore.text("onboarding.cta.start", default: "Start weighing")
         }
     }
@@ -166,10 +168,11 @@ final class OnboardingFlowModel: ObservableObject {
         culturalVibe = profile.culturalVibe
         intermittentFasting = profile.intermittentFasting
         enableNotifications = notifications.notifyOnBadTrend
-        // First launch: force language → explicit gender + adult age. Re-entry keeps profile values.
+        // First launch: language → units → name → gender + adult age. Re-entry keeps profile values.
         if OnboardingStore.hasCompleted {
             ageYears = profile.ageYears
             sex = profile.sex
+            didConfirmUnits = true
             if let title = profile.goalDifficultyTitle {
                 let level = GoalDifficultyFlavor.maleTitles.firstIndex(of: title)
                     ?? GoalDifficultyFlavor.femaleTitles.firstIndex(of: title)
@@ -180,6 +183,7 @@ final class OnboardingFlowModel: ObservableObject {
             step = .language
             ageYears = 0
             sex = nil
+            didConfirmUnits = false
             difficultyBand = nil
         }
         if !FoundationModelAvailability.isAvailable {
@@ -202,6 +206,8 @@ final class OnboardingFlowModel: ObservableObject {
         case .language:
             AppLanguageStore.current = appLanguage
             preferredLanguage = appLanguage.profileLanguageName
+            step = .units
+        case .units:
             step = .identity
         case .identity:
             step = .body
@@ -224,6 +230,11 @@ final class OnboardingFlowModel: ObservableObject {
         case .confirm:
             break
         }
+    }
+
+    func selectUnits(_ system: PreferredUnitSystem) {
+        applyUnitSystem(system)
+        didConfirmUnits = true
     }
 
     func runInference(infer: ((OnboardingFlowModel) async -> OnboardingInferenceDraft)? = nil) async {

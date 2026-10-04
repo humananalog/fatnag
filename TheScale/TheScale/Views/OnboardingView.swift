@@ -1,8 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// First launch: language → identity → body → anatomy → dream → lifestyle → confirm.
-/// Every step is one screenfit page on iPhone 15. Hard facts. Short lines.
+/// First launch: language → units → identity → body → anatomy → dream → lifestyle → confirm.
+/// Every step is one screenfit page. One instruction, one primary input.
 struct OnboardingView: View {
     @EnvironmentObject private var session: ScaleSessionViewModel
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -30,6 +30,7 @@ struct OnboardingView: View {
                 Group {
                     switch flow.step {
                     case .language: languageStep(compact: compact)
+                    case .units: unitsStep(compact: compact)
                     case .identity: identityStep(compact: compact)
                     case .body: bodyStep(compact: compact)
                     case .anatomy: anatomyStep(compact: compact)
@@ -161,6 +162,16 @@ struct OnboardingView: View {
 
     private var continueBar: some View {
         VStack(spacing: 8) {
+            if flow.step == .units, !flow.canAdvance {
+                Text(AppLanguageStore.text(
+                    "onboarding.units.need_choice",
+                    default: "Choose kg or lb, then tap Next."
+                ))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(steel)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("onboarding.units.needChoice")
+            }
             if flow.step == .identity, !flow.canAdvance {
                 Text(AppLanguageStore.text(
                     "onboarding.identity.need_name",
@@ -266,9 +277,78 @@ struct OnboardingView: View {
         .accessibilityIdentifier("onboarding.language")
     }
 
+    // MARK: - Units (kg / lb early)
+
+    private func unitsStep(compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: compact ? 16 : 20) {
+            Text(AppLanguageStore.text(
+                "onboarding.units.prompt",
+                default: "How do you weigh yourself?"
+            ))
+            .font(.system(size: compact ? 20 : 22, weight: .semibold, design: .rounded))
+            .foregroundStyle(ink)
+            .accessibilityIdentifier("onboarding.units.prompt")
+
+            VStack(spacing: 12) {
+                unitChoiceChip(
+                    system: .metric,
+                    title: AppLanguageStore.text("onboarding.units.metric_title", default: "Kilograms"),
+                    detail: AppLanguageStore.text("onboarding.units.metric_detail", default: "kg · cm")
+                )
+                unitChoiceChip(
+                    system: .imperial,
+                    title: AppLanguageStore.text("onboarding.units.imperial_title", default: "Pounds"),
+                    detail: AppLanguageStore.text("onboarding.units.imperial_detail", default: "lb · in")
+                )
+            }
+            .accessibilityIdentifier("onboarding.units")
+
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 8)
+    }
+
+    private func unitChoiceChip(system: PreferredUnitSystem, title: String, detail: String) -> some View {
+        let selected = flow.didConfirmUnits && flow.unitSystem == system
+        return Button {
+            flow.selectUnits(system)
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text(detail)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(selected ? Color.white.opacity(0.85) : steel)
+                }
+                Spacer(minLength: 0)
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 22, weight: .semibold))
+                }
+            }
+            .foregroundStyle(selected ? Color.white : ink)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                selected ? moss : Color.white.opacity(0.92),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(ink.opacity(selected ? 0 : 0.12), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("onboarding.units.\(system.rawValue)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
     private var stepTitle: String {
         switch flow.step {
         case .language: return AppLanguageStore.text("onboarding.step.language", default: "Language")
+        case .units: return AppLanguageStore.text("onboarding.step.units", default: "Units")
         case .identity: return AppLanguageStore.text("onboarding.step.identity", default: "Your name")
         case .body: return AppLanguageStore.text("onboarding.step.body", default: "About you")
         case .anatomy: return AppLanguageStore.text("onboarding.step.anatomy", default: "Height & weight")
@@ -285,16 +365,13 @@ struct OnboardingView: View {
                 "onboarding.sub.language",
                 default: "Pick the language for the app."
             )
-        case .identity:
-            // Instruction lives in the title + single field — no extra marketing copy.
+        case .units, .identity, .anatomy:
             return ""
         case .body:
             return AppLanguageStore.text(
                 "onboarding.sub.body",
                 default: "Age and gender. Adults 18+ only."
             )
-        case .anatomy:
-            return ""
         case .dream:
             return AppLanguageStore.text(
                 "onboarding.sub.dream",
@@ -441,8 +518,6 @@ struct OnboardingView: View {
     private func anatomyStep(compact: Bool) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: compact ? 16 : 20) {
-                unitToggle(id: "onboarding.anatomy.units")
-
                 Text(AppLanguageStore.text("onboarding.anatomy.height_prompt", default: "How tall are you?"))
                     .font(.system(size: compact ? 18 : 20, weight: .semibold, design: .rounded))
                     .foregroundStyle(ink)
@@ -574,12 +649,6 @@ struct OnboardingView: View {
     private func dreamStep(compact: Bool) -> some View {
         ScrollView {
         VStack(alignment: .leading, spacing: compact ? 8 : 10) {
-            if !compact {
-                vectorArt("OnboardingVectorDream", height: 56)
-            }
-
-            unitToggle(id: "onboarding.dream.units")
-
             AnalogDreamScaleView(
                 weightKg: Binding(
                     get: { flow.idealKg },
@@ -819,19 +888,6 @@ struct OnboardingView: View {
 
     // MARK: - Shared
 
-    private func unitToggle(id: String) -> some View {
-        Picker("Units", selection: Binding(
-            get: { flow.unitSystem },
-            set: { flow.applyUnitSystem($0) }
-        )) {
-            ForEach(PreferredUnitSystem.allCases) { system in
-                Text(system.shortTitle).tag(system)
-            }
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier(id)
-    }
-
     private func confirmMini(_ title: String, text: Binding<String>, id: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
@@ -849,6 +905,10 @@ struct OnboardingView: View {
         case .language:
             AppLanguageStore.current = flow.appLanguage
             flow.preferredLanguage = flow.appLanguage.profileLanguageName
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
+                flow.step = .units
+            }
+        case .units:
             withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
                 flow.step = .identity
             }

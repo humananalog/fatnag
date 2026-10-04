@@ -9,7 +9,17 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertTrue(flow.canAdvance)
 
         await flow.advance(infer: { _ in
-            XCTFail("Inference should not run on language → identity")
+            XCTFail("Inference should not run on language → units")
+            return .empty
+        })
+        XCTAssertEqual(flow.step, .units)
+        XCTAssertFalse(flow.canAdvance)
+
+        flow.selectUnits(.metric)
+        XCTAssertTrue(flow.canAdvance)
+
+        await flow.advance(infer: { _ in
+            XCTFail("Inference should not run on units → identity")
             return .empty
         })
         XCTAssertEqual(flow.step, .identity)
@@ -120,7 +130,9 @@ final class OnboardingFlowTests: XCTestCase {
 
     func testBackNavigation() async {
         let flow = OnboardingFlowModel()
-        await flow.advance(infer: { _ in .empty }) // language → identity
+        await flow.advance(infer: { _ in .empty }) // language → units
+        flow.selectUnits(.metric)
+        await flow.advance(infer: { _ in .empty }) // units → identity
         flow.name = "Sam"
         await flow.advance(infer: { _ in .empty }) // identity → body
         XCTAssertEqual(flow.step, .body)
@@ -128,9 +140,21 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(flow.step, .identity)
     }
 
+    func testUnitsStepRequiresChoice() async {
+        let flow = OnboardingFlowModel()
+        await flow.advance(infer: nil)
+        XCTAssertEqual(flow.step, .units)
+        XCTAssertFalse(flow.canAdvance)
+        flow.selectUnits(.imperial)
+        XCTAssertEqual(flow.unitSystem, .imperial)
+        XCTAssertTrue(flow.canAdvance)
+    }
+
     func testHeuristicsUsedWhenFMDisabled() async {
         let flow = OnboardingFlowModel()
-        await flow.advance(infer: nil) // language → identity
+        await flow.advance(infer: nil) // language → units
+        flow.selectUnits(.metric)
+        await flow.advance(infer: nil) // units → identity
         flow.name = "Alex"
         flow.freeform = "pescatarian in Hong Kong, body fat to 18%"
         flow.allowOnDevicePrefill = false
