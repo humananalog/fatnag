@@ -120,13 +120,25 @@ final class OnboardingFlowModel: ObservableObject {
 
     var primaryCTA: String {
         switch step {
-        case .language, .units, .identity, .body, .dream, .lifestyle:
+        case .language, .units, .identity, .body, .dream:
             return AppLanguageStore.text("onboarding.cta.next", default: "Next")
+        case .lifestyle:
+            return hasLifestyleInput
+                ? AppLanguageStore.text("onboarding.cta.next", default: "Next")
+                : AppLanguageStore.text("onboarding.cta.skip", default: "Skip for now")
         case .anatomy: return isInferring
             ? AppLanguageStore.text("onboarding.cta.filling", default: "Filling profile…")
             : AppLanguageStore.text("onboarding.cta.next", default: "Next")
         case .confirm: return AppLanguageStore.text("onboarding.cta.start", default: "Start weighing")
         }
+    }
+
+    /// Diet chosen, avoidances typed, or a city entered.
+    var hasLifestyleInput: Bool {
+        if dietConfirmed { return true }
+        if !foodAvoidances.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
+        if !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
+        return false
     }
 
     var stepCountLabel: String {

@@ -69,9 +69,14 @@ final class LifestyleOnboardingTests: XCTestCase {
         let flow = OnboardingFlowModel()
         flow.step = .lifestyle
         XCTAssertTrue(flow.canAdvance)
+        XCTAssertFalse(flow.hasLifestyleInput)
+        XCTAssertEqual(flow.primaryCTA, "Skip for now")
 
         flow.diet = .pescatarian
         flow.markDietConfirmed()
+        XCTAssertTrue(flow.hasLifestyleInput)
+        XCTAssertEqual(flow.primaryCTA, "Next")
+
         flow.location = "Central HK"
         flow.useLocalContext = true
         flow.foodAvoidances = "shellfish"

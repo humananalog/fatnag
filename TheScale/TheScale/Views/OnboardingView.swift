@@ -353,7 +353,7 @@ struct OnboardingView: View {
         case .body: return AppLanguageStore.text("onboarding.step.body", default: "About you")
         case .anatomy: return AppLanguageStore.text("onboarding.step.anatomy", default: "Height & weight")
         case .dream: return AppLanguageStore.text("onboarding.step.dream", default: "Dream weight")
-        case .lifestyle: return AppLanguageStore.text("onboarding.step.lifestyle", default: "Food & place")
+        case .lifestyle: return AppLanguageStore.text("onboarding.step.lifestyle", default: "Food")
         case .confirm: return AppLanguageStore.text("onboarding.step.confirm", default: "Almost done")
         }
     }
@@ -365,7 +365,7 @@ struct OnboardingView: View {
                 "onboarding.sub.language",
                 default: "Pick the language for the app."
             )
-        case .units, .identity, .anatomy:
+        case .units, .identity, .anatomy, .lifestyle:
             return ""
         case .body:
             return AppLanguageStore.text(
@@ -376,11 +376,6 @@ struct OnboardingView: View {
             return AppLanguageStore.text(
                 "onboarding.sub.dream",
                 default: "Set a target weight and date."
-            )
-        case .lifestyle:
-            return AppLanguageStore.text(
-                "onboarding.sub.lifestyle",
-                default: "Optional — skip anything you want."
             )
         case .confirm:
             return AppLanguageStore.text(
@@ -706,85 +701,122 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Lifestyle (optional diet / location / avoid)
+    // MARK: - Lifestyle (optional — diet first, then quiet extras)
 
     private func lifestyleStep(compact: Bool) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: compact ? 10 : 12) {
-                Text("Diet preference")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(steel)
-                    .accessibilityIdentifier("onboarding.lifestyle.dietLabel")
+            VStack(alignment: .leading, spacing: compact ? 14 : 18) {
+                Text(AppLanguageStore.text(
+                    "onboarding.lifestyle.prompt",
+                    default: "How do you eat?"
+                ))
+                .font(.system(size: compact ? 20 : 22, weight: .semibold, design: .rounded))
+                .foregroundStyle(ink)
+                .accessibilityIdentifier("onboarding.lifestyle.prompt")
 
-                Picker("Diet", selection: Binding(
-                    get: { flow.diet },
-                    set: { flow.diet = $0; flow.markDietConfirmed() }
-                )) {
-                    ForEach(DietPreference.allCases) { item in
-                        Text(item.title).tag(item)
+                Text(AppLanguageStore.text(
+                    "onboarding.lifestyle.hint",
+                    default: "Optional. Skip if you want — we can ask later."
+                ))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(steel)
+                .accessibilityIdentifier("onboarding.lifestyle.softHint")
+
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 10),
+                        GridItem(.flexible(), spacing: 10)
+                    ],
+                    spacing: 10
+                ) {
+                    ForEach(DietPreference.allCases) { diet in
+                        dietChip(diet)
                     }
                 }
-                .pickerStyle(.menu)
                 .accessibilityIdentifier("onboarding.diet")
 
-                Text("Location")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(steel)
-                    .padding(.top, 4)
-
-                TextField("City or area (e.g. Manila, Central HK)", text: $flow.location)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("onboarding.location")
-
-                Toggle(isOn: $flow.useLocalContext) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Use for local food and fitness")
-                            .font(.footnote.weight(.semibold))
-                        Text("Picks nearby markets, meal staples, and fitness options when on.")
-                            .font(.caption2)
-                            .foregroundStyle(steel)
-                    }
-                }
-                .accessibilityIdentifier("onboarding.useLocalContext")
-
-                Text("Avoid")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(steel)
-                    .padding(.top, 4)
-
-                TextField("Allergies and hard nos (peanuts, shellfish…)", text: $flow.foodAvoidances, axis: .vertical)
-                    .lineLimit(2...4)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("onboarding.foodAvoidances")
-
-                Text("Blank is fine.")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(steel)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("onboarding.lifestyle.softHint")
+                Text(AppLanguageStore.text(
+                    "onboarding.lifestyle.avoid_prompt",
+                    default: "Anything to avoid?"
+                ))
+                .font(.system(size: compact ? 17 : 18, weight: .semibold, design: .rounded))
+                .foregroundStyle(ink)
+                .padding(.top, 4)
+                .accessibilityIdentifier("onboarding.lifestyle.avoidLabel")
 
                 TextField(
                     AppLanguageStore.text(
-                        "onboarding.lifestyle.notes",
-                        default: "Anything else? (optional)"
+                        "onboarding.lifestyle.avoid_placeholder",
+                        default: "Peanuts, shellfish… (optional)"
                     ),
-                    text: $flow.freeform,
+                    text: $flow.foodAvoidances,
                     axis: .vertical
                 )
                 .lineLimit(2...3)
                 .textFieldStyle(.roundedBorder)
-                .accessibilityIdentifier("onboarding.freeform")
+                .accessibilityIdentifier("onboarding.foodAvoidances")
 
-                if let fasting = flow.intermittentFasting, fasting.isActive {
-                    Text(
-                        "\(fasting.protocolLabel) · \(MealPlanEngine.formatHour(fasting.eatingStartHour))-\(MealPlanEngine.formatHour(fasting.eatingEndHour))"
+                Text(AppLanguageStore.text(
+                    "onboarding.lifestyle.city_prompt",
+                    default: "Where do you live?"
+                ))
+                .font(.system(size: compact ? 17 : 18, weight: .semibold, design: .rounded))
+                .foregroundStyle(ink)
+                .padding(.top, 4)
+                .accessibilityIdentifier("onboarding.lifestyle.cityLabel")
+
+                TextField(
+                    AppLanguageStore.text(
+                        "onboarding.lifestyle.city_placeholder",
+                        default: "City (optional)"
+                    ),
+                    text: Binding(
+                        get: { flow.location },
+                        set: { next in
+                            flow.location = next
+                            let trimmed = next.trimmingCharacters(in: .whitespacesAndNewlines)
+                            flow.useLocalContext = !trimmed.isEmpty
+                        }
                     )
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(moss)
-                    .accessibilityIdentifier("onboarding.ifWindow")
-                }
+                )
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("onboarding.location")
+
+                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 4)
+            .padding(.bottom, 24)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .accessibilityIdentifier("onboarding.lifestyle")
+    }
+
+    private func dietChip(_ diet: DietPreference) -> some View {
+        let selected = flow.dietConfirmed && flow.diet == diet
+        return Button {
+            flow.diet = diet
+            flow.markDietConfirmed()
+        } label: {
+            Text(diet.title)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .padding(.horizontal, 8)
+                .foregroundStyle(selected ? Color.white : ink)
+                .background(
+                    selected ? moss : Color.white.opacity(0.92),
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(ink.opacity(selected ? 0 : 0.12), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("onboarding.diet.\(diet.rawValue)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     // MARK: - Confirm
