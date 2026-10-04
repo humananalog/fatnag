@@ -469,6 +469,51 @@ struct HomeDailyMetrics: Equatable, Sendable {
         dietaryPotassiumMgToday: 0,
         generatedAt: Date()
     )
+
+    var debugSummaryLine: String {
+        "HomeDailyMetrics steps=\(Int(stepsToday.rounded())) move=\(Int(activeEnergyKcalToday.rounded()))kcal diet=\(Int(dietaryEnergyKcalToday.rounded()))kcal protein=\(Int(dietaryProteinGramsToday.rounded()))g"
+    }
+}
+
+/// DEBUG / support dump for home "Today" Steps + Move counters.
+struct HomeTodayDiagnosticsReport: Equatable, Sendable {
+    var dayStartISO: String
+    var nowISO: String
+    var timeZoneID: String
+    var calendarID: String
+    var healthAvailable: Bool
+    var authRequested: Bool
+    var bodyMassWrite: String
+    var stepsWriteStatus: String
+    var energyWriteStatus: String
+    var stepsDirect: String
+    var stepsCollection: String
+    var stepsChosen: Double
+    var stepsSampleCount: Int
+    var moveDirect: String
+    var moveCollection: String
+    var moveChosen: Double
+    var moveSampleCount: Int
+    var dietEnergyChosen: Double
+    var dietProteinChosen: Double
+    var uiStepsLine: String
+    var uiMoveLine: String
+    var hint: String
+
+    var consoleBlock: String {
+        """
+        Home Today diagnostics
+        window: \(dayStartISO) → \(nowISO)
+        tz=\(timeZoneID) cal=\(calendarID)
+        healthAvailable=\(healthAvailable) authRequested=\(authRequested) bodyMassWrite=\(bodyMassWrite)
+        writeStatus(steps)=\(stepsWriteStatus) writeStatus(activeEnergy)=\(energyWriteStatus)
+        steps: direct=\(stepsDirect) collection=\(stepsCollection) chosen=\(Int(stepsChosen.rounded())) samples=\(stepsSampleCount)
+        move:  direct=\(moveDirect) collection=\(moveCollection) chosen=\(Int(moveChosen.rounded()))kcal samples=\(moveSampleCount)
+        diet: energy=\(Int(dietEnergyChosen.rounded()))kcal protein=\(Int(dietProteinChosen.rounded()))g
+        UI: steps=\(uiStepsLine) | move=\(uiMoveLine)
+        hint: \(hint)
+        """
+    }
 }
 
 /// Compact fitness snapshot for Grok + local trigger algorithms.

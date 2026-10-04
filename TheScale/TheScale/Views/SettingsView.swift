@@ -1804,6 +1804,28 @@ struct SettingsView: View {
                 #if DEBUG
                 Divider().padding(.vertical, 2)
 
+                Text("Debug · Home Today")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ink)
+
+                Text("Probes HealthKit day-sums + sample counts for Steps / Move, then force-refreshes home gauges. Full dump also prints to the Xcode console as “[TheScale] Home Today diagnostics”.")
+                    .font(.caption2)
+                    .foregroundStyle(steel)
+
+                Button {
+                    Task {
+                        let report = await session.runHomeTodayDiagnostics()
+                        dataRightsNote = report
+                    }
+                } label: {
+                    Label("Diagnose home Today counters", systemImage: "stethoscope")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("settings.diagnoseHomeToday")
+
+                Divider().padding(.vertical, 2)
+
                 Text("Debug · Promo demos")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
@@ -1867,8 +1889,10 @@ struct SettingsView: View {
 
                 if let dataRightsNote {
                     Text(dataRightsNote)
-                        .font(.caption2.weight(.semibold))
+                        .font(.system(.caption2, design: .monospaced).weight(.semibold))
                         .foregroundStyle(accent)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("settings.dataRightsNote")
                 }
             }
         }

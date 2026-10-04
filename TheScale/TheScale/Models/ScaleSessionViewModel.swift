@@ -1714,13 +1714,74 @@ final class ScaleSessionViewModel: ObservableObject {
             digest.applyHomeDailyMetrics(metrics)
             lastHomeGaugeRefreshAt = Date()
             lastFitnessDigest = digest
-            // Success path stays silent — never print Home gauges steps/move/diet on every wake.
+            let ui = weeklyGoalSurface.todayProgress
+            let stepsUI = ui.first(where: { $0.kind == .steps })?.currentLine ?? "-"
+            let moveUI = ui.first(where: { $0.kind == .energy })?.currentLine ?? "-"
+            ScaleDebugLog.throttled(
+                "homeGauges.ok",
+                every: 15,
+                "Home gauges OK \(metrics.debugSummaryLine) digest.steps=\(digest.stepsToday.map { Int($0) } ?? -1) digest.move=\(digest.activeEnergyKcalToday.map { Int($0) } ?? -1) UI steps=\(stepsUI) move=\(moveUI) force=\(force)"
+            )
         } catch {
             ScaleDebugLog.throttled("homeGauges.fail", "Home gauges refresh FAILED: \(error.localizedDescription)")
             // Soft-fail: keep prior digest; still rebuild so UI settles.
             rebuildWeeklyGoalSurface()
         }
         return weeklyGoalSurface
+    }
+
+    /// DEBUG / support: deep HealthKit probe for home Today Steps + Move, then hard-refresh UI.
+    @discardableResult
+    func runHomeTodayDiagnostics() async -> String {
+        #if DEBUG
+        if isDemoPersonaActive {
+            let msg = "Home Today diagnostics skipped — demo persona active (gauges are seeded, not live Health)."
+            ScaleDebugLog.print(msg)
+            return msg
+        }
+        #endif
+        guard healthKitAvailable else {
+            let msg = "Home Today diagnostics: HealthKit unavailable."
+            ScaleDebugLog.print(msg)
+            return msg
+        }
+
+        var report: HomeTodayDiagnosticsReport
+        if let kit = healthStore as? HealthKitWriter {
+            report = await kit.diagnoseHomeTodayCounters(now: Date())
+        } else {
+            report = HomeTodayDiagnosticsReport(
+                dayStartISO: "-",
+                nowISO: "-",
+                timeZoneID: TimeZone.current.identifier,
+                calendarID: "-",
+                healthAvailable: healthKitAvailable,
+                authRequested: healthStore.authorizationWasRequested,
+                bodyMassWrite: healthStore.isBodyMassWriteAuthorized ? "ok" : "no",
+                stepsWriteStatus: "n/a",
+                energyWriteStatus: "n/a",
+                stepsDirect: "n/a",
+                stepsCollection: "n/a",
+                stepsChosen: 0,
+                stepsSampleCount: 0,
+                moveDirect: "n/a",
+                moveCollection: "n/a",
+                moveChosen: 0,
+                moveSampleCount: 0,
+                dietEnergyChosen: 0,
+                dietProteinChosen: 0,
+                uiStepsLine: "-",
+                uiMoveLine: "-",
+                hint: "Health store is not HealthKitWriter."
+            )
+        }
+
+        await syncHomeWithHealthKit()
+        let ui = weeklyGoalSurface.todayProgress
+        report.uiStepsLine = ui.first(where: { $0.kind == .steps })?.currentLine ?? "-"
+        report.uiMoveLine = ui.first(where: { $0.kind == .energy })?.currentLine ?? "-"
+        ScaleDebugLog.print(report.consoleBlock)
+        return report.consoleBlock
     }
 
     /// Pull-to-refresh on home: hard-sync weight + today steps/move from HealthKit, then rebuild UI.
@@ -1781,10 +1842,17 @@ final class ScaleSessionViewModel: ObservableObject {
         lastFitnessDigest = merged
         await reconcileAlreadyWeighedTodayFromHealth()
         rebuildWeeklyGoalSurface()
-        ScaleDebugLog.throttled(
-            "homeSync.ok",
-            "Home Health pull-to-refresh steps=\(Int(merged.stepsToday ?? 0)) move=\(Int(merged.activeEnergyKcalToday ?? 0)) baseline=\(healthBaselineKg.map { String(format: "%.1f", $0) } ?? "nil")"
+        let ui = weeklyGoalSurface.todayProgress
+        let stepsUI = ui.first(where: { $0.kind == .steps })?.currentLine ?? "-"
+        let moveUI = ui.first(where: { $0.kind == .energy })?.currentLine ?? "-"
+        ScaleDebugLog.print(
+            "Home Health pull-to-refresh steps=\(Int(merged.stepsToday ?? 0)) move=\(Int(merged.activeEnergyKcalToday ?? 0))kcal baseline=\(healthBaselineKg.map { String(format: "%.1f", $0) } ?? "nil") UI steps=\(stepsUI) move=\(moveUI)"
         )
+        #if DEBUG
+        if let kit = healthStore as? HealthKitWriter {
+            _ = await kit.diagnoseHomeTodayCounters(now: Date())
+        }
+        #endif
     }
 
     /// Pull latest HealthKit into home chrome: weight baseline + steps/move gauges.

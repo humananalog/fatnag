@@ -253,7 +253,7 @@ final class HealthKitWriter: HealthWriting {
             steps, energy, dietaryEnergy, dietaryProtein, dietaryFiber, dietaryIron, dietaryPotassium
         )
 
-        return HomeDailyMetrics(
+        let metrics = HomeDailyMetrics(
             stepsToday: stepsV,
             activeEnergyKcalToday: energyV,
             dietaryEnergyKcalToday: dietEnergyV,
@@ -263,6 +263,111 @@ final class HealthKitWriter: HealthWriting {
             dietaryPotassiumMgToday: dietPotassiumV,
             generatedAt: now
         )
+        ScaleDebugLog.throttled("homeDaily.fetch", every: 15, metrics.debugSummaryLine)
+        return metrics
+    }
+
+    /// Deep probe for home Today gauges. Prefer calling from DEBUG Settings / pull-to-refresh.
+    func diagnoseHomeTodayCounters(now: Date = Date()) async -> HomeTodayDiagnosticsReport {
+        let cal = Calendar.current
+        let dayStart = cal.startOfDay(for: now)
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        guard isHealthDataAvailable else {
+            return HomeTodayDiagnosticsReport(
+                dayStartISO: iso.string(from: dayStart),
+                nowISO: iso.string(from: now),
+                timeZoneID: cal.timeZone.identifier,
+                calendarID: String(describing: cal.identifier),
+                healthAvailable: false,
+                authRequested: authorizationWasRequested,
+                bodyMassWrite: shareStatusLabel(.bodyMass),
+                stepsWriteStatus: shareStatusLabel(.stepCount),
+                energyWriteStatus: shareStatusLabel(.activeEnergyBurned),
+                stepsDirect: "n/a",
+                stepsCollection: "n/a",
+                stepsChosen: 0,
+                stepsSampleCount: 0,
+                moveDirect: "n/a",
+                moveCollection: "n/a",
+                moveChosen: 0,
+                moveSampleCount: 0,
+                dietEnergyChosen: 0,
+                dietProteinChosen: 0,
+                uiStepsLine: "-",
+                uiMoveLine: "-",
+                hint: "HealthKit unavailable on this device."
+            )
+        }
+
+        do {
+            try await requestAuthorizationIfNeeded()
+        } catch {
+            ScaleDebugLog.print("Home Today diagnose auth failed: \(error.localizedDescription)")
+        }
+
+        async let stepsProbe = daySumProbe(.stepCount, unit: .count(), now: now, calendar: cal)
+        async let moveProbe = daySumProbe(.activeEnergyBurned, unit: .kilocalorie(), now: now, calendar: cal)
+        async let stepsSamples = sampleCount(
+            .stepCount,
+            from: dayStart,
+            to: now
+        )
+        async let moveSamples = sampleCount(
+            .activeEnergyBurned,
+            from: dayStart,
+            to: now
+        )
+        async let dietEnergy = softDaySum(.dietaryEnergyConsumed, unit: .kilocalorie(), now: now)
+        async let dietProtein = softDaySum(.dietaryProtein, unit: .gram(), now: now)
+
+        let stepsP = await stepsProbe
+        let moveP = await moveProbe
+        let stepsN = await stepsSamples
+        let moveN = await moveSamples
+        let dietE = await dietEnergy
+        let dietP = await dietProtein
+
+        let hint: String = {
+            if stepsP.chosen <= 0, stepsN == 0, moveP.chosen <= 0, moveN == 0 {
+                return "No step/move samples in local midnight→now. Open Health → Sharing → Apps → FATNAG and enable Steps + Active Energy (read). Confirm Fitness/Health shows Today samples for this calendar day (\(cal.timeZone.identifier))."
+            }
+            if stepsP.chosen <= 0, stepsN > 0 {
+                return "Step samples exist (\(stepsN)) but day-sum chose 0 — statistics path bug; capture this log."
+            }
+            if stepsP.chosen > 0 {
+                return "Health returns steps=\(Int(stepsP.chosen.rounded())). If home UI still shows 0 / -, surface rebuild failed after digest merge."
+            }
+            return "Partial data — check which types Health is sharing with FATNAG."
+        }()
+
+        let report = HomeTodayDiagnosticsReport(
+            dayStartISO: iso.string(from: dayStart),
+            nowISO: iso.string(from: now),
+            timeZoneID: cal.timeZone.identifier,
+            calendarID: String(describing: cal.identifier),
+            healthAvailable: true,
+            authRequested: authorizationWasRequested,
+            bodyMassWrite: shareStatusLabel(.bodyMass),
+            stepsWriteStatus: shareStatusLabel(.stepCount),
+            energyWriteStatus: shareStatusLabel(.activeEnergyBurned),
+            stepsDirect: stepsP.directLabel,
+            stepsCollection: stepsP.collectionLabel,
+            stepsChosen: stepsP.chosen,
+            stepsSampleCount: stepsN,
+            moveDirect: moveP.directLabel,
+            moveCollection: moveP.collectionLabel,
+            moveChosen: moveP.chosen,
+            moveSampleCount: moveN,
+            dietEnergyChosen: dietE,
+            dietProteinChosen: dietP,
+            uiStepsLine: "-",
+            uiMoveLine: "-",
+            hint: hint
+        )
+        ScaleDebugLog.print(report.consoleBlock)
+        return report
     }
 
     func fetchFitnessDigest(
@@ -632,6 +737,133 @@ final class HealthKitWriter: HealthWriting {
                 "softDaySum \(identifier.rawValue) soft-fail: \(error.localizedDescription)"
             )
             return 0
+        }
+    }
+
+    private struct DaySumProbe: Sendable {
+        var directLabel: String
+        var collectionLabel: String
+        var chosen: Double
+    }
+
+    /// Same paths as `daySumQuantity`, but keeps each leg for diagnostics.
+    private func daySumProbe(
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        now: Date,
+        calendar: Calendar
+    ) async -> DaySumProbe {
+        let dayStart = calendar.startOfDay(for: now)
+        let direct: Double?
+        do {
+            direct = try await sumQuantity(identifier, unit: unit, from: dayStart, to: now)
+        } catch {
+            return DaySumProbe(
+                directLabel: "err:\(error.localizedDescription)",
+                collectionLabel: "skipped",
+                chosen: 0
+            )
+        }
+        if let direct, direct > 0 {
+            return DaySumProbe(
+                directLabel: String(format: "%.1f", direct),
+                collectionLabel: "skipped(direct>0)",
+                chosen: direct
+            )
+        }
+
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier),
+              let nextMidnight = calendar.date(byAdding: .day, value: 1, to: dayStart)
+        else {
+            return DaySumProbe(
+                directLabel: direct.map { String(format: "%.1f", $0) } ?? "nil",
+                collectionLabel: "missingType",
+                chosen: direct ?? 0
+            )
+        }
+
+        let collection: Double?
+        do {
+            collection = try await withCheckedThrowingContinuation { continuation in
+                let query = HKStatisticsCollectionQuery(
+                    quantityType: type,
+                    quantitySamplePredicate: HKQuery.predicateForSamples(
+                        withStart: dayStart.addingTimeInterval(-12 * 3600),
+                        end: nextMidnight,
+                        options: []
+                    ),
+                    options: .cumulativeSum,
+                    anchorDate: dayStart,
+                    intervalComponents: DateComponents(day: 1)
+                )
+                query.initialResultsHandler = { _, collection, error in
+                    if let error {
+                        if Self.isNoDataError(error) {
+                            continuation.resume(returning: nil)
+                            return
+                        }
+                        continuation.resume(throwing: HealthKitWriterError.readFailed(error.localizedDescription))
+                        return
+                    }
+                    var total = 0.0
+                    var saw = false
+                    collection?.enumerateStatistics(from: dayStart, to: now) { statistics, _ in
+                        if let quantity = statistics.sumQuantity() {
+                            total += quantity.doubleValue(for: unit)
+                            saw = true
+                        }
+                    }
+                    if saw {
+                        continuation.resume(returning: total)
+                        return
+                    }
+                    let legacy = collection?.statistics(for: dayStart)?.sumQuantity()?.doubleValue(for: unit)
+                    continuation.resume(returning: legacy)
+                }
+                store.execute(query)
+            }
+        } catch {
+            return DaySumProbe(
+                directLabel: direct.map { String(format: "%.1f", $0) } ?? "nil",
+                collectionLabel: "err:\(error.localizedDescription)",
+                chosen: direct ?? 0
+            )
+        }
+
+        let chosen: Double
+        if let collection, collection > 0 {
+            chosen = collection
+        } else {
+            chosen = direct ?? collection ?? 0
+        }
+        return DaySumProbe(
+            directLabel: direct.map { String(format: "%.1f", $0) } ?? "nil",
+            collectionLabel: collection.map { String(format: "%.1f", $0) } ?? "nil",
+            chosen: chosen
+        )
+    }
+
+    private func sampleCount(
+        _ identifier: HKQuantityTypeIdentifier,
+        from start: Date,
+        to end: Date
+    ) async -> Int {
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else { return 0 }
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: [])
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, samples, error in
+                if error != nil {
+                    continuation.resume(returning: 0)
+                    return
+                }
+                continuation.resume(returning: samples?.count ?? 0)
+            }
+            store.execute(query)
         }
     }
 
