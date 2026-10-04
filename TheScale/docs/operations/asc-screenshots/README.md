@@ -27,4 +27,14 @@ Promo masters: `BulkResizePhotos.com` ultramocks (1240×2688). Fit-centered onto
 | `iphone-4/` | 4" | 640 × 1136 |
 | `iphone-3.5/` | 3.5" | 640 × 960 |
 
+## Overlay copy (FATNAG)
+
+| Shot | Title | Text |
+|------|--------|------|
+| Home | Win the week. | Nag until the fat folds. |
+| Progress | Ahead. Stay mean. | Sunday is the only score. |
+| Keel | Keel doesn’t flinch. | Honest roast. No pep talk. |
+| Meals | Eat the plate. | One next meal. No buffet. |
+| Live weigh | Step on. Lock it. | Scale finds you. Confirm to Health. |
+
 Previous simulator captures for 6.5" live in `iphone-6.5/simulator/`.

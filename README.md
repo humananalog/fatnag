@@ -36,16 +36,18 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - On-device BIA estimates (fat, water, muscle, bone, BMI, visceral index)
 - Trend vs last Health weight: green loss, yellow stable (±0.2 kg), red gain
 - **Confirm to Health** writes weight, BMI, body fat %, lean body mass
+- **Weigh any time (1.0.95):** a stabilized scale broadcast opens the live sheet all day, including after a morning weigh. Home **Weigh now** / **Weigh again** starts a BLE hunt (does not fall back to Manual). Scanning re-arms when the app returns to the foreground. Morning 💩 drill still skips if already weighed; that is notifications only.
 
 ### Calibration
 - Settings → reference mass → same live sheet → store factor/offset on-device
 - Does not write to Health
 
 ### History / charts / Trend / projection
-- Charts from Apple Health `bodyMass` + `bodyFatPercentage` (ranges 1W-1Y; default 2W)
+- Charts from Apple Health `bodyMass` + `bodyFatPercentage` (ranges 1W–1Y; default 2W)
 - Ideal line from Settings; Y domain never clips real samples
-- X domain always spans the selected range (fixes sparse 3M/1Y + scroll frame spam)
-- **Trend** toggle: OLS on last 14 days, projects to ideal with safe kg/wk caps
+- **3M / 1Y (1.0.94):** the plot shows the **full** selected window. Horizontal pan that hid the series (and jumped into empty projection future) is off.
+- **Projection** toggle: OLS on recent Health weights, tempered to safe kg/wk caps. The line **draws** toward the target while the X axis grows with it so the path stays on-screen.
+- Dream-weight date in onboarding is gated by the same ACSM-style caps (`GoalPaceGuard` / `TargetFeasibility`). Too-fast calendars are refused; the revision sheet pins **Use this date** under a compact wheel.
 - Tap a point for its value
 
 ### Manual entry
@@ -77,10 +79,13 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **2.9.0 SOTA local UX:** title/subtitle/body, categories + actions, threads, Communication-style Coach when fit, PNG visuals, App Intents deep links, intentional foreground presentation
 - **HealthKit background:** `HKObserverQuery` + `enableBackgroundDelivery` (+ BG refresh/processing backups) so digest/trigger notifications can land without opening the app (iOS still throttles)
 
+### Onboarding (1.0.91–1.0.93)
+Eight first-launch pages, one instruction each: **Language → Units (kg/lb) → Name → Age/sex → Height & weight → Dream weight + date → Food (optional) → Legal**. Units are chosen before any mass dial. Food is diet chips + optional avoidances/city (**Skip for now** if empty). Dream date must pass the safe-pace gate.
+
 ### Progress / goals
 - **Paywall + Settings polish (2.14.1):** Unlock Coach one-pager (high contrast Free/Plus/Pro); meal cards match sheet background; Settings Done dismisses keyboard; Settings regrouped (You / Weekly AI / Coach / Alerts / Scale / Legal).
 - **AI usage / meals / units (2.14.0):** Settings shows weekly online AI % + used/limit with Upgrade; meal carousel peeks + page dots + color; quota-exhausted menus via Foundation Models or solid metric-portion templates; preferred metric/imperial units across Settings, live weigh-in, meal plan, and Coach prompts.
-- **Home day coach (2.13.0):** Today-ahead advice (local clock), macro-goal ETA vs planned date, passive BLE auto-open live card (no Find Scale primary), 10s auto-confirm, weigh-in analysis card (congratulate / reward / punish). Meal plan respects IF 16-8 + time of day; retro snake spinner while generating. Chart point comments (256 chars, on-device, last 30 days). Flat home (cards only for meal carousel).
+- **Home day coach (2.13.0):** Today-ahead advice (local clock), macro-goal ETA vs planned date, 10s auto-confirm, weigh-in analysis card. **1.0.95** keeps passive BLE auto-open *and* an explicit Weigh now/again hunt. Meal plan respects IF 16-8 + time of day. Chart point comments (256 chars, on-device, last 30 days).
 - **Coach feedback sheet UX (1.0.5):** Send pinned outside ScrollView; taller default detent so thumbs reasons don’t bury validation.
 - **Coach feedback + silent failures (1.0.4):** Live Keel failures no longer dump operator/system text into the chat (brief banner only). Successful Coach replies get thumbs up/down → reason chips + free text → Supabase `app_feedback` (`source=coach_reply`) with live model, on-device model, app/device, reply excerpt.
 - **Grok proxy hardening (1.0.3):** Worker at `the-scale-grok.alexhuther.workers.dev`; requires `APP_SHARED_SECRET`; IP + device rate limits; KV weekly Free/Plus/Pro caps (5/28/120). iOS sends device id + plan + credit; fail closed without `GROK_APP_SECRET` in Secrets.xcconfig.
@@ -276,6 +281,8 @@ docs/                     # Architecture, Coach/AI, Health/notifications
 | [docs/architecture.md](docs/architecture.md) | Planes, data flow, layout |
 | [docs/coach-and-ai.md](docs/coach-and-ai.md) | Grok Worker, streaming, FM hybrid, memory |
 | [docs/health-and-notifications.md](docs/health-and-notifications.md) | HealthKit, Progress, alerts, FM polish |
+| [TheScale/docs/operations/app-store-metadata.md](TheScale/docs/operations/app-store-metadata.md) | ASC listing copy, keywords, review notes |
+| [TheScale/docs/operations/asc-screenshots/README.md](TheScale/docs/operations/asc-screenshots/README.md) | Promo mocks sized per iPhone slot |
 
 ## Version
 

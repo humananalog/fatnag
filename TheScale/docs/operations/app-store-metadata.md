@@ -7,7 +7,7 @@ Fill these in ASC before Submit for Review. Binary alone is not enough.
 | Field | Value |
 |-------|--------|
 | ASC Apple ID / app id | **6816630442** |
-| Inflight iOS version | [App Store Connect · Inflight](https://appstoreconnect.apple.com/apps/6816630442/distribution/ios/version/inflight) |
+| Inflight iOS version | **1.0.95** (190) — [App Store Connect · Inflight](https://appstoreconnect.apple.com/apps/6816630442/distribution/ios/version/inflight) |
 | Name (listing) | **FATNAG** (accepted in ASC) |
 | Subtitle (≤30) | **Nag until the fat folds.** (24 chars; primary) |
 | Subtitle alternates | `Daily nag. Smaller pants.` · `Weigh. Nag. Lose. Repeat.` |
@@ -73,18 +73,23 @@ Match `PrivacyInfo.xcprivacy` + in-app policy:
 
 No advertising data. No tracking domains. No third-party analytics SDKs.
 
-## Screenshots (required stubs)
+## Screenshots (promo mocks, 1.0.95)
 
-Capture on the latest required iPhone sizes in ASC (typically 6.7" + 6.1"):
+Sized files live in [`asc-screenshots/`](asc-screenshots/README.md). **Required:** upload `iphone-6.5/` (1284×2778). Also prepared: 6.9 / 6.3 / 6.1 / 5.5 / 4.7 / 4 / 3.5.
 
-1. **Home** - weekly goal / day gauges (no debug chrome).
-2. **Live weigh-in** - Live scale sheet with settled weight.
-3. **Progress / charts** - weight history with ideal line.
-4. **Coach** - chat thread (consent already granted on the demo device).
-5. **Paywall** - Free / Plus / Pro (luxury sheet).
-6. Optional: **Settings → Privacy** showing Export / Erase.
+Gallery order (every size):
 
-Do **not** include DEBUG menus, plan overrides, or sample notification buttons.
+| # | File | Overlay title | Surface |
+|---|------|---------------|---------|
+| 1 | `01-home.png` | Win the week. | Home / Sunday target |
+| 2 | `02-progress.png` | Ahead. Stay mean. | Progress |
+| 3 | `03-coach.png` | Keel doesn’t flinch. | Keel chat |
+| 4 | `04-meals.png` | Eat the plate. | Meal plate |
+| 5 | `05-weigh.png` | Step on. Lock it. | Live weigh-in |
+
+Do **not** include DEBUG menus, plan overrides, sample notification buttons, or Watch/widget chrome.
+
+Old simulator 6.5 captures (no marketing frame) are in `asc-screenshots/iphone-6.5/simulator/`.
 
 ## Promotional text / description (draft)
 
@@ -97,7 +102,8 @@ FATNAG nags you into the habit that shrinks the folds: weigh daily, stay honest,
 
 - Bluetooth LE read of compatible scale advertisements (no manufacturer cloud pairing)
 - Body composition estimates + Apple Health write on Confirm
-- Charts, trend, and dream-weight projection
+- Weigh any time: auto-detect a nearby scale or tap Weigh again
+- Charts, animated projection, and dream-weight date gated to a safe kg/week cap
 - Local notifications for morning weigh drills and fitness signals you enable
 - Optional live Coach after explicit consent (HTTPS Worker; no pasted API keys)
 

@@ -9,6 +9,8 @@
 
 Writes happen only on **Confirm to Health** or **Manual → Save**. Manual entries set `HKMetadataKeyWasUserEntered`.
 
+**Weigh any time (1.0.95):** BLE auto-open is **not** limited to the first weigh of the day. A stabilized, plausible broadcast presents the live sheet at any hour. Home **Weigh now** / **Weigh again** calls `beginScaleDetection()` (scan + live sheet). Foreground re-arms Core Bluetooth. The morning 💩 drill still skips once a valid today sample exists — that gate is notifications only.
+
 **Monday morning card (2.8.0+ / 2.50.4):** after a successful write, if local time is Monday 04:00-12:00, the app presents the weekly instructor card (progress + Sunday target + meals + Grok diagnostic). Cached per ISO week. Progress week-start kg = last Monday Health body mass (prefer morning 04:00–12:00; else any Monday sample; else last weigh before Tuesday); anchor date is always local Monday 00:00. Weekly % / Sunday target pace from that Monday kg. Preview anytime: Settings → Legal → **Dev** (ephemeral — does not reset live weekly progress).
 
 In-app only (no HealthKit quantity): muscle mass, bone mass, water %, visceral index, raw ohms.
@@ -57,8 +59,9 @@ Documented in code (`HealthScienceMath`, `TargetFeasibility`, `HealthChartMath`)
 ### History charts
 
 - Series always from Apple Health for the selected range (not a local fake series).
-- Ideal weight / ideal fat % as dotted Ideal lines; domain includes all samples.
-- **Trend** toggle: OLS on recent weights; tempered projection (safe kg/wk caps + fitness modulators including HRV/recovery) until ideal; fat chart has no projection.
+- Ideal weight / ideal fat % as dotted Target lines; domain includes all samples.
+- **1W / 2W / 1M** plot the full window. **3M / 1Y (1.0.94)** also plot the full selected window (no short pan that hid the series).
+- **Projection** toggle: OLS on an adaptive Health-weight window; slope tempered to safe kg/wk caps; the polyline **animates** out while X grows with `revealProgress` so the target date stays in frame. Fat chart has no projection.
 - Live weigh-in trend color vs last Health weight: ±0.2 kg = stable (yellow).
 
 ## Progress

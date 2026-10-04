@@ -1,10 +1,10 @@
-# App Store Connect — iPhone 6.5" screenshots
+# App Store Connect — iPhone 6.5" simulator captures (legacy)
 
-Upload to **App Store → iOS App → 6.5" Display**.
+These are device-chrome simulator stills, **not** the marketing mocks used for store upload.
 
-**Required size:** `1284 × 2778` (portrait). Also accepted: `1242 × 2688`.
+**Upload the promo set instead:** [`../README.md`](../README.md) (`iphone-6.5/` at 1284×2778).
 
-## Files (gallery order)
+## Files (old gallery)
 
 | # | File | Surface |
 |---|------|---------|
@@ -16,14 +16,11 @@ Upload to **App Store → iOS App → 6.5" Display**.
 | 6 | `06-paywall.png` | Unlock Coach (Annual) |
 | 7 | `07-meals.png` | Meals |
 
-Raw simulator masters (pre-resize) live in `raw/`.
-
-## Regenerate
+Regenerate simulator stills:
 
 ```bash
 ./TheScale/scripts/capture-asc-iphone-65-screenshots.sh
 ```
 
 Do **not** upload DEBUG menus, plan overrides, or sample-notification buttons.
-
-Captures always use `-promoShot=` so **notification + HealthKit permission sheets never appear**. UI uses the demo persona’s in-memory Health digest (no share-sheet during screenshot runs).
+Captures always use `-promoShot=` so permission sheets never appear.
