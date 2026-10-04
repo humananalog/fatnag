@@ -1273,7 +1273,8 @@ final class HealthKitWriter: HealthWriting {
     /// and always looks "denied". Do not treat that as a read denial.
     private func readOnlyShareLabel(_ identifier: HKQuantityTypeIdentifier) -> String {
         guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { return "missing" }
-        if let sample = type as? HKSampleType, shareTypes.contains(sample) {
+        // HKQuantityType is already an HKSampleType — no cast needed.
+        if shareTypes.contains(type) {
             return shareStatusLabel(identifier)
         }
         return "n/a(read-only)"
