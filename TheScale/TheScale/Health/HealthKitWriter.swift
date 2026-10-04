@@ -283,8 +283,8 @@ final class HealthKitWriter: HealthWriting {
                 healthAvailable: false,
                 authRequested: authorizationWasRequested,
                 bodyMassWrite: shareStatusLabel(.bodyMass),
-                stepsWriteStatus: shareStatusLabel(.stepCount),
-                energyWriteStatus: shareStatusLabel(.activeEnergyBurned),
+                stepsShareStatus: readOnlyShareLabel(.stepCount),
+                energyShareStatus: readOnlyShareLabel(.activeEnergyBurned),
                 stepsDirect: "n/a",
                 stepsCollection: "n/a",
                 stepsChosen: 0,
@@ -302,7 +302,8 @@ final class HealthKitWriter: HealthWriting {
         }
 
         do {
-            try await requestAuthorizationIfNeeded()
+            // Force the system sheet again when possible (no-ops if user already decided).
+            try await reRequestAuthorization()
         } catch {
             ScaleDebugLog.print("Home Today diagnose auth failed: \(error.localizedDescription)")
         }
@@ -328,10 +329,14 @@ final class HealthKitWriter: HealthWriting {
         let moveN = await moveSamples
         let dietE = await dietEnergy
         let dietP = await dietProtein
+        let weightOK = isBodyMassWriteAuthorized
 
         let hint: String = {
             if stepsP.chosen <= 0, stepsN == 0, moveP.chosen <= 0, moveN == 0 {
-                return "No step/move samples in local midnight→now. Open Health → Sharing → Apps → FATNAG and enable Steps + Active Energy (read). Confirm Fitness/Health shows Today samples for this calendar day (\(cal.timeZone.identifier))."
+                if weightOK {
+                    return "Weight works, but Steps + Active Energy returned 0 samples. Health → Sharing → Apps → FATNAG → turn ON Steps and Active Energy (scroll the list). Then pull-to-refresh Home. Empty reads look identical to denied reads on iOS."
+                }
+                return "No step/move samples in local midnight→now. Open Health → Sharing → Apps → FATNAG and enable Steps + Active Energy. Confirm Fitness shows Today samples (\(cal.timeZone.identifier))."
             }
             if stepsP.chosen <= 0, stepsN > 0 {
                 return "Step samples exist (\(stepsN)) but day-sum chose 0 — statistics path bug; capture this log."
@@ -350,8 +355,8 @@ final class HealthKitWriter: HealthWriting {
             healthAvailable: true,
             authRequested: authorizationWasRequested,
             bodyMassWrite: shareStatusLabel(.bodyMass),
-            stepsWriteStatus: shareStatusLabel(.stepCount),
-            energyWriteStatus: shareStatusLabel(.activeEnergyBurned),
+            stepsShareStatus: readOnlyShareLabel(.stepCount),
+            energyShareStatus: readOnlyShareLabel(.activeEnergyBurned),
             stepsDirect: stepsP.directLabel,
             stepsCollection: stepsP.collectionLabel,
             stepsChosen: stepsP.chosen,
@@ -1214,6 +1219,16 @@ final class HealthKitWriter: HealthWriting {
         case .sharingAuthorized: return "ok"
         @unknown default: return "unknown"
         }
+    }
+
+    /// Steps / Active Energy are read-only for FATNAG — `authorizationStatus` only reflects *write*
+    /// and always looks "denied". Do not treat that as a read denial.
+    private func readOnlyShareLabel(_ identifier: HKQuantityTypeIdentifier) -> String {
+        guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { return "missing" }
+        if let sample = type as? HKSampleType, shareTypes.contains(sample) {
+            return shareStatusLabel(identifier)
+        }
+        return "n/a(read-only)"
     }
 
     /// Prompt for Weight write if needed; fail clearly when the user previously denied.

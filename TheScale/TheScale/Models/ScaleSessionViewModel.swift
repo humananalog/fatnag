@@ -1758,8 +1758,8 @@ final class ScaleSessionViewModel: ObservableObject {
                 healthAvailable: healthKitAvailable,
                 authRequested: healthStore.authorizationWasRequested,
                 bodyMassWrite: healthStore.isBodyMassWriteAuthorized ? "ok" : "no",
-                stepsWriteStatus: "n/a",
-                energyWriteStatus: "n/a",
+                stepsShareStatus: "n/a",
+                energyShareStatus: "n/a",
                 stepsDirect: "n/a",
                 stepsCollection: "n/a",
                 stepsChosen: 0,
@@ -1780,6 +1780,10 @@ final class ScaleSessionViewModel: ObservableObject {
         let ui = weeklyGoalSurface.todayProgress
         report.uiStepsLine = ui.first(where: { $0.kind == .steps })?.currentLine ?? "-"
         report.uiMoveLine = ui.first(where: { $0.kind == .energy })?.currentLine ?? "-"
+        // Open Health so the user can flip Steps / Active Energy without hunting.
+        if report.stepsSampleCount == 0, report.moveSampleCount == 0 {
+            openHealthWriteSettings()
+        }
         ScaleDebugLog.print(report.consoleBlock)
         return report.consoleBlock
     }

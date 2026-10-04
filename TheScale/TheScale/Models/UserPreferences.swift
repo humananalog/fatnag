@@ -484,8 +484,9 @@ struct HomeTodayDiagnosticsReport: Equatable, Sendable {
     var healthAvailable: Bool
     var authRequested: Bool
     var bodyMassWrite: String
-    var stepsWriteStatus: String
-    var energyWriteStatus: String
+    /// Share/write status only (Apple hides read grants). Read-only types → `n/a(read-only)`.
+    var stepsShareStatus: String
+    var energyShareStatus: String
     var stepsDirect: String
     var stepsCollection: String
     var stepsChosen: Double
@@ -506,7 +507,8 @@ struct HomeTodayDiagnosticsReport: Equatable, Sendable {
         window: \(dayStartISO) → \(nowISO)
         tz=\(timeZoneID) cal=\(calendarID)
         healthAvailable=\(healthAvailable) authRequested=\(authRequested) bodyMassWrite=\(bodyMassWrite)
-        writeStatus(steps)=\(stepsWriteStatus) writeStatus(activeEnergy)=\(energyWriteStatus)
+        share/write(steps)=\(stepsShareStatus) share/write(activeEnergy)=\(energyShareStatus)
+        (Apple never exposes read-grant status; empty samples usually means Steps/Active Energy OFF for FATNAG.)
         steps: direct=\(stepsDirect) collection=\(stepsCollection) chosen=\(Int(stepsChosen.rounded())) samples=\(stepsSampleCount)
         move:  direct=\(moveDirect) collection=\(moveCollection) chosen=\(Int(moveChosen.rounded()))kcal samples=\(moveSampleCount)
         diet: energy=\(Int(dietEnergyChosen.rounded()))kcal protein=\(Int(dietProteinChosen.rounded()))g

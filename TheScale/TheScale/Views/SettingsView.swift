@@ -1417,7 +1417,7 @@ struct SettingsView: View {
                 Label("Apple Health", systemImage: "heart.text.square")
                     .font(.headline)
                     .foregroundStyle(ink)
-                Text("Coach reads HealthKit after permission. Third-party apps only appear if they write to Health.")
+                Text("Coach + home Today gauges need Health permission. Weight write is separate from Steps / Active Energy read — turn those ON under Health → Sharing → Apps → FATNAG or home counters stay at 0.")
                     .font(.footnote)
                     .foregroundStyle(steel)
 
@@ -1808,7 +1808,7 @@ struct SettingsView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
 
-                Text("Probes HealthKit day-sums + sample counts for Steps / Move, then force-refreshes home gauges. Full dump also prints to the Xcode console as “[TheScale] Home Today diagnostics”.")
+                Text("If Steps/Move stay at 0 while weight works: Health → Sharing → Apps → FATNAG → enable Steps + Active Energy. Diagnose re-prompts auth, probes samples, refreshes Home, and opens Health.")
                     .font(.caption2)
                     .foregroundStyle(steel)
 
