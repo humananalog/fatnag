@@ -225,16 +225,15 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
                 now: now,
                 calendar: calendar
             ),
-            "Health today sample must hide Weigh Now even when local stamp is missing"
+            "Health today sample must mark already weighed even when local stamp is missing"
         )
     }
 
-    func testAutoPresentRequiresStablePlausibleAndNotWeighed() {
+    func testAutoPresentRequiresStablePlausibleWeightAnytime() {
         XCTAssertTrue(
             ScaleSessionViewModel.shouldAutoPresentLiveSheet(
                 isAlreadyPresented: false,
                 isAutoPresenting: false,
-                alreadyWeighedToday: false,
                 purpose: .normal,
                 isEditingDraft: false,
                 cooldownActive: false,
@@ -247,7 +246,6 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
             ScaleSessionViewModel.shouldAutoPresentLiveSheet(
                 isAlreadyPresented: false,
                 isAutoPresenting: false,
-                alreadyWeighedToday: false,
                 purpose: .normal,
                 isEditingDraft: false,
                 cooldownActive: false,
@@ -261,20 +259,6 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
             ScaleSessionViewModel.shouldAutoPresentLiveSheet(
                 isAlreadyPresented: false,
                 isAutoPresenting: false,
-                alreadyWeighedToday: true,
-                purpose: .normal,
-                isEditingDraft: false,
-                cooldownActive: false,
-                measurementStabilized: true,
-                weightKg: 78.2,
-                phaseAllowsAutoOpen: true
-            )
-        )
-        XCTAssertFalse(
-            ScaleSessionViewModel.shouldAutoPresentLiveSheet(
-                isAlreadyPresented: false,
-                isAutoPresenting: false,
-                alreadyWeighedToday: false,
                 purpose: .normal,
                 isEditingDraft: false,
                 cooldownActive: true,
@@ -287,7 +271,6 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
             ScaleSessionViewModel.shouldAutoPresentLiveSheet(
                 isAlreadyPresented: false,
                 isAutoPresenting: false,
-                alreadyWeighedToday: false,
                 purpose: .normal,
                 isEditingDraft: false,
                 cooldownActive: false,
@@ -300,7 +283,6 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
             ScaleSessionViewModel.shouldAutoPresentLiveSheet(
                 isAlreadyPresented: true,
                 isAutoPresenting: false,
-                alreadyWeighedToday: false,
                 purpose: .normal,
                 isEditingDraft: false,
                 cooldownActive: false,

@@ -374,21 +374,45 @@ final class ScaleSessionViewModel: ObservableObject {
         Task { await refreshHealthBaseline() }
     }
 
-    /// Passive BLE listen on home: no "Find Scale" primary. Auto-opens live card on signal.
+    /// Passive BLE listen on home. Always re-arms Core Bluetooth (iOS drops scans in the background).
+    /// A stabilized scale broadcast auto-opens the live card at any hour, including after a morning weigh.
     func startPassiveListening() {
-        guard !isWeighInPresented else { return }
-        switch phase {
-        case .scanning, .listening, .measuring, .awaitingImpedance, .ready, .reviewing, .healthKitWriting:
-            return
-        default:
-            break
-        }
         weighInPurpose = .normal
-        if phase == .idle || phase == .healthKitSuccess {
-            phase = .scanning
-            liveHint = "Scale nearby? Step on barefoot. Live card opens on BLE."
+        if !isWeighInPresented {
+            switch phase {
+            case .idle, .healthKitSuccess, .ready, .awaitingImpedance:
+                phase = .scanning
+                liveHint = "Scale nearby? Step on barefoot. Live card opens on BLE."
+            case .healthKitFailed:
+                phase = .scanning
+                liveHint = "Scale nearby? Step on barefoot. Live card opens on BLE."
+            default:
+                break
+            }
         }
         scanner.startScanning()
+    }
+
+    /// User-triggered scale hunt: open the live sheet and scan immediately.
+    func beginScaleDetection() {
+        weighInPurpose = .normal
+        isEditingDraft = false
+        autoConfirmArmed = false
+        weighRejectionMessage = nil
+        liveHint = "Looking for your scale. Step on barefoot."
+        if selectedScaleID == nil {
+            phase = .scanning
+            scanner.startScanning()
+        } else {
+            let name = discoveredScales.first(where: { $0.id == selectedScaleID })?.name ?? "scale"
+            phase = .listening(scaleName: name)
+            scanner.startScanning()
+            if let id = selectedScaleID {
+                scanner.focus(on: id)
+            }
+        }
+        presentLiveSheetCoalesced(userInitiated: true)
+        Task { await refreshHealthBaseline() }
     }
 
     func stop() {
@@ -422,9 +446,7 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func reopenWeighIn() {
-        guard selectedScaleID != nil else { return }
-        weighInPurpose = .normal
-        presentLiveSheetCoalesced(userInitiated: true)
+        beginScaleDetection()
     }
 
     /// Primary calibration path: same live sheet as weigh-in, after the user sets reference mass.
@@ -2216,9 +2238,13 @@ final class ScaleSessionViewModel: ObservableObject {
         )
     }
 
-    /// Homepage should show Weigh Now only after the gate is resolved and today is still empty.
-    var shouldShowWeighNowCTA: Bool {
-        weighNowGateResolved && !alreadyWeighedToday
+    /// Weigh Now stays on the home tab all day so a second step-on (or a tap to find the scale) is always available.
+    var shouldShowWeighNowCTA: Bool { true }
+
+    var weighNowCTATitle: String {
+        alreadyWeighedToday
+            ? AppLanguageStore.text("home.weigh_again", default: "Weigh again")
+            : AppLanguageStore.text("home.weigh_now", default: "Weigh now")
     }
 
     /// Recompute published CTA gate from Health arrays + local same-day save stamp.
@@ -2403,11 +2429,11 @@ final class ScaleSessionViewModel: ObservableObject {
         }
     }
 
-    /// Pure auto-open gate (unit-tested). Hero is never gated here; that waits on Health save.
+    /// Pure auto-open gate (unit-tested). A later same-day step-on is allowed.
+    /// Hero is never gated here; that waits on Health save.
     nonisolated static func shouldAutoPresentLiveSheet(
         isAlreadyPresented: Bool,
         isAutoPresenting: Bool,
-        alreadyWeighedToday: Bool,
         purpose: WeighInPurpose,
         isEditingDraft: Bool,
         cooldownActive: Bool,
@@ -2417,7 +2443,6 @@ final class ScaleSessionViewModel: ObservableObject {
     ) -> Bool {
         guard !isAlreadyPresented, !isAutoPresenting else { return false }
         guard purpose == .normal, !isEditingDraft else { return false }
-        guard !alreadyWeighedToday else { return false }
         guard !cooldownActive else { return false }
         guard phaseAllowsAutoOpen else { return false }
         guard measurementStabilized else { return false }
@@ -2446,11 +2471,7 @@ final class ScaleSessionViewModel: ObservableObject {
             presentSettings()
         case .weigh:
             selectHomeTab(.weigh)
-            if selectedScaleID != nil {
-                reopenWeighIn()
-            } else {
-                presentManualEntry()
-            }
+            beginScaleDetection()
         case .meals:
             presentMealPlan()
         }
@@ -3373,7 +3394,6 @@ final class ScaleSessionViewModel: ObservableObject {
         if !userInitiated {
             if isAutoPresentingSheet { return }
             if let until = autoSheetCooldownUntil, Date() < until { return }
-            if hasValidWeighInToday() { return }
         }
         isAutoPresentingSheet = true
         isWeighInPresented = true
@@ -3383,7 +3403,7 @@ final class ScaleSessionViewModel: ObservableObject {
 
     private var phaseAllowsBLEAutoOpen: Bool {
         switch phase {
-        case .scanning, .idle, .healthKitSuccess, .listening, .measuring:
+        case .scanning, .idle, .healthKitSuccess, .listening, .measuring, .ready, .awaitingImpedance:
             return true
         default:
             return false
@@ -3472,7 +3492,6 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
         let shouldOpen = Self.shouldAutoPresentLiveSheet(
             isAlreadyPresented: isWeighInPresented,
             isAutoPresenting: isAutoPresentingSheet,
-            alreadyWeighedToday: hasValidWeighInToday(),
             purpose: weighInPurpose,
             isEditingDraft: isEditingDraft,
             cooldownActive: cooldownActive,

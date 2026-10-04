@@ -171,10 +171,9 @@ struct ProgressSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    if session.alreadyWeighedToday {
-                        Button(AppLanguageStore.text("common.manual", default: "Manual")) { session.presentManualEntry() }
-                    } else if session.weighNowGateResolved {
-                        Button(AppLanguageStore.text("common.weigh", default: "Weigh")) { session.selectHomeTab(.weigh) }
+                    Button(AppLanguageStore.text("common.weigh", default: "Weigh")) {
+                        session.selectHomeTab(.weigh)
+                        session.beginScaleDetection()
                     }
                 }
             }

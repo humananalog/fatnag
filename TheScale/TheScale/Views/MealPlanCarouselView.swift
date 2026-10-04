@@ -81,17 +81,11 @@ struct MealPlanCarouselView: View {
                     )
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    if session.alreadyWeighedToday {
-                        Button(AppLanguageStore.text("common.manual", default: "Manual")) {
-                            session.presentManualEntry()
-                        }
-                        .foregroundStyle(ink.opacity(0.85))
-                    } else if session.weighNowGateResolved {
-                        Button(AppLanguageStore.text("common.weigh", default: "Weigh")) {
-                            session.selectHomeTab(.weigh)
-                        }
-                        .foregroundStyle(accent)
+                    Button(AppLanguageStore.text("common.weigh", default: "Weigh")) {
+                        session.selectHomeTab(.weigh)
+                        session.beginScaleDetection()
                     }
+                    .foregroundStyle(accent)
                 }
             }
             .toolbarBackground(baseFill.opacity(0.92), for: .navigationBar)

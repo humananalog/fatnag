@@ -288,6 +288,7 @@ struct ContentView: View {
             Task {
                 // Force Health pull on every foreground — do not rely on the 8s gauge throttle
                 // or notification prefs (observer wakes used to skip home when alerts were off).
+                session.startPassiveListening()
                 await session.refreshHomeFromHealth(force: true)
                 // Monday / overnight week-roll: re-warm Progress so last week's
                 // achievement never sticks as this week's %.
@@ -361,20 +362,16 @@ struct ContentView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if session.shouldShowWeighNowCTA {
                     Button {
-                        if session.selectedScaleID != nil {
-                            session.reopenWeighIn()
-                        } else {
-                            session.presentManualEntry()
-                        }
+                        session.beginScaleDetection()
                     } label: {
-                        Label(AppLanguageStore.text("home.weigh_now", default: "Weigh now"), systemImage: "scalemass.fill")
+                        Label(session.weighNowCTATitle, systemImage: "scalemass.fill")
                     }
                     .buttonStyle(ScalePrimaryButtonStyle(accent: atmosphere.accent))
                     .padding(.horizontal, ScaleLayout.pageInset)
                     .padding(.top, 8)
                     .padding(.bottom, 10)
                     .accessibilityIdentifier("home.weighNow")
-                    .accessibilityLabel(AppLanguageStore.text("home.weigh_now", default: "Weigh now"))
+                    .accessibilityLabel(session.weighNowCTATitle)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
