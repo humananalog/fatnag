@@ -203,6 +203,8 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var lastFitnessTriggers: [FitnessTrigger] = []
     /// Settings + Coach honesty line for Apple Health read status.
     @Published private(set) var healthAccessStatusLine: String = "Health status not checked yet."
+    /// Friendly popup when Steps / Active Energy read access looks missing or revoked.
+    @Published var showActivityHealthPrompt = false
     /// Last raw kg seen from BLE (kept after the live sheet closes so Settings can capture).
     @Published private(set) var lastRawWeightKg: Double?
     /// Optional manual raw kg typed in Settings when BLE reading is unavailable.
@@ -215,6 +217,8 @@ final class ScaleSessionViewModel: ObservableObject {
     private var lastHomeGaugeRefreshAt: Date?
     /// Last time home pulled weight + gauges from Health (observer / foreground).
     private var lastHomeHealthRefreshAt: Date?
+    /// Avoid re-checking activity read every gauge tick in the same launch.
+    private var lastActivityReadProbeAt: Date?
     /// Coalesce auto sheet open: ignore BLE reopen until this instant.
     private var autoSheetCooldownUntil: Date?
     /// Prevents concurrent discover + decode races from double-presenting.
@@ -1857,6 +1861,7 @@ final class ScaleSessionViewModel: ObservableObject {
             _ = await kit.diagnoseHomeTodayCounters(now: Date())
         }
         #endif
+        await evaluateActivityHealthAccessPrompt(force: true)
     }
 
     /// Pull latest HealthKit into home chrome: weight baseline + steps/move gauges.
@@ -1879,6 +1884,90 @@ final class ScaleSessionViewModel: ObservableObject {
             "homeHealth.refresh",
             "Home Health refresh baseline=\(healthBaselineKg.map { String(format: "%.1f", $0) } ?? "nil") steps=\(lastFitnessDigest?.stepsToday.map { Int($0) } ?? -1)"
         )
+        await evaluateActivityHealthAccessPrompt(force: force)
+    }
+
+    private static let activityHealthPromptDismissedKey = "thescale.activityHealthPrompt.dismissedAt"
+    private static let activityHealthPromptSnoozeSeconds: TimeInterval = 72 * 3600
+    private static let activityReadProbeMinInterval: TimeInterval = 45
+
+    /// Pure gate for unit tests / UI.
+    nonisolated static func shouldOfferActivityHealthPrompt(
+        probe: ActivityReadAccessProbe,
+        hasEngagedHealthWeight: Bool,
+        snoozed: Bool,
+        demoOrPromo: Bool
+    ) -> Bool {
+        guard !demoOrPromo, !snoozed, hasEngagedHealthWeight else { return false }
+        return probe.looksBlocked
+    }
+
+    /// When Weight works but Steps/Move have had zero samples for 7 days, iOS almost certainly
+    /// revoked (or never granted) activity reads — show a friendly recovery popup.
+    func evaluateActivityHealthAccessPrompt(force: Bool = false) async {
+        #if DEBUG
+        let demoOrPromo = isDemoPersonaActive || PromoCaptureMode.isActive
+        #else
+        let demoOrPromo = PromoCaptureMode.isActive
+        #endif
+        if demoOrPromo { return }
+
+        if !force,
+           let last = lastActivityReadProbeAt,
+           Date().timeIntervalSince(last) < Self.activityReadProbeMinInterval {
+            return
+        }
+        lastActivityReadProbeAt = Date()
+
+        let probe = await healthStore.probeActivityReadAccess(now: Date())
+        let engaged = healthStore.isBodyMassWriteAuthorized || healthBaselineKg != nil
+        let snoozed: Bool = {
+            guard let dismissed = UserDefaults.standard.object(forKey: Self.activityHealthPromptDismissedKey) as? Date
+            else { return false }
+            return Date().timeIntervalSince(dismissed) < Self.activityHealthPromptSnoozeSeconds
+        }()
+
+        let offer = Self.shouldOfferActivityHealthPrompt(
+            probe: probe,
+            hasEngagedHealthWeight: engaged,
+            snoozed: snoozed,
+            demoOrPromo: demoOrPromo
+        )
+        if offer {
+            showActivityHealthPrompt = true
+            healthAccessStatusLine =
+                "Steps / Active Energy are off for FATNAG. Open Health → Sharing → Apps → FATNAG and turn them on."
+            ScaleDebugLog.print(
+                "Offering activity Health prompt (steps7d=\(probe.stepsSamplesLast7d) energy7d=\(probe.activeEnergySamplesLast7d))"
+            )
+        } else if !probe.looksBlocked {
+            if showActivityHealthPrompt { showActivityHealthPrompt = false }
+            // Recovery — allow a future prompt if access is lost again.
+            UserDefaults.standard.removeObject(forKey: Self.activityHealthPromptDismissedKey)
+        }
+    }
+
+    func dismissActivityHealthPrompt(snooze: Bool = true) {
+        showActivityHealthPrompt = false
+        if snooze {
+            UserDefaults.standard.set(Date(), forKey: Self.activityHealthPromptDismissedKey)
+        }
+    }
+
+    /// Re-prompt system Health sheet, then open Health so the user can enable Steps / Active Energy.
+    /// Re-check happens on next foreground (not immediately, so the alert does not fight the Health app).
+    func recoverActivityHealthAccess() async {
+        showActivityHealthPrompt = false
+        // Short snooze while Health is open; cleared probe timer so return-to-app rechecks soon.
+        UserDefaults.standard.set(
+            Date().addingTimeInterval(-(Self.activityHealthPromptSnoozeSeconds - 120)),
+            forKey: Self.activityHealthPromptDismissedKey
+        )
+        lastActivityReadProbeAt = nil
+        _ = await requestHealthAccessFromSettings()
+        openHealthWriteSettings()
+        healthAccessStatusLine =
+            "Enable Steps + Active Energy for FATNAG in Health, then return here — Today counters refresh automatically."
     }
 
     /// Refresh Health digest + rebuild the home weekly-goal hero.

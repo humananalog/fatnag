@@ -1,6 +1,22 @@
 import Foundation
 import HealthKit
 
+/// Probe for whether Steps / Active Energy reads look blocked (Apple hides read grants).
+struct ActivityReadAccessProbe: Equatable, Sendable {
+    var stepsSamplesLast7d: Int
+    var activeEnergySamplesLast7d: Int
+    var authRequested: Bool
+    var healthAvailable: Bool
+
+    /// No activity samples for a week while Health was already prompted → treat as lost/denied read.
+    var looksBlocked: Bool {
+        healthAvailable
+            && authRequested
+            && stepsSamplesLast7d == 0
+            && activeEnergySamplesLast7d == 0
+    }
+}
+
 @MainActor
 protocol HealthWriting: AnyObject {
     var isHealthDataAvailable: Bool { get }
@@ -24,6 +40,8 @@ protocol HealthWriting: AnyObject {
     ) async throws -> FitnessDigest
     /// Lean today totals for home gauges only (steps + move + nutrition). Fast path.
     func fetchHomeDailyMetrics(now: Date) async throws -> HomeDailyMetrics
+    /// 7-day sample counts for Steps / Active Energy (detect missing read access).
+    func probeActivityReadAccess(now: Date) async -> ActivityReadAccessProbe
     func write(
         measurement: ScaleMeasurement,
         composition: BodyCompositionResult?,
@@ -265,6 +283,36 @@ final class HealthKitWriter: HealthWriting {
         )
         ScaleDebugLog.throttled("homeDaily.fetch", every: 15, metrics.debugSummaryLine)
         return metrics
+    }
+
+    func probeActivityReadAccess(now: Date = Date()) async -> ActivityReadAccessProbe {
+        guard isHealthDataAvailable else {
+            return ActivityReadAccessProbe(
+                stepsSamplesLast7d: 0,
+                activeEnergySamplesLast7d: 0,
+                authRequested: authorizationWasRequested,
+                healthAvailable: false
+            )
+        }
+        let start = now.addingTimeInterval(-7 * 86_400)
+        async let steps = sampleCount(.stepCount, from: start, to: now)
+        async let energy = sampleCount(.activeEnergyBurned, from: start, to: now)
+        let stepsN = await steps
+        let energyN = await energy
+        let probe = ActivityReadAccessProbe(
+            stepsSamplesLast7d: stepsN,
+            activeEnergySamplesLast7d: energyN,
+            authRequested: authorizationWasRequested,
+            healthAvailable: true
+        )
+        if probe.looksBlocked {
+            ScaleDebugLog.throttled(
+                "activityRead.blocked",
+                every: 30,
+                "Activity Health read looks blocked (steps7d=\(stepsN) energy7d=\(energyN) authRequested=\(authorizationWasRequested))"
+            )
+        }
+        return probe
     }
 
     /// Deep probe for home Today gauges. Prefer calling from DEBUG Settings / pull-to-refresh.

@@ -297,6 +297,47 @@ struct ContentView: View {
                 await refreshPendingNotifBadge()
             }
         }
+        .alert(
+            AppLanguageStore.text(
+                "health.activity_prompt.title",
+                default: "Turn on Steps in Health"
+            ),
+            isPresented: Binding(
+                get: { session.showActivityHealthPrompt },
+                set: { open in
+                    if !open { session.dismissActivityHealthPrompt(snooze: true) }
+                    else { session.showActivityHealthPrompt = true }
+                }
+            )
+        ) {
+            Button(
+                AppLanguageStore.text("health.activity_prompt.open_health", default: "Open Health")
+            ) {
+                Task { await session.recoverActivityHealthAccess() }
+            }
+            Button(
+                AppLanguageStore.text("health.activity_prompt.allow_again", default: "Allow again")
+            ) {
+                Task {
+                    _ = await session.requestHealthAccessFromSettings()
+                    await session.syncHomeWithHealthKit()
+                    await session.evaluateActivityHealthAccessPrompt(force: true)
+                }
+            }
+            Button(
+                AppLanguageStore.text("health.activity_prompt.not_now", default: "Not now"),
+                role: .cancel
+            ) {
+                session.dismissActivityHealthPrompt(snooze: true)
+            }
+        } message: {
+            Text(
+                AppLanguageStore.text(
+                    "health.activity_prompt.message",
+                    default: "FATNAG can read your weight, but Steps and Active Energy are off. In Health → Sharing → Apps → FATNAG, turn on Steps and Active Energy so Today counters work."
+                )
+            )
+        }
     }
 
     /// Home / Weigh tab: weekly-goal composition under the system liquid-glass tab bar.

@@ -217,6 +217,14 @@ final class ScaleSessionImpedanceTests: XCTestCase {
             zero.generatedAt = now
             return zero
         }
+        func probeActivityReadAccess(now: Date) async -> ActivityReadAccessProbe {
+            ActivityReadAccessProbe(
+                stepsSamplesLast7d: 0,
+                activeEnergySamplesLast7d: 0,
+                authRequested: false,
+                healthAvailable: false
+            )
+        }
         func write(
             measurement: ScaleMeasurement,
             composition: BodyCompositionResult?,
