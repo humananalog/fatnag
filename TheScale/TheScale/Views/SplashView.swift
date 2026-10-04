@@ -181,7 +181,7 @@ struct SplashView: View {
 
 /// First-launch landing after the splash slam. One job: make the coach feel real
 /// before any form. Karaoke wipe on huge type, background dark to fired.
-/// Auto-advances in about 16s. Tap skips a line. Skip control after 0.7s.
+/// Three screens max. Auto-advances. Tap skips a line. Skip control after 0.7s.
 /// Reduce Motion: final frame + Continue, no wipe.
 struct FirstLaunchLandingView: View {
     var onFinished: () -> Void
@@ -200,12 +200,9 @@ struct FirstLaunchLandingView: View {
     @State private var playTask: Task<Void, Never>?
 
     private static let script: [LandingBeat] = [
-        LandingBeat(text: "You downloaded this.", pause: 0.42),
-        LandingBeat(text: "Done pretending it fixes itself.", pause: 0.48),
-        LandingBeat(text: "One job. The goal you set.", pause: 0.46),
-        LandingBeat(text: "Lie to yourself and you get offended.", pause: 0.28),
-        LandingBeat(text: "Good. That is the point.", pause: 0.50),
-        LandingBeat(text: "Go weigh yourself. Now.", pause: 0.95)
+        LandingBeat(text: "Done pretending it fixes itself.", pause: 0.55),
+        LandingBeat(text: "Lie. Get offended. That's the point.", pause: 0.55),
+        LandingBeat(text: "Go weigh yourself. Now.", pause: 1.05)
     ]
 
     var body: some View {
@@ -284,7 +281,7 @@ struct FirstLaunchLandingView: View {
         }
         .multilineTextAlignment(.leading)
         .minimumScaleFactor(0.62)
-        .lineLimit(4)
+        .lineLimit(3)
         .scaleEffect(lineScale)
         .opacity(lineOpacity)
         .frame(maxWidth: .infinity, alignment: .leading)
