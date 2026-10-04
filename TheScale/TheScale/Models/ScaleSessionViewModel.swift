@@ -1908,7 +1908,7 @@ final class ScaleSessionViewModel: ObservableObject {
         #if DEBUG
         let demoOrPromo = isDemoPersonaActive || PromoCaptureMode.isActive
         #else
-        let demoOrPromo = PromoCaptureMode.isActive
+        let demoOrPromo = false
         #endif
         if demoOrPromo { return }
 

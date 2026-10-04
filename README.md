@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 1.0.91 (build 186) |
+| **Version** | 1.0.92 (build 187) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -279,7 +279,7 @@ docs/                     # Architecture, Coach/AI, Health/notifications
 
 ## Version
 
-Current: **1.0.91** (build **186**).
+Current: **1.0.92** (build **187**).
 
 Bump marketing + build together when shipping code:
 
