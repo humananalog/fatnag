@@ -10,6 +10,7 @@ struct OnboardingView: View {
     @State private var healthWeight: HealthMetricSample?
     @State private var healthWeightResolved = false
     @State private var adjustWeightOnScale = false
+    @FocusState private var nameFieldFocused: Bool
 
     private var compact: Bool { verticalSizeClass == .compact }
 
@@ -89,6 +90,14 @@ struct OnboardingView: View {
         }
         .task(id: flow.step) {
             await resolveHealthWeightIfNeeded()
+            if flow.step == .identity {
+                // Let the page settle, then focus so the keyboard does not fight the first paint.
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                guard !Task.isCancelled, flow.step == .identity else { return }
+                nameFieldFocused = true
+            } else {
+                nameFieldFocused = false
+            }
         }
     }
 
@@ -139,44 +148,60 @@ struct OnboardingView: View {
                 }
                 .accessibilityHidden(true)
 
-                Text(stepSubtitle)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(steel)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !stepSubtitle.isEmpty {
+                    Text(stepSubtitle)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(steel)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("onboarding.stepSubtitle")
+                }
             }
         }
     }
 
     private var continueBar: some View {
-        HStack(spacing: 10) {
-            if flow.step != .language {
-                Button(AppLanguageStore.text("onboarding.back", default: "Back")) {
+        VStack(spacing: 8) {
+            if flow.step == .identity, !flow.canAdvance {
+                Text(AppLanguageStore.text(
+                    "onboarding.identity.need_name",
+                    default: "Type your name, then tap Next."
+                ))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(steel)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("onboarding.identity.needName")
+            }
+            HStack(spacing: 10) {
+                if flow.step != .language {
+                    Button(AppLanguageStore.text("onboarding.back", default: "Back")) {
+                        dismissKeyboard()
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
+                            flow.goBack()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("onboarding.back")
+                }
+                Button {
                     dismissKeyboard()
-                    withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
-                        flow.goBack()
+                    Task { await advance() }
+                } label: {
+                    HStack {
+                        if flow.isInferring && flow.step == .anatomy {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(.white)
+                        }
+                        Text(flow.primaryCTA)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 2)
                 }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("onboarding.back")
+                .buttonStyle(.borderedProminent)
+                .tint(flow.canAdvance ? moss : steel)
+                .disabled(!flow.canAdvance)
+                .accessibilityIdentifier("onboarding.continue")
             }
-            Button {
-                dismissKeyboard()
-                Task { await advance() }
-            } label: {
-                HStack {
-                    if flow.isInferring && flow.step == .anatomy {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(.white)
-                    }
-                    Text(flow.primaryCTA)
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(ink)
-            .disabled(!flow.canAdvance)
-            .accessibilityIdentifier("onboarding.continue")
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)
@@ -209,9 +234,6 @@ struct OnboardingView: View {
     private func languageStep(compact: Bool) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                Text(AppLanguageStore.text("onboarding.language.hint", default: "Choose the language for fatnag. Every screen follows this choice."))
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(steel)
                 LazyVStack(spacing: 0) {
                     ForEach(AppLanguage.allCases.filter { $0 != .system } + [.system]) { lang in
                         Button {
@@ -247,24 +269,50 @@ struct OnboardingView: View {
     private var stepTitle: String {
         switch flow.step {
         case .language: return AppLanguageStore.text("onboarding.step.language", default: "Language")
-        case .identity: return AppLanguageStore.text("onboarding.step.identity", default: "Mission")
-        case .body: return AppLanguageStore.text("onboarding.step.body", default: "Body")
-        case .anatomy: return AppLanguageStore.text("onboarding.step.anatomy", default: "Frame")
+        case .identity: return AppLanguageStore.text("onboarding.step.identity", default: "Your name")
+        case .body: return AppLanguageStore.text("onboarding.step.body", default: "About you")
+        case .anatomy: return AppLanguageStore.text("onboarding.step.anatomy", default: "Height & weight")
         case .dream: return AppLanguageStore.text("onboarding.step.dream", default: "Dream weight")
         case .lifestyle: return AppLanguageStore.text("onboarding.step.lifestyle", default: "Food & place")
-        case .confirm: return AppLanguageStore.text("onboarding.step.confirm", default: "Lock in")
+        case .confirm: return AppLanguageStore.text("onboarding.step.confirm", default: "Almost done")
         }
     }
 
     private var stepSubtitle: String {
         switch flow.step {
-        case .language: return AppLanguageStore.text("onboarding.sub.language", default: "This choice follows you through the whole app.")
-        case .identity: return AppLanguageStore.text("onboarding.sub.identity", default: "A consistency coach. The number gets less scary.")
-        case .body: return AppLanguageStore.text("onboarding.sub.body", default: "Adults only. This sets the math.")
-        case .anatomy: return AppLanguageStore.text("onboarding.sub.anatomy", default: "Height, then weight. Units switch live.")
-        case .dream: return AppLanguageStore.text("onboarding.sub.dream", default: "Drag the dial. A reckless pace gets a no.")
-        case .lifestyle: return AppLanguageStore.text("onboarding.sub.lifestyle", default: "Optional. Blank is a fine answer.")
-        case .confirm: return AppLanguageStore.text("onboarding.sub.confirm", default: "One legal yes. Then the scale.")
+        case .language:
+            return AppLanguageStore.text(
+                "onboarding.sub.language",
+                default: "Pick the language for the app."
+            )
+        case .identity:
+            // Instruction lives in the title + single field — no extra marketing copy.
+            return ""
+        case .body:
+            return AppLanguageStore.text(
+                "onboarding.sub.body",
+                default: "Age and gender. Adults 18+ only."
+            )
+        case .anatomy:
+            return AppLanguageStore.text(
+                "onboarding.sub.anatomy",
+                default: "Your height and current weight."
+            )
+        case .dream:
+            return AppLanguageStore.text(
+                "onboarding.sub.dream",
+                default: "Set a target weight and date."
+            )
+        case .lifestyle:
+            return AppLanguageStore.text(
+                "onboarding.sub.lifestyle",
+                default: "Optional — skip anything you want."
+            )
+        case .confirm:
+            return AppLanguageStore.text(
+                "onboarding.sub.confirm",
+                default: "Agree to continue, then start."
+            )
         }
     }
 
@@ -278,102 +326,91 @@ struct OnboardingView: View {
             .accessibilityHidden(true)
     }
 
-    // MARK: - Identity
+    // MARK: - Identity (one instruction, one input)
 
     private func identityStep(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: compact ? 8 : 10) {
-            vectorArt("OnboardingVectorIdentity", height: compact ? 72 : 96)
-
-            HStack(spacing: 8) {
-                factChip("Health")
-                factChip("Bluetooth")
-                factChip("Manual")
-            }
-            .accessibilityIdentifier("onboarding.weighPaths")
-
-            Text("Weigh daily. Kill the fear of the number.")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+        ScrollView {
+            VStack(alignment: .leading, spacing: compact ? 16 : 20) {
+                Text(AppLanguageStore.text(
+                    "onboarding.identity.prompt",
+                    default: "What should we call you?"
+                ))
+                .font(.system(size: compact ? 20 : 22, weight: .semibold, design: .rounded))
                 .foregroundStyle(ink)
-                .accessibilityIdentifier("onboarding.weighPaths.daily")
+                .accessibilityIdentifier("onboarding.identity.prompt")
 
-            TextField("Your name", text: $flow.name)
+                TextField(
+                    AppLanguageStore.text("onboarding.identity.placeholder", default: "First name"),
+                    text: $flow.name
+                )
                 .textContentType(.givenName)
-                .font(.system(size: compact ? 24 : 28, weight: .semibold, design: .rounded))
-                .padding(.vertical, 4)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.next)
+                .focused($nameFieldFocused)
+                .font(.system(size: compact ? 28 : 34, weight: .bold, design: .rounded))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(ink.opacity(0.12), lineWidth: 1)
+                )
                 .accessibilityIdentifier("onboarding.name")
-
-            TextField(
-                "City, IF 16-8, language…",
-                text: $flow.freeform,
-                axis: .vertical
-            )
-            .lineLimit(2...3)
-            .font(.system(size: 14, weight: .medium, design: .rounded))
-            .padding(10)
-            .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .accessibilityIdentifier("onboarding.freeform")
-
-            if FoundationModelAvailability.isAvailable {
-                Toggle("On-device pre-fill", isOn: $flow.allowOnDevicePrefill)
-                    .font(.footnote.weight(.semibold))
-                    .accessibilityIdentifier("onboarding.fmToggle")
+                .onSubmit {
+                    guard flow.canAdvance else { return }
+                    dismissKeyboard()
+                    Task { await advance() }
+                }
             }
-
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 8)
+            .padding(.bottom, 24)
         }
-    }
-
-    private func factChip(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 12, weight: .bold, design: .rounded))
-            .foregroundStyle(ink)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(Color.white.opacity(0.75), in: Capsule())
-            .overlay(Capsule().strokeBorder(ink.opacity(0.14), lineWidth: 1))
+        .scrollDismissesKeyboard(.interactively)
+        .accessibilityIdentifier("onboarding.identity")
     }
 
     // MARK: - Body
 
     private func bodyStep(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: compact ? 10 : 14) {
-            vectorArt("OnboardingVectorBody", height: compact ? 64 : 80)
+        ScrollView {
+            VStack(alignment: .leading, spacing: compact ? 16 : 20) {
+                Text(AppLanguageStore.text("onboarding.body.age_prompt", default: "How old are you?"))
+                    .font(.system(size: compact ? 18 : 20, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink)
+                    .accessibilityIdentifier("onboarding.body.agePrompt")
 
-            AgeSwipeControl(
-                ageYears: Binding(
-                    get: { flow.ageYears },
-                    set: { flow.ageYears = $0 }
-                ),
-                ink: ink,
-                steel: steel,
-                accent: moss
-            )
+                AgeSwipeControl(
+                    ageYears: Binding(
+                        get: { flow.ageYears },
+                        set: { flow.ageYears = $0 }
+                    ),
+                    ink: ink,
+                    steel: steel,
+                    accent: moss
+                )
 
-            if let ageMsg = flow.ageValidationMessage {
-                Text(ageMsg)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(warn)
-                    .accessibilityIdentifier("onboarding.age.error")
+                if let ageMsg = flow.ageValidationMessage {
+                    Text(ageMsg)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(warn)
+                        .accessibilityIdentifier("onboarding.age.error")
+                }
+
+                Text(AppLanguageStore.text("onboarding.body.sex_prompt", default: "I am…"))
+                    .font(.system(size: compact ? 18 : 20, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink)
+                    .padding(.top, 4)
+
+                HStack(spacing: 10) {
+                    genderChip(.male)
+                    genderChip(.female)
+                }
+                .accessibilityIdentifier("onboarding.sex")
             }
-
-            Text("Gender")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(ink)
-
-            HStack(spacing: 10) {
-                genderChip(.male)
-                genderChip(.female)
-            }
-            .accessibilityIdentifier("onboarding.sex")
-
-            if !flow.hasChosenGender {
-                Text("Required.")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(steel)
-                    .accessibilityIdentifier("onboarding.sex.required")
-            }
-
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 24)
         }
     }
 
@@ -686,11 +723,23 @@ struct OnboardingView: View {
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("onboarding.foodAvoidances")
 
-                Text("Blank is fine. We may ask once in a while at key moments, never every day.")
+                Text("Blank is fine.")
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(steel)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("onboarding.lifestyle.softHint")
+
+                TextField(
+                    AppLanguageStore.text(
+                        "onboarding.lifestyle.notes",
+                        default: "Anything else? (optional)"
+                    ),
+                    text: $flow.freeform,
+                    axis: .vertical
+                )
+                .lineLimit(2...3)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("onboarding.freeform")
 
                 if let fasting = flow.intermittentFasting, fasting.isActive {
                     Text(

@@ -5,6 +5,13 @@ import XCTest
 final class OnboardingFlowTests: XCTestCase {
     func testThreeStepSequenceWithInjectedInference() async {
         let flow = OnboardingFlowModel()
+        XCTAssertEqual(flow.step, .language)
+        XCTAssertTrue(flow.canAdvance)
+
+        await flow.advance(infer: { _ in
+            XCTFail("Inference should not run on language → identity")
+            return .empty
+        })
         XCTAssertEqual(flow.step, .identity)
         XCTAssertFalse(flow.canAdvance)
 
@@ -113,8 +120,9 @@ final class OnboardingFlowTests: XCTestCase {
 
     func testBackNavigation() async {
         let flow = OnboardingFlowModel()
+        await flow.advance(infer: { _ in .empty }) // language → identity
         flow.name = "Sam"
-        await flow.advance(infer: { _ in .empty })
+        await flow.advance(infer: { _ in .empty }) // identity → body
         XCTAssertEqual(flow.step, .body)
         flow.goBack()
         XCTAssertEqual(flow.step, .identity)
@@ -122,6 +130,7 @@ final class OnboardingFlowTests: XCTestCase {
 
     func testHeuristicsUsedWhenFMDisabled() async {
         let flow = OnboardingFlowModel()
+        await flow.advance(infer: nil) // language → identity
         flow.name = "Alex"
         flow.freeform = "pescatarian in Hong Kong, body fat to 18%"
         flow.allowOnDevicePrefill = false

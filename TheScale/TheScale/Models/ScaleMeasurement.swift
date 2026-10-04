@@ -67,8 +67,10 @@ struct UserBodyProfile: Equatable, Codable, Sendable {
 
         var title: String {
             switch self {
-            case .female: return "Female"
-            case .male: return "Male"
+            case .female:
+                return AppLanguageStore.text("profile.sex.female", default: "Woman")
+            case .male:
+                return AppLanguageStore.text("profile.sex.male", default: "Man")
             }
         }
     }
