@@ -242,13 +242,12 @@ final class HealthHistoryChartTests: XCTestCase {
         )
     }
 
-    func testScrollVisibleLengthEnabledForFullThreeMonthDomain() {
+    func testScrollVisibleLengthDisabledForThreeMonthAndYear() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let domain = HealthChartMath.historyXDomain(range: .lastThreeMonths, now: now)
-        let length = HealthChartMath.scrollVisibleDomainLength(for: .lastThreeMonths, xDomain: domain)
-        XCTAssertNotNil(length)
-        let span = domain.upperBound.timeIntervalSince(domain.lowerBound)
-        XCTAssertLessThan(try XCTUnwrap(length), span)
+        let three = HealthChartMath.historyXDomain(range: .lastThreeMonths, now: now)
+        let year = HealthChartMath.historyXDomain(range: .lastYear, now: now)
+        XCTAssertNil(HealthChartMath.scrollVisibleDomainLength(for: .lastThreeMonths, xDomain: three))
+        XCTAssertNil(HealthChartMath.scrollVisibleDomainLength(for: .lastYear, xDomain: year))
     }
 
     func testScrollVisibleLengthNilForShortRanges() {
@@ -259,12 +258,10 @@ final class HealthHistoryChartTests: XCTestCase {
         )
     }
 
-    func testScrollLeadingDatePinsToRecentWindow() throws {
+    func testScrollLeadingDatePinsToRecentWindow() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let domain = HealthChartMath.historyXDomain(range: .lastThreeMonths, now: now)
-        let length = try XCTUnwrap(
-            HealthChartMath.scrollVisibleDomainLength(for: .lastThreeMonths, xDomain: domain)
-        )
+        let length: TimeInterval = 45 * 86_400
         let leading = HealthChartMath.scrollLeadingDate(xDomain: domain, visibleLength: length)
         XCTAssertGreaterThan(leading, domain.lowerBound)
         let visibleEnd = leading.addingTimeInterval(length)
@@ -491,6 +488,51 @@ final class HealthHistoryChartTests: XCTestCase {
         let padWithout = without.upperBound.timeIntervalSince(now)
         XCTAssertGreaterThan(padWith, padWithout)
         XCTAssertGreaterThanOrEqual(padWith, 4 * 86_400 - 1)
+    }
+
+    func testHistoryXDomainGrowsWithProjectionRevealProgress() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let future = now.addingTimeInterval(120 * 86_400)
+        let start = HealthChartMath.historyXDomain(
+            range: .lastThreeMonths,
+            extraDates: [future],
+            revealProgress: 0,
+            now: now
+        )
+        let mid = HealthChartMath.historyXDomain(
+            range: .lastThreeMonths,
+            extraDates: [future],
+            revealProgress: 0.5,
+            now: now
+        )
+        let done = HealthChartMath.historyXDomain(
+            range: .lastThreeMonths,
+            extraDates: [future],
+            revealProgress: 1,
+            now: now
+        )
+        XCTAssertLessThan(start.upperBound, mid.upperBound)
+        XCTAssertLessThan(mid.upperBound, done.upperBound)
+        XCTAssertGreaterThanOrEqual(done.upperBound, future)
+    }
+
+    func testRevealedProjectionPathInterpolatesMidpoint() {
+        let start = Date(timeIntervalSince1970: 0)
+        let end = Date(timeIntervalSince1970: 100)
+        let path = [
+            HealthMetricSample(value: 80, date: start),
+            HealthMetricSample(value: 70, date: end)
+        ]
+        let none = HealthChartMath.revealedProjectionPath(path, progress: 0)
+        XCTAssertEqual(none.count, 1)
+        XCTAssertEqual(none[0].value, 80, accuracy: 0.001)
+
+        let all = HealthChartMath.revealedProjectionPath(path, progress: 1)
+        XCTAssertEqual(all.count, 2)
+
+        let half = HealthChartMath.revealedProjectionPath(path, progress: 0.5)
+        XCTAssertEqual(half.last?.date.timeIntervalSince1970 ?? -1, 50, accuracy: 0.01)
+        XCTAssertEqual(half.last?.value ?? -1, 75, accuracy: 0.01)
     }
 
     func testProfileIdealWeightMigratesFromLegacyDecode() throws {

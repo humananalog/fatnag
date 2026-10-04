@@ -36,13 +36,10 @@ enum HealthHistoryRange: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Horizontal pan for longer ranges (iOS Charts scroll APIs).
-    var prefersHorizontalScroll: Bool {
-        switch self {
-        case .lastThreeMonths, .lastYear: return true
-        default: return false
-        }
-    }
+    /// Horizontal pan for longer ranges. Off: 3M/1Y must show the full selected
+    /// window. `chartScrollableAxes` + a shorter visible domain hid the series
+    /// (and pinned to the projection future when Trend was on).
+    var prefersHorizontalScroll: Bool { false }
 
     /// Visible X window length when scroll is enabled (seconds).
     var visibleDomainLength: TimeInterval {
@@ -253,16 +250,21 @@ enum HealthChartMath {
     /// below `chartXVisibleDomain`, which made Charts emit
     /// `Invalid frame dimension (negative or non-finite)`. Projection dates past
     /// `now` extend the upper bound so Trend lines stay in-frame.
+    ///
+    /// `revealProgress` (0…1) grows the future X bound in lockstep with the
+    /// animated projection line.
     static func historyXDomain(
         range: HealthHistoryRange,
         extraDates: [Date] = [],
+        revealProgress: Double = 1,
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> ClosedRange<Date> {
         let start = range.startDate(relativeTo: now, calendar: calendar)
         var end = now
         if let furthest = extraDates.max(), furthest > end {
-            end = furthest
+            let progress = min(max(revealProgress, 0), 1)
+            end = now.addingTimeInterval(furthest.timeIntervalSince(now) * progress)
         }
         var span = end.timeIntervalSince(start)
         if !span.isFinite || span <= 0 {
@@ -274,10 +276,9 @@ enum HealthChartMath {
             end = start.addingTimeInterval(86_400)
             span = 86_400
         }
-        // Extra trailing pad when Projection extends past `now` so crossing callouts
-        // are not clipped against the right card edge.
+        // Extra trailing pad when the revealed projection is already past `now`.
         let pad: TimeInterval
-        if extraDates.contains(where: { $0 > now }) {
+        if end > now {
             pad = max(span * 0.12, 4 * 86_400)
         } else {
             pad = max(span * 0.04, 12 * 3_600)
@@ -629,6 +630,46 @@ enum HealthChartMath {
             if sample.value < lowest.value { lowest = sample }
         }
         return (highest, lowest)
+    }
+
+    /// Prefix of a projection polyline as `progress` goes 0…1, with the last
+    /// vertex interpolated so the line draws continuously instead of jumping dots.
+    static func revealedProjectionPath(
+        _ path: [HealthMetricSample],
+        progress: Double
+    ) -> [HealthMetricSample] {
+        guard path.count >= 2 else { return path }
+        let p = min(max(progress, 0), 1)
+        if p <= 0 { return [path[0]] }
+        if p >= 1 { return path }
+
+        let start = path[0].date
+        let end = path[path.count - 1].date
+        let span = end.timeIntervalSince(start)
+        guard span.isFinite, span > 0 else { return [path[0]] }
+        let cutoff = start.addingTimeInterval(span * p)
+
+        var out: [HealthMetricSample] = []
+        out.reserveCapacity(path.count)
+        for index in path.indices {
+            let point = path[index]
+            if point.date <= cutoff {
+                out.append(point)
+                continue
+            }
+            let previous = index > 0 ? path[index - 1] : path[0]
+            let segment = point.date.timeIntervalSince(previous.date)
+            let t: Double
+            if segment.isFinite, segment > 0 {
+                t = min(max(cutoff.timeIntervalSince(previous.date) / segment, 0), 1)
+            } else {
+                t = 1
+            }
+            let value = previous.value + (point.value - previous.value) * t
+            out.append(HealthMetricSample(value: value, date: cutoff))
+            break
+        }
+        return out.isEmpty ? [path[0]] : out
     }
 
     /// Nearest Health sample to a chart selection date (for tap callouts).

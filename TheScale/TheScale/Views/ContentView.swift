@@ -160,7 +160,6 @@ struct ContentView: View {
         )) { offer in
             GoalDateRevisionSheet(offer: offer)
                 .environmentObject(session)
-                .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: Binding(
             get: { showNotificationCenter || session.isNotificationCenterPresented },
@@ -722,44 +721,70 @@ struct GoalDateRevisionSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(AppLanguageStore.text("goal.revision.title", default: "This date is too fast"))
-                    .font(.system(size: 28, weight: .bold, design: .serif))
-                Text(offer.note)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(AppLanguageStore.text("goal.revision.body", default: "Commando meals are on: intake drops to the safe weekly max. Keel pre-selected a date you can still change."))
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .fixedSize(horizontal: false, vertical: true)
-                DatePicker(
-                    AppLanguageStore.text("goal.revision.picker", default: "New goal date"),
-                    selection: $date,
-                    in: offer.proposedDate...,
-                    displayedComponents: .date
-                )
-                .datePickerStyle(.graphical)
-                .accessibilityIdentifier("goal.revision.date")
-                Button {
-                    session.acceptRevisedGoalDate(date)
-                    dismiss()
-                } label: {
-                    Text(AppLanguageStore.text("goal.revision.accept", default: "Use this date"))
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text(AppLanguageStore.text("goal.revision.title", default: "This date is too fast"))
+                            .font(.system(size: 26, weight: .bold, design: .serif))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(offer.note)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(AppLanguageStore.text("goal.revision.body", default: "Commando meals are on: intake drops to the safe weekly max. Keel pre-selected a date you can still change."))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .fixedSize(horizontal: false, vertical: true)
+                        DatePicker(
+                            AppLanguageStore.text("goal.revision.picker", default: "New goal date"),
+                            selection: $date,
+                            in: offer.proposedDate...,
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                        .frame(height: 168)
+                        .clipped()
+                        .accessibilityIdentifier("goal.revision.date")
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 16)
                 }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("goal.revision.accept")
-                Button(AppLanguageStore.text("goal.revision.keep", default: "Keep my date")) {
-                    session.keepUnrealisticGoalDate()
-                    dismiss()
+
+                VStack(spacing: 10) {
+                    Button {
+                        session.acceptRevisedGoalDate(date)
+                        dismiss()
+                    } label: {
+                        Text(AppLanguageStore.text("goal.revision.accept", default: "Use this date"))
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .accessibilityIdentifier("goal.revision.accept")
+
+                    Button(AppLanguageStore.text("goal.revision.keep", default: "Keep my date")) {
+                        session.keepUnrealisticGoalDate()
+                        dismiss()
+                    }
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .accessibilityIdentifier("goal.revision.keep")
                 }
-                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
+                .background(.bar)
             }
-            .padding(20)
             .navigationBarTitleDisplayMode(.inline)
         }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .presentationContentInteraction(.scrolls)
     }
 }
 

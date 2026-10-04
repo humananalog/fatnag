@@ -11,12 +11,10 @@ struct WeighInResultsView: View {
     @State private var range: HealthHistoryRange = .default
     @State private var showTrend = false
     @State private var chartReveal = false
+    @State private var projectionReveal = 0.0
     @State private var loadError: String?
     /// Shared across weight + body-fat charts so an X tap highlights both at once.
     @State private var selectedDate: Date?
-    /// Leading edge of the scrollable visible window (pinned to recent data on 3M/1Y).
-    /// Shared so weight + body-fat charts pan together.
-    @State private var chartScrollX: Date = Date()
     @State private var weightYFloorMode: HealthChartMath.ChartYFloorMode = .target
     @State private var fatYFloorMode: HealthChartMath.ChartYFloorMode = .target
     @State private var commentDraft = ""
@@ -89,11 +87,11 @@ struct WeighInResultsView: View {
         .preferredColorScheme(.light)
         .sensoryFeedback(.selection, trigger: range)
         .task(id: range) {
-            syncScrollPositions(for: range)
             await reload(for: range)
         }
-        .onChange(of: showTrend) { _, _ in
-            syncScrollPositions(for: range)
+        .onChange(of: showTrend) { _, isOn in
+            selectedDate = nil
+            animateProjectionReveal(isOn)
         }
         .onAppear {
             withAnimation(.spring(response: 0.72, dampingFraction: 0.86)) {
@@ -320,9 +318,6 @@ struct WeighInResultsView: View {
                 .toggleStyle(.switch)
                 .labelsHidden()
                 .accessibilityLabel(AppLanguageStore.text("history.projection.a11y", default: "Show target projection lines"))
-                .onChange(of: showTrend) { _, _ in
-                    selectedDate = nil
-                }
 
                 Text(AppLanguageStore.text("history.projection", default: "Projection"))
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -381,6 +376,7 @@ struct WeighInResultsView: View {
         .animation(.spring(response: 0.45, dampingFraction: 0.86), value: weightYFloorMode)
         .animation(.spring(response: 0.45, dampingFraction: 0.86), value: fatYFloorMode)
         .animation(.easeInOut(duration: 0.35), value: periodTone)
+        .animation(.easeOut(duration: 1.15), value: projectionReveal)
     }
 
     private func weightChartCard(
@@ -394,11 +390,10 @@ struct WeighInResultsView: View {
             projection: projection,
             scientific: scientific
         )
-        let scrollLength = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: xDomain)
         let visibleValues = HealthChartMath.valuesInVisibleXWindow(
             samples: samples,
-            visibleStart: chartScrollX,
-            visibleLength: scrollLength,
+            visibleStart: xDomain.lowerBound,
+            visibleLength: nil,
             xDomain: xDomain
         )
         let domain = HealthChartMath.weightDomain(
@@ -484,20 +479,26 @@ struct WeighInResultsView: View {
                     .foregroundStyle(ink.opacity(0.85))
                 }
 
-                // Projection lines only when toggle is on.
+                // Animated projection line; X domain grows with `projectionReveal`.
                 if showTrend, let scientific {
-                    ForEach(Array(scientific.temperedPath.enumerated()), id: \.offset) { _, point in
-                        LineMark(
-                            x: .value("Date", point.date),
-                            y: .value("Weight", point.value),
-                            series: .value("Series", "Projected")
-                        )
-                        .lineStyle(StrokeStyle(lineWidth: 2.2, dash: [6, 4]))
-                        .foregroundStyle(ink.opacity(0.7))
-                        .interpolationMethod(.linear)
+                    let tempered = HealthChartMath.revealedProjectionPath(
+                        scientific.temperedPath,
+                        progress: projectionReveal
+                    )
+                    if tempered.count >= 2 {
+                        ForEach(Array(tempered.enumerated()), id: \.offset) { _, point in
+                            LineMark(
+                                x: .value("Date", point.date),
+                                y: .value("Weight", point.value),
+                                series: .value("Series", "Projected")
+                            )
+                            .lineStyle(StrokeStyle(lineWidth: 2.6, lineCap: .round, lineJoin: .round))
+                            .foregroundStyle(ink.opacity(0.82))
+                            .interpolationMethod(.linear)
+                        }
                     }
 
-                    if let crossing = scientific.crossing {
+                    if projectionReveal > 0.96, let crossing = scientific.crossing {
                         projectedCrossingMark(
                             crossing: crossing,
                             xDomain: xDomain,
@@ -506,29 +507,41 @@ struct WeighInResultsView: View {
                         )
                     }
 
-                    ForEach(Array(scientific.observedPath.enumerated()), id: \.offset) { _, point in
-                        LineMark(
-                            x: .value("Date", point.date),
-                            y: .value("Weight", point.value),
-                            series: .value("Series", "Observed")
-                        )
-                        .lineStyle(StrokeStyle(lineWidth: 1.6, dash: [2, 3]))
-                        .foregroundStyle(ink.opacity(0.4))
-                        .interpolationMethod(.linear)
+                    let observed = HealthChartMath.revealedProjectionPath(
+                        scientific.observedPath,
+                        progress: min(projectionReveal * 1.4, 1)
+                    )
+                    if observed.count >= 2 {
+                        ForEach(Array(observed.enumerated()), id: \.offset) { _, point in
+                            LineMark(
+                                x: .value("Date", point.date),
+                                y: .value("Weight", point.value),
+                                series: .value("Series", "Observed")
+                            )
+                            .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [2, 3]))
+                            .foregroundStyle(ink.opacity(0.35))
+                            .interpolationMethod(.linear)
+                        }
                     }
                 } else if showTrend, let projection {
-                    ForEach(Array(projection.path.enumerated()), id: \.offset) { _, point in
-                        LineMark(
-                            x: .value("Date", point.date),
-                            y: .value("Weight", point.value),
-                            series: .value("Series", "Trend")
-                        )
-                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4]))
-                        .foregroundStyle(ink.opacity(0.55))
-                        .interpolationMethod(.linear)
+                    let path = HealthChartMath.revealedProjectionPath(
+                        projection.path,
+                        progress: projectionReveal
+                    )
+                    if path.count >= 2 {
+                        ForEach(Array(path.enumerated()), id: \.offset) { _, point in
+                            LineMark(
+                                x: .value("Date", point.date),
+                                y: .value("Weight", point.value),
+                                series: .value("Series", "Trend")
+                            )
+                            .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
+                            .foregroundStyle(ink.opacity(0.7))
+                            .interpolationMethod(.linear)
+                        }
                     }
 
-                    if let crossing = projection.crossing {
+                    if projectionReveal > 0.96, let crossing = projection.crossing {
                         projectedCrossingMark(
                             crossing: crossing,
                             xDomain: xDomain,
@@ -582,12 +595,8 @@ struct WeighInResultsView: View {
             .historyChartAxes(
                 range: range,
                 xDomain: xDomain,
-                visibleLength: scrollLength,
+                visibleLength: nil,
                 accent: ink
-            )
-            .historyChartScroll(
-                visibleDomainLength: scrollLength,
-                scrollPosition: $chartScrollX
             )
         }
     }
@@ -595,12 +604,14 @@ struct WeighInResultsView: View {
     private var bodyFatChartCard: some View {
         let samples = HealthChartMath.chartSeries(session.historyBodyFatPercents)
         let extrema = HealthChartMath.extrema(in: samples)
-        let xDomain = HealthChartMath.historyXDomain(range: range)
-        let scrollLength = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: xDomain)
+        let xDomain = historyXDomain(
+            projection: showTrend ? weightProjection : nil,
+            scientific: showTrend ? scientificProjection : nil
+        )
         let visibleValues = HealthChartMath.valuesInVisibleXWindow(
             samples: samples,
-            visibleStart: chartScrollX,
-            visibleLength: scrollLength,
+            visibleStart: xDomain.lowerBound,
+            visibleLength: nil,
             xDomain: xDomain
         )
         let domain = HealthChartMath.bodyFatDomain(
@@ -724,12 +735,8 @@ struct WeighInResultsView: View {
             .historyChartAxes(
                 range: range,
                 xDomain: xDomain,
-                visibleLength: scrollLength,
+                visibleLength: nil,
                 accent: ink
-            )
-            .historyChartScroll(
-                visibleDomainLength: scrollLength,
-                scrollPosition: $chartScrollX
             )
         }
     }
@@ -899,7 +906,8 @@ struct WeighInResultsView: View {
             : []
         return HealthChartMath.historyXDomain(
             range: range,
-            extraDates: projectionDates + scientificDates
+            extraDates: projectionDates + scientificDates,
+            revealProgress: showTrend ? projectionReveal : 0
         )
     }
 
@@ -943,31 +951,21 @@ struct WeighInResultsView: View {
         loadError = nil
         do {
             try await session.loadHistory(for: range)
-            syncScrollPositions(for: range)
         } catch {
             loadError = error.localizedDescription
         }
     }
 
-    private func syncScrollPositions(for range: HealthHistoryRange) {
-        var weightExtras: [Date] = []
-        if showTrend {
-            if let projection = weightProjection {
-                weightExtras.append(contentsOf: projection.path.map(\.date))
+    private func animateProjectionReveal(_ isOn: Bool) {
+        if isOn {
+            projectionReveal = 0
+            withAnimation(.easeOut(duration: 1.15)) {
+                projectionReveal = 1
             }
-            if let scientific = scientificProjection {
-                weightExtras.append(contentsOf: scientific.temperedPath.map(\.date))
-                weightExtras.append(contentsOf: scientific.observedPath.map(\.date))
+        } else {
+            withAnimation(.easeInOut(duration: 0.28)) {
+                projectionReveal = 0
             }
-        }
-        // Prefer the weight domain (may extend past `now` when Projection is on) so both
-        // charts share one leading edge; fat falls back when weight scroll is disabled.
-        let weightDomain = HealthChartMath.historyXDomain(range: range, extraDates: weightExtras)
-        let fatDomain = HealthChartMath.historyXDomain(range: range)
-        if let length = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: weightDomain) {
-            chartScrollX = HealthChartMath.scrollLeadingDate(xDomain: weightDomain, visibleLength: length)
-        } else if let length = HealthChartMath.scrollVisibleDomainLength(for: range, xDomain: fatDomain) {
-            chartScrollX = HealthChartMath.scrollLeadingDate(xDomain: fatDomain, visibleLength: length)
         }
     }
 }
@@ -1041,7 +1039,6 @@ private extension View {
     }
 
     /// Tap/select activates the comment point immediately (default chartXSelection waits on long press).
-    /// SpatialTap keeps horizontal chart scroll free for 3M/1Y pans.
     /// Taps on the leading Y-axis strip (~44pt) rotate the Y floor (target ↔ visible min).
     /// Taps on the plot **or** X-axis label band select the date under the finger.
     func chartTapXSelection(onYAxisTap: (() -> Void)? = nil) -> some View {
@@ -1054,24 +1051,6 @@ private extension View {
                     }
                     proxy.selectXValue(at: value.location.x)
                 }
-        }
-    }
-
-    /// Pan 3M / 1Y after all other chart* modifiers. Optional scroll must be last —
-    /// its ViewBuilder if/else wraps the Chart; further chart* modifiers on that
-    /// wrapper trigger "fallback to empty chart".
-    @ViewBuilder
-    func historyChartScroll(
-        visibleDomainLength: TimeInterval?,
-        scrollPosition: Binding<Date>
-    ) -> some View {
-        if let length = visibleDomainLength, length.isFinite, length > 0 {
-            self
-                .chartScrollableAxes(.horizontal)
-                .chartXVisibleDomain(length: length)
-                .chartScrollPosition(x: scrollPosition)
-        } else {
-            self
         }
     }
 }
