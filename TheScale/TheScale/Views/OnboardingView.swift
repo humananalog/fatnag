@@ -294,10 +294,7 @@ struct OnboardingView: View {
                 default: "Age and gender. Adults 18+ only."
             )
         case .anatomy:
-            return AppLanguageStore.text(
-                "onboarding.sub.anatomy",
-                default: "Your height and current weight."
-            )
+            return ""
         case .dream:
             return AppLanguageStore.text(
                 "onboarding.sub.dream",
@@ -439,89 +436,33 @@ struct OnboardingView: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    // MARK: - Anatomy
+    // MARK: - Anatomy (height + weight only)
 
     private func anatomyStep(compact: Bool) -> some View {
         ScrollView {
-        VStack(alignment: .leading, spacing: compact ? 8 : 10) {
-            vectorArt("OnboardingVectorAnatomy", height: compact ? 56 : 72)
+            VStack(alignment: .leading, spacing: compact ? 16 : 20) {
+                unitToggle(id: "onboarding.anatomy.units")
 
-            unitToggle(id: "onboarding.anatomy.units")
-
-            unitAwareField(
-                title: "Height",
-                display: Binding(
-                    get: { UnitFormat.height(fromCm: flow.heightCm, system: flow.unitSystem) },
-                    set: {
-                        let cm = UnitFormat.cm(fromHeight: $0, system: flow.unitSystem)
-                        flow.heightCm = ProfileNumericBounds.clampHeightCm(cm).value
-                    }
-                ),
-                unit: flow.unitSystem.heightLabel,
-                fraction: flow.unitSystem == .metric ? 0 : 1,
-                id: "onboarding.height"
-            )
-
-            currentWeightControl
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Body fat % (optional)")
-                    .font(.subheadline.weight(.semibold))
+                Text(AppLanguageStore.text("onboarding.anatomy.height_prompt", default: "How tall are you?"))
+                    .font(.system(size: compact ? 18 : 20, weight: .semibold, design: .rounded))
                     .foregroundStyle(ink)
-                Text("Only if you already know it (DEXA, calipers, prior scale). Leave blank if unknown. Typical range about 3-60%.")
-                    .font(.caption2)
-                    .foregroundStyle(steel)
-                HStack {
-                    TextField(
-                        "e.g. 18.5",
-                        text: Binding(
-                            get: {
-                                flow.startingBodyFatPercent.map { String(format: "%.1f", $0) } ?? ""
-                            },
-                            set: { raw in
-                                let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                                if trimmed.isEmpty {
-                                    flow.startingBodyFatPercent = nil
-                                    return
-                                }
-                                guard let value = Double(trimmed.replacingOccurrences(of: ",", with: ".")) else {
-                                    return
-                                }
-                                flow.startingBodyFatPercent = ProfileNumericBounds.clampOptionalBodyFatPercent(value).value
-                            }
-                        )
-                    )
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 72)
-                    .accessibilityIdentifier("onboarding.startingBodyFat")
-                    Text("%").foregroundStyle(steel)
-                }
-            }
+                    .accessibilityIdentifier("onboarding.anatomy.heightPrompt")
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Medical / habits (optional)")
-                    .font(.subheadline.weight(.semibold))
+                heightField(compact: compact)
+
+                Text(AppLanguageStore.text("onboarding.anatomy.weight_prompt", default: "What do you weigh today?"))
+                    .font(.system(size: compact ? 18 : 20, weight: .semibold, design: .rounded))
                     .foregroundStyle(ink)
-                Text("Injuries, meds, alcohol, sleep quirks. On-device Coach context only.")
-                    .font(.caption2)
-                    .foregroundStyle(steel)
-                TextField(
-                    "e.g. knee tweak, weekend wine",
-                    text: $flow.healthContextNotes,
-                    axis: .vertical
-                )
-                .lineLimit(2...3)
-                .padding(10)
-                .background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .accessibilityIdentifier("onboarding.healthContext")
-            }
+                    .padding(.top, 4)
+                    .accessibilityIdentifier("onboarding.anatomy.weightPrompt")
 
-            Spacer(minLength: 0)
-        }
-        .padding(.bottom, 12)
+                currentWeightControl
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.interactively)
+        .accessibilityIdentifier("onboarding.anatomy")
         .onChange(of: flow.heightCm) { _, _ in
             flow.updateIdealFromHeightIfNeeded()
         }
@@ -531,32 +472,53 @@ struct OnboardingView: View {
         }
     }
 
+    private func heightField(compact: Bool) -> some View {
+        HStack(spacing: 12) {
+            TextField(
+                flow.unitSystem.heightLabel,
+                value: Binding(
+                    get: { UnitFormat.height(fromCm: flow.heightCm, system: flow.unitSystem) },
+                    set: {
+                        let cm = UnitFormat.cm(fromHeight: $0, system: flow.unitSystem)
+                        flow.heightCm = ProfileNumericBounds.clampHeightCm(cm).value
+                    }
+                ),
+                format: .number.precision(.fractionLength(flow.unitSystem == .metric ? 0 : 1))
+            )
+            .keyboardType(.decimalPad)
+            .font(.system(size: compact ? 28 : 34, weight: .bold, design: .rounded))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(ink.opacity(0.12), lineWidth: 1)
+            )
+            .accessibilityIdentifier("onboarding.height")
+
+            Text(flow.unitSystem.heightLabel)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .foregroundStyle(steel)
+                .frame(minWidth: 36, alignment: .leading)
+        }
+    }
+
     private var showsWeightScale: Bool {
         adjustWeightOnScale || OnboardingFlowModel.weightNeedsScale(lastSample: healthWeight?.date)
     }
 
     private var currentWeightControl: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        Group {
             if !healthWeightResolved && !adjustWeightOnScale {
-                Text("Checking Health for a recent weigh…")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(steel)
-                    .accessibilityIdentifier("onboarding.currentWeight")
-            } else if showsWeightScale {
-                Text("Current weight")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(ink)
-                if let date = healthWeight?.date, OnboardingFlowModel.weightNeedsScale(lastSample: date) {
-                    Text("Last Health weigh was \(relativeWeigh(date)). Drag the dial.")
-                        .font(.caption)
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(AppLanguageStore.text("onboarding.anatomy.checking_health", default: "Checking Apple Health…"))
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(steel)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else if healthWeight == nil {
-                    Text("No recent Health weigh. Drag the dial. Marks follow \(flow.unitSystem.massLabel) only.")
-                        .font(.caption)
-                        .foregroundStyle(steel)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .accessibilityIdentifier("onboarding.currentWeight")
+            } else if showsWeightScale {
                 AnalogDreamScaleView(
                     weightKg: Binding(
                         get: { flow.currentWeightKg },
@@ -568,31 +530,34 @@ struct OnboardingView: View {
                     steel: steel,
                     accent: moss,
                     accessibilityId: "onboarding.currentWeight",
-                    caption: "Drag. The needle stays. \(flow.unitSystem.massLabel) marks only."
+                    caption: AppLanguageStore.text("onboarding.anatomy.drag", default: "Drag to set.")
                 )
             } else if let sample = healthWeight {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Current weight")
-                        .font(.subheadline.weight(.semibold))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(UnitFormat.massString(sample.value, system: flow.unitSystem, fractionDigits: 1))
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(UnitFormat.massString(sample.value, system: flow.unitSystem, fractionDigits: 1))
-                            .font(.system(size: 36, weight: .black, design: .rounded))
-                            .foregroundStyle(ink)
-                            .monospacedDigit()
-                    }
-                    Text("From Health · \(relativeWeigh(sample.date))")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(moss)
-                    Button("Not this weight") {
+                        .monospacedDigit()
+                    Text(
+                        String(
+                            format: AppLanguageStore.text(
+                                "onboarding.anatomy.from_health",
+                                default: "From Health · %@"
+                            ),
+                            relativeWeigh(sample.date)
+                        )
+                    )
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(moss)
+                    Button(AppLanguageStore.text("onboarding.anatomy.change_weight", default: "Change")) {
                         adjustWeightOnScale = true
                     }
-                    .font(.caption.weight(.bold))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
                     .accessibilityIdentifier("onboarding.currentWeight.adjust")
                 }
-                .padding(14)
+                .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white.opacity(0.78), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(Color.white.opacity(0.9), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .accessibilityIdentifier("onboarding.currentWeight")
             }
         }
@@ -877,30 +842,6 @@ struct OnboardingView: View {
                 .accessibilityIdentifier(id)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func unitAwareField(
-        title: String,
-        display: Binding<Double>,
-        unit: String,
-        fraction: Int,
-        id: String
-    ) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            TextField(
-                unit,
-                value: display,
-                format: .number.precision(.fractionLength(fraction))
-            )
-            .keyboardType(.decimalPad)
-            .multilineTextAlignment(.trailing)
-            .frame(width: 72)
-            .accessibilityIdentifier(id)
-            Text(unit).foregroundStyle(steel)
-        }
-        .font(.body.weight(.medium))
     }
 
     private func advance() async {
