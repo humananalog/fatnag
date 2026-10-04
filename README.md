@@ -4,7 +4,7 @@ Privacy-first iOS app for the **Xiaomi Mi Body Composition Scale 2** (XMTZC05HM;
 
 | | |
 |------|--|
-| **Version** | 1.0.96 (build 191) |
+| **Version** | 1.0.97 (build 192) |
 | **Device** | iPhone 15 (physical; BLE + HealthKit) |
 | **Xcode / SDK** | Xcode 27, iOS 27 SDK |
 | **Deployment** | iOS 26.0, iPhone only |
@@ -80,7 +80,7 @@ No accounts. No analytics. Weigh-ins never leave the phone except into Apple Hea
 - **HealthKit background:** `HKObserverQuery` + `enableBackgroundDelivery` (+ BG refresh/processing backups) so digest/trigger notifications can land without opening the app (iOS still throttles)
 
 ### Onboarding (1.0.91–1.0.93)
-Eight first-launch pages, one instruction each: **Language → Units (kg/lb) → Name → Age/sex → Height & weight → Dream weight + date → Food (optional) → Legal**. Units are chosen before any mass dial. Food is diet chips + optional avoidances/city (**Skip for now** if empty). Dream date must pass the safe-pace gate.
+Eight first-launch pages, one instruction each: **Language → Units (kg/lb) → Name → Age/sex → Height & weight → Dream weight + date → Food (optional) → Legal**. Units are chosen before any mass dial. Food is diet chips + optional avoidances/city (**Skip for now** if empty). Dream date must pass the safe-pace gate. After Start weighing, a **3-screen send-off** (“Go weigh yourself. Now.”) then home.
 
 ### Progress / goals
 - **Paywall + Settings polish (2.14.1):** Unlock Coach one-pager (high contrast Free/Plus/Pro); meal cards match sheet background; Settings Done dismisses keyboard; Settings regrouped (You / Weekly AI / Coach / Alerts / Scale / Legal).
@@ -286,7 +286,7 @@ docs/                     # Architecture, Coach/AI, Health/notifications
 
 ## Version
 
-Current: **1.0.96** (build **191**).
+Current: **1.0.97** (build **192**).
 
 Bump marketing + build together when shipping code:
 

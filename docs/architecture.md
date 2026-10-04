@@ -50,6 +50,8 @@ Eight first-launch pages (one instruction each):
 7. **Food** — optional diet chips, avoidances, city (**Skip for now** if blank)  
 8. **Confirm** — legal + alerts + live Coach later  
 
+After **Start weighing**, a 3-screen send-off lands on home (first weigh). Not replayed from Settings.
+
 On-device Foundation Models may pre-fill diet/location from notes (heuristic fallback). No Grok during onboarding.
 
 ## App Review

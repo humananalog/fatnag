@@ -7,7 +7,7 @@ Fill these in ASC before Submit for Review. Binary alone is not enough.
 | Field | Value |
 |-------|--------|
 | ASC Apple ID / app id | **6816630442** |
-| Inflight iOS version | **1.0.96** (191) — [App Store Connect · Inflight](https://appstoreconnect.apple.com/apps/6816630442/distribution/ios/version/inflight) |
+| Inflight iOS version | **1.0.97** (192) — [App Store Connect · Inflight](https://appstoreconnect.apple.com/apps/6816630442/distribution/ios/version/inflight) |
 | Name (listing) | **FATNAG** (accepted in ASC) |
 | Subtitle (≤30) | **Nag until the fat folds.** (24 chars; primary) |
 | Subtitle alternates | `Daily nag. Smaller pants.` · `Weigh. Nag. Lose. Repeat.` |

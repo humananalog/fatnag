@@ -35,7 +35,7 @@ struct TheScaleApp: App {
         #endif
         return true
     }()
-    /// First-launch karaoke after splash. UI tests that skip splash also skip this.
+    /// First-launch karaoke after onboarding. Skip splash (UI tests / demo) also skips this.
     @State private var showFirstLaunchLanding = false
     @State private var appLanguage = AppLanguageStore.current
 
@@ -61,6 +61,18 @@ struct TheScaleApp: App {
             DemoPersonaSeeder.persist(persona)
         }
         #endif
+    }
+
+    /// Karaoke send-off after first onboarding. Not on replay, demo, promo, or splash-skip tests.
+    private static var shouldPlayFirstLaunchLanding: Bool {
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-uitesting-skip-splash") { return false }
+        #if DEBUG
+        if DemoPersonaSeeder.Persona.fromLaunchArguments(args) != nil { return false }
+        if PromoCaptureMode.isActive { return false }
+        if suppressesPermissionPrompts { return false }
+        #endif
+        return true
     }
 
     #if DEBUG
@@ -119,9 +131,6 @@ struct TheScaleApp: App {
                     // Settings language (or system on first launch) for the whole slam.
                     SplashView {
                         showSplash = false
-                        if !session.hasCompletedOnboarding {
-                            showFirstLaunchLanding = true
-                        }
                     }
                     .transition(.opacity)
                     .zIndex(3)
@@ -149,15 +158,11 @@ struct TheScaleApp: App {
                 // Drop per-user paste keys from 2.0 / 2.1; coaching uses shared build config only.
                 GrokLegacyKeychain.clearUserEnteredKey()
                 // Failsafe: never leave the user on splash forever if its Task is cancelled.
-                // Does not skip the first-launch landing.
                 if showSplash {
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: 3_500_000_000)
                         if showSplash {
                             showSplash = false
-                            if !session.hasCompletedOnboarding {
-                                showFirstLaunchLanding = true
-                            }
                         }
                     }
                 }
@@ -170,6 +175,9 @@ struct TheScaleApp: App {
             }
             .onChange(of: session.hasCompletedOnboarding) { _, completed in
                 guard completed else { return }
+                if !session.isOnboardingReplay, Self.shouldPlayFirstLaunchLanding {
+                    showFirstLaunchLanding = true
+                }
                 #if DEBUG
                 if PromoCaptureMode.isActive || Self.suppressesPermissionPrompts { return }
                 #endif

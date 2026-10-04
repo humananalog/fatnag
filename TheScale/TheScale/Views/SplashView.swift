@@ -179,8 +179,8 @@ struct SplashView: View {
 
 // MARK: - First launch landing (after splash)
 
-/// First-launch landing after the splash slam. One job: make the coach feel real
-/// before any form. Karaoke wipe on huge type, background dark to fired.
+/// First-launch landing after onboarding. Send-off into the first weigh.
+/// Karaoke wipe on huge type, background dark to fired.
 /// Three screens max. Auto-advances. Tap skips a line. Skip control after 0.7s.
 /// Reduce Motion: final frame + Continue, no wipe.
 struct FirstLaunchLandingView: View {
