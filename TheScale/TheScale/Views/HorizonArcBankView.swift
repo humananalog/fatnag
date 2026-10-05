@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Home day board: large Sunday weight target, lean activity gauges, and
-/// daily nutrition **targets** unless Apple Health has a robust food log.
+/// Home day board: large Sunday weight target, lean activity gauges (max two),
+/// and daily nutrition chips (targets, or live protein/micro when Health has food).
 struct HorizonArcBankView: View {
     var sundayTargetKg: Double?
     var weeklyDeltaKg: Double
@@ -129,7 +129,8 @@ struct HorizonArcBankView: View {
             )
 
             HStack(alignment: .top, spacing: 16) {
-                ForEach(metrics, id: \.kind) { row in
+                // Hard cap: four equal-width gauges clip "1,820 / 2,000"-style values.
+                ForEach(Array(metrics.prefix(2)), id: \.kind) { row in
                     gaugeCard(row)
                 }
             }

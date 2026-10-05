@@ -179,11 +179,17 @@ final class DailyMetricProgressTests: XCTestCase {
             intakeTracked: true
         )
         let rows = WeeklyGoalSurfaceEngine.todayMetricProgress(targets: targets, digest: digest)
+        // Lean gauges only — protein/fiber stay on chips so values are not clipped.
+        XCTAssertEqual(rows.map(\.kind), [.steps, .energy])
         XCTAssertEqual(rows.first { $0.kind == .energy }?.title, "Energy")
         XCTAssertEqual(rows.first { $0.kind == .energy }?.status, .complete)
-        XCTAssertEqual(rows.first { $0.kind == .protein }?.status, .inProgress)
-        XCTAssertEqual(rows.first { $0.kind == .micro }?.status, .inProgress)
-        XCTAssertGreaterThan(rows.first { $0.kind == .micro }?.fraction ?? 0, 0.8)
+        XCTAssertNil(rows.first { $0.kind == .protein })
+        XCTAssertNil(rows.first { $0.kind == .micro })
+
+        let chips = WeeklyGoalSurfaceEngine.dailyTargetChips(targets: targets, digest: digest)
+        XCTAssertEqual(chips.map(\.title), ["Protein", "Fiber"])
+        XCTAssertEqual(chips.first { $0.title == "Protein" }?.valueLine, "120 / 140 g")
+        XCTAssertEqual(chips.first { $0.title == "Fiber" }?.valueLine, "28 / 30 g")
     }
 
     func testOverCalorieBudgetMarksOver() {

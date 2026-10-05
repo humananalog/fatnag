@@ -71,7 +71,7 @@ struct DailyGoalTargets: Equatable, Sendable {
     }
 }
 
-/// Compact home target chip when nutrition gauges are hidden.
+/// Compact home nutrition chip (targets, or live logged progress when Health has food).
 struct HomeDailyTargetChip: Equatable, Sendable, Identifiable {
     var id: String { title }
     var title: String
@@ -133,9 +133,9 @@ struct WeeklyGoalSurface: Equatable, Sendable {
     var mealSuggestion: String?
     var energySnapshot: WeeklyEnergyBalanceSnapshot?
     var targets: DailyGoalTargets
-    /// Today completion for steps / move / (nutrition only when robustly logged).
+    /// Today activity gauges only (steps + move/energy) — never more than two.
     var todayProgress: [DailyMetricProgress]
-    /// Shown when nutrition is not robustly logged: kcal / protein / micro as targets, not gauges.
+    /// Nutrition as chips: targets when unlogged, live protein/micro progress when Health has food.
     var dailyTargetChips: [HomeDailyTargetChip]
     /// ETA to ideal weight at current pace vs planned goal date.
     var macroGoalETA: MacroGoalETA
@@ -295,7 +295,7 @@ enum WeeklyGoalSurfaceEngine {
         let progress = todayMetricProgress(targets: targets, digest: digest)
         let chips = Self.dailyTargetChips(
             targets: targets,
-            showNutritionTargets: !targets.intakeTracked,
+            digest: digest,
             sex: profile.sex,
             diet: profile.dietPreference
         )
@@ -539,36 +539,93 @@ enum WeeklyGoalSurfaceEngine {
         return energy >= 200 && protein >= 15
     }
 
+    /// Nutrition chips for home. Energy stays a chip only when food is not logged
+    /// (logged energy becomes the second arc gauge). Protein + micro always chips —
+    /// live current/target when Health has a robust food log.
     static func dailyTargetChips(
         targets: DailyGoalTargets,
-        showNutritionTargets: Bool,
+        digest: FitnessDigest? = nil,
+        showNutritionTargets: Bool = true,
         sex: UserBodyProfile.Sex = .male,
         diet: DietPreference = .omnivore
     ) -> [HomeDailyTargetChip] {
         guard showNutritionTargets else { return [] }
-        return [
-            HomeDailyTargetChip(
-                title: AppLanguageStore.text("targets.energy", default: "Energy"),
-                valueLine: CoachVoice.energyChipLine(
-                    kcal: targets.maxCalories,
-                    diet: diet,
-                    sex: sex
+
+        var chips: [HomeDailyTargetChip] = []
+
+        if !targets.intakeTracked {
+            chips.append(
+                HomeDailyTargetChip(
+                    title: AppLanguageStore.text("targets.energy", default: "Energy"),
+                    valueLine: CoachVoice.energyChipLine(
+                        kcal: targets.maxCalories,
+                        diet: diet,
+                        sex: sex
+                    )
                 )
-            ),
-            HomeDailyTargetChip(
-                title: targets.proteinLabel,
-                valueLine: CoachVoice.proteinChipLine(
-                    grams: targets.proteinGrams,
-                    diet: diet,
-                    sex: sex
+            )
+            chips.append(
+                HomeDailyTargetChip(
+                    title: targets.proteinLabel,
+                    valueLine: CoachVoice.proteinChipLine(
+                        grams: targets.proteinGrams,
+                        diet: diet,
+                        sex: sex
+                    )
                 )
-            ),
-            HomeDailyTargetChip(title: targets.microName, valueLine: targets.microTargetLine)
-        ]
+            )
+            chips.append(HomeDailyTargetChip(title: targets.microName, valueLine: targets.microTargetLine))
+            return chips
+        }
+
+        // Logged: protein + micro with live progress (energy is the arc gauge).
+        if let proteinCurrent = digest?.dietaryProteinGramsToday, proteinCurrent > 0 {
+            chips.append(
+                HomeDailyTargetChip(
+                    title: targets.proteinLabel,
+                    valueLine: "\(Int(proteinCurrent.rounded())) / \(targets.proteinGrams) g"
+                )
+            )
+        } else {
+            chips.append(
+                HomeDailyTargetChip(
+                    title: targets.proteinLabel,
+                    valueLine: CoachVoice.proteinChipLine(
+                        grams: targets.proteinGrams,
+                        diet: diet,
+                        sex: sex
+                    )
+                )
+            )
+        }
+
+        let microTarget = microNumericTarget(name: targets.microName, line: targets.microTargetLine)
+        let microCurrent: Double? = {
+            switch targets.microName.lowercased() {
+            case "fiber": return digest?.dietaryFiberGramsToday
+            case "iron": return digest?.dietaryIronMgToday
+            case "potassium": return digest?.dietaryPotassiumMgToday
+            default: return nil
+            }
+        }()
+        let microUnit = targets.microName.lowercased() == "fiber" ? "g" : "mg"
+        if let microCurrent, microCurrent > 0, let microTarget, microTarget > 0 {
+            chips.append(
+                HomeDailyTargetChip(
+                    title: targets.microName,
+                    valueLine: "\(Int(microCurrent.rounded())) / \(Int(microTarget.rounded())) \(microUnit)"
+                )
+            )
+        } else {
+            chips.append(HomeDailyTargetChip(title: targets.microName, valueLine: targets.microTargetLine))
+        }
+
+        return chips
     }
 
     /// Today completion rows for home.
-    /// Activity gauges always (steps + move). Nutrition gauges only with robust Health food log.
+    /// Always lean: Steps + Move, or Steps + dietary Energy when food is robustly logged.
+    /// Protein / micro never become arc gauges (they clip on a 4-up row).
     static func todayMetricProgress(
         targets: DailyGoalTargets,
         digest: FitnessDigest?
@@ -589,6 +646,23 @@ enum WeeklyGoalSurfaceEngine {
 
         var rows: [DailyMetricProgress] = [steps]
 
+        if targets.intakeTracked,
+           let dietKcal = digest?.dietaryEnergyKcalToday,
+           dietKcal > 0 {
+            rows.append(
+                progressRow(
+                    kind: .energy,
+                    title: energyTitle,
+                    current: dietKcal,
+                    target: Double(targets.maxCalories),
+                    higherIsBetter: false,
+                    formatCurrent: { "\(Int($0.rounded()))" },
+                    formatTarget: { "\(Int($0.rounded()))" }
+                )
+            )
+            return rows
+        }
+
         let moveBurn = digest?.activeEnergyKcalToday
         let moveTarget = max(250.0, Double(targets.maxCalories) * 0.22)
         if let burn = moveBurn {
@@ -600,67 +674,7 @@ enum WeeklyGoalSurfaceEngine {
                     target: moveTarget,
                     higherIsBetter: true,
                     formatCurrent: { "\(Int($0.rounded()))" },
-                    formatTarget: { "\(Int($0.rounded())) burn" }
-                )
-            )
-        }
-
-        guard targets.intakeTracked else {
-            return rows
-        }
-
-        // Robust nutrition log: replace Move with dietary Energy when available, add protein + micro.
-        if let dietKcal = digest?.dietaryEnergyKcalToday, dietKcal > 0 {
-            // Keep Move if we already added it; also show dietary Energy as the energy kind
-            // Prefer a single Energy gauge from diet when logged.
-            rows.removeAll { $0.kind == .energy && $0.title == moveTitle }
-            rows.append(
-                progressRow(
-                    kind: .energy,
-                    title: energyTitle,
-                    current: dietKcal,
-                    target: Double(targets.maxCalories),
-                    higherIsBetter: false,
-                    formatCurrent: { "\(Int($0.rounded()))" },
-                    formatTarget: { "\(Int($0.rounded())) max" }
-                )
-            )
-        }
-
-        if let proteinCurrent = digest?.dietaryProteinGramsToday, proteinCurrent > 0 {
-            rows.append(
-                progressRow(
-                    kind: .protein,
-                    title: targets.proteinLabel,
-                    current: proteinCurrent,
-                    target: Double(targets.proteinGrams),
-                    higherIsBetter: true,
-                    formatCurrent: { "\(Int($0.rounded()))" },
-                    formatTarget: { "\(Int($0.rounded())) g" }
-                )
-            )
-        }
-
-        let microTarget = microNumericTarget(name: targets.microName, line: targets.microTargetLine)
-        let microCurrent: Double? = {
-            switch targets.microName.lowercased() {
-            case "fiber": return digest?.dietaryFiberGramsToday
-            case "iron": return digest?.dietaryIronMgToday
-            case "potassium": return digest?.dietaryPotassiumMgToday
-            default: return nil
-            }
-        }()
-        let microUnit = targets.microName.lowercased() == "fiber" ? "g" : "mg"
-        if let microCurrent, microCurrent > 0, let microTarget, microTarget > 0 {
-            rows.append(
-                progressRow(
-                    kind: .micro,
-                    title: targets.microName,
-                    current: microCurrent,
-                    target: microTarget,
-                    higherIsBetter: true,
-                    formatCurrent: { "\(Int($0.rounded()))" },
-                    formatTarget: { "\(Int($0.rounded())) \(microUnit)" }
+                    formatTarget: { "\(Int($0.rounded()))" }
                 )
             )
         }
