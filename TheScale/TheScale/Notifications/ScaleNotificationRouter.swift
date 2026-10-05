@@ -30,50 +30,56 @@ enum ScaleNotificationRouter {
         }
     }
 
-    static func handle(response: UNNotificationResponse) async {
-        let content = response.notification.request.content
-        let userInfo = content.userInfo
-        let action = response.actionIdentifier
-
+    /// Preferred entry: Sendable snapshot built on the notification-center queue.
+    static func handle(payload: ScaleNotificationTapPayload) async {
         // Tap, dismiss, snooze, and action buttons all mean the user dealt with it.
-        NotificationArchiveStore.acknowledge(response.notification)
+        NotificationArchiveStore.acknowledge(
+            requestId: payload.requestId,
+            title: payload.title,
+            body: payload.body,
+            deliveredAt: payload.deliveredAt
+        )
 
-        if action == ScaleNotificationActionID.snooze10 {
-            await snooze(request: response.notification.request, minutes: 10)
+        if payload.actionIdentifier == ScaleNotificationActionID.snooze10 {
+            await snooze(payload: payload, minutes: 10)
             return
         }
 
-        let destination: ScaleNotificationDestination? = {
-            switch action {
-            case ScaleNotificationActionID.openCoach:
-                return .coach
-            case ScaleNotificationActionID.openProgress:
-                return .progress
-            case ScaleNotificationActionID.openHistory:
-                return .history
-            case ScaleNotificationActionID.openWeigh:
-                return .weigh
-            case UNNotificationDefaultActionIdentifier:
-                if let raw = userInfo[ScaleNotificationUserInfoKey.destination] as? String,
-                   let dest = ScaleNotificationDestination(rawValue: raw) {
-                    return dest
-                }
-                if let target = content.targetContentIdentifier,
-                   let dest = ScaleNotificationDestination(rawValue: target) {
-                    return dest
-                }
-                if let kindRaw = userInfo[ScaleNotificationUserInfoKey.kind] as? String,
-                   let kind = ScaleNotificationKind(rawValue: kindRaw) {
-                    return kind.destination
-                }
-                return .coach
-            default:
-                return nil
-            }
-        }()
-
-        if let destination {
+        if let destination = destination(for: payload) {
             route(destination)
+        }
+    }
+
+    /// Resolve which screen a tap / action should open. Pure + testable.
+    /// Nonisolated so unit tests (and the notification queue snapshot) can call it.
+    nonisolated static func destination(for payload: ScaleNotificationTapPayload) -> ScaleNotificationDestination? {
+        switch payload.actionIdentifier {
+        case ScaleNotificationActionID.openCoach:
+            return .coach
+        case ScaleNotificationActionID.openProgress:
+            return .progress
+        case ScaleNotificationActionID.openHistory:
+            return .history
+        case ScaleNotificationActionID.openWeigh:
+            return .weigh
+        case UNNotificationDefaultActionIdentifier:
+            if let raw = payload.destinationRaw
+                ?? payload.userInfo[ScaleNotificationUserInfoKey.destination],
+               let dest = ScaleNotificationDestination(rawValue: raw) {
+                return dest
+            }
+            if let target = payload.targetContentIdentifier,
+               let dest = ScaleNotificationDestination(rawValue: target) {
+                return dest
+            }
+            if let kindRaw = payload.kindRaw
+                ?? payload.userInfo[ScaleNotificationUserInfoKey.kind],
+               let kind = ScaleNotificationKind(rawValue: kindRaw) {
+                return kind.destination
+            }
+            return .coach
+        default:
+            return nil
         }
     }
 
@@ -85,24 +91,20 @@ enum ScaleNotificationRouter {
         }
     }
 
-    /// Re-schedule the same content ~N minutes later under a snooze id.
-    static func snooze(request: UNNotificationRequest, minutes: Int) async {
-        let content = request.content.mutableCopy() as? UNMutableNotificationContent
-            ?? UNMutableNotificationContent()
-        if content.title.isEmpty {
-            content.title = request.content.title
-            content.subtitle = request.content.subtitle
-            content.body = request.content.body
-            content.sound = request.content.sound
-            content.categoryIdentifier = request.content.categoryIdentifier
-            content.threadIdentifier = request.content.threadIdentifier
-            content.interruptionLevel = request.content.interruptionLevel
-            content.relevanceScore = request.content.relevanceScore
-            content.userInfo = request.content.userInfo
-            content.attachments = request.content.attachments
-            content.targetContentIdentifier = request.content.targetContentIdentifier
-        }
-        content.subtitle = content.subtitle.isEmpty ? "Snoozed 10 min" : content.subtitle
+    /// Re-schedule the same glance content ~N minutes later under a snooze id.
+    /// Built from the Sendable payload — never re-touch the original request.
+    static func snooze(payload: ScaleNotificationTapPayload, minutes: Int) async {
+        let content = UNMutableNotificationContent()
+        content.title = payload.title
+        content.subtitle = payload.subtitle.isEmpty ? "Snoozed 10 min" : payload.subtitle
+        content.body = payload.body
+        content.sound = .default
+        content.categoryIdentifier = payload.categoryIdentifier
+        content.threadIdentifier = payload.threadIdentifier
+        content.interruptionLevel = payload.interruptionLevel
+        content.relevanceScore = payload.relevanceScore
+        content.userInfo = payload.userInfo
+        content.targetContentIdentifier = payload.targetContentIdentifier
         let seconds = max(TimeInterval(minutes * 60), 60)
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
         let id = "thescale.snooze." + UUID().uuidString
@@ -194,16 +196,6 @@ enum NotificationArchiveStore {
         }
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [requestId])
         NotificationCenter.default.post(name: .fatnagAlertsDidChange, object: nil)
-    }
-
-    static func acknowledge(_ notification: UNNotification) {
-        let content = notification.request.content
-        acknowledge(
-            requestId: notification.request.identifier,
-            title: content.title,
-            body: content.body,
-            deliveredAt: notification.date
-        )
     }
 
     static func activeCount(in delivered: [UNNotification]) -> Int {

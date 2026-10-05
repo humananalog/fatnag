@@ -516,7 +516,10 @@ struct ContentView: View {
         await session.refreshWeeklyGoalSurface()
         await session.refreshTrendNotifications()
         ScaleNotificationRouter.openDestination = { destination in
-            session.handleNotificationDestination(destination)
+            // Next turn so splash / first home paint can finish before sheets flip.
+            Task { @MainActor in
+                session.handleNotificationDestination(destination)
+            }
         }
         ScaleNotificationRouter.openAppNotificationSettings = {
             session.presentSettings()

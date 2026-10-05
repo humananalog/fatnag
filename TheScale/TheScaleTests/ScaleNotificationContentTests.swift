@@ -248,6 +248,44 @@ final class ScaleNotificationContentTests: XCTestCase {
         XCTAssertEqual(left.map(\.id), ["keep"])
     }
 
+    func testTapPayloadDefaultActionResolvesDestination() {
+        let weigh = ScaleNotificationTapPayload(
+            actionIdentifier: UNNotificationDefaultActionIdentifier,
+            requestId: "thescale.morning-weigh",
+            title: "Weigh",
+            body: "On the scale.",
+            kindRaw: ScaleNotificationKind.morningWeigh.rawValue,
+            destinationRaw: ScaleNotificationDestination.weigh.rawValue
+        )
+        XCTAssertEqual(ScaleNotificationRouter.destination(for: weigh), .weigh)
+
+        let coachAction = ScaleNotificationTapPayload(
+            actionIdentifier: ScaleNotificationActionID.openCoach,
+            requestId: "x",
+            title: "Coach",
+            body: "Hi",
+            destinationRaw: ScaleNotificationDestination.progress.rawValue
+        )
+        XCTAssertEqual(ScaleNotificationRouter.destination(for: coachAction), .coach)
+
+        let kindOnly = ScaleNotificationTapPayload(
+            actionIdentifier: UNNotificationDefaultActionIdentifier,
+            requestId: "y",
+            title: "Trend",
+            body: "Up",
+            kindRaw: ScaleNotificationKind.badTrend.rawValue
+        )
+        XCTAssertEqual(ScaleNotificationRouter.destination(for: kindOnly), .history)
+
+        let snooze = ScaleNotificationTapPayload(
+            actionIdentifier: ScaleNotificationActionID.snooze10,
+            requestId: "z",
+            title: "Snooze me",
+            body: "Later"
+        )
+        XCTAssertNil(ScaleNotificationRouter.destination(for: snooze))
+    }
+
     func testIntervalIsPassiveNoSound() {
         let content = ScaleNotificationContentFactory.make(
             ScaleNotificationCopy.fitnessInterval(
