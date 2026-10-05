@@ -962,6 +962,9 @@ final class ScaleSessionViewModel: ObservableObject {
             selectHomeTab(.keel)
         case "meals", "05":
             selectHomeTab(.meals)
+        case "after-weigh", "hero", "weigh-hero", "roast", "weigh-success":
+            // Black full-screen post-weigh roast card (ASC / marketing).
+            presentPromoAfterWeighHero()
         case "paywall", "unlock", "asc", "subscription", "iap",
              "paywall-annual", "paywall-pro-annual", "asc-pro-annual":
             presentASCPaywallCapture(period: .annual, highlight: .pro)
@@ -1024,6 +1027,47 @@ final class ScaleSessionViewModel: ObservableObject {
         isEditingDraft = false
         selectHomeTab(.weigh)
         isWeighInPresented = true
+    }
+
+    /// Black post-weigh roast card for ASC / marketing (`-promoShot=after-weigh`).
+    /// Funny sergeant tone with a clear gain so the roast lands on camera.
+    private func presentPromoAfterWeighHero() {
+        selectHomeTab(.weigh)
+        isWeighInPresented = false
+        let name = profile.greetingName
+        let sex = profile.sex
+        let weighed = healthBaselineKg
+            ?? profile.startingWeightKg
+            ?? (sex == .female ? 68.4 : 93.7)
+        let delta = sex == .female ? 0.35 : 0.40
+        let signed = UnitFormat.massDeltaString(delta, system: preferredUnits)
+        let card: WeighInAnalysisCard
+        switch sex {
+        case .male:
+            card = WeighInAnalysisCard(
+                tone: .sergeant,
+                headline: "ATTENTION. The scale filed a complaint, \(name).",
+                body: "\(signed) since last. Kitchen lights out. Protein first. No negotiation.",
+                deltaKg: delta,
+                weighedKg: weighed,
+                createdAt: Date(),
+                popLine: "Rocky didn't hit the fridge after round twelve.",
+                sex: .male
+            )
+        case .female:
+            card = WeighInAnalysisCard(
+                tone: .sergeant,
+                headline: "Not doom. Just dinner, \(name).",
+                body: "\(signed) wandered on. Close the kitchen with a smile. Palm of protein, big greens. You've got this.",
+                deltaKg: delta,
+                weighedKg: weighed,
+                createdAt: Date(),
+                popLine: "Main character energy still requires a closed fridge.",
+                sex: .female
+            )
+        }
+        lastWeighInAnalysis = card
+        isWeighInHeroPresented = true
     }
     #endif
 

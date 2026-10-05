@@ -38,3 +38,17 @@ Promo masters: `BulkResizePhotos.com` ultramocks (1240×2688). Fit-centered onto
 | Live weigh | Step on. Lock it. | Scale finds you. Confirm to Health. |
 
 Previous simulator captures for 6.5" live in `iphone-6.5/simulator/`.
+
+## After-weigh roast hero (simulator, ASC 6.5")
+
+Black post-weigh coach card with funny roast copy. Capture:
+
+```bash
+./TheScale/scripts/capture-asc-after-weigh-hero.sh
+```
+
+| File | Persona | Copy vibe |
+|------|---------|-----------|
+| `iphone-6.5/after-weigh-male.png` | Bob (`-demoMale`) | DRILL / scale filed a complaint |
+| `iphone-6.5/after-weigh-female.png` | Alice (`-demoFemale`) | SOFT NUDGE / Not doom. Just dinner |
+
