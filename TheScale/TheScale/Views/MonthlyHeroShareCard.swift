@@ -32,14 +32,14 @@ enum MonthlyHeroShareCopy {
         guard let kg = facts.heroNumberKg else { return "—" }
         if facts.heroNumberIsDelta {
             if facts.direction == .stable {
-                if abs(kg) < 1, units == .metric {
+                if abs(kg) < 1, !units.usesImperialMass {
                     return "±\(Int((abs(kg) * 1000).rounded()))g"
                 }
                 let value = UnitFormat.mass(fromKg: abs(kg), system: units)
                 return "±\(String(format: "%.1f", value)) \(units.massLabel)"
             }
             let sign = facts.direction == .gain ? "+" : "−"
-            if abs(kg) < 1, units == .metric {
+            if abs(kg) < 1, !units.usesImperialMass {
                 return "\(sign)\(Int((abs(kg) * 1000).rounded()))g"
             }
             let value = UnitFormat.mass(fromKg: abs(kg), system: units)

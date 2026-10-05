@@ -429,9 +429,6 @@ enum MassPrivacyStore {
     }
 
     static func maskedMass(system: PreferredUnitSystem) -> String {
-        switch system {
-        case .metric: return "••.• kg"
-        case .imperial: return "••• lb"
-        }
+        system.usesImperialMass ? "••• lb" : "••.• kg"
     }
 }

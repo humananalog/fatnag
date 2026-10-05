@@ -178,7 +178,7 @@ struct SettingsView: View {
         } message: {
             if let cm = pendingHeightCm {
                 Text(
-                    "Update height to \(UnitFormat.heightString(cm, system: session.preferredUnits, fractionDigits: session.preferredUnits == .metric ? 0 : 1))? BMI, dream weight band, and body-fat math will refresh."
+                    "Update height to \(UnitFormat.heightString(cm, system: session.preferredUnits, fractionDigits: session.preferredUnits.usesImperialHeight ? 1 : 0))? BMI, dream weight band, and body-fat math will refresh."
                 )
             }
         }
@@ -629,13 +629,14 @@ struct SettingsView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ink)
                     .id("settings.units")
-                Picker(AppLanguageStore.text("settings.units", default: "Units"), selection: $session.preferredUnits) {
-                    ForEach(PreferredUnitSystem.allCases) { system in
-                        Text(system.shortTitle).tag(system)
-                    }
-                }
-                .pickerStyle(.segmented)
-                Text(AppLanguageStore.text("settings.units.help", default: "Weight, height, portions, meal plan, and Coach use this. Health stays metric under the hood."))
+                PreferredUnitsControls(
+                    units: $session.preferredUnits,
+                    ink: ink,
+                    steel: steel,
+                    accent: accent,
+                    showLocationHint: true
+                )
+                Text(AppLanguageStore.text("settings.units.help", default: "Weight and height are separate. Mix lb with cm if that is how you live. Portions follow weight. Health stays metric under the hood."))
                     .font(.caption2)
                     .foregroundStyle(steel)
 
@@ -648,7 +649,7 @@ struct SettingsView: View {
                         TextField(
                             session.preferredUnits.heightLabel,
                             value: $draftHeightDisplay,
-                            format: .number.precision(.fractionLength(session.preferredUnits == .metric ? 0 : 1))
+                            format: .number.precision(.fractionLength(session.preferredUnits.usesImperialHeight ? 1 : 0))
                         )
                         .focused($focusedField, equals: .height)
                         .keyboardType(.decimalPad)
@@ -700,7 +701,7 @@ struct SettingsView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(ink)
                     Text(
-                        AppLanguageStore.text("settings.dream_weight.help", default: "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Marks use only the Units setting (kg or lb — not both).")
+                        AppLanguageStore.text("settings.dream_weight.help", default: "Drag the scale, then confirm. Range is BMI-safe for your height, sex, and age. Same analog disc as onboarding.")
                     )
                     .font(.caption2)
                     .foregroundStyle(steel)
@@ -2012,7 +2013,7 @@ enum SettingsSearchCatalog {
     static let hits: [Hit] = [
         Hit(id: "settings.language", title: "Language", section: "Language", keywords: "language locale"),
         Hit(id: "settings.name", title: "Name", section: "You", keywords: "name profile alex"),
-        Hit(id: "settings.units", title: "Units", section: "You", keywords: "units metric imperial kg lb"),
+        Hit(id: "settings.units", title: "Units", section: "You", keywords: "units metric imperial kg lb cm in mixed"),
         Hit(id: "settings.height", title: "Height", section: "You", keywords: "height cm inches"),
         Hit(id: "settings.age", title: "Age", section: "You", keywords: "age years"),
         Hit(id: "settings.sex", title: "Gender", section: "You", keywords: "sex gender male female"),

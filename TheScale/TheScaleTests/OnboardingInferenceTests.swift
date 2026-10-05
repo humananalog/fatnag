@@ -13,7 +13,7 @@ final class OnboardingFlowTests: XCTestCase {
             return .empty
         })
         XCTAssertEqual(flow.step, .units)
-        XCTAssertFalse(flow.canAdvance)
+        XCTAssertTrue(flow.canAdvance)
 
         flow.selectUnits(.metric)
         XCTAssertTrue(flow.canAdvance)
@@ -140,14 +140,26 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(flow.step, .identity)
     }
 
-    func testUnitsStepRequiresChoice() async {
+    func testUnitsStepAllowsMixedPoundsAndCentimetres() async {
         let flow = OnboardingFlowModel()
         await flow.advance(infer: nil)
         XCTAssertEqual(flow.step, .units)
-        XCTAssertFalse(flow.canAdvance)
-        flow.selectUnits(.imperial)
-        XCTAssertEqual(flow.unitSystem, .imperial)
         XCTAssertTrue(flow.canAdvance)
+        flow.selectMassImperial(true)
+        flow.selectHeightImperial(false)
+        XCTAssertEqual(flow.unitSystem, .poundsAndCentimeters)
+        XCTAssertTrue(flow.unitSystem.usesImperialMass)
+        XCTAssertFalse(flow.unitSystem.usesImperialHeight)
+        XCTAssertEqual(UnitFormat.mass(fromKg: 80, system: .poundsAndCentimeters), UnitFormat.mass(fromKg: 80, system: .imperial), accuracy: 0.001)
+        XCTAssertEqual(UnitFormat.height(fromCm: 178, system: .poundsAndCentimeters), 178, accuracy: 0.001)
+    }
+
+    func testLocationDefaultsUSCustomaryVsMetric() {
+        let us = Locale(identifier: "en_US")
+        XCTAssertEqual(UnitPreferenceDefaults.suggested(locale: us), .imperial)
+        let fr = Locale(identifier: "fr_FR")
+        XCTAssertEqual(UnitPreferenceDefaults.suggested(locale: fr), .metric)
+        XCTAssertTrue(UnitPreferenceDefaults.suggestionCaption(locale: us).contains("lb"))
     }
 
     func testHeuristicsUsedWhenFMDisabled() async {

@@ -62,6 +62,28 @@ final class UnitFormatTests: XCTestCase {
         XCTAssertEqual(WeeklyGoalSurfaceEngine.parseSundayKg(from: imperialTitle) ?? -1, kg, accuracy: 0.05)
     }
 
+    func testMixedPoundsAndCentimetres() {
+        let mixed = PreferredUnitSystem.poundsAndCentimeters
+        XCTAssertEqual(mixed.massLabel, "lb")
+        XCTAssertEqual(mixed.heightLabel, "cm")
+        XCTAssertEqual(UnitFormat.mass(fromKg: 80, system: mixed), UnitFormat.mass(fromKg: 80, system: .imperial), accuracy: 0.001)
+        XCTAssertEqual(UnitFormat.height(fromCm: 170, system: mixed), 170, accuracy: 0.001)
+        XCTAssertTrue(mixed.coachPromptLine.contains("lb"))
+        XCTAssertTrue(mixed.coachPromptLine.contains("cm"))
+
+        PreferredUnitSystemStore.save(.poundsAndCentimeters)
+        XCTAssertEqual(PreferredUnitSystemStore.load(), .poundsAndCentimeters)
+        PreferredUnitSystemStore.save(.metric)
+        XCTAssertEqual(PreferredUnitSystemStore.load(), .metric)
+    }
+
+    func testCombiningIndependentAxes() {
+        XCTAssertEqual(PreferredUnitSystem.combining(massImperial: true, heightImperial: false), .poundsAndCentimeters)
+        XCTAssertEqual(PreferredUnitSystem.combining(massImperial: false, heightImperial: true), .kilogramsAndInches)
+        XCTAssertEqual(PreferredUnitSystem.combining(massImperial: false, heightImperial: false), .metric)
+        XCTAssertEqual(PreferredUnitSystem.combining(massImperial: true, heightImperial: true), .imperial)
+    }
+
     func testWeeklyMiniGoalStatusLineUsesPreferredUnits() {
         var goal = WeeklyMiniGoal.default
         goal.targetDeltaKg = -0.4

@@ -715,7 +715,7 @@ enum MealPlanEngine {
 
     /// Remap metric g/ml ingredient strings into the user's preferred unit system for display.
     static func localizePortions(_ meals: [MealPlanMeal], units: PreferredUnitSystem) -> [MealPlanMeal] {
-        guard units == .imperial else { return meals }
+        guard units.usesImperialPortions else { return meals }
         return meals.map { meal in
             var copy = meal
             copy.ingredients = meal.ingredients.map(localizeIngredientPortion)

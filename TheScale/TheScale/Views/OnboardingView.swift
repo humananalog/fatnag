@@ -277,72 +277,33 @@ struct OnboardingView: View {
         .accessibilityIdentifier("onboarding.language")
     }
 
-    // MARK: - Units (kg / lb early)
+    // MARK: - Units (mass and height independently)
 
     private func unitsStep(compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: compact ? 16 : 20) {
             Text(AppLanguageStore.text(
                 "onboarding.units.prompt",
-                default: "How do you weigh yourself?"
+                default: "How do you measure yourself?"
             ))
             .font(.system(size: compact ? 20 : 22, weight: .semibold, design: .rounded))
             .foregroundStyle(ink)
             .accessibilityIdentifier("onboarding.units.prompt")
 
-            VStack(spacing: 12) {
-                unitChoiceChip(
-                    system: .metric,
-                    title: AppLanguageStore.text("onboarding.units.metric_title", default: "Kilograms"),
-                    detail: AppLanguageStore.text("onboarding.units.metric_detail", default: "kg · cm")
-                )
-                unitChoiceChip(
-                    system: .imperial,
-                    title: AppLanguageStore.text("onboarding.units.imperial_title", default: "Pounds"),
-                    detail: AppLanguageStore.text("onboarding.units.imperial_detail", default: "lb · in")
-                )
-            }
+            PreferredUnitsControls(
+                units: Binding(
+                    get: { flow.unitSystem },
+                    set: { flow.selectUnits($0) }
+                ),
+                ink: ink,
+                steel: steel,
+                accent: moss,
+                showLocationHint: true
+            )
             .accessibilityIdentifier("onboarding.units")
 
             Spacer(minLength: 0)
         }
         .padding(.top, 8)
-    }
-
-    private func unitChoiceChip(system: PreferredUnitSystem, title: String, detail: String) -> some View {
-        let selected = flow.didConfirmUnits && flow.unitSystem == system
-        return Button {
-            flow.selectUnits(system)
-        } label: {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                    Text(detail)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(selected ? Color.white.opacity(0.85) : steel)
-                }
-                Spacer(minLength: 0)
-                if selected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22, weight: .semibold))
-                }
-            }
-            .foregroundStyle(selected ? Color.white : ink)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                selected ? moss : Color.white.opacity(0.92),
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(ink.opacity(selected ? 0 : 0.12), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("onboarding.units.\(system.rawValue)")
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var stepTitle: String {
@@ -553,7 +514,7 @@ struct OnboardingView: View {
                         flow.heightCm = ProfileNumericBounds.clampHeightCm(cm).value
                     }
                 ),
-                format: .number.precision(.fractionLength(flow.unitSystem == .metric ? 0 : 1))
+                format: .number.precision(.fractionLength(flow.unitSystem.usesImperialHeight ? 1 : 0))
             )
             .keyboardType(.decimalPad)
             .font(.system(size: compact ? 28 : 34, weight: .bold, design: .rounded))

@@ -997,48 +997,83 @@ enum FitnessTriggerMonitor {
 // MARK: - Preferred unit system
 
 /// User-facing mass / length / portion units. Stored preference; canonical values stay metric in models.
+/// Mass and height are independent (lb + cm is a real gym / travel choice).
 enum PreferredUnitSystem: String, Codable, CaseIterable, Identifiable, Sendable {
     case metric
     case imperial
+    case poundsAndCentimeters
+    case kilogramsAndInches
 
     var id: String { rawValue }
 
-    var title: String {
-        switch self {
-        case .metric: return "Metric (kg, cm)"
-        case .imperial: return "Imperial (lb, in)"
-        }
+    var usesImperialMass: Bool {
+        self == .imperial || self == .poundsAndCentimeters
     }
 
-    var shortTitle: String {
-        switch self {
-        case .metric: return "Metric"
-        case .imperial: return "Imperial"
-        }
+    var usesImperialHeight: Bool {
+        self == .imperial || self == .kilogramsAndInches
     }
+
+    /// Food portions follow the scale (lb → oz), not height.
+    var usesImperialPortions: Bool { usesImperialMass }
+
+    var title: String {
+        "\(massLabel) · \(heightLabel)"
+    }
+
+    var shortTitle: String { title }
 
     /// Prompt line for Grok / FM so replies match the user's units.
     var coachPromptLine: String {
+        let mass = usesImperialMass
+            ? "Use lb (and oz for small deltas) for weight."
+            : "Use kg (and g for small deltas) for weight."
+        let height = usesImperialHeight
+            ? "Use in (or ft/in) for height."
+            : "Use cm for height."
+        let food = usesImperialPortions
+            ? "Use oz / fl oz for food portions."
+            : "Use g / ml for food portions."
+        let style: String
         switch self {
-        case .metric:
-            return "Preferred units: metric. Use kg, cm, g, ml for weight, height, and food portions."
-        case .imperial:
-            return "Preferred units: imperial. Use lb, in (or ft/in), oz for weight, height, and food portions. Keep internal Health facts honest if only metric samples exist."
+        case .metric: style = "metric"
+        case .imperial: style = "imperial"
+        case .poundsAndCentimeters, .kilogramsAndInches: style = "mixed"
         }
+        return "Preferred units: \(style) (\(title)). \(mass) \(height) \(food) Keep internal Health facts honest if only metric samples exist."
     }
 
-    var massLabel: String {
-        switch self {
-        case .metric: return "kg"
-        case .imperial: return "lb"
+    var massLabel: String { usesImperialMass ? "lb" : "kg" }
+
+    var heightLabel: String { usesImperialHeight ? "in" : "cm" }
+
+    static func combining(massImperial: Bool, heightImperial: Bool) -> PreferredUnitSystem {
+        switch (massImperial, heightImperial) {
+        case (false, false): return .metric
+        case (true, true): return .imperial
+        case (true, false): return .poundsAndCentimeters
+        case (false, true): return .kilogramsAndInches
         }
     }
+}
 
-    var heightLabel: String {
-        switch self {
-        case .metric: return "cm"
-        case .imperial: return "in"
-        }
+/// Locale defaults: US customary → lb + in; everywhere else → kg + cm.
+/// Picking lb outside the US keeps cm unless the user flips height.
+enum UnitPreferenceDefaults {
+    static func usesUSCustomary(_ locale: Locale = .current) -> Bool {
+        locale.measurementSystem == .us
+    }
+
+    static func suggested(locale: Locale = .current) -> PreferredUnitSystem {
+        let us = usesUSCustomary(locale)
+        return .combining(massImperial: us, heightImperial: us)
+    }
+
+    static func suggestionCaption(locale: Locale = .current) -> String {
+        let code = locale.region?.identifier
+        let place = code.flatMap { locale.localizedString(forRegionCode: $0) } ?? "your region"
+        let suggested = suggested(locale: locale)
+        return "Suggested for \(place): \(suggested.massLabel) weight, \(suggested.heightLabel) height. Mix freely."
     }
 }
 
@@ -1049,7 +1084,7 @@ enum PreferredUnitSystemStore {
         guard let raw = UserDefaults.standard.string(forKey: key),
               let value = PreferredUnitSystem(rawValue: raw)
         else {
-            return .metric
+            return UnitPreferenceDefaults.suggested()
         }
         return value
     }
@@ -1065,31 +1100,19 @@ enum UnitFormat {
     static let cmPerInch = 2.54
 
     static func kg(fromMass display: Double, system: PreferredUnitSystem) -> Double {
-        switch system {
-        case .metric: return display
-        case .imperial: return display * kgPerLb
-        }
+        system.usesImperialMass ? display * kgPerLb : display
     }
 
     static func mass(fromKg kg: Double, system: PreferredUnitSystem) -> Double {
-        switch system {
-        case .metric: return kg
-        case .imperial: return kg / kgPerLb
-        }
+        system.usesImperialMass ? kg / kgPerLb : kg
     }
 
     static func cm(fromHeight display: Double, system: PreferredUnitSystem) -> Double {
-        switch system {
-        case .metric: return display
-        case .imperial: return display * cmPerInch
-        }
+        system.usesImperialHeight ? display * cmPerInch : display
     }
 
     static func height(fromCm cm: Double, system: PreferredUnitSystem) -> Double {
-        switch system {
-        case .metric: return cm
-        case .imperial: return cm / cmPerInch
-        }
+        system.usesImperialHeight ? cm / cmPerInch : cm
     }
 
     static func massString(_ kg: Double, system: PreferredUnitSystem, fractionDigits: Int = 1) -> String {
@@ -1116,23 +1139,21 @@ enum UnitFormat {
         system: PreferredUnitSystem,
         signed: Bool
     ) -> String {
-        switch system {
-        case .metric:
+        if !system.usesImperialMass {
             let grams = Int((kg * 1000.0).rounded())
             if signed {
                 if grams > 0 { return "+\(grams)g" }
                 return "\(grams)g"
             }
             return "\(abs(grams))g"
-        case .imperial:
-            let oz = mass(fromKg: kg, system: .imperial) * 16.0
-            let rounded = (oz * 10.0).rounded() / 10.0
-            if signed {
-                let sign = rounded >= 0 ? "+" : ""
-                return String(format: "%@%.1f oz", sign, rounded)
-            }
-            return String(format: "%.1f oz", abs(rounded))
         }
+        let oz = mass(fromKg: kg, system: system) * 16.0
+        let rounded = (oz * 10.0).rounded() / 10.0
+        if signed {
+            let sign = rounded >= 0 ? "+" : ""
+            return String(format: "%@%.1f oz", sign, rounded)
+        }
+        return String(format: "%.1f oz", abs(rounded))
     }
 
     static func heightString(_ cm: Double, system: PreferredUnitSystem, fractionDigits: Int = 0) -> String {
@@ -1142,32 +1163,24 @@ enum UnitFormat {
 
     /// Ingredient portion hint for meal cards / prompts (always starts from grams).
     static func portionGrams(_ grams: Int, system: PreferredUnitSystem) -> String {
-        switch system {
-        case .metric:
-            return "\(grams) g"
-        case .imperial:
-            let oz = Double(grams) / 28.349523125
-            if oz >= 10 {
-                return String(format: "%.0f oz", oz)
-            }
-            return String(format: "%.1f oz", oz)
+        guard system.usesImperialPortions else { return "\(grams) g" }
+        let oz = Double(grams) / 28.349523125
+        if oz >= 10 {
+            return String(format: "%.0f oz", oz)
         }
+        return String(format: "%.1f oz", oz)
     }
 
     static func portionMl(_ ml: Int, system: PreferredUnitSystem) -> String {
-        switch system {
-        case .metric:
-            return "\(ml) ml"
-        case .imperial:
-            let flOz = Double(ml) / 29.5735295625
-            return String(format: "%.1f fl oz", flOz)
-        }
+        guard system.usesImperialPortions else { return "\(ml) ml" }
+        let flOz = Double(ml) / 29.5735295625
+        return String(format: "%.1f fl oz", flOz)
     }
 
     /// Weekly mini-goal title: `Sunday 82.40 kg` or `Sunday 180.3 lb`.
     static func sundayTitle(kg: Double, system: PreferredUnitSystem) -> String {
         let mass = mass(fromKg: kg, system: system)
-        let digits = system == .metric ? 2 : 1
+        let digits = system.usesImperialMass ? 1 : 2
         return String(format: "Sunday %.\(digits)f %@", mass, system.massLabel)
     }
 }

@@ -174,7 +174,7 @@ struct AnalogDreamScaleView: View {
             .allowsHitTesting(false)
 
             VStack(spacing: 2) {
-                Text(String(format: unitSystem == .metric ? "%.1f" : "%.0f", displayValue))
+                Text(String(format: unitSystem.usesImperialMass ? "%.0f" : "%.1f", displayValue))
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(ink)
                     .monospacedDigit()
@@ -335,15 +335,22 @@ struct AnalogScaleLayout: Equatable, Sendable {
         boundsKg: ClosedRange<Double>,
         system: PreferredUnitSystem
     ) -> AnalogScaleLayout {
-        let minor: Double = system == .metric ? 0.5 : 1.0
-        let major: Double = 5.0
+        let defaultMinor: Double = system.usesImperialMass ? 1.0 : 0.5
         let lo = UnitFormat.mass(fromKg: boundsKg.lowerBound, system: system)
         let hi = UnitFormat.mass(fromKg: boundsKg.upperBound, system: system)
         let bounds = min(lo, hi)...max(lo, hi)
-        let span = max(bounds.upperBound - bounds.lowerBound, minor)
+        let span = max(bounds.upperBound - bounds.lowerBound, defaultMinor)
         // Same 350° arc for every unit system; kg and lb just change how many
         // marks share that arc.
         let degrees = dialArcDegrees / span
+        // Full 30–300 kg anatomy range used to pack hundreds of labels. Coarsen
+        // so minor ticks stay ≥ ~2.2° — same readable density as Settings.
+        let minMinorDegrees = 2.2
+        var minor = defaultMinor
+        if degrees * minor < minMinorDegrees {
+            minor = niceMinorStep(minimum: minMinorDegrees / degrees, imperialMass: system.usesImperialMass)
+        }
+        let major = majorStep(forMinor: minor)
         let alignedLo = (bounds.lowerBound / minor).rounded(.down) * minor
         let alignedHi = (bounds.upperBound / minor).rounded(.up) * minor
         let count = max(Int(((alignedHi - alignedLo) / minor).rounded()), 1)
@@ -357,6 +364,18 @@ struct AnalogScaleLayout: Equatable, Sendable {
             alignedUpper: alignedHi,
             tickCount: count
         )
+    }
+
+    private static func niceMinorStep(minimum: Double, imperialMass: Bool) -> Double {
+        let candidates: [Double] = imperialMass ? [1, 2, 5, 10, 20] : [0.5, 1, 2, 5, 10, 20]
+        return candidates.first { $0 + 0.001 >= minimum } ?? (candidates.last ?? 20)
+    }
+
+    private static func majorStep(forMinor minor: Double) -> Double {
+        if minor <= 1 { return 5 }
+        if minor <= 2 { return 10 }
+        if minor <= 5 { return 20 }
+        return 50
     }
 
     /// In-band display values for the selected system only (testable).
@@ -390,12 +409,8 @@ enum AnalogScaleMarks {
 
     static func label(display: Double, system: PreferredUnitSystem) -> String {
         // Numbers only — unit lives under the needle. Never emit a second-system conversion.
-        switch system {
-        case .metric:
-            return String(format: "%.0f", display.rounded())
-        case .imperial:
-            return String(format: "%.0f", display.rounded())
-        }
+        _ = system
+        return String(format: "%.0f", display.rounded())
     }
 }
 

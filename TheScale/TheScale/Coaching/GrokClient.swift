@@ -814,9 +814,9 @@ actor GrokClient {
             return "No intermittent fasting window set. Exactly \(plateCount) meals."
         }()
         let memory = brief.memoryBlock.isEmpty ? "" : "\n\(brief.memoryBlock)"
-        let portionRule = brief.unitSystem == .metric
-            ? "Each ingredient must include a metric portion (g or ml)."
-            : "Each ingredient must include a portion in oz / fl oz (imperial)."
+        let portionRule = brief.unitSystem.usesImperialPortions
+            ? "Each ingredient must include a portion in oz / fl oz (imperial)."
+            : "Each ingredient must include a metric portion (g or ml)."
         let system = """
         You write tight meal plans for FATNAG. Fitness coaching only. Never diagnose.
         No medical disclaimer. No em dashes. JSON only. Honour fasting windows strictly.

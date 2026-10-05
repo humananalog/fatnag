@@ -487,14 +487,14 @@ struct MonthlyHeroCardView: View {
         let system = session.preferredUnits
         if facts.heroNumberIsDelta {
             if facts.direction == .stable {
-                if abs(kg) < 1, system == .metric {
+                if abs(kg) < 1, !system.usesImperialMass {
                     return ("±\(Int((abs(shown) * 1000).rounded()))", "g")
                 }
                 let value = UnitFormat.mass(fromKg: abs(shown), system: system)
                 return ("±\(String(format: "%.1f", value))", system.massLabel)
             }
             let sign = facts.direction == .gain ? "+" : "−"
-            if abs(kg) < 1, system == .metric {
+            if abs(kg) < 1, !system.usesImperialMass {
                 return ("\(sign)\(Int((abs(shown) * 1000).rounded()))", "g")
             }
             let value = UnitFormat.mass(fromKg: abs(shown), system: system)

@@ -32,8 +32,8 @@ final class OnboardingFlowModel: ObservableObject {
     @Published var idealKg: Double = UserBodyProfile.suggestedIdealWeightKg(heightCm: 170)
     @Published var idealBodyFat: Double?
     @Published var goalDate: Date = Calendar.current.date(byAdding: .month, value: 3, to: Date()) ?? Date()
-    @Published var unitSystem: PreferredUnitSystem = .metric
-    /// True once the user taps kg or lb on the early units step.
+    @Published var unitSystem: PreferredUnitSystem = UnitPreferenceDefaults.suggested()
+    /// True once the user lands on (or edits) the units step.
     @Published var didConfirmUnits = false
     @Published var diet: DietPreference = .omnivore
     /// True once the user touches the diet picker (or saves later in Settings / gap sheet).
@@ -97,7 +97,7 @@ final class OnboardingFlowModel: ObservableObject {
         case .language:
             return true
         case .units:
-            return didConfirmUnits
+            return true
         case .identity:
             return !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .body:
@@ -220,6 +220,7 @@ final class OnboardingFlowModel: ObservableObject {
             preferredLanguage = appLanguage.profileLanguageName
             step = .units
         case .units:
+            didConfirmUnits = true
             step = .identity
         case .identity:
             step = .body
@@ -247,6 +248,14 @@ final class OnboardingFlowModel: ObservableObject {
     func selectUnits(_ system: PreferredUnitSystem) {
         applyUnitSystem(system)
         didConfirmUnits = true
+    }
+
+    func selectMassImperial(_ imperial: Bool) {
+        selectUnits(.combining(massImperial: imperial, heightImperial: unitSystem.usesImperialHeight))
+    }
+
+    func selectHeightImperial(_ imperial: Bool) {
+        selectUnits(.combining(massImperial: unitSystem.usesImperialMass, heightImperial: imperial))
     }
 
     func runInference(infer: ((OnboardingFlowModel) async -> OnboardingInferenceDraft)? = nil) async {

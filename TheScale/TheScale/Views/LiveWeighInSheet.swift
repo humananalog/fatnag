@@ -466,7 +466,7 @@ struct LiveWeighInSheet: View {
     }
 
     private func editableWeightHero(_ draft: EditableMeasurementDraft) -> some View {
-        let step = session.preferredUnits == .metric ? 0.1 : 0.2
+        let step = session.preferredUnits.usesImperialMass ? 0.2 : 0.1
         return HStack(spacing: 10) {
             nudgeButton(systemName: "minus", accessibility: "Decrease weight") {
                 session.updateDraftWeight(max(draft.weightKg - UnitFormat.kg(fromMass: step, system: session.preferredUnits), 0.1))

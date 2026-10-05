@@ -70,6 +70,22 @@ final class ScaleCalibrationTests: XCTestCase {
         XCTAssertGreaterThan(metric.degreesPerUnit, imperial.degreesPerUnit)
     }
 
+    func testWideOnboardingRangeKeepsReadableTickSpacing() {
+        let layout = AnalogScaleLayout.make(boundsKg: ProfileNumericBounds.weightKg, system: .metric)
+        let minorDegrees = layout.degreesPerUnit * layout.minorStep
+        XCTAssertGreaterThanOrEqual(minorDegrees, 2.15)
+        XCTAssertLessThan(layout.tickCount, 200)
+        XCTAssertEqual(
+            (layout.boundsDisplay.upperBound - layout.boundsDisplay.lowerBound) * layout.degreesPerUnit,
+            AnalogScaleLayout.dialArcDegrees,
+            accuracy: 0.001
+        )
+
+        let lbCm = AnalogScaleLayout.make(boundsKg: ProfileNumericBounds.weightKg, system: .poundsAndCentimeters)
+        XCTAssertEqual(lbCm.minorStep, AnalogScaleLayout.make(boundsKg: ProfileNumericBounds.weightKg, system: .imperial).minorStep, accuracy: 0.001)
+        XCTAssertGreaterThanOrEqual(lbCm.degreesPerUnit * lbCm.minorStep, 2.15)
+    }
+
     func testIdentityByDefault() {
         let cal = ScaleCalibration.default
         XCTAssertEqual(cal.apply(toRawKg: 80.0), 80.0, accuracy: 0.0001)
