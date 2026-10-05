@@ -12,11 +12,11 @@ enum DietPreference: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .omnivore: return "Omnivore"
-        case .pescatarian: return "Pescatarian"
-        case .vegetarian: return "Vegetarian"
-        case .vegan: return "Vegan"
-        case .other: return "Other / flexible"
+        case .omnivore: return AppLanguageStore.text("diet.omnivore", default: "Omnivore")
+        case .pescatarian: return AppLanguageStore.text("diet.pescatarian", default: "Pescatarian")
+        case .vegetarian: return AppLanguageStore.text("diet.vegetarian", default: "Vegetarian")
+        case .vegan: return AppLanguageStore.text("diet.vegan", default: "Vegan")
+        case .other: return AppLanguageStore.text("diet.other", default: "Other / flexible")
         }
     }
 }
@@ -1071,9 +1071,19 @@ enum UnitPreferenceDefaults {
 
     static func suggestionCaption(locale: Locale = .current) -> String {
         let code = locale.region?.identifier
-        let place = code.flatMap { locale.localizedString(forRegionCode: $0) } ?? "your region"
+        let display = AppLanguageStore.effectiveLocale
+        let place = code.flatMap { display.localizedString(forRegionCode: $0) }
+            ?? AppLanguageStore.text("units.region.fallback", default: "your region")
         let suggested = suggested(locale: locale)
-        return "Suggested for \(place): \(suggested.massLabel) weight, \(suggested.heightLabel) height. Mix freely."
+        return String(
+            format: AppLanguageStore.text(
+                "units.location.hint",
+                default: "Suggested for %@: %@ weight, %@ height. Mix freely."
+            ),
+            place,
+            suggested.massLabel,
+            suggested.heightLabel
+        )
     }
 }
 

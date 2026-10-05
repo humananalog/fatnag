@@ -19,7 +19,10 @@ enum CoachPersona {
     }
 
     static var onboardingLiveToggleTitle: String {
-        "Allow live \(name) Coach later"
+        String(
+            format: AppLanguageStore.text("onboarding.confirm.keel_later", default: "Allow live %@ Coach later"),
+            name
+        )
     }
 
     static var thinkingSpinnerLine: String {

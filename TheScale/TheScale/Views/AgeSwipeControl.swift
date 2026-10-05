@@ -20,7 +20,7 @@ struct AgeSwipeControl: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Text("AGE")
+            Text(AppLanguageStore.text("onboarding.age.label", default: "AGE"))
                 .font(.system(size: 11, weight: .heavy, design: .rounded))
                 .tracking(1.4)
                 .foregroundStyle(steel)
@@ -46,8 +46,15 @@ struct AgeSwipeControl: View {
                     .contentShape(Rectangle())
                     .gesture(dragGesture)
                     .accessibilityIdentifier("onboarding.age")
-                    .accessibilityLabel("Age")
-                    .accessibilityValue(ageYears < minAge ? "not set" : "\(ageInt) years")
+                    .accessibilityLabel(AppLanguageStore.text("onboarding.age.a11y", default: "Age"))
+                    .accessibilityValue(
+                        ageYears < minAge
+                            ? AppLanguageStore.text("onboarding.age.not_set", default: "not set")
+                            : String(
+                                format: AppLanguageStore.text("onboarding.age.years_a11y", default: "%d years"),
+                                ageInt
+                            )
+                    )
                     .accessibilityAdjustableAction { direction in
                         switch direction {
                         case .increment: bump(1)

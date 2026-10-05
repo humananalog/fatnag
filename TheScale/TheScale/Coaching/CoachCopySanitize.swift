@@ -3,8 +3,12 @@ import Foundation
 /// Light client-side cleanup when the model slips on punctuation / AI tells.
 enum CoachCopySanitize {
     /// Shared medical disclaimer: onboarding once + Settings → Legal only. Never chat.
-    static let medicalDisclaimer =
-        "Coach is educational fitness coaching, not medical advice. It does not diagnose, treat, or replace a clinician. If something feels wrong, talk to a real doctor."
+    static var medicalDisclaimer: String {
+        AppLanguageStore.text(
+            "onboarding.confirm.medical_body",
+            default: "Coach is educational fitness coaching, not medical advice. It does not diagnose, treat, or replace a clinician. If something feels wrong, talk to a real doctor."
+        )
+    }
 
     static func clean(_ text: String) -> String {
         var out = text

@@ -67,12 +67,12 @@ final class OnboardingFlowModel: ObservableObject {
     var ageValidationMessage: String? {
         guard step == .body, ageYears > 0, !isAdultAge else { return nil }
         if ageYears < UserBodyProfile.minimumAgeYears {
-            return "You must be 18 or older."
+            return AppLanguageStore.text("onboarding.age.min", default: "You must be 18 or older.")
         }
         if ageYears > UserBodyProfile.maximumAgeYears {
-            return "Age max is 100."
+            return AppLanguageStore.text("onboarding.age.max", default: "Age max is 100.")
         }
-        return "Enter a valid age."
+        return AppLanguageStore.text("onboarding.age.invalid", default: "Enter a valid age.")
     }
 
     var dreamBoundsKg: ClosedRange<Double> {
@@ -301,11 +301,20 @@ final class OnboardingFlowModel: ObservableObject {
 
         let emptyNote = combinedFreeformForInference().trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if draft.sourceLabel == "empty" || (emptyNote && draft.sourceLabel != "foundation-model") {
-            inferenceNote = "No note to parse. Defaults ready. Edit anything below."
+            inferenceNote = AppLanguageStore.text(
+                "onboarding.inference.empty",
+                default: "No note to parse. Defaults ready. Edit anything below."
+            )
         } else if draft.sourceLabel == "foundation-model" {
-            inferenceNote = "On-device Coach filled these from your note. Edit freely."
+            inferenceNote = AppLanguageStore.text(
+                "onboarding.inference.fm",
+                default: "On-device Coach filled these from your note. Edit freely."
+            )
         } else {
-            inferenceNote = "Filled on-device from your note. Edit freely."
+            inferenceNote = AppLanguageStore.text(
+                "onboarding.inference.heuristic",
+                default: "Filled on-device from your note. Edit freely."
+            )
         }
     }
 

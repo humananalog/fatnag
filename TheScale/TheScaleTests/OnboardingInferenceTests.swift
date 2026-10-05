@@ -71,7 +71,7 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(flow.location, "Manila")
         XCTAssertEqual(flow.preferredLanguage, "Tagalog")
         XCTAssertEqual(flow.idealKg, 62)
-        XCTAssertEqual(flow.inferenceNote, "On-device Coach filled these from your note. Edit freely.")
+        XCTAssertEqual(flow.inferenceNote, AppLanguageStore.text("onboarding.inference.fm", default: "On-device Coach filled these from your note. Edit freely."))
 
         // Stretch the date so pace is accepted.
         flow.goalDate = Calendar.current.date(byAdding: .month, value: 6, to: Date())!
@@ -112,7 +112,7 @@ final class OnboardingFlowTests: XCTestCase {
         flow.sex = .male
         flow.ageYears = 17
         XCTAssertFalse(flow.canAdvance)
-        XCTAssertEqual(flow.ageValidationMessage, "You must be 18 or older.")
+        XCTAssertEqual(flow.ageValidationMessage, AppLanguageStore.text("onboarding.age.min", default: "You must be 18 or older."))
 
         flow.ageYears = 18
         XCTAssertTrue(flow.isAdultAge)
@@ -181,7 +181,7 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(flow.diet, .pescatarian)
         XCTAssertEqual(flow.location, "Hong Kong")
         XCTAssertEqual(flow.idealBodyFat, 18)
-        XCTAssertNotEqual(flow.inferenceNote, "On-device Coach filled these from your note. Edit freely.")
+        XCTAssertNotEqual(flow.inferenceNote, AppLanguageStore.text("onboarding.inference.fm", default: "On-device Coach filled these from your note. Edit freely."))
     }
 }
 

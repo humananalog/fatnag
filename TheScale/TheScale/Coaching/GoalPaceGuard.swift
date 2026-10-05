@@ -45,7 +45,10 @@ enum GoalPaceGuard {
                 requiredKgPerWeek: 0,
                 safeCapKgPerWeek: 0,
                 earliestFeasibleDate: earliest,
-                keelNote: "Pick a date at least a week out. Instant transformation is a fairy tale, not a plan."
+                keelNote: AppLanguageStore.text(
+                    "onboarding.pace.too_soon",
+                    default: "Pick a date at least a week out. Instant transformation is a fairy tale, not a plan."
+                )
             )
         }
 
@@ -60,7 +63,10 @@ enum GoalPaceGuard {
                 requiredKgPerWeek: 0,
                 safeCapKgPerWeek: 0,
                 earliestFeasibleDate: nil,
-                keelNote: "Already near that number. Fine as a hold target."
+                keelNote: AppLanguageStore.text(
+                    "onboarding.pace.hold",
+                    default: "Already near that number. Fine as a hold target."
+                )
             )
         }
 
@@ -76,7 +82,10 @@ enum GoalPaceGuard {
                 safeCapKgPerWeek: safeCap,
                 earliestFeasibleDate: nil,
                 keelNote: String(
-                    format: "Pace looks human: about %.2f kg/week (safe cap ~%.2f kg/week).",
+                    format: AppLanguageStore.text(
+                        "onboarding.pace.human",
+                        default: "Pace looks human: about %.2f kg/week (safe cap ~%.2f kg/week)."
+                    ),
                     requiredPerWeek,
                     safeCap
                 )
@@ -90,16 +99,28 @@ enum GoalPaceGuard {
             value: max(daysNeeded, minimumHorizonDays),
             to: calendar.startOfDay(for: now)
         )
-        let earliestLabel = earliest?.formatted(.dateTime.month(.abbreviated).day().year()) ?? "later"
+        let earliestLabel = earliest?.formatted(
+            .dateTime.month(.abbreviated).day().year().locale(AppLanguageStore.effectiveLocale)
+        ) ?? AppLanguageStore.text("onboarding.pace.later", default: "later")
 
-        let direction = towardLower ? "lose" : (towardHigher ? "gain" : "move")
+        let direction: String
+        if towardLower {
+            direction = AppLanguageStore.text("onboarding.pace.lose", default: "lose")
+        } else if towardHigher {
+            direction = AppLanguageStore.text("onboarding.pace.gain", default: "gain")
+        } else {
+            direction = AppLanguageStore.text("onboarding.pace.move", default: "move")
+        }
         return GoalPaceVerdict(
             status: .rejected,
             requiredKgPerWeek: requiredPerWeek,
             safeCapKgPerWeek: safeCap,
             earliestFeasibleDate: earliest,
             keelNote: String(
-                format: "Keel says no. %.1f kg in %d days is about %.2f kg/week. Safe max to %@ is ~%.2f kg/week. Earliest honest date: %@.",
+                format: AppLanguageStore.text(
+                    "onboarding.pace.refuse",
+                    default: "Keel says no. %.1f kg in %d days is about %.2f kg/week. Safe max to %@ is ~%.2f kg/week. Earliest honest date: %@."
+                ),
                 abs(delta),
                 days,
                 magnitudeNeeded,

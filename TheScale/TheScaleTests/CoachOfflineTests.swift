@@ -286,6 +286,14 @@ final class CoachOfflineTests: XCTestCase {
             "Notifications"
         )
         XCTAssertEqual(
+            AppLanguageStore.text("onboarding.cta.next", default: "Next"),
+            "Suivant"
+        )
+        XCTAssertEqual(
+            AppLanguageStore.text("onboarding.units.prompt", default: "How do you measure yourself?"),
+            "Comment te mesures-tu ?"
+        )
+        XCTAssertEqual(
             Bundle.main.localizedString(forKey: "tab.weigh", value: "Weigh", table: nil),
             "Peser"
         )

@@ -13,7 +13,7 @@ struct AnalogDreamScaleView: View {
     var steel: Color
     var accent: Color
     var accessibilityId: String = "onboarding.dream.analog"
-    var caption: String = "Drag. Marks move. Needle stays."
+    var caption: String = ""
     /// Called when a drag ends (or accessibility adjust settles) with the committed kg.
     var onCommit: ((Double) -> Void)?
 
@@ -103,7 +103,9 @@ struct AnalogDreamScaleView: View {
                     setDisplay(displayValue, commit: false)
                 }
 
-            Text(caption)
+            Text(caption.isEmpty
+                 ? AppLanguageStore.text("onboarding.dream.caption", default: "Drag. Marks move. Needle stays.")
+                 : caption)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(steel)
                 .frame(maxWidth: .infinity)

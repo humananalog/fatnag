@@ -106,32 +106,48 @@ enum GoalDifficultyFlavor {
     }
 
     private static func maleReveal(level: Int, title: String) -> String {
+        let key: String
+        let fallback: String
         switch level {
         case 0:
-            return "Difficulty: \(title). Warm-up map. Keel will still notice if you coast."
+            key = "onboarding.difficulty.male.0"
+            fallback = "Difficulty: %@. Warm-up map. Keel will still notice if you coast."
         case 1:
-            return "Difficulty: \(title). Real dungeon. Consistency is the loot."
+            key = "onboarding.difficulty.male.1"
+            fallback = "Difficulty: %@. Real dungeon. Consistency is the loot."
         case 2:
-            return "Difficulty: \(title). Act bosses every week. Miss a day and it bites."
+            key = "onboarding.difficulty.male.2"
+            fallback = "Difficulty: %@. Act bosses every week. Miss a day and it bites."
         case 3:
-            return "Difficulty: \(title). You asked for fire. Biology still holds the ceiling."
+            key = "onboarding.difficulty.male.3"
+            fallback = "Difficulty: %@. You asked for fire. Biology still holds the ceiling."
         default:
-            return "Difficulty: \(title). Endgame pacing. Safe cap still wins over ego."
+            key = "onboarding.difficulty.male.4"
+            fallback = "Difficulty: %@. Endgame pacing. Safe cap still wins over ego."
         }
+        return String(format: AppLanguageStore.text(key, default: fallback), title)
     }
 
     private static func femaleReveal(level: Int, title: String) -> String {
+        let key: String
+        let fallback: String
         switch level {
         case 0:
-            return "Difficulty: \(title). Soft entry. Still show up for the plot."
+            key = "onboarding.difficulty.female.0"
+            fallback = "Difficulty: %@. Soft entry. Still show up for the plot."
         case 1:
-            return "Difficulty: \(title). Camera on. Habits are the outfit."
+            key = "onboarding.difficulty.female.1"
+            fallback = "Difficulty: %@. Camera on. Habits are the outfit."
         case 2:
-            return "Difficulty: \(title). Glossy and demanding. Keel keeps the timeline honest."
+            key = "onboarding.difficulty.female.2"
+            fallback = "Difficulty: %@. Glossy and demanding. Keel keeps the timeline honest."
         case 3:
-            return "Difficulty: \(title). Chaotic good energy. Biology is the bodyguard."
+            key = "onboarding.difficulty.female.3"
+            fallback = "Difficulty: %@. Chaotic good energy. Biology is the bodyguard."
         default:
-            return "Difficulty: \(title). Full send fantasy. Safe weekly caps still rule."
+            key = "onboarding.difficulty.female.4"
+            fallback = "Difficulty: %@. Full send fantasy. Safe weekly caps still rule."
         }
+        return String(format: AppLanguageStore.text(key, default: fallback), title)
     }
 }

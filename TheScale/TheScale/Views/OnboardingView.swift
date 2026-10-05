@@ -41,7 +41,7 @@ struct OnboardingView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .padding(.horizontal, 20)
-                .id(flow.appLanguage.rawValue)
+                .id("onboarding.page.\(flow.step.rawValue)")
 
                 if flow.isInferring {
                     Text(AppLanguageStore.text("onboarding.shaping", default: "Shaping profile…"))
@@ -66,6 +66,7 @@ struct OnboardingView: View {
                 )
                 .ignoresSafeArea()
             }
+            .id(flow.appLanguage.rawValue)
             .toolbar(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
@@ -130,7 +131,13 @@ struct OnboardingView: View {
                         .minimumScaleFactor(0.7)
                         .accessibilityIdentifier("onboarding.stepTitle")
                     Spacer(minLength: 8)
-                    Text("\(flow.step.rawValue + 1) of \(OnboardingFlowModel.Step.allCases.count)")
+                    Text(
+                        String(
+                            format: AppLanguageStore.text("onboarding.step.counter", default: "%d of %d"),
+                            flow.step.rawValue + 1,
+                            OnboardingFlowModel.Step.allCases.count
+                        )
+                    )
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(steel)
                         .padding(.horizontal, 10)
@@ -165,7 +172,7 @@ struct OnboardingView: View {
             if flow.step == .units, !flow.canAdvance {
                 Text(AppLanguageStore.text(
                     "onboarding.units.need_choice",
-                    default: "Choose kg or lb, then tap Next."
+                    default: "Choose weight and height units, then tap Next."
                 ))
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundStyle(steel)
@@ -596,6 +603,7 @@ struct OnboardingView: View {
 
     private func relativeWeigh(_ date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
+        formatter.locale = flow.appLanguage.locale
         formatter.unitsStyle = .full
         return formatter.localizedString(for: date, relativeTo: Date())
     }
@@ -617,12 +625,13 @@ struct OnboardingView: View {
                 unitSystem: flow.unitSystem,
                 ink: ink,
                 steel: steel,
-                accent: moss
+                accent: moss,
+                caption: AppLanguageStore.text("onboarding.dream.caption", default: "Drag. Marks move. Needle stays.")
             )
             .frame(maxWidth: .infinity)
 
             DatePicker(
-                "Target",
+                AppLanguageStore.text("onboarding.dream.target", default: "Target"),
                 selection: Binding(
                     get: { flow.goalDate },
                     set: { next in
@@ -804,16 +813,24 @@ struct OnboardingView: View {
 
             lifestyleSummaryChip
 
-            confirmMini("Lang", text: $flow.preferredLanguage, id: "onboarding.language")
+            confirmMini(
+                AppLanguageStore.text("onboarding.confirm.lang", default: "Language"),
+                text: $flow.preferredLanguage,
+                id: "onboarding.language"
+            )
 
             Text(
-                "Dream \(UnitFormat.massString(flow.idealKg, system: flow.unitSystem)) by \(flow.goalDate.formatted(date: .abbreviated, time: .omitted))"
+                String(
+                    format: AppLanguageStore.text("onboarding.confirm.dream", default: "Dream %@ by %@"),
+                    UnitFormat.massString(flow.idealKg, system: flow.unitSystem),
+                    flow.goalDate.formatted(.dateTime.month(.abbreviated).day().year().locale(flow.appLanguage.locale))
+                )
             )
             .font(.footnote.weight(.semibold))
             .foregroundStyle(ink)
             .accessibilityIdentifier("onboarding.confirm.dreamSummary")
 
-            Toggle("Alerts", isOn: $flow.enableNotifications)
+            Toggle(AppLanguageStore.text("onboarding.confirm.alerts", default: "Alerts"), isOn: $flow.enableNotifications)
                 .font(.footnote.weight(.semibold))
                 .accessibilityIdentifier("onboarding.notifications")
 
@@ -822,7 +839,13 @@ struct OnboardingView: View {
                 .disabled(!GrokSharedConfig.isLiveConfigured)
                 .accessibilityIdentifier("onboarding.grokLater")
 
-            Toggle("I agree to Terms, Privacy Policy, and the fitness disclaimer", isOn: $flow.acceptedLegal)
+            Toggle(
+                AppLanguageStore.text(
+                    "onboarding.confirm.legal",
+                    default: "I agree to Terms, Privacy Policy, and the fitness disclaimer"
+                ),
+                isOn: $flow.acceptedLegal
+            )
                 .font(.footnote.weight(.semibold))
                 .accessibilityIdentifier("onboarding.legal")
 
@@ -830,7 +853,7 @@ struct OnboardingView: View {
                 NavigationLink {
                     LegalDocumentView(document: .privacyPolicy)
                 } label: {
-                    Text("Privacy")
+                    Text(AppLanguageStore.text("onboarding.confirm.privacy", default: "Privacy"))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                 }
                 .accessibilityIdentifier("onboarding.privacyLink")
@@ -838,7 +861,7 @@ struct OnboardingView: View {
                 NavigationLink {
                     LegalDocumentView(document: .termsOfUse)
                 } label: {
-                    Text("Terms")
+                    Text(AppLanguageStore.text("onboarding.confirm.terms", default: "Terms"))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                 }
                 .accessibilityIdentifier("onboarding.termsLink")
@@ -846,7 +869,7 @@ struct OnboardingView: View {
                 NavigationLink {
                     LegalDocumentView(document: .medicalDisclaimer)
                 } label: {
-                    Text("Disclaimer")
+                    Text(AppLanguageStore.text("onboarding.confirm.disclaimer", default: "Disclaimer"))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                 }
                 .accessibilityIdentifier("onboarding.medicalLink")
@@ -858,7 +881,15 @@ struct OnboardingView: View {
                 .lineLimit(3)
                 .minimumScaleFactor(0.8)
 
-            Text("Age \(ScaleLegal.minimumAgeYears)+ required. Full copies stay in Settings → Privacy & Legal.")
+            Text(
+                String(
+                    format: AppLanguageStore.text(
+                        "onboarding.confirm.age_legal",
+                        default: "Age %d+ required. Full copies stay in Settings → Privacy & Legal."
+                    ),
+                    ScaleLegal.minimumAgeYears
+                )
+            )
                 .font(.system(size: 9, weight: .medium, design: .rounded))
                 .foregroundStyle(steel)
 
@@ -869,9 +900,18 @@ struct OnboardingView: View {
     private var lifestyleSummaryChip: some View {
         let loc = flow.location.trimmingCharacters(in: .whitespacesAndNewlines)
         let avoid = flow.foodAvoidances.trimmingCharacters(in: .whitespacesAndNewlines)
-        let dietBit = flow.dietConfirmed ? flow.diet.title : "Diet not set"
-        let locBit = loc.isEmpty ? "Location not set" : loc
-        let avoidBit = avoid.isEmpty ? "No avoids yet" : "Avoid: \(avoid)"
+        let dietBit = flow.dietConfirmed
+            ? flow.diet.title
+            : AppLanguageStore.text("onboarding.confirm.diet_unset", default: "Diet not set")
+        let locBit = loc.isEmpty
+            ? AppLanguageStore.text("onboarding.confirm.location_unset", default: "Location not set")
+            : loc
+        let avoidBit = avoid.isEmpty
+            ? AppLanguageStore.text("onboarding.confirm.avoids_none", default: "No avoids yet")
+            : String(
+                format: AppLanguageStore.text("onboarding.confirm.avoids", default: "Avoid: %@"),
+                avoid
+            )
         return Text("\(dietBit) · \(locBit) · \(avoidBit)")
             .font(.caption.weight(.semibold))
             .foregroundStyle(steel)
