@@ -268,7 +268,7 @@ enum WeighInAnalysisEngine {
             ]
             let bodies = [
                 "\(signed) since last. Keep the boring streak. Dream weight is still \(remain) away, and you're walking it.",
-                "\(signed). You're a winner. Celebrate with protein and early lights, not chaos.",
+                "\(signed). You're a winner. Celebrate with breakfast protein, not chaos.",
                 "\(signed) lighter. The plot is working. Stay delightfully dull on purpose."
             ]
             return (
@@ -297,7 +297,7 @@ enum WeighInAnalysisEngine {
             ]
             let bodies = [
                 "\(signed) since last. Keep the boring streak. Ideal still \(remain) away.",
-                "\(signed). You're a winner. Don't celebrate with chaos. Protein, then bed.",
+                "\(signed). You're a winner. Don't celebrate with chaos. Palm of protein, then get on with the day.",
                 "\(signed) lighter. The plot is working. Stay dull on purpose."
             ]
             return (

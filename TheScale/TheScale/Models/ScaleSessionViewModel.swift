@@ -1082,7 +1082,7 @@ final class ScaleSessionViewModel: ObservableObject {
             card = WeighInAnalysisCard(
                 tone: .encourage,
                 headline: "\(signed). The fridge is in mourning, \(name).",
-                body: "\(signed) since last. You're a winner. Don't celebrate with chaos. Protein, then bed.",
+                body: "\(signed) since last. You're a winner. Don't celebrate with chaos. Palm of protein, then get on with the day.",
                 deltaKg: delta,
                 weighedKg: weighed,
                 createdAt: Date(),
@@ -1095,7 +1095,7 @@ final class ScaleSessionViewModel: ObservableObject {
             card = WeighInAnalysisCard(
                 tone: .encourage,
                 headline: "\(signed). Look at you, \(name).",
-                body: "\(signed) lighter. You're glowing. Celebrate with protein and early lights, not a victory snack.",
+                body: "\(signed) lighter. You're glowing. Celebrate with breakfast protein, not a victory pastry.",
                 deltaKg: delta,
                 weighedKg: weighed,
                 createdAt: Date(),
