@@ -963,8 +963,11 @@ final class ScaleSessionViewModel: ObservableObject {
         case "meals", "05":
             selectHomeTab(.meals)
         case "after-weigh", "hero", "weigh-hero", "roast", "weigh-success":
-            // Black full-screen post-weigh roast card (ASC / marketing).
-            presentPromoAfterWeighHero()
+            // Black full-screen post-weigh roast card (gain → sergeant).
+            presentPromoAfterWeighHero(kind: .roast)
+        case "after-weigh-win", "hero-win", "weigh-win", "win", "loss-hero":
+            // Black full-screen winner card (loss → encourage, corrosive humour).
+            presentPromoAfterWeighHero(kind: .win)
         case "paywall", "unlock", "asc", "subscription", "iap",
              "paywall-annual", "paywall-pro-annual", "asc-pro-annual":
             presentASCPaywallCapture(period: .annual, highlight: .pro)
@@ -1029,9 +1032,15 @@ final class ScaleSessionViewModel: ObservableObject {
         isWeighInPresented = true
     }
 
-    /// Black post-weigh roast card for ASC / marketing (`-promoShot=after-weigh`).
-    /// Funny sergeant tone with a clear gain so the roast lands on camera.
-    private func presentPromoAfterWeighHero() {
+    /// Black post-weigh hero for ASC / marketing.
+    /// - `roast`: gain → sergeant complaint
+    /// - `win`: loss → encourage with corrosive humour + “You're a winner.”
+    private enum PromoAfterWeighKind {
+        case roast
+        case win
+    }
+
+    private func presentPromoAfterWeighHero(kind: PromoAfterWeighKind = .roast) {
         selectHomeTab(.weigh)
         isWeighInPresented = false
         let name = profile.greetingName
@@ -1039,11 +1048,11 @@ final class ScaleSessionViewModel: ObservableObject {
         let weighed = healthBaselineKg
             ?? profile.startingWeightKg
             ?? (sex == .female ? 68.4 : 93.7)
-        let delta = sex == .female ? 0.35 : 0.40
-        let signed = UnitFormat.massDeltaString(delta, system: preferredUnits)
         let card: WeighInAnalysisCard
-        switch sex {
-        case .male:
+        switch (kind, sex) {
+        case (.roast, .male):
+            let delta = 0.40
+            let signed = UnitFormat.massDeltaString(delta, system: preferredUnits)
             card = WeighInAnalysisCard(
                 tone: .sergeant,
                 headline: "ATTENTION. The scale filed a complaint, \(name).",
@@ -1054,7 +1063,9 @@ final class ScaleSessionViewModel: ObservableObject {
                 popLine: "Rocky didn't hit the fridge after round twelve.",
                 sex: .male
             )
-        case .female:
+        case (.roast, .female):
+            let delta = 0.35
+            let signed = UnitFormat.massDeltaString(delta, system: preferredUnits)
             card = WeighInAnalysisCard(
                 tone: .sergeant,
                 headline: "Not doom. Just dinner, \(name).",
@@ -1063,6 +1074,32 @@ final class ScaleSessionViewModel: ObservableObject {
                 weighedKg: weighed,
                 createdAt: Date(),
                 popLine: "Main character energy still requires a closed fridge.",
+                sex: .female
+            )
+        case (.win, .male):
+            let delta = -0.65
+            let signed = UnitFormat.massDeltaString(delta, system: preferredUnits)
+            card = WeighInAnalysisCard(
+                tone: .encourage,
+                headline: "\(signed). The fridge is in mourning, \(name).",
+                body: "\(signed) since last. You're a winner. Don't celebrate with chaos. Protein, then bed.",
+                deltaKg: delta,
+                weighedKg: weighed,
+                createdAt: Date(),
+                popLine: "Minus signs taste better than dessert. Stay dull on purpose.",
+                sex: .male
+            )
+        case (.win, .female):
+            let delta = -0.55
+            let signed = UnitFormat.massDeltaString(delta, system: preferredUnits)
+            card = WeighInAnalysisCard(
+                tone: .encourage,
+                headline: "\(signed). Look at you, \(name).",
+                body: "\(signed) lighter. You're glowing. Celebrate with protein and early lights, not a victory snack.",
+                deltaKg: delta,
+                weighedKg: weighed,
+                createdAt: Date(),
+                popLine: "The plot is working. The fridge can cry alone.",
                 sex: .female
             )
         }

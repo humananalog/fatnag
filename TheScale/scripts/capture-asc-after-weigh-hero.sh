@@ -101,14 +101,15 @@ to_asc_size() {
 
 capture_hero() {
   local demo_flag="$1"
-  local out_name="$2"
+  local shot="$2"
+  local out_name="$3"
   local raw="$OUT_DIR/raw/$out_name"
   local final="$OUT_DIR/$out_name"
-  echo "  • $demo_flag -promoShot=after-weigh → $out_name"
+  echo "  • $demo_flag -promoShot=$shot → $out_name"
   xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
   xcrun simctl launch "$UDID" "$BUNDLE_ID" \
     "$demo_flag" \
-    "-promoShot=after-weigh" \
+    "-promoShot=$shot" \
     >/dev/null
   sleep "$SETTLE_SECONDS"
   xcrun simctl io "$UDID" screenshot --type=png "$raw"
@@ -116,18 +117,20 @@ capture_hero() {
   xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 }
 
-echo "==> Capturing after-weigh roast heroes (${ASC_W}×${ASC_H})"
-capture_hero "-demoMale" "after-weigh-male.png"
-capture_hero "-demoFemale" "after-weigh-female.png"
+echo "==> Capturing after-weigh heroes (${ASC_W}×${ASC_H})"
+capture_hero "-demoMale" "after-weigh" "after-weigh-male.png"
+capture_hero "-demoFemale" "after-weigh" "after-weigh-female.png"
+capture_hero "-demoMale" "after-weigh-win" "after-weigh-win-male.png"
+capture_hero "-demoFemale" "after-weigh-win" "after-weigh-win-female.png"
 
 xcrun simctl status_bar "$UDID" clear >/dev/null 2>&1 || true
 
 echo "==> Wrote:"
-for f in after-weigh-male after-weigh-female; do
+for f in after-weigh-male after-weigh-female after-weigh-win-male after-weigh-win-female; do
   path="$OUT_DIR/$f.png"
   if [[ -f "$path" ]]; then
     dims="$(sips -g pixelWidth -g pixelHeight "$path" 2>/dev/null | awk '/pixelWidth/{w=$2} /pixelHeight/{h=$2} END{print w"x"h}')"
     echo "  $f.png  $dims"
   fi
 done
-open -R "$OUT_DIR/after-weigh-male.png" >/dev/null 2>&1 || true
+open -R "$OUT_DIR/after-weigh-win-male.png" >/dev/null 2>&1 || true
