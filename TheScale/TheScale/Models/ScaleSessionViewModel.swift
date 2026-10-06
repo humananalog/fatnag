@@ -223,10 +223,16 @@ final class ScaleSessionViewModel: ObservableObject {
     private var autoSheetCooldownUntil: Date?
     /// Prevents concurrent discover + decode races from double-presenting.
     private var isAutoPresentingSheet = false
+    /// After a confirmed save, ignore the same kg still broadcasting from the scale.
+    private var lastCompletedWeighKg: Double?
+    private var suppressSameKgUntil: Date?
     /// Serializes Health today reconciles (home appear + digest + scene active).
     private var weighGateReconcileTask: Task<Void, Never>?
-    /// Seconds after dismiss before BLE may auto-open again.
-    static let autoSheetCooldownSeconds: TimeInterval = 2.0
+    /// Seconds after dismiss before BLE may auto-open again (scales keep advertising).
+    static let autoSheetCooldownSeconds: TimeInterval = 18.0
+    /// After a successful Health save — stop the same weigh sequence from reopening.
+    static let postSaveSheetCooldownSeconds: TimeInterval = 120.0
+    static let sameKgSuppressEpsilonKg: Double = 0.08
 
     init(
         scanner: ScaleScanning,
@@ -482,6 +488,11 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func dismissWeighIn() {
+        // Binding may echo after a programmatic close (save → hero). Do not thrash cooldown/scan.
+        guard isWeighInPresented else {
+            isAutoPresentingSheet = false
+            return
+        }
         isWeighInPresented = false
         isAutoPresentingSheet = false
         isEditingDraft = false
@@ -489,7 +500,7 @@ final class ScaleSessionViewModel: ObservableObject {
         weighRejectionMessage = nil
         weighInPurpose = .normal
         // Cooldown stops dismiss → immediate BLE re-open thrash.
-        autoSheetCooldownUntil = Date().addingTimeInterval(Self.autoSheetCooldownSeconds)
+        armBLEAutoPresentCooldown(Self.autoSheetCooldownSeconds)
         WeighInLiveActivityController.end()
         if case .healthKitSuccess = phase {
             // Keep success state on home / results.
@@ -2520,15 +2531,52 @@ final class ScaleSessionViewModel: ObservableObject {
         cooldownActive: Bool,
         measurementStabilized: Bool,
         weightKg: Double,
-        phaseAllowsAutoOpen: Bool
+        phaseAllowsAutoOpen: Bool,
+        blockingCoverPresented: Bool = false,
+        sameKgSuppressed: Bool = false
     ) -> Bool {
         guard !isAlreadyPresented, !isAutoPresenting else { return false }
+        guard !blockingCoverPresented else { return false }
+        guard !sameKgSuppressed else { return false }
         guard purpose == .normal, !isEditingDraft else { return false }
         guard !cooldownActive else { return false }
         guard phaseAllowsAutoOpen else { return false }
         guard measurementStabilized else { return false }
         guard ProfileNumericBounds.isPlausibleWeighKg(weightKg) else { return false }
         return true
+    }
+
+    /// True while any post-weigh / paywall cover would stack under a new live sheet.
+    private var blocksBLEAutoPresent: Bool {
+        isWeighInPresented
+            || isWeighInHeroPresented
+            || isResultsPresented
+            || isMondayCardPresented
+            || isMonthlyHeroPresented
+            || isSpikeRedCardPresented
+            || isManualEntryPresented
+            || isPaywallPresented
+            || isAppReviewPromptPresented
+            || isFeedbackPresented
+    }
+
+    private func isSameKgSuppressed(_ kg: Double) -> Bool {
+        guard let until = suppressSameKgUntil, Date() < until,
+              let last = lastCompletedWeighKg else { return false }
+        return abs(last - kg) < Self.sameKgSuppressEpsilonKg
+    }
+
+    private func armBLEAutoPresentCooldown(_ seconds: TimeInterval) {
+        let until = Date().addingTimeInterval(seconds)
+        if let existing = autoSheetCooldownUntil, existing > until { return }
+        autoSheetCooldownUntil = until
+    }
+
+    /// After a confirmed weigh, ignore the scale still advertising that same mass.
+    private func noteCompletedWeighForBLEGate(kg: Double) {
+        lastCompletedWeighKg = kg
+        suppressSameKgUntil = Date().addingTimeInterval(Self.postSaveSheetCooldownSeconds)
+        armBLEAutoPresentCooldown(Self.postSaveSheetCooldownSeconds)
     }
 
     func presentSettings() {
@@ -2957,6 +3005,7 @@ final class ScaleSessionViewModel: ObservableObject {
         MorningWeighDrillScheduler.markSatisfied()
         await refreshTrendNotifications()
         isManualEntryPresented = false
+        noteCompletedWeighForBLEGate(kg: kg)
         isWeighInPresented = false
         WeighInLiveActivityController.end()
         isResultsPresented = true
@@ -3223,6 +3272,7 @@ final class ScaleSessionViewModel: ObservableObject {
             refreshAlreadyWeighedToday()
             MorningWeighDrillScheduler.markSatisfied()
             await refreshTrendNotifications()
+            noteCompletedWeighForBLEGate(kg: weighKg)
             isWeighInPresented = false
             WeighInLiveActivityController.end()
             autoConfirmArmed = false
@@ -3474,6 +3524,7 @@ final class ScaleSessionViewModel: ObservableObject {
         }
         if !userInitiated {
             if isAutoPresentingSheet { return }
+            if blocksBLEAutoPresent { return }
             if let until = autoSheetCooldownUntil, Date() < until { return }
         }
         isAutoPresentingSheet = true
@@ -3540,11 +3591,26 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
     private func handleBluetoothState(_ message: String?) {
         if let message {
             cancelImpedanceWait()
+            // Never tear down the live sheet on BT flicker/reset — that re-opens a duplicate
+            // weigh sequence when the scale keeps advertising the same mass.
+            if isWeighInPresented {
+                liveHint = message
+                return
+            }
             phase = .bluetoothUnavailable(message)
-            isWeighInPresented = false
             isAutoPresentingSheet = false
         } else if case .bluetoothUnavailable = phase {
-            phase = .idle
+            if isWeighInPresented {
+                if let id = selectedScaleID,
+                   let name = discoveredScales.first(where: { $0.id == id })?.name {
+                    phase = .listening(scaleName: name)
+                } else {
+                    phase = .scanning
+                }
+                scanner.startScanning()
+            } else {
+                phase = .idle
+            }
         }
     }
 
@@ -3560,6 +3626,7 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
         // on advertisement alone (that caused flicker / races with decode).
         if selectedScaleID == nil,
            !isWeighInPresented,
+           !blocksBLEAutoPresent,
            weighInPurpose == .normal,
            (phase == .scanning || phase == .idle || phase == .healthKitSuccess),
            let best = discoveredScales.first {
@@ -3578,7 +3645,9 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
             cooldownActive: cooldownActive,
             measurementStabilized: measurement.isStabilized,
             weightKg: calibratedKg,
-            phaseAllowsAutoOpen: phaseAllowsBLEAutoOpen
+            phaseAllowsAutoOpen: phaseAllowsBLEAutoOpen,
+            blockingCoverPresented: blocksBLEAutoPresent,
+            sameKgSuppressed: isSameKgSuppressed(calibratedKg)
         )
         if shouldOpen {
             if selectedScaleID == nil, let best = discoveredScales.first {

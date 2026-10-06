@@ -292,6 +292,34 @@ final class MorningWeighDrillSchedulerTests: XCTestCase {
             ),
             "No double-present"
         )
+        XCTAssertFalse(
+            ScaleSessionViewModel.shouldAutoPresentLiveSheet(
+                isAlreadyPresented: false,
+                isAutoPresenting: false,
+                purpose: .normal,
+                isEditingDraft: false,
+                cooldownActive: false,
+                measurementStabilized: true,
+                weightKg: 78.2,
+                phaseAllowsAutoOpen: true,
+                blockingCoverPresented: true
+            ),
+            "Hero/results must block a second weigh sequence"
+        )
+        XCTAssertFalse(
+            ScaleSessionViewModel.shouldAutoPresentLiveSheet(
+                isAlreadyPresented: false,
+                isAutoPresenting: false,
+                purpose: .normal,
+                isEditingDraft: false,
+                cooldownActive: false,
+                measurementStabilized: true,
+                weightKg: 78.2,
+                phaseAllowsAutoOpen: true,
+                sameKgSuppressed: true
+            ),
+            "Same kg still advertising after save must not reopen"
+        )
     }
 
     func testNotificationPreferencesDefaultMorningDrillOn() {

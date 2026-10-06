@@ -111,71 +111,71 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     var splashTagline: String {
         switch self == .system ? resolved : self {
         case .system, .english:
-            return "You shrink."
+            return "Respect Yourself"
         case .spanish:
-            return "Encoges."
+            return "Respétate"
         case .french:
-            return "Tu rétrécis."
+            return "Respecte-toi"
         case .german:
-            return "Du schrumpfst."
+            return "Respektiere dich"
         case .italian:
-            return "Dimagrisci."
+            return "Rispettati"
         case .portugueseBrazil, .portuguesePortugal:
-            return "Você encolhe."
+            return "Respeite-se"
         case .japanese:
-            return "縮む。"
+            return "自分を大切に"
         case .korean:
-            return "줄어든다."
+            return "자신을 존중하세요"
         case .chineseSimplified:
-            return "你会瘦。"
+            return "尊重自己"
         case .chineseTraditional:
-            return "你會瘦。"
+            return "尊重自己"
         case .dutch:
-            return "Jij krimpt."
+            return "Respecteer jezelf"
         case .swedish:
-            return "Du krymper."
+            return "Respektera dig själv"
         case .danish:
-            return "Du skrumper."
+            return "Respektér dig selv"
         case .finnish:
-            return "Kutistut."
+            return "Kunnioita itseäsi"
         case .norwegian:
-            return "Du krymper."
+            return "Respekter deg selv"
         case .polish:
-            return "Kurczysz się."
+            return "Szanuj siebie"
         case .turkish:
-            return "Küçülürsün."
+            return "Kendine saygı duy"
         case .russian:
-            return "Ты худеешь."
+            return "Уважай себя"
         case .arabic:
-            return "أنت تنحف."
+            return "احترم نفسك"
         case .hindi:
-            return "तुम सिकुड़ते हो।"
+            return "खुद का सम्मान करो"
         case .thai:
-            return "คุณเล็กลง."
+            return "เคารพตัวเอง"
         case .vietnamese:
-            return "Bạn teo lại."
+            return "Hãy tôn trọng bản thân"
         case .indonesian:
-            return "Kamu mengecil."
+            return "Hormati dirimu"
         case .malay:
-            return "Anda mengecil."
+            return "Hormati diri sendiri"
         case .hebrew:
-            return "אתה מתכווץ."
+            return "כבד את עצמך"
         case .ukrainian:
-            return "Ти худнеш."
+            return "Поважай себе"
         case .czech:
-            return "Zmenšuješ se."
+            return "Respektuj sám sebe"
         case .greek:
-            return "Μικραίνεις."
+            return "Σεβάσου τον εαυτό σου"
         case .hungarian:
-            return "Összezsugorodsz."
+            return "Tiszteld magad"
         case .romanian:
-            return "Te micșorezi."
+            return "Respectă-te"
         case .slovak:
-            return "Zmenšuješ sa."
+            return "Rešpektuj sa"
         case .croatian:
-            return "Smanjuješ se."
+            return "Poštuj sebe"
         case .catalan:
-            return "Encongeixes."
+            return "Respecta't"
         }
     }
 
