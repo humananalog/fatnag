@@ -43,7 +43,7 @@ struct SplashView: View {
                 .allowsHitTesting(false)
             }
 
-            VStack(spacing: 20) {
+            VStack(spacing: 22) {
                 // SVG vector (template) sits under the animatable type for accessibility /
                 // asset parity; animatable HStack drives the Netflix weight reveal.
                 ZStack {
@@ -72,22 +72,32 @@ struct SplashView: View {
                 .accessibilityLabel("fatnag")
                 .accessibilityIdentifier("splash.brand")
 
-                VStack(spacing: 6) {
-                    Text(tagline)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(ivory.opacity(0.55))
-                        .tracking(0.3)
-                        .multilineTextAlignment(.center)
-                        .accessibilityIdentifier("splash.tagline")
-                    Text(splashVersionLine)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(ivory.opacity(0.38))
-                        .monospacedDigit()
-                        .accessibilityIdentifier("splash.version")
-                }
-                .opacity(tagOpacity)
+                Text(tagline)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(ivory.opacity(0.78))
+                    .tracking(0.2)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.75)
+                    .lineLimit(2)
+                    .opacity(tagOpacity)
+                    .accessibilityIdentifier("splash.tagline")
             }
             .padding(.horizontal, 28)
+
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Text(splashVersionLine)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(ivory.opacity(0.36))
+                        .monospacedDigit()
+                        .opacity(tagOpacity)
+                        .accessibilityIdentifier("splash.version")
+                }
+            }
+            .safeAreaPadding(.trailing, 20)
+            .safeAreaPadding(.bottom, 16)
         }
         .opacity(exitOpacity)
         .preferredColorScheme(.dark)

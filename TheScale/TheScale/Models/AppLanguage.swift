@@ -111,71 +111,71 @@ enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
     var splashTagline: String {
         switch self == .system ? resolved : self {
         case .system, .english:
-            return "Nag until the fat folds."
+            return "You shrink."
         case .spanish:
-            return "Nag hasta que la grasa ceda."
+            return "Encoges."
         case .french:
-            return "Nag jusqu'à ce que le gras plie."
+            return "Tu rétrécis."
         case .german:
-            return "Nag, bis das Fett nachgibt."
+            return "Du schrumpfst."
         case .italian:
-            return "Nag finché il grasso cede."
+            return "Dimagrisci."
         case .portugueseBrazil, .portuguesePortugal:
-            return "Nag até a gordura ceder."
+            return "Você encolhe."
         case .japanese:
-            return "脂肪が折れるまで、Nag。"
+            return "縮む。"
         case .korean:
-            return "살이 접힐 때까지 Nag."
+            return "줄어든다."
         case .chineseSimplified:
-            return "Nag，直到脂肪让步。"
+            return "你会瘦。"
         case .chineseTraditional:
-            return "Nag，直到脂肪讓步。"
+            return "你會瘦。"
         case .dutch:
-            return "Nag tot het vet wijkt."
+            return "Jij krimpt."
         case .swedish:
-            return "Nag tills fettet viker."
+            return "Du krymper."
         case .danish:
-            return "Nag indtil fedtet giver sig."
+            return "Du skrumper."
         case .finnish:
-            return "Nag, kunnes rasva antaa periksi."
+            return "Kutistut."
         case .norwegian:
-            return "Nag til fettet gir seg."
+            return "Du krymper."
         case .polish:
-            return "Nag, aż tłuszcz ustąpi."
+            return "Kurczysz się."
         case .turkish:
-            return "Yağ pes edene kadar Nag."
+            return "Küçülürsün."
         case .russian:
-            return "Nag, пока жир не сдастся."
+            return "Ты худеешь."
         case .arabic:
-            return "Nag حتى ينثني الدهن."
+            return "أنت تنحف."
         case .hindi:
-            return "Nag, जब तक चर्बी न झुके."
+            return "तुम सिकुड़ते हो।"
         case .thai:
-            return "Nag จนกว่าไขมันจะยอม."
+            return "คุณเล็กลง."
         case .vietnamese:
-            return "Nag cho đến khi mỡ chịu thua."
+            return "Bạn teo lại."
         case .indonesian:
-            return "Nag sampai lemaknya menyerah."
+            return "Kamu mengecil."
         case .malay:
-            return "Nag sehingga lemak mengalah."
+            return "Anda mengecil."
         case .hebrew:
-            return "Nag עד שהשומן נכנע."
+            return "אתה מתכווץ."
         case .ukrainian:
-            return "Nag, доки жир не здасться."
+            return "Ти худнеш."
         case .czech:
-            return "Nag, dokud tuk nepovolí."
+            return "Zmenšuješ se."
         case .greek:
-            return "Nag μέχρι να υποχωρήσει το λίπος."
+            return "Μικραίνεις."
         case .hungarian:
-            return "Nag, amíg a zsír meg nem adja magát."
+            return "Összezsugorodsz."
         case .romanian:
-            return "Nag până cedează grăsimea."
+            return "Te micșorezi."
         case .slovak:
-            return "Nag, kým tuk nepovolí."
+            return "Zmenšuješ sa."
         case .croatian:
-            return "Nag dok masnoća ne popusti."
+            return "Smanjuješ se."
         case .catalan:
-            return "Nag fins que el greix cedeixi."
+            return "Encongeixes."
         }
     }
 
