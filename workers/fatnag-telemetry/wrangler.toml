@@ -1,0 +1,12 @@
+name = "fatnag-telemetry"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[[kv_namespaces]]
+binding = "EVENTS"
+id = "00000000000000000000000000000000"
+preview_id = "00000000000000000000000000000000"
+
+# Secrets (wrangler secret put …):
+#   APP_SHARED_SECRET  — same as the-scale-grok / GROK_APP_SECRET
+#   ADMIN_PASSWORD     — admin dashboard login

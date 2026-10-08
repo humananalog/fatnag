@@ -315,6 +315,39 @@ enum FoundationModelCoach {
         }
     }
 
+    /// Short funny session title. Free on-device — never burns Keel credits.
+    static func funnyChatTitle(
+        from snippet: String,
+        sex: UserBodyProfile.Sex = .male,
+        ageYears: Double = 30
+    ) async -> String? {
+        let voice = AppLanguageStore.locked(CoachVoice.bannerRules(sex: sex, ageYears: ageYears))
+        let trimmed = snippet.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 8 else { return nil }
+        guard #available(iOS 26.0, *), FoundationModelAvailability.isAvailable else {
+            return nil
+        }
+        do {
+            let session = LanguageModelSession(instructions: voice)
+            let prompt = """
+                Invent a short funny chat title (max 5 words) for this coach conversation.
+                Dry humour. No quotes. No emoji. Not a sentence.
+                Topic: \(trimmed.prefix(280))
+                """
+            var options = GenerationOptions()
+            options.temperature = 0.85
+            options.maximumResponseTokens = 24
+            let response = try await session.respond(to: prompt, options: options)
+            let clean = CoachCopySanitize.clean(response.content)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard clean.count >= 3, clean.count <= 48 else { return nil }
+            return clean
+        } catch {
+            FoundationModelAvailability.noteRuntimeFailure(error)
+            return nil
+        }
+    }
+
     /// Optional FM / sidecar pass to pull sticky facts; merges with heuristic extractor upstream.
     static func extractMemoryFacts(
         from userText: String,

@@ -56,46 +56,10 @@ struct CoachChatTurn: Identifiable, Equatable, Codable, Sendable {
     }
 }
 
-/// On-device conversation transcript (UserDefaults). Separate from habit/target fact memory.
-enum CoachChatHistoryStore {
-    private static let key = "thescale.coachChatHistory.v1"
-    /// Keep enough for multi-session continuity without bloating UserDefaults.
-    private static let maxTurns = 80
-
-    static func load() -> [CoachChatTurn] {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let turns = try? JSONDecoder().decode([CoachChatTurn].self, from: data)
-        else {
-            return []
-        }
-        // Never restore mid-stream placeholders, empty assistants, or live-failure dumps.
-        return turns.filter { Self.shouldPersist($0) }
-    }
-
-    static func save(_ turns: [CoachChatTurn]) {
-        let cleaned = turns
-            .filter { Self.shouldPersist($0) }
-            .suffix(maxTurns)
-        if let data = try? JSONEncoder().encode(Array(cleaned)) {
-            UserDefaults.standard.set(data, forKey: key)
-        }
-    }
-
-    static func clear() {
-        UserDefaults.standard.removeObject(forKey: key)
-    }
-
-    /// Failures / empty stream placeholders never enter the transcript the user (or model) sees again.
-    private static func shouldPersist(_ turn: CoachChatTurn) -> Bool {
-        if turn.isStreaming { return false }
-        if turn.kind == .assistant && turn.text.isEmpty { return false }
-        if turn.isFailure && !turn.isQuotaLock { return false }
-        return true
-    }
-}
-
 @MainActor
 final class CoachChatController: ObservableObject {
+    @Published private(set) var sessions: [CoachChatSession] = []
+    @Published private(set) var activeSessionID: UUID?
     @Published private(set) var turns: [CoachChatTurn] = []
     @Published var draft = ""
     @Published private(set) var isSending = false
@@ -105,6 +69,12 @@ final class CoachChatController: ObservableObject {
     @Published var paywallHighlight: ScalePlan = .plus
     /// Brief non-technical notice when a live call fails (never the operator dump).
     @Published var transientNotice: String?
+    /// User turn currently being edited (draft prefilled).
+    @Published private(set) var editingTurnID: UUID?
+
+    var activeSessionTitle: String {
+        sessions.first(where: { $0.id == activeSessionID })?.title ?? "Coach"
+    }
 
     /// Open Unlock Coach from a rate-limit bubble (or auto after lock).
     func openPaywall(from turn: CoachChatTurn? = nil) {
@@ -116,28 +86,87 @@ final class CoachChatController: ObservableObject {
     }
 
     func seedWelcome(name: String) {
-        rememberedCount = CoachMemoryStore.load().count
-        let saved = CoachChatHistoryStore.load()
-        if !saved.isEmpty {
-            turns = saved
-            return
+        reloadSessions()
+        var session = CoachChatSessionStore.ensureActiveSession()
+        activeSessionID = session.id
+        if session.turns.isEmpty {
+            let who = name.isEmpty ? "Operator" : name
+            session.turns = [
+                CoachChatTurn(
+                    kind: .assistant,
+                    agent: .orchestrator,
+                    text: "\(who). What's the play?"
+                )
+            ]
+            session.updatedAt = Date()
+            CoachChatSessionStore.upsert(session)
         }
-        guard turns.isEmpty else { return }
-        let who = name.isEmpty ? "Operator" : name
-        turns = [
-            CoachChatTurn(
-                kind: .assistant,
-                agent: .orchestrator,
-                text: "\(who). What's the play?"
-            )
-        ]
-        persist()
+        applySession(session)
+        ScaleTelemetry.track("coach.open", props: ["sessions": sessions.count])
+    }
+
+    func reloadSessions() {
+        sessions = CoachChatSessionStore.loadSessions()
+        activeSessionID = CoachChatSessionStore.activeSessionID()
+    }
+
+    func selectSession(_ id: UUID) {
+        guard !isSending else { return }
+        cancelEdit()
+        CoachChatSessionStore.setActiveSessionID(id)
+        activeSessionID = id
+        if let session = sessions.first(where: { $0.id == id }) {
+            applySession(session)
+        } else {
+            reloadSessions()
+            if let session = sessions.first(where: { $0.id == id }) {
+                applySession(session)
+            }
+        }
+        ScaleTelemetry.track("coach.session.select")
+    }
+
+    @discardableResult
+    func createSession(name: String) -> CoachChatSession {
+        cancelEdit()
+        let session = CoachChatSessionStore.createSession(welcomeName: name)
+        reloadSessions()
+        applySession(session)
+        ScaleTelemetry.track("coach.session.create")
+        return session
+    }
+
+    func deleteSession(_ id: UUID, welcomeName: String) {
+        guard !isSending else { return }
+        cancelEdit()
+        CoachChatSessionStore.deleteSession(id: id)
+        reloadSessions()
+        if let active = CoachChatSessionStore.activeSessionID(),
+           let session = sessions.first(where: { $0.id == active }) {
+            applySession(session)
+        } else {
+            seedWelcome(name: welcomeName)
+        }
+        ScaleTelemetry.track("coach.session.delete")
     }
 
     func clearConversation(name: String) {
-        CoachChatHistoryStore.clear()
-        turns = []
-        seedWelcome(name: name)
+        deleteSession(activeSessionID ?? UUID(), welcomeName: name)
+        if sessions.isEmpty {
+            _ = createSession(name: name)
+        }
+    }
+
+    /// Prefill composer from a past user message for edit + resend.
+    func beginEdit(turnID: UUID) {
+        guard let turn = turns.first(where: { $0.id == turnID && $0.kind == .user }) else { return }
+        guard !isSending else { return }
+        editingTurnID = turnID
+        draft = turn.text
+    }
+
+    func cancelEdit() {
+        editingTurnID = nil
     }
 
     func send(session: ScaleSessionViewModel) async {
@@ -145,16 +174,26 @@ final class CoachChatController: ObservableObject {
         guard !text.isEmpty, !isSending else { return }
         draft = ""
 
+        var chatSession = currentSessionMutating()
+        let editID = editingTurnID
+        editingTurnID = nil
+
+        // Edit path: truncate transcript after the edited user turn, then resend.
+        if let editID,
+           let idx = chatSession.turns.firstIndex(where: { $0.id == editID && $0.kind == .user }) {
+            chatSession.turns = Array(chatSession.turns.prefix(idx))
+        }
+
         for fact in CoachMemoryExtractor.extract(from: text) {
-            CoachMemoryStore.remember(fact)
+            rememberInSession(&chatSession, fact)
         }
         for fact in await FoundationModelCoach.extractMemoryFacts(from: text) {
-            CoachMemoryStore.remember(fact)
+            rememberInSession(&chatSession, fact)
         }
 
         // Gate + apply stated weight / body-fat targets before Grok sees the brief.
         let targetResults = session.processCoachStatedTargets(from: text)
-        rememberedCount = CoachMemoryStore.load().count
+        rememberedCount = chatSession.memoryFacts.count
 
         // Schedule local wake / reminder pings on-device (UNUserNotificationCenter).
         var reminderResults: [CoachReminderResult] = []
@@ -165,19 +204,20 @@ final class CoachChatController: ObservableObject {
             )
             reminderResults.append(scheduled)
             if scheduled.status == .scheduled {
-                CoachMemoryStore.remember(
+                rememberInSession(
+                    &chatSession,
                     CoachMemoryFact(
                         text: scheduled.coachNote,
                         tags: ["reminder", "notification"]
                     )
                 )
             }
-            rememberedCount = CoachMemoryStore.load().count
+            rememberedCount = chatSession.memoryFacts.count
         }
 
-        turns.append(CoachChatTurn(kind: .user, text: text))
+        chatSession.turns.append(CoachChatTurn(kind: .user, text: text))
         for result in targetResults {
-            turns.append(
+            chatSession.turns.append(
                 CoachChatTurn(
                     kind: .assistant,
                     agent: .orchestrator,
@@ -187,7 +227,7 @@ final class CoachChatController: ObservableObject {
             )
         }
         for result in reminderResults {
-            turns.append(
+            chatSession.turns.append(
                 CoachChatTurn(
                     kind: .assistant,
                     agent: .orchestrator,
@@ -196,7 +236,9 @@ final class CoachChatController: ObservableObject {
                 )
             )
         }
-        persist()
+        chatSession.updatedAt = Date()
+        commitSession(chatSession)
+        ScaleTelemetry.track("coach.send", props: ["edited": editID != nil])
 
         // Always attach a fresh Apple Health snapshot to Coach (not only background monitor jobs).
         let digest = await session.refreshFitnessDigestForCoach()
@@ -218,22 +260,28 @@ final class CoachChatController: ObservableObject {
 
         let reminderContext: String = {
             guard !reminderResults.isEmpty else { return "" }
-            let fmt = ISO8601DateFormatter()
-            fmt.formatOptions = [.withInternetDateTime]
+            // Local wall-clock for the model (device timezone), not bare UTC ISO.
+            let fmt = DateFormatter()
+            fmt.locale = .current
+            fmt.timeZone = .current
+            fmt.dateStyle = .medium
+            fmt.timeStyle = .short
+            let tz = TimeZone.current.identifier
             let lines = reminderResults.map { r -> String in
-                let fireISO = fmt.string(from: r.request.fireAt)
+                let fireLocal = fmt.string(from: r.request.fireAt)
                 switch r.status {
                 case .scheduled:
-                    return "Reminder SCHEDULED on-device at \(fireISO): \(r.coachNote)"
+                    return "Reminder SCHEDULED on-device at \(fireLocal) (\(tz)): \(r.coachNote)"
                 case .denied:
-                    return "Reminder NOT scheduled (notifications denied) for \(fireISO): \(r.coachNote)"
+                    return "Reminder NOT scheduled (notifications denied) for \(fireLocal) (\(tz)): \(r.coachNote)"
                 case .failed:
-                    return "Reminder FAILED for \(fireISO): \(r.coachNote)"
+                    return "Reminder FAILED for \(fireLocal) (\(tz)): \(r.coachNote)"
                 }
             }
             return "\n\nReminder gate (on-device, honour this):\n" + lines.joined(separator: "\n")
         }()
 
+        let sessionMemory = chatSession.promptMemoryBlock()
         let briefWithExtras = CoachBrief(
             userName: brief.userName,
             diet: brief.diet,
@@ -248,14 +296,15 @@ final class CoachChatController: ObservableObject {
             weekDeltaKg: brief.weekDeltaKg,
             weeklyGoal: brief.weeklyGoal,
             personaBlock: brief.personaBlock,
-            memoryBlock: brief.memoryBlock + targetContext + reminderContext,
+            memoryBlock: (sessionMemory.isEmpty ? brief.memoryBlock : sessionMemory)
+                + targetContext + reminderContext,
             fitnessDigestBlock: brief.fitnessDigestBlock,
             localNow: brief.localNow,
             unitSystem: brief.unitSystem
         )
 
         let assistantID = UUID()
-        turns.append(
+        chatSession.turns.append(
             CoachChatTurn(
                 id: assistantID,
                 kind: .assistant,
@@ -265,6 +314,7 @@ final class CoachChatController: ObservableObject {
                 isStreaming: true
             )
         )
+        turns = chatSession.turns
         isSending = true
         KeelIslandActivityController.begin(label: "Keel")
         defer {
@@ -273,7 +323,7 @@ final class CoachChatController: ObservableObject {
         }
 
         // Never feed prior failure / quota-lock bubbles back into Keel as "assistant" history.
-        let historySnapshot = turns.filter {
+        let historySnapshot = chatSession.turns.filter {
             $0.id != assistantID && !$0.isFailure && !$0.isQuotaLock && !$0.text.isEmpty
         }
 
@@ -298,21 +348,20 @@ final class CoachChatController: ObservableObject {
             if reply.isQuotaLock {
                 self.paywallLockMessage = reply.text
                 self.paywallHighlight = ScaleSubscriptionStore.shared.plan.upgradeTarget ?? .plus
-                // Auto-present once when the lock lands; bubble stays tappable after dismiss.
                 if !self.showPaywall {
                     self.showPaywall = true
                 }
             }
         }
 
-        if let idx = turns.firstIndex(where: { $0.id == assistantID }) {
-            let finished = turns[idx]
+        chatSession.turns = turns
+        if let idx = chatSession.turns.firstIndex(where: { $0.id == assistantID }) {
+            let finished = chatSession.turns[idx]
             if finished.isFailure && !finished.isQuotaLock {
-                // Drop the assistant turn entirely — no ERROR bubble, no system prose in chat.
-                turns.remove(at: idx)
+                chatSession.turns.remove(at: idx)
                 transientNotice = "Couldn't reach Coach. Try again in a moment."
             } else {
-                turns[idx] = CoachChatTurn(
+                chatSession.turns[idx] = CoachChatTurn(
                     id: assistantID,
                     kind: .assistant,
                     agent: .orchestrator,
@@ -324,14 +373,79 @@ final class CoachChatController: ObservableObject {
                 )
             }
         }
-        persist()
+        chatSession.updatedAt = Date()
+        commitSession(chatSession)
+
+        await maybeAutoRename(session: chatSession)
     }
 
     func clearTransientNotice() {
         transientNotice = nil
     }
 
-    private func persist() {
-        CoachChatHistoryStore.save(turns)
+    // MARK: - Private
+
+    private func applySession(_ session: CoachChatSession) {
+        activeSessionID = session.id
+        turns = session.turns
+        rememberedCount = session.memoryFacts.count
+    }
+
+    private func currentSessionMutating() -> CoachChatSession {
+        if let id = activeSessionID,
+           var existing = CoachChatSessionStore.loadSessions().first(where: { $0.id == id }) {
+            existing.turns = turns
+            return existing
+        }
+        return CoachChatSessionStore.ensureActiveSession()
+    }
+
+    private func commitSession(_ session: CoachChatSession) {
+        CoachChatSessionStore.upsert(session)
+        reloadSessions()
+        applySession(session)
+    }
+
+    private func rememberInSession(_ session: inout CoachChatSession, _ fact: CoachMemoryFact) {
+        let normalized = fact.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return }
+        let lower = normalized.lowercased()
+        if session.memoryFacts.contains(where: { $0.text.lowercased() == lower }) { return }
+        session.memoryFacts.append(
+            CoachMemoryFact(id: fact.id, text: normalized, createdAt: fact.createdAt, tags: fact.tags)
+        )
+        // Mirror diet/lifestyle facts into global store for weigh/meal brief continuity.
+        CoachMemoryStore.remember(fact)
+    }
+
+    /// Funny short title via on-device FM first, else Grok with burnsCredit=false (system tokens).
+    private func maybeAutoRename(session: CoachChatSession) async {
+        guard !session.titleIsCustom else { return }
+        let userTurns = session.turns.filter { $0.kind == .user && !$0.text.isEmpty }
+        guard userTurns.count == 1 || (userTurns.count == 2 && session.title == "New nag") else { return }
+        let snippet = userTurns.prefix(2).map(\.text).joined(separator: " · ")
+        guard snippet.count >= 8 else { return }
+
+        var title: String?
+        if let fm = await FoundationModelCoach.funnyChatTitle(from: snippet) {
+            title = fm
+        } else if GrokPrivacyConsent.isAccepted {
+            title = await GrokClient.shared.funnyChatTitle(from: snippet)
+        }
+        guard var cleaned = title?.trimmingCharacters(in: .whitespacesAndNewlines), !cleaned.isEmpty else {
+            return
+        }
+        cleaned = cleaned
+            .replacingOccurrences(of: "\"", with: "")
+            .replacingOccurrences(of: "'", with: "")
+        if cleaned.count > 36 {
+            cleaned = String(cleaned.prefix(36)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        var updated = session
+        updated.title = cleaned
+        updated.titleIsCustom = true
+        updated.updatedAt = Date()
+        commitSession(updated)
+        ScaleTelemetry.track("coach.session.rename")
     }
 }

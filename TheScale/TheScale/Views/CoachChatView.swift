@@ -7,6 +7,7 @@ struct CoachChatView: View {
     @ObservedObject private var subscription = ScaleSubscriptionStore.shared
     @Environment(\.dismiss) private var dismiss
     @State private var showPrivacyGate = false
+    @State private var showSessions = false
     @State private var feedbackTarget: CoachFeedbackTarget?
     @FocusState private var focused: Bool
 
@@ -19,6 +20,15 @@ struct CoachChatView: View {
 
     private var signal: Color { ScaleChrome.signal(for: universe) }
     private var ember: Color { ScaleChrome.ember(for: universe) }
+
+    private static let localTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = .current
+        f.timeZone = .current
+        f.dateStyle = .none
+        f.timeStyle = .short
+        return f
+    }()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,16 +43,27 @@ struct CoachChatView: View {
                         ForEach(chat.turns) { turn in
                             bubble(turn).id(turn.id)
                         }
+                        Color.clear
+                            .frame(height: 8)
+                            .id("coach.scroll.bottom")
                     }
                     .padding(ScaleLayout.pageInset)
+                    .padding(.bottom, 12)
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .onChange(of: chat.turns.count) { _, _ in
                     scrollToLatest(proxy)
                 }
                 .onChange(of: chat.turns.last?.text) { _, _ in
                     scrollToLatest(proxy)
                 }
+                .onChange(of: focused) { _, on in
+                    if on { scrollToLatest(proxy, delayMs: 280) }
+                }
+                .onAppear { scrollToLatest(proxy, delayMs: 80) }
             }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             composer
         }
         .background(ScaleChrome.darkChatGradient(for: universe).ignoresSafeArea())
@@ -50,7 +71,6 @@ struct CoachChatView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             chat.seedWelcome(name: session.profile.greetingName)
-            Task { _ = await session.runFitnessMonitorCheck(force: false) }
         }
         .alert(
             AppLanguageStore.text("coach.privacy.title", default: "Send chat context to Keel?"),
@@ -59,7 +79,7 @@ struct CoachChatView: View {
             Button(AppLanguageStore.text("common.cancel", default: "Cancel"), role: .cancel) {}
             Button(AppLanguageStore.text("coach.privacy.agree", default: "Agree & send")) {
                 GrokPrivacyConsent.isAccepted = true
-                Task { await chat.send(session: session) }
+                Task { await sendNow() }
             }
         } message: {
             Text(AppLanguageStore.text("coach.privacy.body", default: "Only this chat plus a short weight/fat/fitness digest go to the shared Keel backend. Memory stays on-device except the facts relevant to the ask. No per-user API key."))
@@ -79,6 +99,9 @@ struct CoachChatView: View {
                 planTier: subscription.plan.rawValue
             )
         }
+        .sheet(isPresented: $showSessions) {
+            sessionPicker
+        }
         .onChange(of: chat.transientNotice) { _, notice in
             guard notice != nil else { return }
             Task {
@@ -90,14 +113,32 @@ struct CoachChatView: View {
                 }
             }
         }
-    }
-
-    private func scrollToLatest(_ proxy: ScrollViewProxy) {
-        if let last = chat.turns.last {
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) {
-                proxy.scrollTo(last.id, anchor: .bottom)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button(AppLanguageStore.text("common.hide_keyboard", default: "Hide")) {
+                    focused = false
+                }
+                .fontWeight(.semibold)
+                .accessibilityIdentifier("coach.keyboard.hide")
             }
         }
+    }
+
+    private func scrollToLatest(_ proxy: ScrollViewProxy, delayMs: UInt64 = 0) {
+        Task { @MainActor in
+            if delayMs > 0 {
+                try? await Task.sleep(nanoseconds: delayMs * 1_000_000)
+            }
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) {
+                proxy.scrollTo("coach.scroll.bottom", anchor: .bottom)
+            }
+        }
+    }
+
+    private func sendNow() async {
+        focused = false
+        await chat.send(session: session)
     }
 
     private func transientBanner(_ notice: String) -> some View {
@@ -125,17 +166,40 @@ struct CoachChatView: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(AppLanguageStore.text("coach.title", default: "Coach"))
-                    .font(.system(size: 26, weight: .semibold, design: .serif))
-                    .foregroundStyle(.white)
-                Text(statusLine)
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.42))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+            Button {
+                showSessions = true
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(chat.activeSessionTitle)
+                        .font(.system(size: 22, weight: .semibold, design: .serif))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    Text(statusLine)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.42))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("coach.sessions.open")
+            .accessibilityLabel(AppLanguageStore.text("coach.sessions", default: "Chat sessions"))
+
             Spacer(minLength: 8)
+
+            Button {
+                _ = chat.createSession(name: session.profile.greetingName)
+            } label: {
+                Image(systemName: "square.and.pencil")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.72))
+                    .frame(width: 36, height: 36)
+                    .scaleGlassCircle()
+            }
+            .accessibilityLabel(AppLanguageStore.text("coach.new_chat", default: "New chat"))
+            .accessibilityIdentifier("coach.session.new")
+
             Button { session.dismissCoach() } label: {
                 Image(systemName: "chevron.down")
                     .font(.body.weight(.semibold))
@@ -159,7 +223,7 @@ struct CoachChatView: View {
         }
         let snap = subscription.quotaSnapshot
         if GrokSharedConfig.isLiveConfigured {
-            return "\(snap.remaining)/\(snap.limit) this week"
+            return "\(snap.remaining)/\(snap.limit) this week · \(chat.rememberedCount) facts"
         }
         return AppLanguageStore.text("coach.offline", default: "Offline")
     }
@@ -236,6 +300,23 @@ struct CoachChatView: View {
                         }
                     }
                 )
+                Text(Self.localTimeFormatter.string(from: turn.createdAt))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.38))
+                    .monospacedDigit()
+                    .accessibilityIdentifier("coach.turn.time")
+
+                if turn.kind == .user, !turn.isStreaming, !chat.isSending {
+                    Button {
+                        chat.beginEdit(turnID: turn.id)
+                        focused = true
+                    } label: {
+                        Text(AppLanguageStore.text("coach.edit", default: "Edit"))
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                    .accessibilityIdentifier("coach.turn.edit")
+                }
                 if turn.isQuotaLock {
                     Text(AppLanguageStore.text("coach.unlock", default: "Tap to unlock Coach"))
                         .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -296,12 +377,41 @@ struct CoachChatView: View {
     }
 
     private var composer: some View {
-        HStack(spacing: 10) {
-            TextField(
-                AppLanguageStore.text("coach.placeholder", default: "Ask something sharp…"),
-                text: $chat.draft,
-                axis: .vertical
-            )
+        VStack(spacing: 8) {
+            if chat.editingTurnID != nil {
+                HStack {
+                    Text(AppLanguageStore.text("coach.editing", default: "Editing message"))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(ember)
+                    Spacer()
+                    Button(AppLanguageStore.text("common.cancel", default: "Cancel")) {
+                        chat.cancelEdit()
+                        chat.draft = ""
+                    }
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.7))
+                }
+                .padding(.horizontal, 4)
+            }
+            HStack(alignment: .bottom, spacing: 10) {
+                if focused {
+                    Button {
+                        focused = false
+                    } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.75))
+                            .frame(width: 40, height: 46)
+                    }
+                    .accessibilityLabel(AppLanguageStore.text("common.hide_keyboard", default: "Hide keyboard"))
+                    .accessibilityIdentifier("coach.keyboard.hide.button")
+                }
+
+                TextField(
+                    AppLanguageStore.text("coach.placeholder", default: "Ask something sharp…"),
+                    text: $chat.draft,
+                    axis: .vertical
+                )
                 .font(inputFont)
                 .lineLimit(1...5)
                 .focused($focused)
@@ -309,26 +419,82 @@ struct CoachChatView: View {
                 .scaleGlassPanel(cornerRadius: 16)
                 .foregroundStyle(.white)
 
-            Button {
-                if GrokSharedConfig.isLiveConfigured && !GrokPrivacyConsent.isAccepted {
-                    showPrivacyGate = true
-                } else {
-                    Task { await chat.send(session: session) }
+                Button {
+                    if GrokSharedConfig.isLiveConfigured && !GrokPrivacyConsent.isAccepted {
+                        showPrivacyGate = true
+                    } else {
+                        Task { await sendNow() }
+                    }
+                } label: {
+                    Image(systemName: chat.isSending ? "hourglass" : "arrow.up")
+                        .font(.body.weight(.bold))
+                        .foregroundStyle(ScaleChrome.void)
+                        .frame(width: 46, height: 46)
+                        .background(ember, in: Circle())
                 }
-            } label: {
-                Image(systemName: chat.isSending ? "hourglass" : "arrow.up")
-                    .font(.body.weight(.bold))
-                    .foregroundStyle(ScaleChrome.void)
-                    .frame(width: 46, height: 46)
-                    .background(ember, in: Circle())
+                .accessibilityLabel(chat.isSending
+                    ? AppLanguageStore.text("coach.sending", default: "Sending")
+                    : AppLanguageStore.text("coach.send", default: "Send"))
+                .disabled(chat.isSending || chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .accessibilityLabel(chat.isSending
-                ? AppLanguageStore.text("coach.sending", default: "Sending")
-                : AppLanguageStore.text("coach.send", default: "Send"))
-            .disabled(chat.isSending || chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(.horizontal, ScaleLayout.pageInset)
-        .padding(.vertical, ScaleLayout.chromeInset)
+        .padding(.top, 10)
+        .padding(.bottom, 10)
+        .background(.ultraThinMaterial.opacity(0.001))
+        .background(Color.black.opacity(0.55))
+    }
+
+    private var sessionPicker: some View {
+        NavigationStack {
+            List {
+                ForEach(chat.sessions) { item in
+                    Button {
+                        chat.selectSession(item.id)
+                        showSessions = false
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.title)
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if item.id == chat.activeSessionID {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(ember)
+                            }
+                        }
+                    }
+                }
+                .onDelete { indexSet in
+                    for index in indexSet {
+                        let id = chat.sessions[index].id
+                        chat.deleteSession(id, welcomeName: session.profile.greetingName)
+                    }
+                }
+            }
+            .navigationTitle(AppLanguageStore.text("coach.sessions", default: "Chats"))
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(AppLanguageStore.text("common.done", default: "Done")) {
+                        showSessions = false
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        _ = chat.createSession(name: session.profile.greetingName)
+                        showSessions = false
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 

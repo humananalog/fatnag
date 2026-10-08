@@ -13,6 +13,9 @@ enum ScaleDataRights {
         "thescale.scaleCalibration.v2",
         "thescale.coachMemoryFacts",
         "thescale.coachChatHistory.v1",
+        "thescale.coachChatSessions.v1",
+        "thescale.coachChatActiveSession.v1",
+        "thescale.telemetry.enabled",
         "thescale.chartComments.v1",
         "thescale.mealPlan.v1",
         "thescale.mealPlan.v2",
@@ -64,6 +67,11 @@ enum ScaleDataRights {
            let chatJSON = try? JSONSerialization.jsonObject(with: chatData) {
             payload["coachChatHistory"] = chatJSON
         }
+        if let sessionsData = UserDefaults.standard.data(forKey: "thescale.coachChatSessions.v1"),
+           let sessionsJSON = try? JSONSerialization.jsonObject(with: sessionsData) {
+            payload["coachChatSessions"] = sessionsJSON
+        }
+        payload["telemetryEnabled"] = ScaleTelemetry.isEnabled
         if let comments = UserDefaults.standard.data(forKey: "thescale.chartComments.v1"),
            let commentsJSON = try? JSONSerialization.jsonObject(with: comments) {
             payload["chartComments"] = commentsJSON
@@ -78,6 +86,7 @@ enum ScaleDataRights {
             UserDefaults.standard.removeObject(forKey: key)
         }
         CoachMemoryStore.clear()
+        CoachChatSessionStore.clearAll()
         CoachChatHistoryStore.clear()
         ChartCommentStore.clear()
         MealPlanStore.clear()

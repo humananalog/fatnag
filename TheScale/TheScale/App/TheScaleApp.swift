@@ -137,6 +137,7 @@ struct TheScaleApp: App {
                 }
             }
             .onAppear {
+                ScaleTelemetry.track("app.open")
                 if ProcessInfo.processInfo.arguments.contains("-uitesting-reset-onboarding") {
                     OnboardingStore.hasCompleted = false
                     session.hasCompletedOnboarding = false

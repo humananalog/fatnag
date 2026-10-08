@@ -1718,6 +1718,21 @@ struct SettingsView: View {
                 Text("On-device first. Keel Coach is opt-in. No ads. No sale of personal data. GDPR and US state rights supported.")
                     .font(.footnote)
                     .foregroundStyle(steel)
+                Toggle(
+                    isOn: Binding(
+                        get: { ScaleTelemetry.isEnabled },
+                        set: { ScaleTelemetry.isEnabled = $0 }
+                    )
+                ) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(AppLanguageStore.text("settings.telemetry", default: "Anonymous usage stats"))
+                            .foregroundStyle(ink)
+                        Text(AppLanguageStore.text("settings.telemetry.help", default: "Feature counts only — no chat text, no Health samples, no ads."))
+                            .font(.caption)
+                            .foregroundStyle(steel)
+                    }
+                }
+                .accessibilityIdentifier("settings.telemetry")
 
                 Text(ScaleLegal.privacyPolicyShortSummary)
                     .font(.caption2)

@@ -23,7 +23,8 @@ Host this page at the URL set in `ScaleLegal.privacyPolicyURL` (default `https:/
 
 ## Tracking
 
-- No advertising identifier, no analytics SDKs, no cross-app tracking.
+- No advertising identifier, no third-party analytics SDKs, no cross-app tracking.
+- Optional **anonymous product telemetry** (default on; toggle in Settings → Privacy): feature counts only (e.g. tab opens, weigh saves, Coach opens). No chat text, no Health samples, no location. Identified only by a random on-device UUID.
 
 ## Contact
 

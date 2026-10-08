@@ -1240,6 +1240,7 @@ final class ScaleSessionViewModel: ObservableObject {
         isCoachPresented = tab == .keel
         isMealPlanPresented = tab == .meals
         isSettingsPresented = tab == .settings
+        ScaleTelemetry.track("tab.\(tab.rawValue)")
         if tab == .progress {
             ensureWeeklyGoalBaseline()
         }
@@ -3276,6 +3277,7 @@ final class ScaleSessionViewModel: ObservableObject {
             isWeighInPresented = false
             WeighInLiveActivityController.end()
             autoConfirmArmed = false
+            ScaleTelemetry.track("weigh.save", props: ["source": "ble"])
             // Hero only after confirmed Health save of a plausible kg.
             guard ProfileNumericBounds.isPlausibleWeighKg(weighKg) else {
                 weighRejectionMessage = ProfileNumericBounds.rejectWeighKgMessage(weighKg)

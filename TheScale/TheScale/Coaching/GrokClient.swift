@@ -1086,6 +1086,45 @@ actor GrokClient {
         }
     }
 
+    /// Funny chat-session title. Uses system tokens only (`X-Scale-Credit: 0`) — never user Keel credits.
+    func funnyChatTitle(from snippet: String) async -> String? {
+        guard GrokPrivacyConsent.isAccepted else { return nil }
+        guard GrokSharedConfig.configurationIssue == nil else { return nil }
+        guard let transport = resolveTransport() else { return nil }
+
+        let body: [String: Any] = [
+            "model": Self.liveModel,
+            "temperature": 0.9,
+            "max_tokens": 28,
+            "stream": false,
+            "messages": [
+                [
+                    "role": "system",
+                    "content": """
+                    You name FATNAG Keel chat threads. Reply with ONLY a short funny title \
+                    (max 5 words). Dry corrosive humour. No quotes. No emoji. No period.
+                    """
+                ],
+                [
+                    "role": "user",
+                    "content": "Title this chat from: \(String(snippet.prefix(320)))"
+                ]
+            ]
+        ]
+        do {
+            let data = try await postChat(
+                body: body,
+                transport: transport,
+                timeout: 14,
+                burnsCredit: false
+            )
+            let raw = Self.parseContent(from: data)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return raw.isEmpty ? nil : raw
+        } catch {
+            return nil
+        }
+    }
+
     private func fetchSpecialistNotes(
         specialty: CoachAgentRole,
         brief: CoachBrief,

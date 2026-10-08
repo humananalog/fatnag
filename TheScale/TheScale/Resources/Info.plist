@@ -63,6 +63,8 @@
 	<string>$(GROK_APP_SECRET)</string>
 	<key>SupabaseAnonKey</key>
 	<string>$(SUPABASE_ANON_KEY)</string>
+	<key>TelemetryURL</key>
+	<string>$(TELEMETRY_URL)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

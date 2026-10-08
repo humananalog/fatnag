@@ -12,6 +12,8 @@ GROK_API_KEY =
 // App ↔ Worker shared secret (NOT the xAI master key). Leave empty in git; set in Secrets.xcconfig.
 // Empty → fail closed (offline Coach) even when GROK_PROXY_URL is set.
 GROK_APP_SECRET =
+// Anonymous product telemetry Worker (same APP_SHARED_SECRET as Grok proxy).
+TELEMETRY_URL = https:/$()/fatnag-telemetry.alexhuther.workers.dev
 // Optional override for feedback Edge Function anon key (defaults baked in ScaleFeedbackConfig).
 SUPABASE_ANON_KEY =
 
