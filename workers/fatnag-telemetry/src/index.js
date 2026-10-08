@@ -141,50 +141,51 @@ async function sessionToken(password) {
     .join("");
 }
 
+const EVENT_NAMES = Object.freeze([
+  "app.open",
+  "tab.weigh",
+  "tab.progress",
+  "tab.keel",
+  "tab.meals",
+  "tab.settings",
+  "weigh.save",
+  "coach.open",
+  "coach.send",
+  "coach.session.create",
+  "coach.session.select",
+  "coach.session.rename",
+  "coach.session.delete",
+  "deploy.smoke",
+]);
+
 async function summarize(env) {
-  const days = [];
   const now = new Date();
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(now.getTime() - i * 86_400_000);
-    const key = utcDay(d);
-    const total = await readCount(env.EVENTS, `day:${key}:total`);
-    const devices = await readCount(env.EVENTS, `day:${key}:device_count`);
-    const events = {};
-    // Known high-signal names (extras still counted in total).
-    for (const name of [
-      "app.open",
-      "tab.weigh",
-      "tab.progress",
-      "tab.keel",
-      "tab.meals",
-      "tab.settings",
-      "weigh.save",
-      "coach.open",
-      "coach.send",
-      "coach.session.create",
-      "coach.session.select",
-      "coach.session.rename",
-      "coach.session.delete",
-    ]) {
-      const n = await readCount(env.EVENTS, `day:${key}:event:${name}`);
-      if (n > 0) events[name] = n;
-    }
-    days.push({ day: key, total, devices, events });
-  }
+  const dayKeys = Array.from({ length: 14 }, (_, i) =>
+    utcDay(new Date(now.getTime() - i * 86_400_000))
+  );
+
+  const days = await Promise.all(
+    dayKeys.map(async (key) => {
+      const [total, devices, ...counts] = await Promise.all([
+        readCount(env.EVENTS, `day:${key}:total`),
+        readCount(env.EVENTS, `day:${key}:device_count`),
+        ...EVENT_NAMES.map((name) =>
+          readCount(env.EVENTS, `day:${key}:event:${name}`)
+        ),
+      ]);
+      const events = {};
+      EVENT_NAMES.forEach((name, idx) => {
+        if (counts[idx] > 0) events[name] = counts[idx];
+      });
+      return { day: key, total, devices, events };
+    })
+  );
+
   return { days, generated_at: new Date().toISOString() };
 }
 
-async function renderDashboard(env) {
-  const data = await summarize(env);
-  const rows = data.days
-    .map((d) => {
-      const ev = Object.entries(d.events)
-        .map(([k, v]) => `<code>${escapeHtml(k)}</code>: ${v}`)
-        .join(" · ");
-      return `<tr><td>${escapeHtml(d.day)}</td><td>${d.total}</td><td>${d.devices}</td><td>${ev || "—"}</td></tr>`;
-    })
-    .join("");
-
+/** Light shell — data loads via /admin/api/summary so the HTML response is instant. */
+async function renderDashboard(_env) {
   const html = `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -201,14 +202,29 @@ async function renderDashboard(env) {
   code { color: #8ab4f8; }
   form { margin: 0 0 18px; }
   button { background: #1a1f26; color: #e8eaed; border: 1px solid #2c333c; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+  .muted { color: #9aa0a6; }
 </style></head><body><main>
   <form method="post" action="/admin/logout"><button type="submit">Log out</button></form>
   <h1>FATNAG · anonymous usage</h1>
-  <p>No chat text. No Health samples. Device UUID only. Generated ${escapeHtml(data.generated_at)}</p>
+  <p id="meta" class="muted">Loading…</p>
   <table>
     <thead><tr><th>UTC day</th><th>Events</th><th>~Devices</th><th>Breakdown</th></tr></thead>
-    <tbody>${rows}</tbody>
+    <tbody id="rows"><tr><td colspan="4" class="muted">Fetching summary…</td></tr></tbody>
   </table>
+<script>
+async function load() {
+  const res = await fetch('/admin/api/summary', { credentials: 'same-origin' });
+  if (!res.ok) { document.getElementById('meta').textContent = 'Auth expired — refresh and log in.'; return; }
+  const data = await res.json();
+  document.getElementById('meta').textContent =
+    'No chat text. No Health samples. Device UUID only. Generated ' + data.generated_at;
+  document.getElementById('rows').innerHTML = (data.days || []).map(d => {
+    const ev = Object.entries(d.events || {}).map(([k,v]) => '<code>' + k + '</code>: ' + v).join(' · ') || '—';
+    return '<tr><td>' + d.day + '</td><td>' + d.total + '</td><td>' + d.devices + '</td><td>' + ev + '</td></tr>';
+  }).join('');
+}
+load();
+</script>
 </main></body></html>`;
   return new Response(html, {
     headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
