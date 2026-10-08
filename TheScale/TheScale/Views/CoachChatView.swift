@@ -216,32 +216,29 @@ struct CoachChatView: View {
 
     private var statusLine: String {
         if let issue = GrokSharedConfig.configurationIssue, case .malformedProxyURL = issue {
-            return "Proxy URL broken"
+            return AppLanguageStore.text("coach.status.proxy", default: "Proxy broken")
         }
         if chat.isSending {
-            return AppLanguageStore.text("coach.streaming", default: "Streaming…")
+            return AppLanguageStore.text("coach.streaming", default: "…")
         }
-        let snap = subscription.quotaSnapshot
         if GrokSharedConfig.isLiveConfigured {
-            return "\(snap.remaining)/\(snap.limit) this week · \(chat.rememberedCount) facts"
+            let snap = subscription.quotaSnapshot
+            return "\(snap.remaining)/\(snap.limit)"
         }
         return AppLanguageStore.text("coach.offline", default: "Offline")
     }
 
+    /// Only when consent is still needed — otherwise the header status is enough.
+    @ViewBuilder
     private var privacyLine: some View {
-        Text(
-            GrokPrivacyConsent.isAccepted
-                ? String(
-                    format: AppLanguageStore.text("coach.consent.on", default: "Consent on. %@. Chat + compact Health digest + relevant memory only."),
-                    subscription.quotaSnapshot.statusLine
-                )
-                : AppLanguageStore.text("coach.consent.off", default: "Consent off until you agree (or stay offline).")
-        )
-        .font(.system(size: 12, weight: .medium, design: .rounded))
-        .foregroundStyle(.white.opacity(0.5))
-        .padding(.horizontal, ScaleLayout.pageInset)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.bottom, 8)
+        if GrokSharedConfig.isLiveConfigured, !GrokPrivacyConsent.isAccepted {
+            Text(AppLanguageStore.text("coach.consent.off", default: "Agree on send to go live."))
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.45))
+                .padding(.horizontal, ScaleLayout.pageInset)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 6)
+        }
     }
 
     private func bubble(_ turn: CoachChatTurn) -> some View {
