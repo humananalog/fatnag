@@ -43,6 +43,7 @@ body {
 img,
 video {
   max-width: 100%;
+  height: auto;
   display: block;
 }
 
@@ -377,9 +378,8 @@ html[dir="rtl"] .lang-picker select {
 .device-hero .device-video {
   display: block;
   width: 100%;
-  height: auto;
+  height: auto !important; /* never stretch; intrinsic 720×1498 from width/height attrs */
   max-width: 100%;
-  aspect-ratio: 720 / 1498;
   object-fit: contain;
   object-position: center center;
   background: transparent;
