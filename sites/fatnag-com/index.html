@@ -68,19 +68,20 @@
         <div class="device-stage" aria-hidden="true">
           <div class="device-glow"></div>
           <div class="device-hero" id="device-hero">
-            <img
-              class="device-img is-active"
-              src="/assets/shots/01-home-device.png"
-              width="700"
-              height="1448"
-              alt=""
-              decoding="async"
-              fetchpriority="high"
-              data-hero-shot
-            />
-            <img class="device-img" src="/assets/shots/02-weigh-device.png" width="700" height="1448" alt="" loading="lazy" decoding="async" data-hero-shot />
-            <img class="device-img" src="/assets/shots/03-progress-device.png" width="700" height="1448" alt="" loading="lazy" decoding="async" data-hero-shot />
-            <img class="device-img" src="/assets/shots/04-keel-device.png" width="700" height="1448" alt="" loading="lazy" decoding="async" data-hero-shot />
+            <video
+              class="device-video"
+              width="720"
+              height="1280"
+              poster="/assets/shots/recordings/hero-poster.jpg"
+              autoplay
+              muted
+              loop
+              playsinline
+              preload="metadata"
+            >
+              <source src="/assets/shots/recordings/hero-preview.webm" type="video/webm" />
+              <source src="/assets/shots/recordings/hero-preview.mp4" type="video/mp4" />
+            </video>
           </div>
         </div>
       </div>
