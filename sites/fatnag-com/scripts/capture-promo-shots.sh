@@ -155,7 +155,7 @@ capture_shot() {
   local out="$SHOTS/$persona/$out_name"
 
   echo "  • $persona / $shot → $out_name"
-  # Keep install — HealthKit samples + share auth stay on the Simulator.
+  # Keep install - HealthKit samples + share auth stay on the Simulator.
   xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
   xcrun simctl launch "$UDID" "$BUNDLE_ID" \
     "$demo_flag" \

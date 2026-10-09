@@ -1,15 +1,4 @@
-/* iPhone 17 chrome refinements + wordmark parity with iOS */
-
-.iphone17-frame {
-  background:
-    linear-gradient(155deg, #6a6a74 0%, #2c2c34 20%, #101014 58%, #22222a 84%, #484852 100%);
-}
-
-.iphone17-island {
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 0 0 0.5px rgba(0, 0, 0, 0.8);
-}
+/* wordmark parity with iOS FatnagWordmark */
 
 .wordmark,
 .hero-brand {

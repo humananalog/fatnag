@@ -102,7 +102,7 @@
       "footer.contact": "Contact",
       "footer.privacy": "Privacy",
       "footer.terms": "Terms",
-      "footer.bundle": "Bundle app.thescale.ios · iOS 18+",
+      "footer.ios": "iOS 18+",
     },
     "zh-Hans": {
       "meta.title": "fatnag - 催到脂肪服软",
@@ -172,7 +172,7 @@
       "footer.contact": "联系",
       "footer.privacy": "隐私",
       "footer.terms": "条款",
-      "footer.bundle": "Bundle app.thescale.ios · iOS 18+",
+      "footer.ios": "iOS 18+",
     },
     es: {
       "meta.title": "fatnag - Insiste hasta que la grasa ceda",
@@ -242,7 +242,7 @@
       "footer.contact": "Contacto",
       "footer.privacy": "Privacidad",
       "footer.terms": "Términos",
-      "footer.bundle": "Bundle app.thescale.ios · iOS 18+",
+      "footer.ios": "iOS 18+",
     },
     hi: {
       "meta.title": "fatnag - चर्बी हारे तक रटो",
@@ -312,7 +312,7 @@
       "footer.contact": "संपर्क",
       "footer.privacy": "गोपनीयता",
       "footer.terms": "नियम",
-      "footer.bundle": "Bundle app.thescale.ios · iOS 18+",
+      "footer.ios": "iOS 18+",
     },
     ar: {
       "meta.title": "fatnag - يلحّ حتى تستسلم الدهون",
@@ -382,7 +382,7 @@
       "footer.contact": "تواصل",
       "footer.privacy": "الخصوصية",
       "footer.terms": "الشروط",
-      "footer.bundle": "Bundle app.thescale.ios · iOS 18+",
+      "footer.ios": "iOS 18+",
     },
     "pt-BR": {
       "meta.title": "fatnag - Insiste até a gordura ceder",
@@ -452,7 +452,7 @@
       "footer.contact": "Contato",
       "footer.privacy": "Privacidade",
       "footer.terms": "Termos",
-      "footer.bundle": "Bundle app.thescale.ios · iOS 18+",
+      "footer.ios": "iOS 18+",
     },
     ja: {
       "meta.title": "fatnag - 脂肪が負けるまで食い下がる",
@@ -522,7 +522,7 @@
       "footer.contact": "連絡",
       "footer.privacy": "プライバシー",
       "footer.terms": "利用規約",
-      "footer.bundle": "Bundle app.thescale.ios · iOS 18+",
+      "footer.ios": "iOS 18+",
     },
     fr: {
       "meta.title": "fatnag - Relance jusqu'à ce que le gras cède",
@@ -592,7 +592,7 @@
       "footer.contact": "Contact",
       "footer.privacy": "Confidentialité",
       "footer.terms": "Conditions",
-      "footer.bundle": "Bundle app.thescale.ios · iOS 18+",
+      "footer.ios": "iOS 18+",
     },
     de: {
       "meta.title": "fatnag - Nachhaken, bis das Fett nachgibt",
@@ -662,7 +662,7 @@
       "footer.contact": "Kontakt",
       "footer.privacy": "Datenschutz",
       "footer.terms": "Bedingungen",
-      "footer.bundle": "Bundle app.thescale.ios · iOS 18+",
+      "footer.ios": "iOS 18+",
     },
     ko: {
       "meta.title": "fatnag - 지방이 항복할 때까지 잔소리",
@@ -732,7 +732,7 @@
       "footer.contact": "연락",
       "footer.privacy": "개인정보",
       "footer.terms": "약관",
-      "footer.bundle": "Bundle app.thescale.ios · iOS 18+",
+      "footer.ios": "iOS 18+",
     },
   };
 

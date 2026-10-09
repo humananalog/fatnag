@@ -3,7 +3,12 @@
 .full-deploy.json
 assets/shots/alice
 assets/shots/bob
+assets/shots/framed
 assets/shots/qa-review.html
 assets/shots/web
+assets/shots/recordings/app-preview-framed.mp4
 assets/shots/.gitkeep
+assets/device/iphone-13-pro-max-shell.png
+assets/device/iphone-14-pro-max-shell.png
+assets/device/iphone-frame-overlay.png
 **/.DS_Store

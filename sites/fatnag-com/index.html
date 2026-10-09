@@ -67,39 +67,20 @@
 
         <div class="device-stage" aria-hidden="true">
           <div class="device-glow"></div>
-          <div class="iphone17">
-            <div class="iphone17-frame">
-              <div class="iphone17-island"></div>
-              <div class="iphone17-screen">
-                <video
-                  class="hero-video"
-                  id="hero-video"
-                  poster="/assets/shots/recordings/hero-poster.jpg"
-                  autoplay
-                  muted
-                  loop
-                  playsinline
-                  preload="metadata"
-                  width="590"
-                  height="1278"
-                >
-                  <source src="/assets/shots/recordings/hero-preview.mp4" type="video/mp4" />
-                </video>
-                <img
-                  class="shot-img hero-fallback"
-                  src="/assets/shots/01-home.jpg"
-                  width="1179"
-                  height="2556"
-                  alt=""
-                  decoding="async"
-                  fetchpriority="high"
-                />
-              </div>
-            </div>
-            <div class="iphone17-btn iphone17-btn-silent"></div>
-            <div class="iphone17-btn iphone17-btn-vol-up"></div>
-            <div class="iphone17-btn iphone17-btn-vol-down"></div>
-            <div class="iphone17-btn iphone17-btn-power"></div>
+          <div class="device-hero" id="device-hero">
+            <img
+              class="device-img is-active"
+              src="/assets/shots/01-home-device.png"
+              width="720"
+              height="1489"
+              alt=""
+              decoding="async"
+              fetchpriority="high"
+              data-hero-shot
+            />
+            <img class="device-img" src="/assets/shots/02-weigh-device.png" width="720" height="1489" alt="" loading="lazy" decoding="async" data-hero-shot />
+            <img class="device-img" src="/assets/shots/03-progress-device.png" width="720" height="1489" alt="" loading="lazy" decoding="async" data-hero-shot />
+            <img class="device-img" src="/assets/shots/04-keel-device.png" width="720" height="1489" alt="" loading="lazy" decoding="async" data-hero-shot />
           </div>
         </div>
       </div>
@@ -136,22 +117,7 @@
             </ul>
           </div>
           <div class="feature-visual">
-            <div class="iphone17 iphone17-sm">
-              <div class="iphone17-frame">
-                <div class="iphone17-island"></div>
-                <div class="iphone17-screen">
-                  <img
-                    class="shot-img"
-                    src="/assets/shots/02-weigh.jpg"
-                    width="1284"
-                    height="2778"
-                    alt="Live weigh-in settled reading"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-              </div>
-            </div>
+            <img class="device-img static" src="/assets/shots/02-weigh-device.png" width="720" height="1489" alt="Live weigh-in settled reading" loading="lazy" decoding="async" />
           </div>
         </div>
 
@@ -166,22 +132,7 @@
             </ul>
           </div>
           <div class="feature-visual">
-            <div class="iphone17 iphone17-sm">
-              <div class="iphone17-frame">
-                <div class="iphone17-island"></div>
-                <div class="iphone17-screen">
-                  <img
-                    class="shot-img"
-                    src="/assets/shots/03-progress.jpg"
-                    width="1179"
-                    height="2556"
-                    alt="Weekly progress mid-week"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-              </div>
-            </div>
+            <img class="device-img static" src="/assets/shots/03-progress-device.png" width="720" height="1489" alt="Weekly progress mid-week" loading="lazy" decoding="async" />
           </div>
         </div>
       </div>
@@ -201,22 +152,7 @@
             </div>
           </div>
           <div class="feature-visual">
-            <div class="iphone17 iphone17-sm">
-              <div class="iphone17-frame">
-                <div class="iphone17-island"></div>
-                <div class="iphone17-screen">
-                  <img
-                    class="shot-img"
-                    src="/assets/shots/04-keel.jpg"
-                    width="1179"
-                    height="2556"
-                    alt="Keel coach conversation"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-              </div>
-            </div>
+            <img class="device-img static" src="/assets/shots/04-keel-device.png" width="720" height="1489" alt="Keel coach conversation" loading="lazy" decoding="async" />
           </div>
         </div>
       </div>
@@ -231,47 +167,19 @@
         </header>
         <div class="shots reveal">
           <figure class="shot-phone">
-            <div class="iphone17 iphone17-gallery">
-              <div class="iphone17-frame">
-                <div class="iphone17-island"></div>
-                <div class="iphone17-screen">
-                  <img class="shot-img" src="/assets/shots/01-home.jpg" width="1179" height="2556" alt="Weekly goal home" loading="lazy" decoding="async" />
-                </div>
-              </div>
-            </div>
+            <img class="device-img static" src="/assets/shots/01-home-device.png" width="720" height="1489" alt="Weekly goal home" loading="lazy" decoding="async" />
             <figcaption data-i18n="shots.cap.home">Home</figcaption>
           </figure>
           <figure class="shot-phone">
-            <div class="iphone17 iphone17-gallery">
-              <div class="iphone17-frame">
-                <div class="iphone17-island"></div>
-                <div class="iphone17-screen">
-                  <img class="shot-img" src="/assets/shots/02-weigh.jpg" width="1284" height="2778" alt="Live weigh-in" loading="lazy" decoding="async" />
-                </div>
-              </div>
-            </div>
+            <img class="device-img static" src="/assets/shots/02-weigh-device.png" width="720" height="1489" alt="Live weigh-in" loading="lazy" decoding="async" />
             <figcaption data-i18n="shots.cap.weigh">Weigh</figcaption>
           </figure>
           <figure class="shot-phone">
-            <div class="iphone17 iphone17-gallery">
-              <div class="iphone17-frame">
-                <div class="iphone17-island"></div>
-                <div class="iphone17-screen">
-                  <img class="shot-img" src="/assets/shots/03-progress.jpg" width="1179" height="2556" alt="Progress" loading="lazy" decoding="async" />
-                </div>
-              </div>
-            </div>
+            <img class="device-img static" src="/assets/shots/03-progress-device.png" width="720" height="1489" alt="Progress" loading="lazy" decoding="async" />
             <figcaption data-i18n="shots.cap.progress">Progress</figcaption>
           </figure>
           <figure class="shot-phone">
-            <div class="iphone17 iphone17-gallery">
-              <div class="iphone17-frame">
-                <div class="iphone17-island"></div>
-                <div class="iphone17-screen">
-                  <img class="shot-img" src="/assets/shots/04-keel.jpg" width="1179" height="2556" alt="Keel coach" loading="lazy" decoding="async" />
-                </div>
-              </div>
-            </div>
+            <img class="device-img static" src="/assets/shots/04-keel-device.png" width="720" height="1489" alt="Keel coach" loading="lazy" decoding="async" />
             <figcaption data-i18n="shots.cap.keel">Keel</figcaption>
           </figure>
         </div>
@@ -339,7 +247,7 @@
       </div>
       <div class="footer-bottom">
         <span>© <span id="y"></span> fatnag</span>
-        <span data-i18n="footer.bundle">Bundle app.thescale.ios · iOS 18+</span>
+        <span data-i18n="footer.ios">iOS 18+</span>
       </div>
     </div>
   </footer>

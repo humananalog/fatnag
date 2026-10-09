@@ -10,30 +10,19 @@
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
 
-  const video = document.getElementById("hero-video");
-  const screen = video?.closest(".iphone17-screen");
-  if (video && screen) {
-    const markPlaying = () => screen.classList.add("is-playing");
-    const tryPlay = () => {
-      const p = video.play();
-      if (p && typeof p.then === "function") {
-        p.then(markPlaying).catch(() => {
-          /* autoplay blocked — keep poster/fallback image */
-        });
-      }
-    };
-    video.addEventListener("playing", markPlaying);
-    if (video.readyState >= 2) tryPlay();
-    else video.addEventListener("loadeddata", tryPlay, { once: true });
+  const shots = Array.from(document.querySelectorAll("[data-hero-shot]"));
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (shots.length > 1 && !reduce) {
+    let i = 0;
+    setInterval(() => {
+      shots[i].classList.remove("is-active");
+      i = (i + 1) % shots.length;
+      shots[i].classList.add("is-active");
+    }, 3200);
   }
 
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduce) {
     document.querySelectorAll(".reveal").forEach((el) => el.classList.add("is-in"));
-    if (video) {
-      video.pause();
-      video.removeAttribute("autoplay");
-    }
     return;
   }
 

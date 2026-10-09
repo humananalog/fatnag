@@ -1,4 +1,4 @@
-/* fatnag promo — Apple-grade product site, iPhone 17 layouts */
+/* fatnag promo - Apple-grade product site */
 
 :root {
   --ink: #050507;
@@ -17,12 +17,6 @@
   --font-display: "Syne", "Arial Black", sans-serif;
   --font-body: "Figtree", "Helvetica Neue", sans-serif;
   --font-wordmark: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
-  /* iPhone 17 Pro Max–class (6.9") logical aspect */
-  --iphone-ratio: 440 / 956;
-  --iphone-radius: 21.5%;
-  --iphone-bezel: 0.85%;
-  --island-w: 26.5%;
-  --island-h: 2.85%;
 }
 
 *,
@@ -65,7 +59,7 @@ button {
   color: inherit;
 }
 
-/* Atmosphere — deep ink + forest glow (matches app dark home) */
+/* Atmosphere - deep ink + forest glow (matches app dark home) */
 .fired-bg {
   position: fixed;
   inset: 0;
@@ -342,20 +336,20 @@ html[dir="rtl"] .lang-picker select {
   vertical-align: 0.15rem;
 }
 
-/* ——— iPhone 17 device chrome ——— */
+/* Device mockups: real WithFrame iPhone 16 Pro PNGs (no CSS chrome) */
 .device-stage {
   position: relative;
-  min-height: 40rem;
+  min-height: 38rem;
   display: grid;
   place-items: center;
-  padding-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .device-glow {
   position: absolute;
   width: 90%;
   height: 55%;
-  bottom: 4%;
+  bottom: 8%;
   left: 5%;
   background: radial-gradient(ellipse, rgba(110, 200, 196, 0.22), transparent 70%);
   filter: blur(40px);
@@ -368,159 +362,48 @@ html[dir="rtl"] .lang-picker select {
   to { opacity: 1; transform: scale(1.08); }
 }
 
-.iphone17 {
-  --phone-w: min(100%, 318px);
+.device-hero {
   position: relative;
-  width: var(--phone-w);
-  aspect-ratio: var(--iphone-ratio);
-  transform: rotate(-3.5deg);
+  width: min(100%, 320px);
+  aspect-ratio: 720 / 1489;
+  transform: rotate(-3deg);
   animation: phone-in 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  filter: drop-shadow(0 32px 56px rgba(0, 0, 0, 0.5));
-}
-
-.iphone17-sm {
-  --phone-w: min(100%, 260px);
-  margin-inline: auto;
-  transform: none;
-  animation: none;
-  filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.45));
-}
-
-.iphone17-gallery {
-  --phone-w: 100%;
-  transform: none;
-  animation: none;
-  filter: drop-shadow(0 18px 36px rgba(0, 0, 0, 0.42));
+  filter: drop-shadow(0 28px 48px rgba(0, 0, 0, 0.55));
 }
 
 @keyframes phone-in {
   from { opacity: 0; transform: rotate(-7deg) translateY(12%) scale(0.96); }
-  to { opacity: 1; transform: rotate(-3.5deg) scale(1); }
+  to { opacity: 1; transform: rotate(-3deg) scale(1); }
 }
 
-.iphone17-frame {
-  position: absolute;
-  inset: 0;
-  border-radius: var(--iphone-radius);
-  background:
-    linear-gradient(155deg, #5a5a64 0%, #2a2a32 18%, #121218 55%, #1e1e24 82%, #3c3c46 100%);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.18),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  overflow: hidden;
-}
-
-.iphone17-frame::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: var(--iphone-bezel);
-  background: linear-gradient(180deg, #1a1a1f, #050507);
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-  z-index: 3;
-}
-
-.iphone17-island {
-  position: absolute;
-  top: 2.15%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: var(--island-w);
-  height: var(--island-h);
-  border-radius: 999px;
-  background: #000;
-  z-index: 4;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-
-.iphone17-island::after {
-  content: "";
-  position: absolute;
-  right: 18%;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 22%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #1a2430 0%, #05080c 70%);
-  box-shadow: inset 0 0 0 1px rgba(110, 200, 196, 0.15);
-}
-
-.iphone17-screen {
-  position: absolute;
-  inset: var(--iphone-bezel);
-  border-radius: calc(var(--iphone-radius) - 1.5%);
-  overflow: hidden;
-  background: #000;
-}
-
-.iphone17-screen .shot-img,
-.iphone17-screen .hero-video {
+.device-hero .device-img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: top center;
-}
-
-.iphone17-screen .hero-video {
-  z-index: 2;
-}
-
-.iphone17-screen .hero-fallback {
-  z-index: 1;
-}
-
-.iphone17-screen.is-playing .hero-fallback {
+  object-fit: contain;
   opacity: 0;
-  pointer-events: none;
+  transition: opacity 0.7s ease;
 }
 
-/* Hardware buttons */
-.iphone17-btn {
-  position: absolute;
-  background: linear-gradient(90deg, #2a2a30, #121216);
-  border-radius: 2px;
-  z-index: 0;
+.device-hero .device-img.is-active {
+  opacity: 1;
 }
 
-.iphone17-btn-silent {
-  left: -2px;
-  top: 18%;
-  width: 3px;
-  height: 4.5%;
+.device-img.static {
+  width: min(100%, 280px);
+  height: auto;
+  margin-inline: auto;
+  filter: drop-shadow(0 22px 40px rgba(0, 0, 0, 0.48));
 }
 
-.iphone17-btn-vol-up {
-  left: -2px;
-  top: 26%;
-  width: 3px;
-  height: 7%;
+.feature-visual .device-img.static {
+  width: min(100%, 260px);
 }
 
-.iphone17-btn-vol-down {
-  left: -2px;
-  top: 35%;
-  width: 3px;
-  height: 7%;
-}
-
-.iphone17-btn-power {
-  right: -2px;
-  top: 28%;
-  width: 3px;
-  height: 11%;
+.shot-phone .device-img.static {
+  width: 100%;
+  filter: drop-shadow(0 16px 28px rgba(0, 0, 0, 0.42));
 }
 
 /* Sections */
@@ -822,7 +705,7 @@ section {
 
 @media (prefers-reduced-motion: reduce) {
   .fired-bg::after,
-  .iphone17,
+  .device-hero,
   .device-glow {
     animation: none !important;
   }
@@ -869,13 +752,17 @@ section {
   }
 
   .device-stage {
-    min-height: 32rem;
+    min-height: 30rem;
     order: -1;
   }
 
-  .iphone17 {
-    --phone-w: min(100%, 248px);
+  .device-hero {
+    width: min(100%, 248px);
     transform: rotate(-2.5deg);
+  }
+
+  .feature-visual .device-img.static {
+    width: min(100%, 220px);
   }
 
   @keyframes phone-in {
@@ -892,9 +779,5 @@ section {
 
   .wrap {
     width: min(var(--max), calc(100% - 1.5rem));
-  }
-
-  .iphone17-sm {
-    --phone-w: min(100%, 220px);
   }
 }

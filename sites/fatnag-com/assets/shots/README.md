@@ -1,16 +1,14 @@
-# Promo screenshots & hero video
+# Promo screenshots
 
-| File | Surface |
-|------|---------|
-| `01-home.jpg` | Dark home — Sunday target + gauges |
-| `02-weigh.jpg` | Settled live weigh sheet |
-| `03-progress.jpg` | Mid-week progress |
-| `04-keel.jpg` | Keel coach chat |
-| `recordings/hero-preview.mp4` | Muted 30s portrait app preview (hero) |
-| `recordings/hero-poster.jpg` | Video poster frame |
+Source stills: `TheScale/docs/operations/asc-screenshots/iphone-6.5/simulator/`
 
-Site uses the `.jpg` web exports at the shots root. PNG masters for QA live in `bob/`, `alice/`, and `qa-review.html`.
+| Web asset | Source |
+|-----------|--------|
+| `01-home-device.png` | `IMG_8305 2.PNG` |
+| `02-weigh-device.png` | `02-weigh.png` |
+| `03-progress-device.png` | `IMG_8306 2.PNG` |
+| `04-keel-device.png` | `IMG_8307 2.PNG` |
 
-Phones on the site use an iPhone 17–style Dynamic Island frame (CSS).
+Device chrome: free [WithFrame](https://withfra.me/shot/iphone-16-pro) iPhone 16 Pro black titanium frame, composited locally (see `../device/README.md`).
 
-Regenerate stills: `./sites/fatnag-com/scripts/capture-promo-shots.sh`
+JPG siblings are dark-background fallbacks for Open Graph.
