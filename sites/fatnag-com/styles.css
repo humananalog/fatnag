@@ -367,7 +367,6 @@ html[dir="rtl"] .lang-picker select {
   width: min(100%, 340px);
   aspect-ratio: 720 / 1498;
   animation: phone-in 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-  filter: drop-shadow(0 28px 48px rgba(0, 0, 0, 0.55));
 }
 
 @keyframes phone-in {
@@ -383,6 +382,9 @@ html[dir="rtl"] .lang-picker select {
   object-position: center center;
   background: transparent;
   border: 0;
+  /* Drop black letterbox corners into the dark hero (video is a rounded phone on black). */
+  mix-blend-mode: lighten;
+  filter: drop-shadow(0 28px 48px rgba(0, 0, 0, 0.55));
 }
 
 .device-img.static {
