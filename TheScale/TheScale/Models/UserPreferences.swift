@@ -245,6 +245,53 @@ enum WeeklyMiniGoalStore {
     }
 }
 
+/// When true, FATNAG always hunts Bluetooth scales even if Health already has a synced scale.
+enum WeighInputPreferenceStore {
+    private static let forceBluetoothKey = "thescale.forceBluetoothScale"
+    private static let lastSignalKey = "thescale.lastHealthSyncedScaleSignal"
+
+    /// User override: keep Mi Scale / BLE mode despite Health-synced scale detection.
+    static var forceBluetoothScale: Bool {
+        get { UserDefaults.standard.bool(forKey: forceBluetoothKey) }
+        set { UserDefaults.standard.set(newValue, forKey: forceBluetoothKey) }
+    }
+
+    /// Last positive Health-synced scale detection (survives soft Health read failures).
+    static var lastHealthSyncedScaleSignal: HealthSyncedScaleSignal {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: lastSignalKey),
+                  let decoded = try? JSONDecoder().decode(Persisted.self, from: data),
+                  decoded.isLikely
+            else { return .none }
+            return HealthSyncedScaleSignal(
+                isLikely: true,
+                primarySourceName: decoded.primarySourceName,
+                primaryBundleId: decoded.primaryBundleId
+            )
+        }
+        set {
+            if newValue.isLikely {
+                let payload = Persisted(
+                    isLikely: true,
+                    primarySourceName: newValue.primarySourceName,
+                    primaryBundleId: newValue.primaryBundleId
+                )
+                if let data = try? JSONEncoder().encode(payload) {
+                    UserDefaults.standard.set(data, forKey: lastSignalKey)
+                }
+            } else {
+                UserDefaults.standard.removeObject(forKey: lastSignalKey)
+            }
+        }
+    }
+
+    private struct Persisted: Codable {
+        var isLikely: Bool
+        var primarySourceName: String?
+        var primaryBundleId: String?
+    }
+}
+
 enum OnboardingStore {
     private static let key = "thescale.hasCompletedOnboarding"
 

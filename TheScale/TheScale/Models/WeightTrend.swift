@@ -153,10 +153,22 @@ struct HealthWeightSample: Equatable, Identifiable, Sendable {
     let id: UUID
     let weightKg: Double
     let date: Date
+    /// HealthKit `sourceRevision.source.name` when available (e.g. "Withings").
+    let sourceName: String?
+    /// HealthKit `sourceRevision.source.bundleIdentifier` when available.
+    let sourceBundleId: String?
 
-    init(id: UUID = UUID(), weightKg: Double, date: Date) {
+    init(
+        id: UUID = UUID(),
+        weightKg: Double,
+        date: Date,
+        sourceName: String? = nil,
+        sourceBundleId: String? = nil
+    ) {
         self.id = id
         self.weightKg = weightKg
         self.date = date
+        self.sourceName = sourceName
+        self.sourceBundleId = sourceBundleId
     }
 }

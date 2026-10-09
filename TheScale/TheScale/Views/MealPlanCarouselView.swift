@@ -83,7 +83,7 @@ struct MealPlanCarouselView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(AppLanguageStore.text("common.weigh", default: "Weigh")) {
                         session.selectHomeTab(.weigh)
-                        session.beginScaleDetection()
+                        session.beginPrimaryWeighAction()
                     }
                     .foregroundStyle(accent)
                 }

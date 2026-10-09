@@ -362,9 +362,12 @@ struct ContentView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if session.shouldShowWeighNowCTA {
                     Button {
-                        session.beginScaleDetection()
+                        session.beginPrimaryWeighAction()
                     } label: {
-                        Label(session.weighNowCTATitle, systemImage: "scalemass.fill")
+                        Label(
+                            session.weighNowCTATitle,
+                            systemImage: session.usesBluetoothScaleMode ? "scalemass.fill" : "square.and.pencil"
+                        )
                     }
                     .buttonStyle(ScalePrimaryButtonStyle(accent: atmosphere.accent))
                     .padding(.horizontal, ScaleLayout.pageInset)

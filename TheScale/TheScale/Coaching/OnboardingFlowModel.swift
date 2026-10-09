@@ -129,9 +129,15 @@ final class OnboardingFlowModel: ObservableObject {
         case .anatomy: return isInferring
             ? AppLanguageStore.text("onboarding.cta.filling", default: "Filling profile…")
             : AppLanguageStore.text("onboarding.cta.next", default: "Next")
-        case .confirm: return AppLanguageStore.text("onboarding.cta.start", default: "Start weighing")
+        case .confirm:
+            return prefersHealthSyncedStart
+                ? AppLanguageStore.text("onboarding.cta.start_health", default: "Get started")
+                : AppLanguageStore.text("onboarding.cta.start", default: "Start weighing")
         }
     }
+
+    /// When true, confirm CTA avoids implying a Bluetooth scale hunt.
+    var prefersHealthSyncedStart = false
 
     /// Diet chosen, avoidances typed, or a city entered.
     var hasLifestyleInput: Bool {

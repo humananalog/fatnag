@@ -1583,6 +1583,36 @@ struct SettingsView: View {
     private var calibrationCard: some View {
         settingsPanel {
             VStack(alignment: .leading, spacing: 14) {
+                if session.healthSyncedScaleSignal.isLikely {
+                    Label(
+                        AppLanguageStore.text("settings.health_scale.title", default: "Health-synced scale"),
+                        systemImage: "heart.text.square"
+                    )
+                    .font(.headline)
+                    .foregroundStyle(ink)
+                    Text(
+                        String(
+                            format: AppLanguageStore.text(
+                                "settings.health_scale.help",
+                                default: "Apple Health already gets weights from %@. FATNAG skips Bluetooth hunting so you stay on that path."
+                            ),
+                            session.healthSyncedScaleDisplayName
+                        )
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(steel)
+                    Toggle(
+                        AppLanguageStore.text(
+                            "settings.health_scale.force_bluetooth",
+                            default: "Use Bluetooth scale with FATNAG"
+                        ),
+                        isOn: $session.forceBluetoothScale
+                    )
+                    .tint(accent)
+                    .accessibilityIdentifier("settings.forceBluetoothScale")
+                    Divider().padding(.vertical, 2)
+                }
+
                 Label(AppLanguageStore.text("settings.calibration", default: "Weight calibration"), systemImage: "slider.horizontal.3")
                     .font(.headline)
                     .foregroundStyle(ink)
@@ -1818,6 +1848,7 @@ struct SettingsView: View {
                     .foregroundStyle(steel)
 
                 #if DEBUG
+                if ScaleDeveloperGate.showsDevSettings {
                 Divider().padding(.vertical, 2)
 
                 Text("Debug · Home Today")
@@ -1901,6 +1932,7 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier("settings.debugMonthlyHero")
+                }
                 #endif
 
                 if let dataRightsNote {
@@ -2044,7 +2076,7 @@ enum SettingsSearchCatalog {
         Hit(id: "settings.vibe", title: "Vibe", section: "Coach", keywords: "vibe style tone"),
         Hit(id: "settings.notifications", title: "Notifications", section: "Alerts & Health", keywords: "alerts notifications reminders"),
         Hit(id: "settings.fitness", title: "Fitness monitor", section: "Alerts & Health", keywords: "fitness steps heart health"),
-        Hit(id: "settings.scale", title: "Weight calibration", section: "Scale", keywords: "scale calibration offset factor"),
+        Hit(id: "settings.scale", title: "Weight calibration", section: "Scale", keywords: "scale calibration offset factor bluetooth health withings renpho"),
         Hit(id: "settings.privacy", title: "Export and erase", section: "Privacy & Legal", keywords: "export erase delete privacy data"),
         Hit(id: "settings.legal", title: "Legal", section: "Privacy & Legal", keywords: "legal terms privacy policy"),
         Hit(id: "settings.feedback", title: "Feedback", section: "Help", keywords: "feedback bug"),
@@ -2060,6 +2092,9 @@ enum SettingsSearchCatalog {
             .map(String.init)
         guard !tokens.isEmpty else { return [] }
         return hits.filter { hit in
+            if hit.id == "settings.demo", !ScaleDeveloperGate.showsDevSettings {
+                return false
+            }
             let hay = "\(hit.title) \(hit.section) \(hit.keywords)".lowercased()
             return tokens.allSatisfy { hay.contains($0) }
         }

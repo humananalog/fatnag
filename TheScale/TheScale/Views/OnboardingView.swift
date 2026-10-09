@@ -239,9 +239,11 @@ struct OnboardingView: View {
     private func resolveHealthWeightIfNeeded() async {
         guard flow.step == .anatomy, !healthWeightResolved else { return }
         dismissKeyboard()
+        await session.refreshHealthBaseline()
         let sample = await session.latestHealthBodyMass()
         guard !Task.isCancelled, flow.step == .anatomy else { return }
         healthWeightResolved = true
+        flow.prefersHealthSyncedStart = session.healthSyncedScaleSignal.isLikely
         guard let sample else { return }
         healthWeight = sample
         if !OnboardingFlowModel.weightNeedsScale(lastSample: sample.date) {
@@ -576,15 +578,7 @@ struct OnboardingView: View {
                         .font(.system(size: 40, weight: .bold, design: .rounded))
                         .foregroundStyle(ink)
                         .monospacedDigit()
-                    Text(
-                        String(
-                            format: AppLanguageStore.text(
-                                "onboarding.anatomy.from_health",
-                                default: "From Health · %@"
-                            ),
-                            relativeWeigh(sample.date)
-                        )
-                    )
+                    Text(healthWeightCaption(for: sample.date))
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(moss)
                     Button(AppLanguageStore.text("onboarding.anatomy.change_weight", default: "Change")) {
@@ -606,6 +600,27 @@ struct OnboardingView: View {
         formatter.locale = flow.appLanguage.locale
         formatter.unitsStyle = .full
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    private func healthWeightCaption(for date: Date) -> String {
+        let relative = relativeWeigh(date)
+        if flow.prefersHealthSyncedStart {
+            return String(
+                format: AppLanguageStore.text(
+                    "onboarding.anatomy.from_health_scale",
+                    default: "From %@ · %@"
+                ),
+                session.healthSyncedScaleDisplayName,
+                relative
+            )
+        }
+        return String(
+            format: AppLanguageStore.text(
+                "onboarding.anatomy.from_health",
+                default: "From Health · %@"
+            ),
+            relative
+        )
     }
 
     // MARK: - Dream

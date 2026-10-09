@@ -209,6 +209,20 @@ final class ScaleSessionViewModel: ObservableObject {
     @Published private(set) var lastRawWeightKg: Double?
     /// Optional manual raw kg typed in Settings when BLE reading is unavailable.
     @Published var manualCalibrationRawKg: Double?
+    /// HealthKit looks like a third-party scale already syncs weight (Withings, Renpho, …).
+    @Published private(set) var healthSyncedScaleSignal: HealthSyncedScaleSignal =
+        WeighInputPreferenceStore.lastHealthSyncedScaleSignal
+    /// Settings override: hunt Bluetooth even when Health already has a synced scale.
+    @Published var forceBluetoothScale: Bool = WeighInputPreferenceStore.forceBluetoothScale {
+        didSet {
+            WeighInputPreferenceStore.forceBluetoothScale = forceBluetoothScale
+            if forceBluetoothScale {
+                startPassiveListening()
+            } else if !usesBluetoothScaleMode {
+                stopPassiveBluetoothListening()
+            }
+        }
+    }
 
     private let scanner: ScaleScanning
     private let healthStore: HealthWriting
@@ -380,9 +394,27 @@ final class ScaleSessionViewModel: ObservableObject {
         Task { await refreshHealthBaseline() }
     }
 
+    /// True when home / Weigh Now should hunt a Bluetooth body scale.
+    /// False when Health already shows a synced third-party scale (unless user forces BLE).
+    var usesBluetoothScaleMode: Bool {
+        if forceBluetoothScale { return true }
+        return !healthSyncedScaleSignal.isLikely
+    }
+
+    /// Display name for Settings / CTA when a Health-synced scale was detected.
+    var healthSyncedScaleDisplayName: String {
+        healthSyncedScaleSignal.primarySourceName
+            ?? AppLanguageStore.text("health.synced_scale.generic", default: "your Health scale")
+    }
+
     /// Passive BLE listen on home. Always re-arms Core Bluetooth (iOS drops scans in the background).
     /// A stabilized scale broadcast auto-opens the live card at any hour, including after a morning weigh.
+    /// Skipped when the user already syncs weight via a Health-connected scale app.
     func startPassiveListening() {
+        guard usesBluetoothScaleMode else {
+            stopPassiveBluetoothListening()
+            return
+        }
         weighInPurpose = .normal
         if !isWeighInPresented {
             switch phase {
@@ -397,6 +429,36 @@ final class ScaleSessionViewModel: ObservableObject {
             }
         }
         scanner.startScanning()
+    }
+
+    /// Stop BLE scan when Health-synced routing is active (or user left Bluetooth mode).
+    func stopPassiveBluetoothListening() {
+        scanner.stop()
+        guard !isWeighInPresented else { return }
+        switch phase {
+        case .scanning, .listening, .measuring, .awaitingImpedance:
+            phase = .idle
+            if healthSyncedScaleSignal.isLikely {
+                liveHint = String(
+                    format: AppLanguageStore.text(
+                        "health.synced_scale.hint",
+                        default: "Weights sync from %@. Log here only when needed."
+                    ),
+                    healthSyncedScaleDisplayName
+                )
+            }
+        default:
+            break
+        }
+    }
+
+    /// Home Weigh Now / Weigh again: BLE live sheet, or Manual when Health already owns the scale.
+    func beginPrimaryWeighAction() {
+        if usesBluetoothScaleMode {
+            beginScaleDetection()
+        } else {
+            presentManualEntry()
+        }
     }
 
     /// User-triggered scale hunt: open the live sheet and scan immediately.
@@ -452,7 +514,7 @@ final class ScaleSessionViewModel: ObservableObject {
     }
 
     func reopenWeighIn() {
-        beginScaleDetection()
+        beginPrimaryWeighAction()
     }
 
     /// Primary calibration path: same live sheet as weigh-in, after the user sets reference mass.
@@ -2335,7 +2397,12 @@ final class ScaleSessionViewModel: ObservableObject {
     var shouldShowWeighNowCTA: Bool { true }
 
     var weighNowCTATitle: String {
-        alreadyWeighedToday
+        if !usesBluetoothScaleMode {
+            return alreadyWeighedToday
+                ? AppLanguageStore.text("home.log_again", default: "Log again")
+                : AppLanguageStore.text("home.log_weight", default: "Log weight")
+        }
+        return alreadyWeighedToday
             ? AppLanguageStore.text("home.weigh_again", default: "Weigh again")
             : AppLanguageStore.text("home.weigh_now", default: "Weigh now")
     }
@@ -3203,6 +3270,7 @@ final class ScaleSessionViewModel: ObservableObject {
         guard healthKitAvailable else {
             recentHealthWeights = []
             healthBaselineKg = nil
+            applyHealthSyncedScaleSignal(.none)
             refreshAlreadyWeighedToday()
             return
         }
@@ -3211,11 +3279,39 @@ final class ScaleSessionViewModel: ObservableObject {
             let samples = try await healthStore.fetchRecentWeights(limit: 14)
             recentHealthWeights = samples
             healthBaselineKg = samples.first?.weightKg
+            applyHealthSyncedScaleSignal(HealthSyncedScaleDetector.evaluate(samples: samples))
         } catch {
             // Soft-fail: trend stays unknown; weigh-in still works.
             liveHint = "Health history unavailable: \(error.localizedDescription)"
         }
         refreshAlreadyWeighedToday()
+    }
+
+    /// Recompute Health-synced scale routing from the latest weight samples.
+    func applyHealthSyncedScaleSignal(_ signal: HealthSyncedScaleSignal) {
+        let wasBluetooth = usesBluetoothScaleMode
+        // Keep last positive detection when a soft Health read returns empty/unknown sources.
+        let resolved: HealthSyncedScaleSignal
+        if signal.isLikely {
+            resolved = signal
+            WeighInputPreferenceStore.lastHealthSyncedScaleSignal = signal
+        } else if !recentHealthWeights.isEmpty,
+                  recentHealthWeights.contains(where: {
+                      ($0.sourceBundleId?.isEmpty == false) || ($0.sourceName?.isEmpty == false)
+                  }) {
+            // We had sourced samples and none look like a synced scale → clear.
+            resolved = .none
+            WeighInputPreferenceStore.lastHealthSyncedScaleSignal = .none
+        } else {
+            resolved = WeighInputPreferenceStore.lastHealthSyncedScaleSignal
+        }
+        healthSyncedScaleSignal = resolved
+        let nowBluetooth = usesBluetoothScaleMode
+        if wasBluetooth, !nowBluetooth {
+            stopPassiveBluetoothListening()
+        } else if !wasBluetooth, nowBluetooth {
+            startPassiveListening()
+        }
     }
 
     func saveDraftToHealth() async {
@@ -3626,6 +3722,7 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
 
         // Auto-focus strongest scale while passively listening. Do NOT present the sheet
         // on advertisement alone (that caused flicker / races with decode).
+        guard usesBluetoothScaleMode else { return }
         if selectedScaleID == nil,
            !isWeighInPresented,
            !blocksBLEAutoPresent,
@@ -3637,9 +3734,12 @@ extension ScaleSessionViewModel: ScaleScannerDelegate {
     }
 
     private func handleDecode(_ measurement: ScaleMeasurement) {
+        guard usesBluetoothScaleMode || isWeighInPresented || weighInPurpose == .calibration else {
+            return
+        }
         let calibratedKg = calibration.apply(toRawKg: measurement.weightKg)
         let cooldownActive = autoSheetCooldownUntil.map { Date() < $0 } ?? false
-        let shouldOpen = Self.shouldAutoPresentLiveSheet(
+        let shouldOpen = usesBluetoothScaleMode && Self.shouldAutoPresentLiveSheet(
             isAlreadyPresented: isWeighInPresented,
             isAutoPresenting: isAutoPresentingSheet,
             purpose: weighInPurpose,

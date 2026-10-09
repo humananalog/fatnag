@@ -213,10 +213,13 @@ final class HealthKitWriter: HealthWriting {
                 }
                 let unit = HKUnit.gramUnit(with: .kilo)
                 let mapped: [HealthWeightSample] = (samples as? [HKQuantitySample] ?? []).map { sample in
-                    HealthWeightSample(
+                    let source = sample.sourceRevision.source
+                    return HealthWeightSample(
                         id: sample.uuid,
                         weightKg: sample.quantity.doubleValue(for: unit),
-                        date: sample.endDate
+                        date: sample.endDate,
+                        sourceName: source.name,
+                        sourceBundleId: source.bundleIdentifier
                     )
                 }
                 continuation.resume(returning: mapped)
