@@ -15,9 +15,17 @@
   if (heroVideo) {
     if (reduce) {
       heroVideo.removeAttribute("autoplay");
+      heroVideo.removeAttribute("loop");
       heroVideo.pause();
     } else {
+      heroVideo.loop = true;
+      heroVideo.muted = true;
       const play = () => heroVideo.play().catch(() => {});
+      // Some browsers drop native loop on webm/mp4 — force restart.
+      heroVideo.addEventListener("ended", () => {
+        heroVideo.currentTime = 0;
+        play();
+      });
       play();
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") play();
