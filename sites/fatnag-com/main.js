@@ -12,12 +12,19 @@
 
   const shots = Array.from(document.querySelectorAll("[data-hero-shot]"));
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (shots.length) {
+    shots.forEach((img, idx) => img.classList.toggle("is-active", idx === 0));
+  }
   if (shots.length > 1 && !reduce) {
     let i = 0;
     setInterval(() => {
-      shots[i].classList.remove("is-active");
+      const prev = i;
       i = (i + 1) % shots.length;
       shots[i].classList.add("is-active");
+      // Swap after paint so one shot stays fully opaque during the crossfade.
+      requestAnimationFrame(() => {
+        shots[prev].classList.remove("is-active");
+      });
     }, 3200);
   }
 

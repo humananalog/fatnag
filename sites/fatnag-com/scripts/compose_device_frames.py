@@ -18,11 +18,12 @@ SIM = ROOT.parents[1] / "TheScale/docs/operations/asc-screenshots/iphone-6.5/sim
 OUT = ROOT / "assets/shots"
 FRAMED = OUT / "framed"
 
+# Prefer dark simulator captures; fall back to full numbered shots when IMG set skips a screen.
 SOURCES = {
-    "01-home": SIM / "IMG_8305 2.PNG",
-    "02-weigh": SIM / "IMG_8306 2.PNG",
-    "03-progress": SIM / "IMG_8307 2.PNG",
-    "04-keel": SIM / "05-coach.png",
+    "01-home": SIM / "IMG_8305 2.PNG",  # home
+    "02-weigh": SIM / "02-weigh.png",  # live weigh (IMG set has no weigh)
+    "03-progress": SIM / "IMG_8306 2.PNG",  # progress
+    "04-keel": SIM / "05-coach.png",  # coach / Keel with full tab bar
 }
 
 WEB_WIDTH = 700
