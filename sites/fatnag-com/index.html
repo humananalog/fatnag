@@ -67,19 +67,39 @@
 
         <div class="device-stage" aria-hidden="true">
           <div class="device-glow"></div>
-          <div class="phone">
-            <div class="phone-notch"></div>
-            <div class="phone-screen has-shot">
-              <img
-                class="shot-img"
-                src="/assets/shots/01-home.jpg"
-                width="390"
-                height="844"
-                alt="fatnag home - weekly goal and gauges"
-                decoding="async"
-                fetchpriority="high"
-              />
+          <div class="iphone17">
+            <div class="iphone17-frame">
+              <div class="iphone17-island"></div>
+              <div class="iphone17-screen">
+                <video
+                  class="hero-video"
+                  id="hero-video"
+                  poster="/assets/shots/recordings/hero-poster.jpg"
+                  autoplay
+                  muted
+                  loop
+                  playsinline
+                  preload="metadata"
+                  width="590"
+                  height="1278"
+                >
+                  <source src="/assets/shots/recordings/hero-preview.mp4" type="video/mp4" />
+                </video>
+                <img
+                  class="shot-img hero-fallback"
+                  src="/assets/shots/01-home.jpg"
+                  width="1179"
+                  height="2556"
+                  alt=""
+                  decoding="async"
+                  fetchpriority="high"
+                />
+              </div>
             </div>
+            <div class="iphone17-btn iphone17-btn-silent"></div>
+            <div class="iphone17-btn iphone17-btn-vol-up"></div>
+            <div class="iphone17-btn iphone17-btn-vol-down"></div>
+            <div class="iphone17-btn iphone17-btn-power"></div>
           </div>
         </div>
       </div>
@@ -116,22 +136,26 @@
             </ul>
           </div>
           <div class="feature-visual">
-            <div class="shot-card has-shot">
-              <span class="shot-badge">Live</span>
-              <img
-                class="shot-img"
-                src="/assets/shots/02-weigh.jpg"
-                width="390"
-                height="844"
-                alt="Live weigh-in settled reading"
-                loading="lazy"
-                decoding="async"
-              />
+            <div class="iphone17 iphone17-sm">
+              <div class="iphone17-frame">
+                <div class="iphone17-island"></div>
+                <div class="iphone17-screen">
+                  <img
+                    class="shot-img"
+                    src="/assets/shots/02-weigh.jpg"
+                    width="1284"
+                    height="2778"
+                    alt="Live weigh-in settled reading"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="feature reveal" style="margin-top: 4rem;">
+        <div class="feature reveal feature-flip">
           <div class="feature-copy">
             <h3 data-i18n="how.f2.title">Win the week, not the hour.</h3>
             <p data-i18n="how.f2.body">Horizon arc, daily energy / protein / steps, and a today-ahead line that tells you what actually matters before Sunday.</p>
@@ -142,17 +166,21 @@
             </ul>
           </div>
           <div class="feature-visual">
-            <div class="shot-card has-shot">
-              <span class="shot-badge">Charts</span>
-              <img
-                class="shot-img"
-                src="/assets/shots/03-progress.jpg"
-                width="390"
-                height="844"
-                alt="Weight history charts with losses"
-                loading="lazy"
-                decoding="async"
-              />
+            <div class="iphone17 iphone17-sm">
+              <div class="iphone17-frame">
+                <div class="iphone17-island"></div>
+                <div class="iphone17-screen">
+                  <img
+                    class="shot-img"
+                    src="/assets/shots/03-progress.jpg"
+                    width="1179"
+                    height="2556"
+                    alt="Weekly progress mid-week"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -166,24 +194,28 @@
             <p class="section-kicker" data-i18n="keel.kicker">Keel coach</p>
             <h2 class="section-title" data-i18n="keel.title">Live pressure. Weekly credits.</h2>
             <p data-i18n="keel.body">Keel is the only voice you talk to - blunt, local-language humour, no multi-agent dump. Free / Plus / Pro caps keep chat from becoming a coping hobby.</p>
-            <p style="margin-top: 1rem;" data-i18n="keel.aside">On-device polish when Apple Intelligence is around. Optional Grok when you consent. Never a medical device.</p>
-            <div class="quote-block" style="margin-top: 1.5rem;">
+            <p class="feature-aside" data-i18n="keel.aside">On-device polish when Apple Intelligence is around. Optional Grok when you consent. Never a medical device.</p>
+            <div class="quote-block">
               <span data-i18n="keel.quote1">Lie to yourself and you get offended.</span><br />
               <span data-i18n="keel.quote2">Good. That is the point.</span>
             </div>
           </div>
           <div class="feature-visual">
-            <div class="shot-card has-shot">
-              <span class="shot-badge">Alerts</span>
-              <img
-                class="shot-img"
-                src="/assets/shots/04-keel.jpg"
-                width="390"
-                height="844"
-                alt="Coach roast alerts"
-                loading="lazy"
-                decoding="async"
-              />
+            <div class="iphone17 iphone17-sm">
+              <div class="iphone17-frame">
+                <div class="iphone17-island"></div>
+                <div class="iphone17-screen">
+                  <img
+                    class="shot-img"
+                    src="/assets/shots/04-keel.jpg"
+                    width="1179"
+                    height="2556"
+                    alt="Keel coach conversation"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -195,25 +227,53 @@
         <header class="section-head reveal">
           <p class="section-kicker" data-i18n="shots.kicker">Product</p>
           <h2 class="section-title" data-i18n="shots.title">The app, not the pitch deck.</h2>
-          <p class="section-lead" data-i18n="shots.lead">Home, live weigh, charts, and roast alerts - real Simulator captures.</p>
+          <p class="section-lead" data-i18n="shots.lead">Home, live weigh, progress, and Keel - captured on iPhone.</p>
         </header>
         <div class="shots reveal">
-          <article class="shot-card has-shot">
-            <span class="shot-badge">01 Home</span>
-            <img class="shot-img" src="/assets/shots/01-home.jpg" width="390" height="844" alt="Weekly goal home" loading="lazy" decoding="async" />
-          </article>
-          <article class="shot-card has-shot">
-            <span class="shot-badge">02 Weigh</span>
-            <img class="shot-img" src="/assets/shots/02-weigh.jpg" width="390" height="844" alt="Live weigh-in" loading="lazy" decoding="async" />
-          </article>
-          <article class="shot-card has-shot">
-            <span class="shot-badge">03 Charts</span>
-            <img class="shot-img" src="/assets/shots/03-progress.jpg" width="390" height="844" alt="Progress charts" loading="lazy" decoding="async" />
-          </article>
-          <article class="shot-card has-shot">
-            <span class="shot-badge">04 Alerts</span>
-            <img class="shot-img" src="/assets/shots/04-keel.jpg" width="390" height="844" alt="Coach roast alerts" loading="lazy" decoding="async" />
-          </article>
+          <figure class="shot-phone">
+            <div class="iphone17 iphone17-gallery">
+              <div class="iphone17-frame">
+                <div class="iphone17-island"></div>
+                <div class="iphone17-screen">
+                  <img class="shot-img" src="/assets/shots/01-home.jpg" width="1179" height="2556" alt="Weekly goal home" loading="lazy" decoding="async" />
+                </div>
+              </div>
+            </div>
+            <figcaption data-i18n="shots.cap.home">Home</figcaption>
+          </figure>
+          <figure class="shot-phone">
+            <div class="iphone17 iphone17-gallery">
+              <div class="iphone17-frame">
+                <div class="iphone17-island"></div>
+                <div class="iphone17-screen">
+                  <img class="shot-img" src="/assets/shots/02-weigh.jpg" width="1284" height="2778" alt="Live weigh-in" loading="lazy" decoding="async" />
+                </div>
+              </div>
+            </div>
+            <figcaption data-i18n="shots.cap.weigh">Weigh</figcaption>
+          </figure>
+          <figure class="shot-phone">
+            <div class="iphone17 iphone17-gallery">
+              <div class="iphone17-frame">
+                <div class="iphone17-island"></div>
+                <div class="iphone17-screen">
+                  <img class="shot-img" src="/assets/shots/03-progress.jpg" width="1179" height="2556" alt="Progress" loading="lazy" decoding="async" />
+                </div>
+              </div>
+            </div>
+            <figcaption data-i18n="shots.cap.progress">Progress</figcaption>
+          </figure>
+          <figure class="shot-phone">
+            <div class="iphone17 iphone17-gallery">
+              <div class="iphone17-frame">
+                <div class="iphone17-island"></div>
+                <div class="iphone17-screen">
+                  <img class="shot-img" src="/assets/shots/04-keel.jpg" width="1179" height="2556" alt="Keel coach" loading="lazy" decoding="async" />
+                </div>
+              </div>
+            </div>
+            <figcaption data-i18n="shots.cap.keel">Keel</figcaption>
+          </figure>
         </div>
       </div>
     </section>
@@ -226,9 +286,9 @@
             <h2 class="section-title" data-i18n="privacy.title">Most of it never leaves the phone.</h2>
             <p data-i18n="privacy.body">Weigh-ins, profile, charts, and local coaching stay on-device. Keel only gets what you consent to send. We do not sell your data. No ad networks.</p>
           </div>
-          <div>
+          <div class="strip-actions">
             <a class="btn btn-ghost" href="/privacy/" data-i18n="privacy.policy">Privacy Policy</a>
-            <a class="btn btn-ghost" href="/terms/" style="margin-left: 0.5rem;" data-i18n="privacy.terms">Terms</a>
+            <a class="btn btn-ghost" href="/terms/" data-i18n="privacy.terms">Terms</a>
           </div>
         </div>
       </div>
@@ -252,7 +312,7 @@
       <div class="footer-grid">
         <div>
           <div class="wordmark"><span class="fat">fat</span><span class="nag">nag</span></div>
-          <p data-i18n="footer.tag">Nag until the fat folds. Human Analog Limited. Not a medical device.</p>
+          <p data-i18n="footer.tag">Nag until the fat folds. Not a medical device.</p>
         </div>
         <div>
           <h4 data-i18n="footer.product">Product</h4>
@@ -266,7 +326,7 @@
           <h4 data-i18n="footer.support">Support</h4>
           <ul>
             <li><a href="/support/" data-i18n="footer.help">Help</a></li>
-            <li><a href="mailto:privacy@humananalog.ai" data-i18n="footer.contact">Contact</a></li>
+            <li><a href="mailto:privacy@fatnag.com" data-i18n="footer.contact">Contact</a></li>
           </ul>
         </div>
         <div>
@@ -278,7 +338,7 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <span>© <span id="y"></span> Human Analog Limited</span>
+        <span>© <span id="y"></span> fatnag</span>
         <span data-i18n="footer.bundle">Bundle app.thescale.ios · iOS 18+</span>
       </div>
     </div>

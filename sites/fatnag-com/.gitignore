@@ -3,3 +3,4 @@
 .full-deploy.json
 .vercel/
 .vercel
+.env*

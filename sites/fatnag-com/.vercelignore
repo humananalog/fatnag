@@ -1,0 +1,9 @@
+.wrangler
+.redeploy*.json
+.full-deploy.json
+assets/shots/alice
+assets/shots/bob
+assets/shots/qa-review.html
+assets/shots/web
+assets/shots/.gitkeep
+**/.DS_Store

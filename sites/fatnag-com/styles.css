@@ -1,21 +1,28 @@
-/* fatnag promo - dark-to-fired, blunt coach, not soft wellness */
+/* fatnag promo — Apple-grade product site, iPhone 17 layouts */
 
 :root {
   --ink: #050507;
   --void: #0a0a0c;
-  --ivory: #f4f1ea;
-  --mute: rgba(244, 241, 234, 0.55);
-  --faint: rgba(244, 241, 234, 0.28);
+  --ivory: #f5f5f7;
+  --mute: rgba(245, 245, 247, 0.58);
+  --faint: rgba(245, 245, 247, 0.32);
   --ember: #e85d4c;
   --ember-deep: #8a1f18;
   --lime: #c8f135;
   --glacier: #6ec8c4;
-  --panel: rgba(244, 241, 234, 0.05);
-  --line: rgba(244, 241, 234, 0.12);
+  --forest: #1a3d32;
+  --panel: rgba(245, 245, 247, 0.05);
+  --line: rgba(245, 245, 247, 0.12);
   --max: 1120px;
   --font-display: "Syne", "Arial Black", sans-serif;
   --font-body: "Figtree", "Helvetica Neue", sans-serif;
   --font-wordmark: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* iPhone 17 Pro Max–class (6.9") logical aspect */
+  --iphone-ratio: 440 / 956;
+  --iphone-radius: 21.5%;
+  --iphone-bezel: 0.85%;
+  --island-w: 26.5%;
+  --island-h: 2.85%;
 }
 
 *,
@@ -39,7 +46,8 @@ body {
   overflow-x: hidden;
 }
 
-img {
+img,
+video {
   max-width: 100%;
   display: block;
 }
@@ -57,15 +65,15 @@ button {
   color: inherit;
 }
 
-/* Atmosphere */
+/* Atmosphere — deep ink + forest glow (matches app dark home) */
 .fired-bg {
   position: fixed;
   inset: 0;
   z-index: -2;
   background:
-    radial-gradient(ellipse 90% 55% at 50% 115%, rgba(232, 93, 76, 0.45), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 80% 10%, rgba(110, 200, 196, 0.08), transparent 50%),
-    linear-gradient(180deg, #050507 0%, #12080a 42%, #1a0a08 72%, #2a0f0c 100%);
+    radial-gradient(ellipse 70% 45% at 72% 28%, rgba(26, 61, 50, 0.55), transparent 58%),
+    radial-gradient(ellipse 90% 50% at 50% 115%, rgba(232, 93, 76, 0.38), transparent 55%),
+    linear-gradient(180deg, #050507 0%, #0a100e 38%, #120a09 72%, #1a0c0a 100%);
 }
 
 .fired-bg::after {
@@ -73,8 +81,8 @@ button {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 30% 40%, rgba(232, 93, 76, 0.12), transparent 35%),
-    radial-gradient(circle at 70% 60%, rgba(200, 241, 53, 0.05), transparent 40%);
+    radial-gradient(circle at 28% 42%, rgba(200, 241, 53, 0.04), transparent 38%),
+    radial-gradient(circle at 78% 58%, rgba(232, 93, 76, 0.1), transparent 40%);
   animation: haze-drift 18s ease-in-out infinite alternate;
   pointer-events: none;
 }
@@ -94,7 +102,8 @@ button {
   position: sticky;
   top: 0;
   z-index: 40;
-  backdrop-filter: blur(14px);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
   background: rgba(5, 5, 7, 0.72);
   border-bottom: 1px solid transparent;
   transition: border-color 0.3s ease, background 0.3s ease;
@@ -109,11 +118,10 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 4rem;
+  min-height: 3.25rem;
   gap: 1rem;
 }
 
-/* Matches iOS FatnagWordmark / FatnagWordmark.svg: system sans, fat 300 + nag 800 */
 .wordmark {
   display: inline-flex;
   letter-spacing: -0.03em;
@@ -122,13 +130,8 @@ button {
   line-height: 1;
 }
 
-.wordmark .fat {
-  font-weight: 300;
-}
-
-.wordmark .nag {
-  font-weight: 800;
-}
+.wordmark .fat { font-weight: 300; }
+.wordmark .nag { font-weight: 800; }
 
 .nav-links {
   display: flex;
@@ -156,8 +159,8 @@ button {
   color: var(--ivory);
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 0.45rem;
-  padding: 0.45rem 1.85rem 0.45rem 0.7rem;
+  border-radius: 980px;
+  padding: 0.45rem 1.85rem 0.45rem 0.85rem;
   cursor: pointer;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--mute) 50%),
@@ -172,7 +175,7 @@ button {
 
 .lang-picker select:hover,
 .lang-picker select:focus {
-  border-color: rgba(244, 241, 234, 0.28);
+  border-color: rgba(245, 245, 247, 0.28);
   outline: none;
 }
 
@@ -215,7 +218,7 @@ html[dir="rtl"] .quote-block {
 }
 
 html[dir="rtl"] .lang-picker select {
-  padding: 0.45rem 0.7rem 0.45rem 1.85rem;
+  padding: 0.45rem 0.85rem 0.45rem 1.85rem;
   background-position:
     14px 55%,
     9px 55%;
@@ -226,11 +229,11 @@ html[dir="rtl"] .lang-picker select {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  padding: 0.85rem 1.25rem;
-  border-radius: 0.55rem;
+  padding: 0.85rem 1.35rem;
+  border-radius: 980px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .btn:hover {
@@ -253,18 +256,19 @@ html[dir="rtl"] .lang-picker select {
 }
 
 .btn-ghost:hover {
-  border-color: rgba(244, 241, 234, 0.28);
+  border-color: rgba(245, 245, 247, 0.28);
 }
 
 .btn-ember {
   background: linear-gradient(135deg, var(--ember), var(--ember-deep));
   color: var(--ivory);
+  box-shadow: 0 8px 28px rgba(232, 93, 76, 0.28);
 }
 
-/* Hero - one composition */
+/* Hero */
 .hero {
   position: relative;
-  min-height: calc(100svh - 4rem);
+  min-height: calc(100svh - 3.25rem);
   display: grid;
   align-items: end;
   padding: 2.5rem 0 3.5rem;
@@ -291,13 +295,8 @@ html[dir="rtl"] .lang-picker select {
   margin: 0 0 1.25rem;
 }
 
-.hero-brand .fat {
-  font-weight: 300;
-}
-
-.hero-brand .nag {
-  font-weight: 800;
-}
+.hero-brand .fat { font-weight: 300; }
+.hero-brand .nag { font-weight: 800; }
 
 .hero h1 {
   margin: 0 0 0.85rem;
@@ -335,147 +334,31 @@ html[dir="rtl"] .lang-picker select {
 .hero-meta span::before {
   content: "";
   display: inline-block;
-  width: 0.4rem;
-  height: 0.4rem;
+  width: 0.35rem;
+  height: 0.35rem;
   margin-right: 0.45rem;
-  border-radius: 1px;
-  background: var(--ember);
-  vertical-align: 0.1rem;
+  border-radius: 50%;
+  background: var(--lime);
+  vertical-align: 0.15rem;
 }
 
-/* Phone placeholder */
+/* ——— iPhone 17 device chrome ——— */
 .device-stage {
   position: relative;
-  min-height: 34rem;
-  display: grid;
-  place-items: end center;
-}
-
-.phone {
-  position: relative;
-  width: min(100%, 300px);
-  aspect-ratio: 9 / 19.2;
-  border-radius: 2.1rem;
-  background: linear-gradient(165deg, #2a2a32, #121218 55%, #1a1520);
-  border: 1px solid rgba(244, 241, 234, 0.28);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.5) inset,
-    0 28px 60px rgba(0, 0, 0, 0.65),
-    0 0 80px rgba(232, 93, 76, 0.18);
-  overflow: hidden;
-  transform: rotate(-6deg) translateY(8%);
-  animation: phone-in 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-@keyframes phone-in {
-  from { opacity: 0; transform: rotate(-10deg) translateY(18%) scale(0.96); }
-  to { opacity: 1; transform: rotate(-6deg) translateY(8%) scale(1); }
-}
-
-.phone-notch {
-  position: absolute;
-  top: 0.7rem;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 38%;
-  height: 1.1rem;
-  border-radius: 999px;
-  background: #050507;
-  z-index: 2;
-}
-
-.phone-screen {
-  position: absolute;
-  inset: 0.55rem;
-  border-radius: 1.65rem;
-  background:
-    linear-gradient(180deg, rgba(232, 93, 76, 0.18), transparent 40%),
-    linear-gradient(180deg, #12141a, #0a0c10);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 2.1rem 0.9rem 0.9rem;
-}
-
-.phone-screen.has-shot {
-  padding: 0;
-  background: #050507;
-}
-
-.shot-label {
-  position: absolute;
-  inset: 0;
+  min-height: 40rem;
   display: grid;
   place-items: center;
-  text-align: center;
-  padding: 1.25rem;
-  background:
-    linear-gradient(180deg, rgba(5, 5, 7, 0.15), rgba(5, 5, 7, 0.55)),
-    repeating-linear-gradient(
-      -45deg,
-      rgba(244, 241, 234, 0.06),
-      rgba(244, 241, 234, 0.06) 8px,
-      transparent 8px,
-      transparent 16px
-    );
-  z-index: 1;
-}
-
-.shot-label strong {
-  display: block;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.05rem;
-  letter-spacing: -0.03em;
-  margin-bottom: 0.35rem;
-  color: var(--ivory);
-}
-
-.shot-label span {
-  color: rgba(244, 241, 234, 0.7);
-  font-size: 0.82rem;
-  max-width: 16ch;
-}
-
-.phone-chrome {
-  position: relative;
-  z-index: 0;
-  opacity: 0.55;
-}
-
-.fake-row {
-  height: 0.55rem;
-  width: 42%;
-  background: rgba(244, 241, 234, 0.2);
-  border-radius: 2px;
-  margin-bottom: 0.85rem;
-}
-
-.fake-ring {
-  width: 5.5rem;
-  height: 5.5rem;
-  margin: 0.5rem auto 1rem;
-  border-radius: 50%;
-  border: 3px solid rgba(200, 241, 53, 0.55);
-  box-shadow: inset 0 0 0 10px rgba(200, 241, 53, 0.08);
-}
-
-.fake-block {
-  height: 3.4rem;
-  border-radius: 0.65rem;
-  background: rgba(244, 241, 234, 0.06);
-  border: 1px solid rgba(244, 241, 234, 0.08);
-  margin-bottom: 0.55rem;
+  padding-bottom: 1.5rem;
 }
 
 .device-glow {
   position: absolute;
-  width: 70%;
-  height: 40%;
-  bottom: 8%;
-  left: 15%;
-  background: radial-gradient(ellipse, rgba(232, 93, 76, 0.35), transparent 70%);
-  filter: blur(28px);
+  width: 90%;
+  height: 55%;
+  bottom: 4%;
+  left: 5%;
+  background: radial-gradient(ellipse, rgba(110, 200, 196, 0.22), transparent 70%);
+  filter: blur(40px);
   z-index: -1;
   animation: glow-pulse 5s ease-in-out infinite alternate;
 }
@@ -483,6 +366,161 @@ html[dir="rtl"] .lang-picker select {
 @keyframes glow-pulse {
   from { opacity: 0.55; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1.08); }
+}
+
+.iphone17 {
+  --phone-w: min(100%, 318px);
+  position: relative;
+  width: var(--phone-w);
+  aspect-ratio: var(--iphone-ratio);
+  transform: rotate(-3.5deg);
+  animation: phone-in 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  filter: drop-shadow(0 32px 56px rgba(0, 0, 0, 0.5));
+}
+
+.iphone17-sm {
+  --phone-w: min(100%, 260px);
+  margin-inline: auto;
+  transform: none;
+  animation: none;
+  filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.45));
+}
+
+.iphone17-gallery {
+  --phone-w: 100%;
+  transform: none;
+  animation: none;
+  filter: drop-shadow(0 18px 36px rgba(0, 0, 0, 0.42));
+}
+
+@keyframes phone-in {
+  from { opacity: 0; transform: rotate(-7deg) translateY(12%) scale(0.96); }
+  to { opacity: 1; transform: rotate(-3.5deg) scale(1); }
+}
+
+.iphone17-frame {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--iphone-radius);
+  background:
+    linear-gradient(155deg, #5a5a64 0%, #2a2a32 18%, #121218 55%, #1e1e24 82%, #3c3c46 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+.iphone17-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: var(--iphone-bezel);
+  background: linear-gradient(180deg, #1a1a1f, #050507);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.iphone17-island {
+  position: absolute;
+  top: 2.15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--island-w);
+  height: var(--island-h);
+  border-radius: 999px;
+  background: #000;
+  z-index: 4;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.iphone17-island::after {
+  content: "";
+  position: absolute;
+  right: 18%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #1a2430 0%, #05080c 70%);
+  box-shadow: inset 0 0 0 1px rgba(110, 200, 196, 0.15);
+}
+
+.iphone17-screen {
+  position: absolute;
+  inset: var(--iphone-bezel);
+  border-radius: calc(var(--iphone-radius) - 1.5%);
+  overflow: hidden;
+  background: #000;
+}
+
+.iphone17-screen .shot-img,
+.iphone17-screen .hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.iphone17-screen .hero-video {
+  z-index: 2;
+}
+
+.iphone17-screen .hero-fallback {
+  z-index: 1;
+}
+
+.iphone17-screen.is-playing .hero-fallback {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hardware buttons */
+.iphone17-btn {
+  position: absolute;
+  background: linear-gradient(90deg, #2a2a30, #121216);
+  border-radius: 2px;
+  z-index: 0;
+}
+
+.iphone17-btn-silent {
+  left: -2px;
+  top: 18%;
+  width: 3px;
+  height: 4.5%;
+}
+
+.iphone17-btn-vol-up {
+  left: -2px;
+  top: 26%;
+  width: 3px;
+  height: 7%;
+}
+
+.iphone17-btn-vol-down {
+  left: -2px;
+  top: 35%;
+  width: 3px;
+  height: 7%;
+}
+
+.iphone17-btn-power {
+  right: -2px;
+  top: 28%;
+  width: 3px;
+  height: 11%;
 }
 
 /* Sections */
@@ -520,12 +558,11 @@ section {
   margin-bottom: 2.5rem;
 }
 
-/* Works with */
 .works {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  padding: 2.5rem 0;
-  background: rgba(0, 0, 0, 0.25);
+  padding: 2.25rem 0;
+  background: rgba(0, 0, 0, 0.22);
 }
 
 .works-row {
@@ -555,16 +592,15 @@ section {
 }
 
 .works-list li {
-  padding: 0.55rem 0.9rem;
+  padding: 0.55rem 0.95rem;
   border: 1px solid var(--line);
-  border-radius: 0.45rem;
+  border-radius: 980px;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--mute);
   background: var(--panel);
 }
 
-/* Feature split */
 .feature {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -572,8 +608,12 @@ section {
   align-items: center;
 }
 
-.feature:nth-child(even) .feature-visual {
+.feature-flip .feature-visual {
   order: -1;
+}
+
+.feature + .feature {
+  margin-top: 4.5rem;
 }
 
 .feature-copy h3 {
@@ -589,6 +629,10 @@ section {
   margin: 0 0 1.25rem;
   color: var(--mute);
   max-width: 36ch;
+}
+
+.feature-aside {
+  margin-top: -0.35rem !important;
 }
 
 .feature-points {
@@ -618,112 +662,37 @@ section {
   border-radius: 1px;
 }
 
-/* Screenshot placeholders grid */
+.feature-visual {
+  display: grid;
+  place-items: center;
+}
+
+/* Product gallery */
 .shots {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+  gap: 1.25rem 1rem;
+  align-items: start;
 }
 
-.shot-card {
-  position: relative;
-  aspect-ratio: 9 / 16;
-  border-radius: 1.25rem;
-  border: 1px solid var(--line);
-  background: linear-gradient(165deg, #15171d, #0b0c10);
-  overflow: hidden;
-  min-height: 16rem;
+.shot-phone {
+  margin: 0;
+  text-align: center;
 }
 
-.shot-card .shot-img,
-.phone-screen .shot-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
-  display: block;
-}
-
-.shot-card .shot-label {
-  background:
-    linear-gradient(180deg, rgba(232, 93, 76, 0.1), transparent 40%),
-    repeating-linear-gradient(
-      -45deg,
-      rgba(244, 241, 234, 0.035),
-      rgba(244, 241, 234, 0.035) 6px,
-      transparent 6px,
-      transparent 12px
-    );
-}
-
-.shot-card:nth-child(2) .shot-label {
-  background:
-    linear-gradient(180deg, rgba(200, 241, 53, 0.1), transparent 45%),
-    repeating-linear-gradient(-45deg, rgba(244, 241, 234, 0.035), rgba(244, 241, 234, 0.035) 6px, transparent 6px, transparent 12px);
-}
-
-.shot-card:nth-child(3) .shot-label {
-  background:
-    linear-gradient(180deg, rgba(110, 200, 196, 0.12), transparent 45%),
-    repeating-linear-gradient(-45deg, rgba(244, 241, 234, 0.035), rgba(244, 241, 234, 0.035) 6px, transparent 6px, transparent 12px);
-}
-
-.shot-card:nth-child(4) .shot-label {
-  background:
-    linear-gradient(180deg, rgba(244, 241, 234, 0.08), transparent 45%),
-    repeating-linear-gradient(-45deg, rgba(244, 241, 234, 0.035), rgba(244, 241, 234, 0.035) 6px, transparent 6px, transparent 12px);
-}
-
-.phone-screen .shot-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
-  z-index: 3;
-  border-radius: inherit;
-}
-
-.phone-screen:has(.shot-img:not([style*="display: none"])) .phone-chrome,
-.phone-screen:has(.shot-img:not([style*="display: none"])) .shot-label-fallback,
-.phone-screen.has-shot .phone-chrome,
-.phone-screen.has-shot .shot-label-fallback {
-  display: none;
-}
-
-.shot-card .shot-img {
-  z-index: 1;
-}
-
-.shot-card:has(.shot-img:not([style*="display: none"])) .shot-label-fallback,
-.shot-card.has-shot .shot-label-fallback {
-  display: none;
-}
-
-.shot-badge {
-  position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  z-index: 2;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+.shot-phone figcaption {
+  margin-top: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--faint);
-  border: 1px solid var(--line);
-  padding: 0.3rem 0.5rem;
-  border-radius: 0.3rem;
-  background: rgba(5, 5, 7, 0.55);
 }
 
-/* Coach / privacy strips */
 .strip {
-  border-radius: 1.25rem;
+  border-radius: 1.75rem;
   border: 1px solid var(--line);
-  background: linear-gradient(135deg, rgba(232, 93, 76, 0.12), rgba(5, 5, 7, 0.4) 45%, rgba(110, 200, 196, 0.08));
+  background: linear-gradient(135deg, rgba(26, 61, 50, 0.35), rgba(5, 5, 7, 0.5) 45%, rgba(232, 93, 76, 0.1));
   padding: clamp(1.75rem, 4vw, 3rem);
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -732,7 +701,7 @@ section {
 }
 
 .strip-privacy {
-  background: linear-gradient(135deg, rgba(110, 200, 196, 0.1), rgba(5, 5, 7, 0.5));
+  background: linear-gradient(135deg, rgba(26, 61, 50, 0.4), rgba(5, 5, 7, 0.55));
 }
 
 .strip p {
@@ -741,9 +710,17 @@ section {
   max-width: 40ch;
 }
 
+.strip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
+}
+
 .quote-block {
   border-left: 3px solid var(--ember);
   padding-left: 1rem;
+  margin-top: 1.5rem;
   color: var(--ivory);
   font-family: var(--font-display);
   font-weight: 600;
@@ -752,7 +729,6 @@ section {
   line-height: 1.3;
 }
 
-/* Final CTA */
 .cta {
   text-align: center;
   padding: 6rem 0 5rem;
@@ -774,7 +750,6 @@ section {
   gap: 0.75rem;
 }
 
-/* Footer */
 .footer {
   border-top: 1px solid var(--line);
   padding: 2.5rem 0 3rem;
@@ -834,7 +809,6 @@ section {
   justify-content: space-between;
 }
 
-/* Reveal motion */
 .reveal {
   opacity: 0;
   transform: translateY(18px);
@@ -848,7 +822,7 @@ section {
 
 @media (prefers-reduced-motion: reduce) {
   .fired-bg::after,
-  .phone,
+  .iphone17,
   .device-glow {
     animation: none !important;
   }
@@ -867,12 +841,17 @@ section {
     grid-template-columns: 1fr;
   }
 
-  .feature:nth-child(even) .feature-visual {
+  .feature-flip .feature-visual {
     order: 0;
+  }
+
+  .strip-actions {
+    justify-content: flex-start;
   }
 
   .shots {
     grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem 0.85rem;
   }
 
   .nav-links .hide-sm {
@@ -890,28 +869,32 @@ section {
   }
 
   .device-stage {
-    min-height: 28rem;
+    min-height: 32rem;
     order: -1;
   }
 
-  .phone {
-    transform: rotate(-3deg) translateY(0);
-    width: min(100%, 240px);
+  .iphone17 {
+    --phone-w: min(100%, 248px);
+    transform: rotate(-2.5deg);
   }
 
   @keyframes phone-in {
-    from { opacity: 0; transform: rotate(-6deg) translateY(12%) scale(0.96); }
-    to { opacity: 1; transform: rotate(-3deg) translateY(0) scale(1); }
+    from { opacity: 0; transform: rotate(-5deg) translateY(10%) scale(0.96); }
+    to { opacity: 1; transform: rotate(-2.5deg) scale(1); }
   }
 }
 
 @media (max-width: 520px) {
   .shots {
     grid-template-columns: 1fr 1fr;
-    gap: 0.65rem;
+    gap: 1.15rem 0.65rem;
   }
 
   .wrap {
     width: min(var(--max), calc(100% - 1.5rem));
+  }
+
+  .iphone17-sm {
+    --phone-w: min(100%, 220px);
   }
 }
